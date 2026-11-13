@@ -125,14 +125,16 @@ class SurfaceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: colors.card,
+    // Material, not a decorated Container: ListTiles inside paint their ink on
+    // the nearest Material ancestor and would otherwise be invisible.
+    return Material(
+      color: colors.card,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadii.rCard),
-        border: Border.all(color: colors.hairline),
+        side: BorderSide(color: colors.hairline),
       ),
-      child: child,
+      child: Padding(padding: padding, child: child),
     );
   }
 }

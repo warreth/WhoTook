@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:whotook/core/models/models.dart';
@@ -10,7 +9,6 @@ import 'package:whotook/core/qr/invite_codec.dart';
 import 'package:whotook/core/storage/settings_repository.dart';
 import 'package:whotook/state/match_coordinator.dart';
 import 'package:whotook/transport/game_transport.dart';
-import 'package:whotook/transport/local_ws_transport.dart';
 
 import '../support/test_photo_library.dart';
 
