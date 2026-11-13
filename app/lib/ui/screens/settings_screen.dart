@@ -24,9 +24,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    final settings = ref.read(appSettingsProvider).value;
-    _name.text = settings?.nickname ?? '';
+    unawaited(_loadName());
     unawaited(_loadAlbums());
+  }
+
+  /// The settings provider is still loading on the first frame, so the field is
+  /// filled once the stored value arrives instead of showing an empty box.
+  Future<void> _loadName() async {
+    final settings = await ref.read(appSettingsProvider.future);
+    if (!mounted) return;
+    _name.text = settings.nickname;
   }
 
   @override

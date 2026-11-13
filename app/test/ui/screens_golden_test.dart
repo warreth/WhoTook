@@ -18,6 +18,9 @@ import 'package:whotook/ui/screens/onboarding_screen.dart';
 import 'package:whotook/ui/screens/podium_screen.dart';
 import 'package:whotook/ui/screens/prepare_screen.dart';
 import 'package:whotook/ui/screens/round_screen.dart';
+import 'package:whotook/ui/screens/settings_screen.dart';
+
+import '../support/test_photo_library.dart';
 
 /// Renders every screen at phone size so the layout can be checked visually and
 /// changes are caught by the golden diff.
@@ -97,6 +100,27 @@ void main() {
     await expectLater(
       find.byType(RoundScreen),
       matchesGoldenFile('goldens/round.png'),
+    );
+  });
+
+  testWidgets('settings', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appSettingsProvider.overrideWith(() => _FixedSettings(_settings())),
+          photoLibraryProvider.overrideWithValue(TestPhotoLibrary()),
+        ],
+        child: MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: buildWhoTookTheme(Brightness.light),
+          home: const SettingsScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(SettingsScreen),
+      matchesGoldenFile('goldens/settings.png'),
     );
   });
 
