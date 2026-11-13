@@ -13,6 +13,11 @@ room while everybody races to guess whose it was.
   daily per-network relay quota, so the free tiers hold.
 - **License:** [GNU AGPLv3](LICENSE).
 
+[![CI](https://github.com/warreth/WhoTook/actions/workflows/ci.yml/badge.svg)](https://github.com/warreth/WhoTook/actions/workflows/ci.yml)
+
+Continuous integration builds the worker and its tests, runs the app tests and an
+Android APK, and compiles iOS without codesigning on every push.
+
 ## Layout
 
 | Path | What it is |
