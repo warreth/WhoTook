@@ -423,12 +423,16 @@ class EmptyState extends StatelessWidget {
     required this.body,
     this.actionLabel,
     this.onAction,
+    this.primaryAction = false,
   });
 
   final String title;
   final String body;
   final String? actionLabel;
   final VoidCallback? onAction;
+
+  /// Marks the action as the one that unblocks the screen.
+  final bool primaryAction;
 
   @override
   Widget build(BuildContext context) {
@@ -445,7 +449,10 @@ class EmptyState extends StatelessWidget {
         Text(body, style: TextStyle(fontSize: 13, color: colors.ink2)),
         if (actionLabel != null && onAction != null) ...<Widget>[
           const SizedBox(height: AppSpacing.s16),
-          SecondaryButton(label: actionLabel!, onPressed: onAction),
+          if (primaryAction)
+            PrimaryButton(label: actionLabel!, onPressed: onAction)
+          else
+            SecondaryButton(label: actionLabel!, onPressed: onAction),
         ],
       ],
     );

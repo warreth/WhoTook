@@ -76,21 +76,30 @@ class RoundScreen extends ConsumerWidget {
                         : coordinator.clientSubmitGuess(ownerId),
                   ),
                 ),
-                if (state.screenshotAlerts.isNotEmpty) ...<Widget>[
-                  const SizedBox(height: AppSpacing.s8),
-                  NoticeBanner(
-                    message:
+                const SizedBox(height: AppSpacing.s8),
+                if (state.screenshotAlerts.isNotEmpty)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      Icon(
+                        Icons.camera_alt_outlined,
+                        size: 14,
+                        color: colors.ink2,
+                      ),
+                      const SizedBox(width: AppSpacing.s4),
+                      Text(
                         '${state.screenshotAlerts.last.playerName} took a screenshot',
-                    icon: Icons.camera_alt_outlined,
+                        style: TextStyle(fontSize: 13, color: colors.ink2),
+                      ),
+                    ],
                   ),
-                ],
                 const SizedBox(height: AppSpacing.s8),
                 Text(
                   state.lockedGuessOwnerId == null
                       ? 'Everyone sees the same names, including their own'
                       : 'Locked in, waiting for the others',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: colors.ink3),
+                  style: TextStyle(fontSize: 13, color: colors.ink2),
                 ),
               ],
             ],
@@ -184,7 +193,7 @@ class _TimerBar extends StatelessWidget {
         Row(
           children: <Widget>[
             Text(
-              '${seconds}s',
+              '$seconds s left',
               style: tabularFigures(
                 TextStyle(
                   fontFamily: 'JetBrainsMono',
