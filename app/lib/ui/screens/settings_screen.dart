@@ -70,12 +70,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.s20),
           children: <Widget>[
-            SectionLabel('Name'),
             TextField(
               controller: _name,
               textCapitalization: TextCapitalization.words,
               decoration: InputDecoration(
-                labelText: 'Shown to other players',
+                labelText: 'Name',
+                helperText: 'Shown to other players',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadii.rControl),
                 ),
@@ -94,7 +94,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 children: <Widget>[
                   for (final preference in ThemePreference.values)
                     ListTile(
-                      dense: true,
+                      minTileHeight: 56,
                       title: Text(switch (preference) {
                         ThemePreference.system => 'Follow the device',
                         ThemePreference.light => 'Light',
@@ -201,9 +201,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               style: TextStyle(fontSize: 13, color: colors.ink2, height: 1.45),
             ),
             const SizedBox(height: AppSpacing.s24),
+            const SectionLabel('About'),
+            Divider(color: colors.hairline, height: 1),
+            const SizedBox(height: AppSpacing.s12),
             Text(
               'WhoTook is open source under the AGPLv3. Photos are processed on device and never stored on a server.',
-              style: TextStyle(fontSize: 12, color: colors.ink3, height: 1.45),
+              style: TextStyle(fontSize: 13, color: colors.ink2, height: 1.45),
             ),
           ],
         ),

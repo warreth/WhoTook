@@ -70,7 +70,7 @@ class LobbyScreen extends ConsumerWidget {
                       child: QrImageView(
                         data: state.inviteUrl!,
                         version: QrVersions.auto,
-                        size: 160,
+                        size: 132,
                         backgroundColor: Colors.white,
                         eyeStyle: const QrEyeStyle(
                           eyeShape: QrEyeShape.square,
@@ -92,9 +92,8 @@ class LobbyScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: AppSpacing.s4),
                     Text(
-                      'Everyone points their camera at the host screen',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12, color: colors.ink2),
+                      'Works from any camera app',
+                      style: TextStyle(fontSize: 13, color: colors.ink2),
                     ),
                     const SizedBox(height: AppSpacing.s16),
                     SecondaryButton(
@@ -103,11 +102,11 @@ class LobbyScreen extends ConsumerWidget {
                       onPressed: () => _shareInvite(context, state),
                     ),
                     const SizedBox(height: AppSpacing.s12),
-                    StatusRow(
-                      label: state.connectionMode == ConnectionMode.localLan
+                    Text(
+                      state.connectionMode == ConnectionMode.localLan
                           ? 'Local Wi-Fi, no server'
                           : 'Online relay',
-                      tone: StatusTone.positive,
+                      style: TextStyle(fontSize: 13, color: colors.ink2),
                     ),
                   ],
                 ),
@@ -121,6 +120,10 @@ class LobbyScreen extends ConsumerWidget {
                     Row(
                       children: <Widget>[
                         IconButton.outlined(
+                          constraints: const BoxConstraints.tightFor(
+                            width: 48,
+                            height: 44,
+                          ),
                           tooltip: 'Fewer rounds',
                           onPressed: state.config.roundsK > 1
                               ? () => unawaited(
@@ -146,6 +149,10 @@ class LobbyScreen extends ConsumerWidget {
                           ),
                         ),
                         IconButton.outlined(
+                          constraints: const BoxConstraints.tightFor(
+                            width: 48,
+                            height: 48,
+                          ),
                           tooltip: 'More rounds',
                           onPressed: state.config.roundsK < 40
                               ? () => unawaited(
@@ -161,13 +168,13 @@ class LobbyScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: AppSpacing.s16),
+              const SizedBox(height: AppSpacing.s12),
             ] else
               NoticeBanner(
                 message: 'Waiting for the host to start',
                 icon: Icons.hourglass_empty,
               ),
-            const SizedBox(height: AppSpacing.s16),
+            const SizedBox(height: AppSpacing.s8),
             SurfaceCard(
               padding: EdgeInsets.zero,
               child: Column(

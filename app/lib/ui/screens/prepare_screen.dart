@@ -73,7 +73,7 @@ class PrepareScreen extends ConsumerWidget {
                   crossAxisCount: 2,
                   mainAxisSpacing: AppSpacing.s12,
                   crossAxisSpacing: AppSpacing.s12,
-                  childAspectRatio: 0.92,
+                  childAspectRatio: 0.84,
                 ),
                 itemBuilder: (context, index) {
                   final candidate = state.candidates[index];
@@ -234,7 +234,7 @@ class _CandidateTile extends StatelessWidget {
                   _PhotoBytes(bytes: candidate.bytes, fit: BoxFit.cover),
                   Positioned(
                     left: AppSpacing.s8,
-                    bottom: AppSpacing.s8,
+                    top: AppSpacing.s8,
                     child: _NumberTag(
                       label: (index + 1).toString().padLeft(2, '0'),
                     ),
@@ -243,16 +243,19 @@ class _CandidateTile extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: AppSpacing.s4),
           SizedBox(
-            height: 40,
+            height: 44,
+            width: double.infinity,
             child: TextButton.icon(
               onPressed: onSwap,
               icon: const Icon(Icons.swap_horiz, size: 16),
-              label: const Text('Swap', style: TextStyle(fontSize: 12)),
+              label: const Text('Swap', style: TextStyle(fontSize: 13)),
               style: TextButton.styleFrom(
                 foregroundColor: colors.ink2,
                 padding: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadii.rSm),
+                ),
               ),
             ),
           ),
@@ -345,6 +348,7 @@ class _PlantTile extends StatelessWidget {
                   ],
                 ),
               ),
+              Icon(Icons.chevron_right, size: 18, color: colors.ink3),
             ],
           ),
         ),

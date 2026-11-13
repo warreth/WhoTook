@@ -173,30 +173,24 @@ class _PodiumBar extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             '${player.score}',
-            style: tabularFigures(TextStyle(fontSize: 12, color: colors.ink2)),
+            style: tabularFigures(
+              TextStyle(
+                fontFamily: 'JetBrainsMono',
+                fontSize: 12,
+                color: colors.ink2,
+              ),
+            ),
           ),
           const SizedBox(height: AppSpacing.s8),
           Container(
             height: height,
             margin: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
-            alignment: Alignment.topCenter,
-            padding: const EdgeInsets.only(top: AppSpacing.s8),
             decoration: BoxDecoration(
               color: place == 1 ? colors.accent : colors.raised,
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(AppRadii.rSm),
               ),
               border: Border.all(color: colors.hairline),
-            ),
-            child: Text(
-              '$place',
-              style: tabularFigures(
-                TextStyle(
-                  fontFamily: 'JetBrainsMono',
-                  fontSize: 12,
-                  color: place == 1 ? colors.onAccent : colors.ink2,
-                ),
-              ),
             ),
           ),
         ],

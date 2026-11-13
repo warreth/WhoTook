@@ -124,7 +124,7 @@ abstract final class AppSpacing {
 /// Nested radius rule: print matte 6 inside card 14, modal 16.
 abstract final class AppRadii {
   static const double rSm = 6;
-  static const double rControl = 10;
+  static const double rControl = 12;
   static const double rCard = 14;
   static const double rModal = 16;
 }

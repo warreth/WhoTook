@@ -152,8 +152,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         ],
                       )
                     : EmptyState(
-                        title: 'Album list not loaded yet',
-                        body: 'Allow photo access to choose which folders can be used.',
+                        title: 'Albums are not loaded',
+                        body: 'Photos are only read after you allow access.',
                         actionLabel: 'Allow photo access',
                         onAction: _loadAlbums,
                       ),
@@ -198,12 +198,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ),
               const SizedBox(height: AppSpacing.s12),
             ],
-            PrimaryButton(label: 'Continue', onPressed: _finish),
+            if (_albums.isEmpty)
+              SecondaryButton(label: 'Continue', onPressed: _finish)
+            else
+              PrimaryButton(label: 'Continue', onPressed: _finish),
             const SizedBox(height: AppSpacing.s12),
             Text(
               'Photos are compressed on this device and only shared with the players in your match.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: colors.ink3),
+              style: TextStyle(fontSize: 13, color: colors.ink2),
             ),
           ],
         ),

@@ -56,95 +56,79 @@ class HomeScreen extends ConsumerWidget {
         ),
       ),
       body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) => SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.s24,
-              AppSpacing.s16,
-              AppSpacing.s24,
-              AppSpacing.s24,
-            ),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: constraints.maxHeight - AppSpacing.s32,
-              ),
-              child: IntrinsicHeight(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        WhoTookMark(size: 28, color: colors.accent),
-                        const SizedBox(width: AppSpacing.s12),
-                        const Expanded(
-                          child: Text(
-                            'WhoTook',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: -0.6,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => const SettingsScreen(),
-                            ),
-                          ),
-                          icon: const Icon(Icons.settings_outlined),
-                          tooltip: 'Settings',
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.s24),
-                    _ExclusionSummary(
-                      count: settings?.excludedAlbumIds.length ?? 0,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const SettingsScreen(),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.s16),
-                    if (state.turnLimitNotice != null) ...<Widget>[
-                      NoticeBanner(
-                        message: 'Online relay is used up for today. Join the same Wi-Fi or a hotspot to keep playing.',
-                        tone: StatusTone.warning,
-                        icon: Icons.wifi_tethering,
-                      ),
-                      const SizedBox(height: AppSpacing.s12),
-                    ],
-                    if (state.errorMessage != null) ...<Widget>[
-                      NoticeBanner(
-                        message: state.errorMessage!,
-                        tone: StatusTone.warning,
-                        icon: Icons.error_outline,
-                      ),
-                      const SizedBox(height: AppSpacing.s12),
-                    ],
-                    _MatchPreset(
-                      config: state.config,
-                      onRounds: (rounds) =>
-                          unawaited(coordinator.setRounds(rounds)),
-                      onSeconds: (seconds) =>
-                          unawaited(coordinator.setRoundSeconds(seconds)),
-                    ),
-                    const SizedBox(height: AppSpacing.s16),
-                    Text(
-                      'Photos stay on your device and go only to the players in the match.',
-                      textAlign: TextAlign.center,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.s24,
+            AppSpacing.s16,
+            AppSpacing.s24,
+            AppSpacing.s24,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  WhoTookMark(size: 28, color: colors.accent),
+                  const SizedBox(width: AppSpacing.s12),
+                  const Expanded(
+                    child: Text(
+                      'WhoTook',
                       style: TextStyle(
-                        fontSize: 12,
-                        color: colors.ink3,
-                        height: 1.4,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.6,
                       ),
                     ),
-                    const Spacer(),
-                  ],
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const SettingsScreen(),
+                      ),
+                    ),
+                    icon: const Icon(Icons.settings_outlined),
+                    tooltip: 'Settings',
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.s24),
+              _ExclusionSummary(
+                count: settings?.excludedAlbumIds.length ?? 0,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const SettingsScreen(),
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(height: AppSpacing.s16),
+              if (state.turnLimitNotice != null) ...<Widget>[
+                NoticeBanner(
+                  message: 'Online relay is used up for today. Join the same Wi-Fi or a hotspot to keep playing.',
+                  tone: StatusTone.warning,
+                  icon: Icons.wifi_tethering,
+                ),
+                const SizedBox(height: AppSpacing.s12),
+              ],
+              if (state.errorMessage != null) ...<Widget>[
+                NoticeBanner(
+                  message: state.errorMessage!,
+                  tone: StatusTone.warning,
+                  icon: Icons.error_outline,
+                ),
+                const SizedBox(height: AppSpacing.s12),
+              ],
+              _MatchPreset(
+                config: state.config,
+                onRounds: (rounds) => unawaited(coordinator.setRounds(rounds)),
+                onSeconds: (seconds) =>
+                    unawaited(coordinator.setRoundSeconds(seconds)),
+              ),
+              const SizedBox(height: AppSpacing.s12),
+              Text(
+                'Photos stay on your device and go only to the players in the match.',
+                style: TextStyle(fontSize: 13, color: colors.ink2, height: 1.4),
+              ),
+            ],
           ),
         ),
       ),
@@ -233,31 +217,42 @@ class _MatchPreset extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const SectionLabel('Match length'),
-          Wrap(
-            spacing: AppSpacing.s8,
-            runSpacing: AppSpacing.s8,
+          const SectionLabel('Rounds per match'),
+          Row(
             children: <Widget>[
               for (final rounds in <int>[5, 10, 15, 20])
-                _PresetChip(
-                  label: '$rounds rounds',
-                  selected: config.roundsK == rounds,
-                  onTap: () => onRounds(rounds),
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      right: rounds == 20 ? 0 : AppSpacing.s8,
+                    ),
+                    child: _PresetChip(
+                      label: '$rounds',
+                      selected: config.roundsK == rounds,
+                      onTap: () => onRounds(rounds),
+                      mono: true,
+                    ),
+                  ),
                 ),
             ],
           ),
-          const SizedBox(height: AppSpacing.s12),
+          const SizedBox(height: AppSpacing.s16),
           const SectionLabel('Seconds per photo'),
-          Wrap(
-            spacing: AppSpacing.s8,
-            runSpacing: AppSpacing.s8,
+          Row(
             children: <Widget>[
               for (final seconds in <int>[6, 8, 12])
-                _PresetChip(
-                  label: '${seconds}s',
-                  selected: config.roundSeconds == seconds,
-                  onTap: () => onSeconds(seconds),
-                  mono: true,
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      right: seconds == 12 ? 0 : AppSpacing.s8,
+                    ),
+                    child: _PresetChip(
+                      label: '$seconds',
+                      selected: config.roundSeconds == seconds,
+                      onTap: () => onSeconds(seconds),
+                      mono: true,
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -291,7 +286,7 @@ class _PresetChip extends StatelessWidget {
     final style = TextStyle(
       fontSize: 13,
       fontWeight: FontWeight.w500,
-      color: selected ? colors.onAccent : colors.ink2,
+      color: selected ? colors.bg : colors.ink2,
       fontFamily: mono ? 'JetBrainsMono' : null,
     );
     return Semantics(
@@ -301,14 +296,11 @@ class _PresetChip extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadii.rSm),
         child: Container(
-          constraints: const BoxConstraints(minHeight: 44),
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.s16,
-            vertical: AppSpacing.s12,
-          ),
+          height: 48,
+          alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: selected ? colors.accent : colors.raised,
-            borderRadius: BorderRadius.circular(AppRadii.rSm),
+            color: selected ? colors.ink : colors.raised,
+            borderRadius: BorderRadius.circular(AppRadii.rControl),
             border: Border.all(color: colors.hairline),
           ),
           child: Text(label, style: style),
