@@ -59,7 +59,7 @@ void main() {
     expect(AppSpacing.s24, 24);
     expect(AppSpacing.s32, 32);
     expect(AppRadii.rSm, 6);
-    expect(AppRadii.rControl, 10);
+    expect(AppRadii.rControl, 12);
     expect(AppRadii.rCard, 14);
     expect(AppRadii.rModal, 16);
     expect(AppRadii.rSm, lessThan(AppRadii.rCard));
