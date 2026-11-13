@@ -108,25 +108,28 @@ void main() {
       expect(slowLocal.closed, isTrue);
     });
 
-    test('goes straight online when the invite carries no LAN endpoint', () async {
-      final online = _FakeClient(label: 'online');
-      var localCalls = 0;
-      final connector = HybridConnector(
-        localClientFactory: (_, _) {
-          localCalls += 1;
-          return _FakeClient(label: 'local');
-        },
-        onlineClientFactory: () => online,
-      );
+    test(
+      'goes straight online when the invite carries no LAN endpoint',
+      () async {
+        final online = _FakeClient(label: 'online');
+        var localCalls = 0;
+        final connector = HybridConnector(
+          localClientFactory: (_, _) {
+            localCalls += 1;
+            return _FakeClient(label: 'local');
+          },
+          onlineClientFactory: () => online,
+        );
 
-      final picked = await connector.connect(
-        invite: _invite(),
-        settings: const AppSettings(),
-      );
+        final picked = await connector.connect(
+          invite: _invite(),
+          settings: const AppSettings(),
+        );
 
-      expect(identical(picked, online), isTrue);
-      expect(localCalls, 0);
-    });
+        expect(identical(picked, online), isTrue);
+        expect(localCalls, 0);
+      },
+    );
 
     test('surfaces TURN quota exhaustion instead of a generic error', () async {
       final notice = TurnLimitNotice(
@@ -166,10 +169,7 @@ void main() {
         }),
       );
 
-      final config = await client.fetch(
-        roomId: 'room1234',
-        token: 'secret',
-      );
+      final config = await client.fetch(roomId: 'room1234', token: 'secret');
 
       expect(config.turnAllowed, isTrue);
       expect(config.usedToday, 1);

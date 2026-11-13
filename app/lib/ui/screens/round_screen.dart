@@ -56,7 +56,7 @@ class RoundScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.s12),
-              _PhotoFrame(bytes: state.activePhotoBytes),
+              Expanded(child: _PhotoFrame(bytes: state.activePhotoBytes)),
               const SizedBox(height: AppSpacing.s12),
               if (showingReveal)
                 _RevealBlock(reveal: reveal, players: state.players)
@@ -66,14 +66,6 @@ class RoundScreen extends ConsumerWidget {
                   remainingMs: state.remainingMs,
                   totalMs: (state.config.roundSeconds * 1000).clamp(1, 60000),
                 ),
-                if (state.screenshotAlerts.isNotEmpty) ...<Widget>[
-                  const SizedBox(height: AppSpacing.s8),
-                  NoticeBanner(
-                    message:
-                        '${state.screenshotAlerts.last.playerName} took a screenshot',
-                    icon: Icons.camera_alt_outlined,
-                  ),
-                ],
                 const SizedBox(height: AppSpacing.s12),
                 _GuessGrid(
                   options: state.activeRoundOptions,
@@ -84,13 +76,22 @@ class RoundScreen extends ConsumerWidget {
                         : coordinator.clientSubmitGuess(ownerId),
                   ),
                 ),
+                if (state.screenshotAlerts.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: AppSpacing.s8),
+                  NoticeBanner(
+                    message:
+                        '${state.screenshotAlerts.last.playerName} took a screenshot',
+                    icon: Icons.camera_alt_outlined,
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.s8),
                 Text(
-                  'Everyone sees the same names, including their own',
+                  state.lockedGuessOwnerId == null
+                      ? 'Everyone sees the same names, including their own'
+                      : 'Locked in, waiting for the others',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 12, color: colors.ink3),
                 ),
-                const Spacer(),
               ],
             ],
           ),
@@ -108,34 +109,24 @@ class _PhotoFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxHeight: 340),
-      child: AspectRatio(
-        aspectRatio: 4 / 3,
-        child: Container(
-        decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: BorderRadius.circular(AppRadii.rCard),
-          border: Border.all(color: colors.hairline),
-        ),
-        padding: const EdgeInsets.all(AppSpacing.s8),
-          child: Stack(
-            fit: StackFit.expand,
-            children: <Widget>[
-              ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadii.rSm),
-                child: _Photo(bytes: bytes),
-              ),
-              Positioned.fill(
-                child: CropFrameOverlay(
-                  color: colors.ink,
-                  inset: 4,
-                  armLength: 14,
-                ),
-              ),
-            ],
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(AppRadii.rCard),
+        border: Border.all(color: colors.hairline),
+      ),
+      padding: const EdgeInsets.all(AppSpacing.s8),
+      child: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadii.rSm),
+            child: _Photo(bytes: bytes),
           ),
-        ),
+          Positioned.fill(
+            child: CropFrameOverlay(color: colors.ink, inset: 4, armLength: 14),
+          ),
+        ],
       ),
     );
   }
@@ -193,7 +184,7 @@ class _TimerBar extends StatelessWidget {
         Row(
           children: <Widget>[
             Text(
-              '$seconds s',
+              '${seconds}s',
               style: tabularFigures(
                 TextStyle(
                   fontFamily: 'JetBrainsMono',
@@ -249,17 +240,14 @@ class _GuessGrid extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: AppSpacing.s8),
           child: Row(
             children: <Widget>[
-              for (var column = 0; column < 2; column++)
+              for (var column = 0; column < 2; column++) ...<Widget>[
+                if (column == 1) const SizedBox(width: AppSpacing.s8),
                 Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      right: column == 0 ? AppSpacing.s8 : 0,
-                    ),
-                    child: i + column < options.length
-                        ? _guessButton(context, options[i + column])
-                        : const SizedBox.shrink(),
-                  ),
+                  child: i + column < options.length
+                      ? _guessButton(context, options[i + column])
+                      : const SizedBox.shrink(),
                 ),
+              ],
             ],
           ),
         ),
@@ -271,8 +259,9 @@ class _GuessGrid extends StatelessWidget {
   Widget _guessButton(BuildContext context, Player player) {
     final colors = WhoTookColors.of(context);
     final picked = lockedOwnerId == player.id;
+    final dimmed = lockedOwnerId != null && !picked;
     return Material(
-      color: picked ? colors.ink : colors.card,
+      color: picked ? colors.ink : (dimmed ? colors.raised : colors.card),
       borderRadius: BorderRadius.circular(AppRadii.rControl),
       child: InkWell(
         onTap: lockedOwnerId == null ? () => onGuess(player.id) : null,
@@ -299,7 +288,9 @@ class _GuessGrid extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: picked ? colors.bg : colors.ink,
+                    color: picked
+                        ? colors.bg
+                        : (dimmed ? colors.ink3 : colors.ink),
                   ),
                 ),
               ),
@@ -376,18 +367,14 @@ class _RevealBlock extends StatelessWidget {
                     ScoreRow(
                       position: i + 1,
                       player: _playerFor(reveal.guesses[i], players),
-                      score: _playerFor(
-                        reveal.guesses[i],
-                        players,
-                      ).score,
-                      delta: reveal.scoreDeltas[_playerFor(
-                        reveal.guesses[i],
-                        players,
-                      ).id],
-                      streak: reveal.streaks[_playerFor(
-                        reveal.guesses[i],
-                        players,
-                      ).id],
+                      score: _playerFor(reveal.guesses[i], players).score,
+                      delta:
+                          reveal.scoreDeltas[_playerFor(
+                            reveal.guesses[i],
+                            players,
+                          ).id],
+                      streak: reveal
+                          .streaks[_playerFor(reveal.guesses[i], players).id],
                       highlighted: reveal.guesses[i].isOwnPhoto,
                     ),
                 ],

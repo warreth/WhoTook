@@ -31,7 +31,11 @@ class TestPhotoLibrary implements PhotoLibraryService {
   }) async {
     _call += 1;
     final result = <PickedPhoto>[];
-    for (var i = 0; result.length < count && i < count + excludeAssetIds.length; i++) {
+    for (
+      var i = 0;
+      result.length < count && i < count + excludeAssetIds.length;
+      i++
+    ) {
       final id = 'a$_seed-$_call-$i';
       if (excludeAssetIds.contains(id)) continue;
       final byte = (_call * 37 + i * 11) % 251;
@@ -46,8 +50,10 @@ class TestPhotoLibrary implements PhotoLibraryService {
   }
 
   @override
-  Future<PickedPhoto?> pickSinglePhoto() async =>
-      (await sampleCandidates(excludedAlbumIds: const <String>{}, count: 1)).first;
+  Future<PickedPhoto?> pickSinglePhoto() async => (await sampleCandidates(
+    excludedAlbumIds: const <String>{},
+    count: 1,
+  )).first;
 
   @override
   Future<Uint8List> compressPhoto(Uint8List raw) async => raw;

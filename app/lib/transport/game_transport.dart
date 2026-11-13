@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import '../core/models/models.dart';
 import '../core/protocol/wire_message.dart';
@@ -159,8 +158,10 @@ class CompositeHostTransport implements HostTransport {
 class LoopbackHub {
   final List<_LoopbackPeer> _hosts = <_LoopbackPeer>[];
   final Map<String, _LoopbackPeer> _clients = <String, _LoopbackPeer>{};
-  final StreamController<String> _connected = StreamController<String>.broadcast();
-  final StreamController<String> _disconnected = StreamController<String>.broadcast();
+  final StreamController<String> _connected =
+      StreamController<String>.broadcast();
+  final StreamController<String> _disconnected =
+      StreamController<String>.broadcast();
   final StreamController<HostIncomingMessage> _messages =
       StreamController<HostIncomingMessage>.broadcast();
   int _nextClient = 0;
@@ -216,9 +217,7 @@ class LoopbackHub {
 }
 
 class _LoopbackPeer {
-  _LoopbackPeer(this._label);
-
-  final String _label;
+  _LoopbackPeer();
   final StreamController<WireMessage> _incoming =
       StreamController<WireMessage>.broadcast();
   final StreamController<void> _closed = StreamController<void>.broadcast();
@@ -234,17 +233,15 @@ class _LoopbackPeer {
     await _incoming.close();
     await _closed.close();
   }
-
-  @override
-  String toString() => 'LoopbackPeer($_label)';
 }
 
 class LoopbackHostTransport implements HostTransport {
   LoopbackHostTransport(this._hub);
 
   final LoopbackHub _hub;
-  final _LoopbackPeer _peer = _LoopbackPeer('host');
-  final List<StreamSubscription<dynamic>> _subs = <StreamSubscription<dynamic>>[];
+  final _LoopbackPeer _peer = _LoopbackPeer();
+  final List<StreamSubscription<dynamic>> _subs =
+      <StreamSubscription<dynamic>>[];
   bool _started = false;
 
   @override
@@ -291,7 +288,7 @@ class LoopbackClientTransport implements ClientTransport {
   LoopbackClientTransport(this._hub);
 
   final LoopbackHub _hub;
-  final _LoopbackPeer _peer = _LoopbackPeer('client');
+  final _LoopbackPeer _peer = _LoopbackPeer();
   String? _clientId;
 
   @override
@@ -342,10 +339,4 @@ bool secureCompare(String a, String b) {
     diff |= a.codeUnitAt(i) ^ b.codeUnitAt(i);
   }
   return diff == 0;
-}
-
-/// Splits an envelope into a single socket frame. Kept in one place so the
-/// transports agree on encoding and the max frame stays visible.
-Uint8List encodeFrame(WireMessage message) {
-  return Uint8List.fromList(message.encode().codeUnits);
 }

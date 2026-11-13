@@ -151,6 +151,20 @@ void main() {
     expect(host.state.totalRounds, greaterThan(roundsBefore));
   }, timeout: const Timeout(Duration(seconds: 60)));
 
+  test('client scoreboard matches the host after a reveal', () async {
+    await prepareAndStart(rounds: 2);
+    await guessEverywhere();
+    await _waitFor(() => clientOne.state.lastReveal != null);
+    await _waitFor(() => host.state.lastReveal != null);
+
+    for (final hostPlayer in host.state.players) {
+      final mirror = clientOne.state.players.firstWhere(
+        (player) => player.id == hostPlayer.id,
+      );
+      expect(mirror.score, hostPlayer.score, reason: hostPlayer.id);
+    }
+  }, timeout: const Timeout(Duration(seconds: 45)));
+
   test('a screenshot alert reaches every phone', () async {
     await prepareAndStart(rounds: 2);
 
@@ -162,34 +176,38 @@ void main() {
     expect(clientTwo.state.screenshotAlerts.last.playerId, 'c_loop0');
   }, timeout: const Timeout(Duration(seconds: 45)));
 
-  test('plant a photo is offered only while others are still choosing', () async {
-    await host.setRounds(2);
-    await host.startPrepare();
-    await _waitFor(() => host.state.candidates.isNotEmpty);
+  test(
+    'plant a photo is offered only while others are still choosing',
+    () async {
+      await host.setRounds(2);
+      await host.startPrepare();
+      await _waitFor(() => host.state.candidates.isNotEmpty);
 
-    // Nobody ready yet: the plant window is closed.
-    expect(host.state.plantUnlocked, isFalse);
+      // Nobody ready yet: the plant window is closed.
+      expect(host.state.plantUnlocked, isFalse);
 
-    await host.markLocalReady();
-    await _waitFor(() => host.state.plantUnlocked);
-    expect(host.state.plantUnlocked, isTrue);
+      await host.markLocalReady();
+      await _waitFor(() => host.state.plantUnlocked);
+      expect(host.state.plantUnlocked, isTrue);
 
-    await host.plantSecretPhoto(
-      host.state.candidates.first.localAssetId,
-      host.state.candidates.first.bytes!,
-    );
-    expect(host.state.plantUsed, isTrue);
-
-    // Using it twice must be refused by the engine.
-    await expectLater(
-      host.plantSecretPhoto(
+      await host.plantSecretPhoto(
         host.state.candidates.first.localAssetId,
         host.state.candidates.first.bytes!,
-      ),
-      completes,
-    );
-    expect(host.state.errorMessage, contains('once per game'));
-  }, timeout: const Timeout(Duration(seconds: 45)));
+      );
+      expect(host.state.plantUsed, isTrue);
+
+      // Using it twice must be refused by the engine.
+      await expectLater(
+        host.plantSecretPhoto(
+          host.state.candidates.first.localAssetId,
+          host.state.candidates.first.bytes!,
+        ),
+        completes,
+      );
+      expect(host.state.errorMessage, contains('once per game'));
+    },
+    timeout: const Timeout(Duration(seconds: 45)),
+  );
 
   test('own photo guess pays the fixed bonus and keeps the streak', () async {
     await prepareAndStart(rounds: 3);
@@ -227,8 +245,10 @@ void main() {
     final own = hostOwned!.guesses.firstWhere((g) => g.playerId == 'host');
     expect(own.isOwnPhoto, isTrue);
     expect(own.pointsAwarded, 300);
-    expect(host.state.players.firstWhere((p) => p.id == 'host').streak,
-        greaterThan(0));
+    expect(
+      host.state.players.firstWhere((p) => p.id == 'host').streak,
+      greaterThan(0),
+    );
   }, timeout: const Timeout(Duration(seconds: 45)));
 
   test('play again returns everyone to a clean lobby', () async {

@@ -31,15 +31,15 @@ void main() {
   });
 
   setUp(() {
-    final view = TestWidgetsFlutterBinding.instance.platformDispatcher
-        .implicitView!;
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.implicitView!;
     view.physicalSize = const Size(390, 844);
     view.devicePixelRatio = 1;
   });
 
   tearDown(() {
-    final view = TestWidgetsFlutterBinding.instance.platformDispatcher
-        .implicitView!;
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.implicitView!;
     view.resetPhysicalSize();
     view.resetDevicePixelRatio();
   });
@@ -61,12 +61,7 @@ void main() {
   });
 
   testWidgets('lobby', (tester) async {
-    await _pump(
-      tester,
-      const LobbyScreen(),
-      _settings(),
-      state: _lobbyState(),
-    );
+    await _pump(tester, const LobbyScreen(), _settings(), state: _lobbyState());
     await expectLater(
       find.byType(LobbyScreen),
       matchesGoldenFile('goldens/lobby.png'),
@@ -168,8 +163,7 @@ List<Player> _players() => <Player>[
 MatchUiState _lobbyState() => MatchUiState(
   isHosting: true,
   roomId: 'k8m2p9x4',
-  inviteUrl:
-      'https://whotook.app/j#eyJ2IjoxLCJob3N0SWQiOiJob3N0Iiwicm9vbSI6Ims4bTJwOXg0In0',
+  inviteUrl: 'https://whotook.app/j#eyJ2IjoxLCJob3N0SWQiOiJob3N0Iiwicm9vbSI6Ims4bTJwOXg0In0',
   localPlayerId: 'host',
   players: _players(),
   config: const MatchConfig(roundsK: 10, roundSeconds: 8),
@@ -279,10 +273,7 @@ Future<Uint8List> _photoBytes(Color color) async {
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
   const size = Size(300, 224);
-  canvas.drawRect(
-    Offset.zero & size,
-    Paint()..color = color,
-  );
+  canvas.drawRect(Offset.zero & size, Paint()..color = color);
   canvas.drawRect(
     const Rect.fromLTWH(0, 150, 300, 74),
     Paint()..color = color.withValues(alpha: 0.7),

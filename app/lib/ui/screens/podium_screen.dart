@@ -26,14 +26,14 @@ class PodiumScreen extends ConsumerWidget {
             AppSpacing.s20,
             AppSpacing.s16,
             AppSpacing.s20,
-            AppSpacing.s24,
+            AppSpacing.s32,
           ),
           children: <Widget>[
             Row(
               children: <Widget>[
                 Expanded(
                   child: Text(
-                    'Final podium',
+                    'Podium',
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w500,
@@ -61,19 +61,19 @@ class PodiumScreen extends ConsumerWidget {
                       _PodiumBar(
                         player: top[1],
                         place: 2,
-                        heightFactor: 0.68,
+                        topScore: top[0].score,
                       ),
                     if (top.isNotEmpty)
                       _PodiumBar(
                         player: top[0],
                         place: 1,
-                        heightFactor: 1,
+                        topScore: top[0].score,
                       ),
                     if (top.length > 2)
                       _PodiumBar(
                         player: top[2],
                         place: 3,
-                        heightFactor: 0.48,
+                        topScore: top[0].score,
                       ),
                   ],
                 ),
@@ -86,8 +86,7 @@ class PodiumScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     const SectionLabel('Match awards'),
-                    for (final award in state.awards)
-                      _AwardRow(award: award),
+                    for (final award in state.awards) _AwardRow(award: award),
                   ],
                 ),
               ),
@@ -147,27 +146,24 @@ class _PodiumBar extends StatelessWidget {
   const _PodiumBar({
     required this.player,
     required this.place,
-    required this.heightFactor,
+    required this.topScore,
   });
 
   final Player player;
   final int place;
-  final double heightFactor;
+  final int topScore;
 
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
     final tallest = 132.0;
-    final height = (tallest * heightFactor).clamp(64.0, tallest);
+    final share = topScore <= 0 ? 0.0 : player.score / topScore;
+    final height = (56 + 76 * share).clamp(56.0, tallest);
     return Expanded(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: <Widget>[
-          PlayerAvatar(
-            initial: player.name,
-            isHost: player.isHost,
-            size: 32,
-          ),
+          PlayerAvatar(initial: player.name, isHost: player.isHost, size: 32),
           const SizedBox(height: AppSpacing.s8),
           Text(
             player.name,
@@ -177,9 +173,7 @@ class _PodiumBar extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             '${player.score}',
-            style: tabularFigures(
-              TextStyle(fontSize: 12, color: colors.ink2),
-            ),
+            style: tabularFigures(TextStyle(fontSize: 12, color: colors.ink2)),
           ),
           const SizedBox(height: AppSpacing.s8),
           Container(
@@ -228,13 +222,17 @@ class _AwardRow extends StatelessWidget {
         Icons.visibility_off_outlined,
       ),
       MatchAwardKind.paparazzi => ('Paparazzi', Icons.camera_alt_outlined),
-      MatchAwardKind.smoothPlanter => ('Secret planter', Icons.local_florist_outlined),
+      MatchAwardKind.smoothPlanter => (
+        'Secret planter',
+        Icons.local_florist_outlined,
+      ),
     };
     final suffix = switch (award.kind) {
-      MatchAwardKind.quickestDraw => ' ${((award.value ?? 0) / 1000).toStringAsFixed(1)}s',
+      MatchAwardKind.quickestDraw =>
+        ' ${((award.value ?? 0) / 1000).toStringAsFixed(1)}s',
       MatchAwardKind.unstoppable => ' ${award.value}x',
       MatchAwardKind.masterOfMystery => ' ${award.value} pts',
-      MatchAwardKind.paparazzi => ' ${award.value}',
+      MatchAwardKind.paparazzi => ' ${award.value} frames',
       MatchAwardKind.smoothPlanter => ' fooled ${award.value}',
       MatchAwardKind.champion => '',
     };
@@ -255,10 +253,7 @@ class _AwardRow extends StatelessWidget {
             child: Text(
               '${award.playerName}$suffix',
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
             ),
           ),
         ],

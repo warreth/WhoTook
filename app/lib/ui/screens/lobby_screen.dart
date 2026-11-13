@@ -54,7 +54,7 @@ class LobbyScreen extends ConsumerWidget {
             AppSpacing.s20,
             AppSpacing.s8,
             AppSpacing.s20,
-            96,
+            112,
           ),
           children: <Widget>[
             if (isHost && state.inviteUrl != null)
@@ -124,7 +124,9 @@ class LobbyScreen extends ConsumerWidget {
                           tooltip: 'Fewer rounds',
                           onPressed: state.config.roundsK > 1
                               ? () => unawaited(
-                                  coordinator.setRounds(state.config.roundsK - 1),
+                                  coordinator.setRounds(
+                                    state.config.roundsK - 1,
+                                  ),
                                 )
                               : null,
                           icon: const Icon(Icons.remove),
@@ -147,7 +149,9 @@ class LobbyScreen extends ConsumerWidget {
                           tooltip: 'More rounds',
                           onPressed: state.config.roundsK < 40
                               ? () => unawaited(
-                                  coordinator.setRounds(state.config.roundsK + 1),
+                                  coordinator.setRounds(
+                                    state.config.roundsK + 1,
+                                  ),
                                 )
                               : null,
                           icon: const Icon(Icons.add),
@@ -208,8 +212,7 @@ class LobbyScreen extends ConsumerWidget {
                       padding: const EdgeInsets.all(AppSpacing.s16),
                       child: EmptyState(
                         title: 'Waiting for the first friend',
-                        body:
-                            'The QR code above is the only thing they need. Nothing to install on the host side.',
+                        body: 'The QR code above is the only thing they need. Nothing to install on the host side.',
                       ),
                     ),
                 ],
@@ -285,19 +288,14 @@ class _PlayerRow extends StatelessWidget {
             child: Text(
               player.name,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
             ),
           ),
           Text(
             player.isHost ? 'Host' : (player.ready ? 'Ready' : 'Choosing'),
             style: TextStyle(
               fontSize: 12,
-              color: player.ready || player.isHost
-                  ? colors.ink2
-                  : colors.ink3,
+              color: player.ready || player.isHost ? colors.ink2 : colors.ink3,
             ),
           ),
         ],

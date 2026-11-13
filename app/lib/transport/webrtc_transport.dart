@@ -22,11 +22,7 @@ class TurnQuotaBlockedException implements Exception {
 }
 
 class IceServerConfig {
-  const IceServerConfig({
-    required this.urls,
-    this.username,
-    this.credential,
-  });
+  const IceServerConfig({required this.urls, this.username, this.credential});
 
   final List<String> urls;
   final String? username;
@@ -190,7 +186,10 @@ abstract class _WebRtcTransportBase {
   Uri get signalingUri {
     final base = invite.signalingUrl;
     if (base == null || base.isEmpty) {
-      throw const TransportException('no_signaling', 'invite has no signaling url');
+      throw const TransportException(
+        'no_signaling',
+        'invite has no signaling url',
+      );
     }
     final origin = base.replaceFirst(RegExp(r'^http'), 'ws');
     return Uri.parse(
@@ -203,8 +202,10 @@ abstract class _WebRtcTransportBase {
     final channel = WebSocketChannel.connect(signalingUri);
     await channel.ready.timeout(
       const Duration(seconds: 8),
-      onTimeout: () =>
-          throw const TransportException('signaling_timeout', 'server unreachable'),
+      onTimeout: () => throw const TransportException(
+        'signaling_timeout',
+        'server unreachable',
+      ),
     );
     _signaling = channel;
     _signalingSub = channel.stream.listen(
@@ -283,7 +284,10 @@ abstract class _WebRtcTransportBase {
     final channel = _channel;
     if (channel == null ||
         channel.state != RTCDataChannelState.RTCDataChannelOpen) {
-      throw const TransportException('not_connected', 'data channel is not open');
+      throw const TransportException(
+        'not_connected',
+        'data channel is not open',
+      );
     }
     channel.send(RTCDataChannelMessage(message.encode()));
   }
@@ -359,7 +363,11 @@ class WebRtcHostTransport implements HostTransport {
     await channel.ready;
     _signaling = channel;
     _subscriptions.add(
-      channel.stream.listen(_onFrame, onError: (Object _) {}, cancelOnError: true),
+      channel.stream.listen(
+        _onFrame,
+        onError: (Object _) {},
+        cancelOnError: true,
+      ),
     );
   }
 
@@ -376,14 +384,19 @@ class WebRtcHostTransport implements HostTransport {
     if (peerId == null) return;
     final peer = WebRtcHostPeer(
       peerId: peerId,
-      configuration: (_iceConfig ?? const IceConfig(
-        turnAllowed: false,
-        iceServers: <IceServerConfig>[],
-      )).toRtcConfiguration(),
+      configuration:
+          (_iceConfig ??
+                  const IceConfig(
+                    turnAllowed: false,
+                    iceServers: <IceServerConfig>[],
+                  ))
+              .toRtcConfiguration(),
       sendSignal: (type, payload) => _sendSignal(type, peerId, payload),
       onMessage: (message) {
         if (!_messages.isClosed) {
-          _messages.add(HostIncomingMessage(clientId: peerId, message: message));
+          _messages.add(
+            HostIncomingMessage(clientId: peerId, message: message),
+          );
         }
       },
       onOpen: () {
@@ -480,7 +493,10 @@ class WebRtcHostPeer {
 
     final offer = await peer.createOffer();
     await peer.setLocalDescription(offer);
-    sendSignal('offer', <String, dynamic>{'sdp': offer.sdp, 'type': offer.type});
+    sendSignal('offer', <String, dynamic>{
+      'sdp': offer.sdp,
+      'type': offer.type,
+    });
   }
 
   Future<void> onAnswer(RTCSessionDescription answer) async {
@@ -523,7 +539,8 @@ class WebRtcHostPeer {
 }
 
 /// Player side of the online path.
-class WebRtcClientTransport extends _WebRtcTransportBase implements ClientTransport {
+class WebRtcClientTransport extends _WebRtcTransportBase
+    implements ClientTransport {
   WebRtcClientTransport({
     required super.invite,
     required this.iceClient,
@@ -578,10 +595,12 @@ class WebRtcClientTransport extends _WebRtcTransportBase implements ClientTransp
   Future<void> onOffer(Map<String, dynamic> frame) async {
     final payload = frame['payload'] as Map<String, dynamic>? ?? const {};
     final peer = await createPeerConnection(
-      (_config ?? const IceConfig(
-        turnAllowed: false,
-        iceServers: <IceServerConfig>[],
-      )).toRtcConfiguration(),
+      (_config ??
+              const IceConfig(
+                turnAllowed: false,
+                iceServers: <IceServerConfig>[],
+              ))
+          .toRtcConfiguration(),
     );
     _peer = peer;
 
@@ -591,29 +610,38 @@ class WebRtcClientTransport extends _WebRtcTransportBase implements ClientTransp
     };
     peer.onIceCandidate = (candidate) {
       if (candidate.candidate == null) return;
-      sendSignal('ice', payload: <String, dynamic>{
-        'candidate': candidate.candidate,
-        'sdpMid': candidate.sdpMid,
-        'sdpMLineIndex': candidate.sdpMLineIndex,
-      });
+      sendSignal(
+        'ice',
+        payload: <String, dynamic>{
+          'candidate': candidate.candidate,
+          'sdpMid': candidate.sdpMid,
+          'sdpMLineIndex': candidate.sdpMLineIndex,
+        },
+      );
     };
 
     await peer.setRemoteDescription(
-      RTCSessionDescription(payload['sdp'] as String?, payload['type'] as String?),
+      RTCSessionDescription(
+        payload['sdp'] as String?,
+        payload['type'] as String?,
+      ),
     );
     final answer = await peer.createAnswer();
     await peer.setLocalDescription(answer);
-    sendSignal('answer', payload: <String, dynamic>{
-      'sdp': answer.sdp,
-      'type': answer.type,
-    });
+    sendSignal(
+      'answer',
+      payload: <String, dynamic>{'sdp': answer.sdp, 'type': answer.type},
+    );
   }
 
   @override
   Future<void> onAnswer(Map<String, dynamic> frame) async {
     final payload = frame['payload'] as Map<String, dynamic>? ?? const {};
     await _peer?.setRemoteDescription(
-      RTCSessionDescription(payload['sdp'] as String?, payload['type'] as String?),
+      RTCSessionDescription(
+        payload['sdp'] as String?,
+        payload['type'] as String?,
+      ),
     );
   }
 
@@ -623,7 +651,11 @@ class WebRtcClientTransport extends _WebRtcTransportBase implements ClientTransp
     final candidate = payload['candidate'] as String?;
     if (candidate == null) return;
     await _peer?.addCandidate(
-      RTCIceCandidate(candidate, payload['sdpMid'] as String?, payload['sdpMLineIndex'] as int?),
+      RTCIceCandidate(
+        candidate,
+        payload['sdpMid'] as String?,
+        payload['sdpMLineIndex'] as int?,
+      ),
     );
   }
 

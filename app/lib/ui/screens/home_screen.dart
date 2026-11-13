@@ -21,6 +21,40 @@ class HomeScreen extends ConsumerWidget {
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
 
     return Scaffold(
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(
+          AppSpacing.s20,
+          AppSpacing.s8,
+          AppSpacing.s20,
+          AppSpacing.s16,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            PrimaryButton(
+              label: 'Host a match',
+              icon: Icons.groups_outlined,
+              onPressed: () async {
+                await coordinator.hostMatch(config: state.config);
+                if (!context.mounted) return;
+                final error = coordinator.state.errorMessage;
+                if (error != null) {
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(SnackBar(content: Text(error)));
+                }
+              },
+            ),
+            const SizedBox(height: AppSpacing.s12),
+            SecondaryButton(
+              label: 'Join with a QR code',
+              icon: Icons.qr_code_scanner,
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const JoinScreen()),
+              ),
+            ),
+          ],
+        ),
+      ),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) => SingleChildScrollView(
@@ -72,10 +106,10 @@ class HomeScreen extends ConsumerWidget {
                         ),
                       ),
                     ),
+                    const SizedBox(height: AppSpacing.s16),
                     if (state.turnLimitNotice != null) ...<Widget>[
                       NoticeBanner(
-                        message:
-                            'Online relay is used up for today. Join the same Wi-Fi or a hotspot to keep playing.',
+                        message: 'Online relay is used up for today. Join the same Wi-Fi or a hotspot to keep playing.',
                         tone: StatusTone.warning,
                         icon: Icons.wifi_tethering,
                       ),
@@ -95,31 +129,6 @@ class HomeScreen extends ConsumerWidget {
                           unawaited(coordinator.setRounds(rounds)),
                       onSeconds: (seconds) =>
                           unawaited(coordinator.setRoundSeconds(seconds)),
-                    ),
-                    const SizedBox(height: AppSpacing.s12),
-                    PrimaryButton(
-                      label: 'Host a match',
-                      icon: Icons.groups_outlined,
-                      onPressed: () async {
-                        await coordinator.hostMatch(config: state.config);
-                        if (!context.mounted) return;
-                        final error = coordinator.state.errorMessage;
-                        if (error != null) {
-                          ScaffoldMessenger.of(
-                            context,
-                          ).showSnackBar(SnackBar(content: Text(error)));
-                        }
-                      },
-                    ),
-                    const SizedBox(height: AppSpacing.s12),
-                    SecondaryButton(
-                      label: 'Join with a QR code',
-                      icon: Icons.qr_code_scanner,
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const JoinScreen(),
-                        ),
-                      ),
                     ),
                     const SizedBox(height: AppSpacing.s16),
                     Text(

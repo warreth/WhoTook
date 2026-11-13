@@ -79,8 +79,6 @@ class HostGameEngine {
   RoundReveal? _lastReveal;
   MicroAward? _lastMicroAward;
 
-  // ---- read-only state ----------------------------------------------------
-
   MatchConfig get config =>
       MatchConfig(roundsK: _roundsK, roundSeconds: _roundSeconds);
   RoundPhase get phase => _phase;
@@ -114,8 +112,6 @@ class HostGameEngine {
   }
 
   List<DeckEntry> get deck => List<DeckEntry>.unmodifiable(_deck);
-
-  // ---- lobby --------------------------------------------------------------
 
   Player addPlayer({
     required String id,
@@ -182,8 +178,6 @@ class HostGameEngine {
     }
     _roundSeconds = seconds;
   }
-
-  // ---- preparation --------------------------------------------------------
 
   void startPrepare() {
     if (_phase != RoundPhase.lobby) {
@@ -315,8 +309,6 @@ class HostGameEngine {
     _plantedOwnerId = playerId;
   }
 
-  // ---- deck ---------------------------------------------------------------
-
   /// Builds `roundsK` rounds as consecutive round-robin cycles. Each cycle is
   /// a shuffle of every player, and a cycle never starts with the player who
   /// closed the previous one when there is a real choice.
@@ -396,8 +388,6 @@ class HostGameEngine {
     _currentRound = 0;
     _phase = RoundPhase.countdown;
   }
-
-  // ---- rounds -------------------------------------------------------------
 
   DeckEntry startRound() {
     if (_phase != RoundPhase.countdown) {
@@ -604,8 +594,6 @@ class HostGameEngine {
     _phase = RoundPhase.countdown;
   }
 
-  // ---- extension ----------------------------------------------------------
-
   /// Opens the 10 second approve/reroll window. Returns the deadline in
   /// milliseconds since epoch.
   int extendGame({
@@ -694,8 +682,6 @@ class HostGameEngine {
     _phase = RoundPhase.countdown;
   }
 
-  // ---- screenshots --------------------------------------------------------
-
   void recordScreenshot(String playerId) {
     final player = _requirePlayer(playerId);
     player.screenshotCount += 1;
@@ -705,8 +691,6 @@ class HostGameEngine {
       playerName: player.name,
     );
   }
-
-  // ---- awards -------------------------------------------------------------
 
   /// Champion, Quickest Draw, Unstoppable, Master of Mystery, Paparazzi (only
   /// when someone took a screenshot) and Smooth Planter (only when the planted
@@ -825,8 +809,6 @@ class HostGameEngine {
     }
     return best;
   }
-
-  // ---- reconnect ----------------------------------------------------------
 
   Map<String, dynamic> buildStateSnapshot() => <String, dynamic>{
     'phase': _phase.name,
