@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
-import 'dart:typed_data';
+import 'package:flutter/services.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../core/media/photo_service.dart';
 import '../core/models/models.dart';
@@ -283,6 +284,7 @@ class MatchCoordinator {
 
     final player = engine.addPlayer(id: 'host', name: _displayName, isHost: true);
     await _startScreenshots();
+    await _setAwake(true);
 
     _emit(
       _state.copyWith(
@@ -1071,6 +1073,7 @@ class MatchCoordinator {
       ),
     );
     await _startScreenshots();
+    await _setAwake(true);
     _emit(
       _state.copyWith(
         isHosting: false,
@@ -1367,6 +1370,18 @@ class MatchCoordinator {
 
   // ---- lifecycle ---------------------------------------------------------
 
+  /// The host keeps the socket alive only while the screen stays on, so the
+  /// wake lock is part of the transport contract, not a nicety.
+  Future<void> _setAwake(bool awake) async {
+    try {
+      await WakelockPlus.toggle(enable: awake);
+    } on MissingPluginException {
+      return;
+    } on PlatformException {
+      return;
+    }
+  }
+
   String get _displayName {
     final nickname = _settingsValue.nickname.trim();
     return nickname.isEmpty ? 'Player' : nickname;
@@ -1386,6 +1401,7 @@ class MatchCoordinator {
 
   Future<void> leaveMatch() async {
     await _stopScreenshots();
+    await _setAwake(false);
     for (final timer in _timers) {
       timer.cancel();
     }

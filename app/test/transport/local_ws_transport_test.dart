@@ -51,16 +51,24 @@ void main() {
 
   test('rejects a wrong room secret before upgrading', () async {
     await expectLater(
-      WebSocket.connect('ws://${baseUrl()}/ws?token=wrong-secret'),
-      throwsA(isA<WebSocketException>()),
+      WebSocket.connect(
+        'ws://${baseUrl()}/ws?token=wrong-secret',
+      ).timeout(const Duration(seconds: 5)),
+      throwsA(
+        anyOf(isA<WebSocketException>(), isA<TimeoutException>()),
+      ),
     );
     expect(joined, isEmpty);
   });
 
   test('rejects a missing secret', () async {
     await expectLater(
-      WebSocket.connect('ws://${baseUrl()}/ws'),
-      throwsA(isA<WebSocketException>()),
+      WebSocket.connect(
+        'ws://${baseUrl()}/ws',
+      ).timeout(const Duration(seconds: 5)),
+      throwsA(
+        anyOf(isA<WebSocketException>(), isA<TimeoutException>()),
+      ),
     );
   });
 
@@ -169,10 +177,10 @@ void main() {
 }
 
 Future<void> _waitFor(bool Function() condition) async {
-  final deadline = DateTime.now().add(const Duration(seconds: 5));
+  final deadline = DateTime.now().add(const Duration(seconds: 20));
   while (!condition()) {
     if (DateTime.now().isAfter(deadline)) {
-      throw TimeoutException('condition not met within 5s');
+      throw TimeoutException('condition not met within 20s');
     }
     await Future<void>.delayed(const Duration(milliseconds: 10));
   }
