@@ -1,0 +1,937 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>WhoTook · Warm Contact Sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --bg:#F7F4EE; --card:#FFFFFF; --raised:#EFE9DF;
+  --hairline:rgba(31,27,22,.10); --hairline-strong:rgba(31,27,22,.16);
+  --ink:#1F1B16; --ink2:#5E554A; --ink3:#6E655A;
+  --accent:#C63D22; --on-accent:#FFFFFF; --accent-soft:rgba(198,61,34,.08);
+  --pos:#15803D; --neg:#B91C1C;
+  --sans:"DM Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --ease:cubic-bezier(.22,1,.36,1);
+  --shadow-1:0 1px 2px rgba(31,27,22,.05); --shadow-2:0 8px 24px rgba(31,27,22,.08);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--bg); color:var(--ink); font-family:var(--sans); font-size:15px; line-height:1.4;
+  -webkit-font-smoothing:antialiased; padding:32px 24px 48px; color-scheme:light
+}
+h1,h2,h3,p{margin:0}
+button{font-family:inherit}
+
+.page-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 24px;max-width:2110px;margin:0 auto 24px}
+.page-head h1{font-size:20px;font-weight:500;letter-spacing:-.01em}
+.page-head p{font-size:13px;color:var(--ink2);margin-top:2px}
+.page-head .meta{font-family:var(--mono);font-size:12px;color:var(--ink2)}
+
+.board{display:flex;flex-wrap:wrap;align-items:flex-start;gap:32px;max-width:2110px;margin:0 auto;padding:4px}
+.slot{display:flex;flex-direction:column;gap:12px}
+.caption{display:flex;align-items:baseline;gap:8px;padding:0 4px;font-size:13px;color:var(--ink2)}
+.caption b{font-weight:500;color:var(--ink)}
+.caption .idx{font-family:var(--mono);font-size:12px}
+
+/* phone */
+.phone{position:relative;width:390px;height:844px;background:var(--bg);border:1px solid var(--hairline-strong);border-radius:36px;box-shadow:var(--shadow-2);overflow:hidden;display:flex;flex-direction:column}
+.status{flex:0 0 48px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:13px;font-weight:500}
+.status .icons{display:flex;align-items:center;gap:6px}
+.status .icons svg{display:block}
+.screen{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;padding:8px 20px;overflow:hidden}
+.grow{flex:1 1 auto;min-height:0}
+.home-ind{flex:0 0 26px;display:flex;align-items:center;justify-content:center}
+.home-ind span{width:128px;height:4px;border-radius:2px;background:var(--ink);opacity:.85}
+
+/* shared */
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.secondary{color:var(--ink2)}
+.muted{color:var(--ink3)}
+.dot{width:6px;height:6px;border-radius:50%;flex:0 0 auto;display:inline-block}
+.dot-pos{background:var(--pos)} .dot-wait{background:var(--ink3)}
+.avatar{width:32px;height:32px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;background:var(--raised);color:var(--ink2);border:1px solid var(--hairline-strong);flex:0 0 auto}
+.avatar.is-host{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+.icon-btn{width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;border:1px solid var(--hairline-strong);background:var(--card);color:var(--ink2);padding:0;cursor:pointer;transition:background-color 150ms var(--ease)}
+.icon-btn:hover{background:var(--raised)}
+.icon-btn:active{transform:scale(.97)}
+button:focus-visible,.thumb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:44px;height:52px;padding:0 16px;border-radius:10px;border:1px solid transparent;font-size:15px;font-weight:500;cursor:pointer;transition:background-color 150ms var(--ease),transform 120ms var(--ease)}
+.btn:active{transform:scale(.985)}
+.btn-primary{background:var(--accent);color:var(--on-accent)}
+.btn-primary:hover{filter:brightness(.94)}
+.btn-secondary{background:var(--card);color:var(--ink);border-color:var(--hairline-strong);box-shadow:var(--shadow-1)}
+.btn-secondary:hover{background:var(--raised)}
+.btn-sm{height:44px;font-size:14px}
+
+/* crop mark motif */
+.crop{position:absolute;width:12px;height:12px;border:0 solid var(--ink);pointer-events:none}
+.crop.tl{top:-1px;left:-1px;border-top-width:2px;border-left-width:2px}
+.crop.tr{top:-1px;right:-1px;border-top-width:2px;border-right-width:2px}
+.crop.bl{bottom:-1px;left:-1px;border-bottom-width:2px;border-left-width:2px}
+.crop.br{bottom:-1px;right:-1px;border-bottom-width:2px;border-right-width:2px}
+
+/* 1 home */
+.home-top{display:flex;align-items:center;justify-content:space-between;padding-top:4px}
+.wordmark{display:flex;align-items:center;gap:10px;font-size:24px;font-weight:600;letter-spacing:-.03em}
+.wordmark svg{color:var(--accent)}
+.hero{margin-top:20px;background:var(--card);border:1px solid var(--hairline);border-radius:14px;padding:8px;box-shadow:var(--shadow-1)}
+.hero .print{position:relative;border-radius:6px;overflow:hidden;border:1px solid var(--hairline)}
+.hero svg.scene{display:block;width:100%;height:auto;aspect-ratio:300/224}
+.frame-tag{position:absolute;left:8px;bottom:8px;display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:4px;background:rgba(31,27,22,.72);color:#F7F4EE;font-family:var(--mono);font-size:11px}
+.frame-tag i{width:4px;height:4px;border-radius:50%;background:#F7F4EE;opacity:.7}
+.exclusion{margin-top:16px;display:flex;align-items:center;gap:12px;width:100%;min-height:64px;padding:12px 16px;background:var(--card);border:1px solid var(--hairline-strong);border-radius:14px;box-shadow:var(--shadow-1);color:var(--ink);text-align:left;cursor:pointer}
+.exclusion:hover{background:var(--raised)}
+.exclusion .ico{color:var(--ink2);display:flex}
+.exclusion .text{flex:1 1 auto;min-width:0}
+.exclusion .text b{display:block;font-weight:500;font-size:14px}
+.exclusion .text span{display:block;font-size:12px;color:var(--ink2);margin-top:2px}
+.exclusion .chev{color:var(--ink3);display:flex}
+.home-actions{display:flex;flex-direction:column;gap:12px;padding:16px 0}
+.home-note{text-align:center;font-size:12px;color:var(--ink2);margin-top:4px}
+/* Host match row: primary action and its preset are two sibling buttons */
+.host-split{display:flex;gap:8px}
+.host-split .btn-primary{flex:1 1 auto;width:auto;min-width:0}
+.host-config{flex:0 0 144px;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:52px;min-height:44px;padding:0 10px;border-radius:10px;border:1px solid var(--hairline-strong);background:var(--card);color:var(--ink);font-family:var(--mono);font-size:12px;cursor:pointer;box-shadow:var(--shadow-1);transition:background-color 150ms var(--ease)}
+.host-config:hover{background:var(--raised)}
+.host-config svg{color:var(--ink2);flex:0 0 auto}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* 2 lobby */
+.lobby-head{display:flex;align-items:center;justify-content:space-between;padding-top:4px}
+.lobby-head h2{font-size:20px;font-weight:500;letter-spacing:-.01em}
+.qr-card{margin-top:12px;background:var(--card);border:1px solid var(--hairline);border-radius:16px;padding:12px;box-shadow:var(--shadow-1);display:flex;flex-direction:column;align-items:center;gap:12px}
+.qr-frame{position:relative;padding:8px;background:#FFFFFF;border:1px solid var(--hairline-strong);border-radius:8px}
+.qr-frame svg{display:block}
+/* crop marks sit on the white QR plate, so they keep the print-ink color in both themes */
+.qr-frame .crop{border-color:#1F1B16}
+.qr-caption{text-align:center}
+.qr-caption b{display:block;font-weight:500;font-size:14px}
+.qr-caption span{display:block;font-size:12px;color:var(--ink2);margin-top:2px;font-family:var(--mono)}
+.transport{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:999px;background:var(--accent-soft);color:var(--ink);font-size:12px;border:1px solid var(--hairline-strong)}
+.players{margin-top:12px;background:var(--card);border:1px solid var(--hairline);border-radius:14px;box-shadow:var(--shadow-1);overflow:hidden}
+.players-head{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--hairline);font-size:13px}
+.players-head b{font-weight:500;font-size:14px}
+.player{display:flex;align-items:center;gap:12px;height:44px;padding:0 16px;border-bottom:1px solid var(--hairline)}
+.player:last-child{border-bottom:0}
+.player .name{flex:1 1 auto;font-size:14px;font-weight:500}
+.player .name small{font-weight:400;color:var(--ink2);font-size:12px;margin-left:6px}
+.player .state{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2)}
+.player .state.ready{color:var(--pos)}
+.stepper-row{display:flex;align-items:center;justify-content:space-between;padding:14px 4px 0}
+.stepper-row .label{font-size:14px;color:var(--ink2)}
+.stepper-row .label b{font-weight:500;color:var(--ink)}
+.stepper{display:inline-flex;align-items:center;border:1px solid var(--hairline-strong);border-radius:10px;background:var(--card);overflow:hidden;box-shadow:var(--shadow-1)}
+.stepper button{width:44px;height:44px;border:0;background:transparent;color:var(--ink2);cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.stepper button:hover{background:var(--raised)}
+.stepper button:disabled{opacity:.4;cursor:not-allowed}
+.stepper .value{width:48px;text-align:center;font-family:var(--mono);font-size:15px;font-weight:500;border-left:1px solid var(--hairline);border-right:1px solid var(--hairline);line-height:44px}
+.lobby-actions{display:flex;flex-direction:column;gap:8px;padding:12px 0}
+.lobby-actions .hint{text-align:center;font-size:12px;color:var(--ink2)}
+
+/* 3 prepare */
+.prep-head{padding-top:4px}
+.prep-head h2{font-size:22px;font-weight:500;letter-spacing:-.015em}
+.prep-head p{font-size:13px;color:var(--ink2);margin-top:4px}
+.status-line{margin-top:8px;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink2)}
+.sheet{margin-top:14px;background:var(--card);border:1px solid var(--hairline);border-radius:14px;padding:12px;box-shadow:var(--shadow-1)}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;padding:0 4px 10px;font-size:12px;color:var(--ink2)}
+.contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.thumb{position:relative;padding:0;border:1px solid var(--hairline-strong);border-radius:8px;background:var(--card);overflow:hidden;cursor:pointer}
+.thumb:hover{border-color:var(--ink3)}
+.thumb svg{display:block;width:100%;height:auto;aspect-ratio:300/224}
+.thumb .num{position:absolute;left:6px;bottom:6px;font-family:var(--mono);font-size:10px;color:#1F1B16;background:rgba(255,255,255,.92);border-radius:4px;padding:1px 5px;line-height:14px}
+.thumb .swap{position:absolute;right:6px;top:6px;display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 8px;border-radius:6px;background:rgba(255,255,255,.94);border:1px solid rgba(31,27,22,.16);color:#1F1B16;font-size:11px;font-weight:500}
+.thumb:hover .swap{background:#FFFFFF}
+.plant{margin-top:12px;display:flex;align-items:center;gap:12px;width:100%;padding:12px;border:1px solid var(--hairline-strong);border-radius:14px;background:var(--accent-soft);color:var(--ink);text-align:left;cursor:pointer}
+.plant .ico{width:36px;height:36px;border-radius:8px;background:var(--card);border:1px solid var(--hairline-strong);display:inline-flex;align-items:center;justify-content:center;color:var(--accent);flex:0 0 auto}
+.plant .text{flex:1 1 auto;min-width:0}
+.plant .text b{display:block;font-size:14px;font-weight:500}
+.plant .text span{display:block;font-size:12px;color:var(--ink2);margin-top:2px}
+.plant .tag{font-family:var(--mono);font-size:11px;color:var(--ink);background:var(--card);border:1px solid var(--hairline-strong);border-radius:4px;padding:2px 6px;line-height:16px;flex:0 0 auto}
+.plant[hidden]{display:none}
+.prep-actions{display:flex;gap:10px;padding:14px 0}
+.prep-actions .btn-secondary{flex:0 0 132px}
+.prep-actions .btn-primary{flex:1 1 auto}
+.prep-actions .btn-primary.is-ready{background:var(--pos);color:#FFFFFF}
+
+/* 4 round */
+.round-head{display:flex;align-items:center;justify-content:space-between;padding-top:4px}
+.round-head h2{font-size:20px;font-weight:500;letter-spacing:-.01em}
+.round-tag{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--ink2)}
+.frames{display:inline-flex;gap:2px}
+.frames i{width:5px;height:8px;border:1px solid var(--ink3);border-radius:1px}
+.frames i.on{background:var(--ink);border-color:var(--ink)}
+.print-card{margin-top:12px;background:var(--card);border:1px solid var(--hairline);border-radius:14px;padding:10px;box-shadow:var(--shadow-1)}
+.print-card .print{position:relative;border-radius:6px;overflow:hidden;border:1px solid var(--hairline)}
+.print-card svg.scene{display:block;width:100%;height:auto;aspect-ratio:300/224}
+.print-card .frame-tag{left:10px;bottom:10px}
+.timer{margin-top:12px}
+.timer-row{display:flex;align-items:baseline;justify-content:space-between}
+.timer-row .t{font-family:var(--mono);font-size:18px;font-weight:500;line-height:1}
+.timer-row .t small{font-size:12px;color:var(--ink2);font-weight:400}
+.timer-row .label{font-size:12px;color:var(--ink2)}
+.timer-track-btn{display:block;width:100%;margin:-8px 0 0;padding:19px 0;border:0;background:transparent;cursor:pointer;touch-action:manipulation;transition:background-color 150ms var(--ease)}
+.timer-track{display:block;height:6px;border-radius:3px;background:var(--raised);overflow:hidden}
+.timer-track-btn:hover .timer-track{background:var(--hairline-strong)}
+.timer-track-btn:active .timer-track{background:var(--ink3)}
+.timer-fill{display:block;height:100%;width:67.5%;background:var(--accent);border-radius:3px;transition:width 150ms var(--ease)}
+.banner{margin-top:12px;display:flex;align-items:center;gap:8px;height:44px;padding:0 12px;border-radius:8px;background:var(--card);border:1px solid var(--hairline-strong);box-shadow:var(--shadow-1);font-size:13px}
+.banner svg{color:var(--ink2);flex:0 0 auto}
+.banner b{font-weight:500}
+.banner .time{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink2)}
+.guess-label{margin:14px 0 8px;font-size:13px;color:var(--ink2)}
+.guess-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.guess{display:inline-flex;align-items:center;gap:8px;min-height:52px;padding:0 12px;border-radius:10px;border:1px solid var(--hairline-strong);background:var(--card);color:var(--ink);font-size:14px;font-weight:500;cursor:pointer;box-shadow:var(--shadow-1);transition:background-color 150ms var(--ease),border-color 150ms var(--ease),transform 120ms var(--ease)}
+.guess:hover{background:var(--raised)}
+.guess:active{transform:scale(.98)}
+.guess .avatar{width:28px;height:28px;font-size:11px}
+.guess .key{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink2)}
+.guess.is-picked{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.guess.is-picked .avatar{background:var(--bg);color:var(--ink);border-color:var(--bg)}
+.guess.is-picked .key{color:var(--bg);opacity:.7}
+.round-foot{padding:12px 0 16px;text-align:center;font-size:12px;color:var(--ink2)}
+
+/* 5 reveal */
+.reveal-head{display:flex;align-items:center;justify-content:space-between;padding-top:4px}
+.reveal-head h2{font-size:20px;font-weight:500;letter-spacing:-.01em}
+.reveal-head .mono{font-size:12px;color:var(--ink2)}
+.reveal-photo{margin-top:12px;display:flex;gap:12px;align-items:center;background:var(--card);border:1px solid var(--hairline);border-radius:14px;padding:10px;box-shadow:var(--shadow-1)}
+.reveal-photo .mini{width:96px;height:72px;border-radius:6px;overflow:hidden;border:1px solid var(--hairline-strong);flex:0 0 auto}
+.reveal-photo .mini svg{display:block;width:100%;height:100%}
+.owner{flex:1 1 auto;min-width:0}
+.owner .lbl{font-size:12px;color:var(--ink2)}
+.owner .who{display:flex;align-items:center;gap:8px;margin-top:4px;font-size:17px;font-weight:600}
+.owner .who .avatar{width:28px;height:28px;font-size:11px}
+.owner .guessed{margin-top:4px;font-size:12px;color:var(--ink2)}
+.ranks{margin-top:12px;background:var(--card);border:1px solid var(--hairline);border-radius:14px;box-shadow:var(--shadow-1);overflow:hidden}
+.ranks-head{display:flex;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--hairline);font-size:12px;color:var(--ink2)}
+.rank{display:flex;align-items:center;gap:10px;height:44px;padding:0 14px;border-bottom:1px solid var(--hairline);font-size:14px}
+.rank:last-child{border-bottom:0}
+.rank .pos{width:14px;font-family:var(--mono);font-size:12px;color:var(--ink2)}
+.rank .avatar{width:26px;height:26px;font-size:11px}
+.rank .name{font-weight:500}
+.rank .streak{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 7px;border-radius:999px;background:var(--accent-soft);border:1px solid var(--hairline-strong);font-size:11px;font-weight:500;color:var(--ink)}
+.rank .streak svg{color:var(--accent)}
+.rank .score{margin-left:auto;font-family:var(--mono);font-size:13px}
+.rank .delta{width:56px;text-align:right;font-family:var(--mono);font-size:12px;color:var(--pos)}
+.rank .delta.zero{color:var(--ink2)}
+.micro{display:flex;align-items:center;gap:6px;padding:10px 14px;border-top:1px solid var(--hairline);font-size:12px;color:var(--ink2)}
+.micro svg{color:var(--ink2)}
+.host-ctrls{display:flex;gap:10px;padding:12px 0 0}
+.host-ctrls .btn{height:48px;font-size:14px}
+.host-ctrls .btn-secondary{flex:0 0 128px}
+.popup{margin-top:12px;border-radius:14px;border:1px solid var(--hairline-strong);background:var(--card);box-shadow:var(--shadow-2);padding:12px}
+.popup-head{display:flex;align-items:center;justify-content:space-between}
+.popup-head b{font-size:14px;font-weight:500}
+.popup-head .count{font-family:var(--mono);font-size:12px;color:var(--ink2);border:1px solid var(--hairline-strong);border-radius:4px;padding:2px 6px;line-height:16px}
+.popup p{font-size:12px;color:var(--ink2);margin:2px 0 8px}
+.popup-track{height:4px;border-radius:2px;background:var(--raised);overflow:hidden;margin-bottom:8px}
+.popup-track i{display:block;height:100%;width:70%;background:var(--ink);border-radius:2px;transition:width 150ms var(--ease)}
+.popup-thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px}
+.popup-thumbs .t{border-radius:6px;overflow:hidden;border:1px solid var(--hairline-strong)}
+.popup-thumbs svg{display:block;width:100%;height:auto}
+.popup-actions{display:flex;gap:8px}
+.popup-actions .btn{height:44px;font-size:14px}
+.popup-actions .btn-secondary{flex:0 0 112px}
+.popup[hidden]{display:none}
+
+/* 6 podium */
+.podium-head{display:flex;align-items:center;justify-content:space-between;padding-top:4px}
+.podium-head h2{font-size:20px;font-weight:500;letter-spacing:-.01em}
+.podium-head .mono{font-size:12px;color:var(--ink2)}
+.stage{margin-top:12px;background:var(--card);border:1px solid var(--hairline);border-radius:16px;padding:16px 12px 0;box-shadow:var(--shadow-1)}
+.podium-bars{display:grid;grid-template-columns:1fr 1fr 1fr;align-items:end;gap:8px;height:172px}
+.bar-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
+.bar-col .who{display:flex;flex-direction:column;align-items:center;gap:4px;margin-bottom:8px}
+.bar-col .who .name{font-size:13px;font-weight:500}
+.bar-col .who .score{font-family:var(--mono);font-size:12px;color:var(--ink2)}
+.bar{width:100%;border-radius:8px 8px 0 0;border:1px solid var(--hairline-strong);border-bottom:0;background:var(--raised);display:flex;align-items:flex-start;justify-content:center;padding-top:8px;font-family:var(--mono);font-size:12px;color:var(--ink2)}
+.bar-col.first .bar{height:84px;background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.bar-col.second .bar{height:58px}
+.bar-col.third .bar{height:40px}
+.stage-base{height:1px;background:var(--hairline-strong);margin:0 -12px}
+.fourth{display:flex;justify-content:space-between;padding:8px 4px 10px;font-size:12px;color:var(--ink2)}
+.awards{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.award{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:var(--card);border:1px solid var(--hairline);font-size:11px;color:var(--ink2);min-width:0}
+.award svg{flex:0 0 auto;color:var(--ink2)}
+.award .t{display:flex;flex-direction:column;min-width:0}
+.award .t i{font-style:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.award b{font-weight:500;color:var(--ink);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.podium-actions{padding:12px 0}
+.podium-actions .btn{height:48px}
+
+/* states strip */
+.states{max-width:2110px;margin:40px auto 0;padding:0 4px}
+.states h2{font-size:15px;font-weight:500;color:var(--ink2);margin-bottom:12px}
+.state-row{display:flex;flex-wrap:wrap;gap:16px}
+.state-card{width:300px;background:var(--card);border:1px solid var(--hairline-strong);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:8px;box-shadow:var(--shadow-1)}
+.state-card .k{font-family:var(--mono);font-size:11px;color:var(--ink2)}
+.state-card .ico{width:36px;height:36px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;background:var(--raised);color:var(--ink2);margin-bottom:2px}
+.state-card b{font-size:15px;font-weight:500}
+.state-card p{font-size:13px;color:var(--ink2)}
+.state-card .btn{margin-top:4px;height:44px;font-size:14px}
+.state-card .mini-bar{height:6px;border-radius:3px;background:var(--raised);overflow:hidden;margin-top:2px}
+.state-card .mini-bar i{display:block;height:100%;width:38%;background:var(--ink3);border-radius:3px}
+.state-card .skel{height:10px;border-radius:4px;background:var(--raised)}
+.state-card .skel.s2{width:72%}
+.state-card .skel.s3{width:46%}
+.state-card.error{border-color:var(--neg)}
+.state-card.error .ico{color:var(--neg);background:transparent;border:1px solid var(--neg)}
+.state-card .neg{color:var(--neg);font-size:12px}
+
+.toast{position:absolute;left:20px;right:20px;bottom:88px;z-index:5;padding:10px 12px;border-radius:8px;background:var(--ink);color:var(--bg);font-size:13px;text-align:center;opacity:0;transform:translateY(6px);pointer-events:none;transition:opacity 160ms var(--ease),transform 160ms var(--ease)}
+.toast.is-on{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="page-head">
+  <div>
+    <h1>WhoTook · Warm Contact Sheet</h1>
+    <p>Light mode · 6 screens · 390 x 844</p>
+  </div>
+  <div class="meta">proto_a · DM Sans / JetBrains Mono</div>
+</header>
+
+<main class="board">
+  <section class="slot" aria-label="Home">
+    <div class="phone">
+      <div class="status"><span>9:41</span><span class="icons" aria-hidden="true">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.86a10 10 0 0 1 14 0"/><path d="M8.5 16.43a5 5 0 0 1 7 0"/></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/></svg>
+      <svg width="22" height="16" viewBox="0 0 28 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="9" rx="2.5"/><path d="M26 7.5v2"/><rect x="3" y="6" width="15" height="5" rx="1" fill="currentColor" stroke="none"/></svg>
+    </span></div>
+      <div class="screen">
+        <div class="home-top">
+          <div class="wordmark">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h4l1.6-2.4A1 1 0 0 1 9.4 4h5.2a1 1 0 0 1 .8.4L17 7h4v12H3z"/><circle cx="12" cy="12.5" r="3.5"/><path d="M3 7l3-3M21 7l-3-3" opacity="0"/></svg>
+            WhoTook
+          </div>
+          <button class="icon-btn" type="button" aria-label="Settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+        </div>
+
+        <div class="hero">
+          <div class="print">
+            <svg class="scene" viewBox="0 0 300 224" role="img" aria-label="Rain running down a window at dusk">
+  <rect width="300" height="224" fill="#5C6670"/>
+  <rect y="150" width="300" height="74" fill="#3F4750"/>
+  <rect x="18" y="18" width="264" height="188" fill="#8C99A2"/>
+  <path d="M18 150c40-24 80 10 130-8s80-30 134-6v70H18z" fill="#6E7A83"/>
+  <circle cx="222" cy="70" r="12" fill="#EBC98C" opacity="0.7"/>
+  <rect x="18" y="18" width="264" height="188" fill="none" stroke="#3F4750" stroke-width="10"/>
+  <path d="M150 18v188M18 112h264" stroke="#3F4750" stroke-width="8"/>
+  <g stroke="#E8EEF1" stroke-width="2" stroke-linecap="round" opacity="0.75">
+    <path d="M52 40v30M70 66v18M96 30v44M124 80v26M46 120v38M84 132v22M120 150v30M196 40v26M214 90v40M240 120v34M262 60v22M170 160v26M206 168v18M64 186v14"/>
+  </g>
+  <g fill="#E8EEF1" opacity="0.5"><circle cx="52" cy="74" r="2.5"/><circle cx="96" cy="78" r="2.5"/><circle cx="124" cy="110" r="2.5"/><circle cx="214" cy="134" r="2.5"/></g>
+  <rect x="196" y="160" width="70" height="30" rx="2" fill="#5A4632"/>
+  <path d="M206 160c0-14 8-22 25-22s25 8 25 22" fill="none" stroke="#5A4632" stroke-width="4"/>
+</svg>
+            <span class="frame-tag"><i></i>Last match</span>
+          </div>
+        </div>
+
+        <div class="grow"></div>
+
+        <button class="exclusion" type="button" aria-label="Album exclusions, 3 albums excluded, open settings">
+          <span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg></span>
+          <span class="text"><b>3 albums excluded</b><span>Screenshots, WhatsApp, Documents</span></span>
+          <span class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span>
+        </button>
+
+        <div class="home-actions">
+          <div class="host-split">
+            <button class="btn btn-primary" type="button" id="host-btn">Host match</button>
+            <button class="btn host-config" type="button" id="host-config-btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+              <span class="sr-only">Match preset</span><span id="host-config">10 rounds · 8s</span>
+            </button>
+          </div>
+          <button class="btn btn-secondary" type="button" data-toast="Scanner open, point at the host QR"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h.01M20 17v3"/></svg>Join via QR</button>
+          <p class="home-note">Photos stay on your device and are only sent to players in the match</p>
+        </div>
+      </div>
+      <div class="home-ind" aria-hidden="true"><span></span></div>
+    </div>
+    <div class="caption"><span class="idx">01</span><b>Home</b></div>
+  </section>
+
+  <section class="slot" aria-label="Lobby (host)">
+    <div class="phone">
+      <div class="status"><span>9:42</span><span class="icons" aria-hidden="true">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.86a10 10 0 0 1 14 0"/><path d="M8.5 16.43a5 5 0 0 1 7 0"/></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/></svg>
+      <svg width="22" height="16" viewBox="0 0 28 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="9" rx="2.5"/><path d="M26 7.5v2"/><rect x="3" y="6" width="15" height="5" rx="1" fill="currentColor" stroke="none"/></svg>
+    </span></div>
+      <div class="screen">
+        <div class="lobby-head">
+          <h2>Lobby</h2>
+          <button class="icon-btn" type="button" aria-label="Close lobby"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+        </div>
+
+        <div class="qr-card">
+          <div class="qr-frame">
+            <span class="crop tl"></span><span class="crop tr"></span><span class="crop bl"></span><span class="crop br"></span>
+            <svg width="148" height="148" viewBox="0 0 29 29" shape-rendering="crispEdges" role="img" aria-label="Invite QR code for this match"><rect width="29" height="29" fill="#FFFFFF"/><g fill="#1F1B16"><rect x="0" y="0" width="7" height="1"/><rect x="8" y="0" width="3" height="1"/><rect x="12" y="0" width="1" height="1"/><rect x="14" y="0" width="2" height="1"/><rect x="17" y="0" width="4" height="1"/><rect x="22" y="0" width="7" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="9" y="1" width="1" height="1"/><rect x="11" y="1" width="2" height="1"/><rect x="16" y="1" width="1" height="1"/><rect x="18" y="1" width="1" height="1"/><rect x="20" y="1" width="1" height="1"/><rect x="22" y="1" width="1" height="1"/><rect x="28" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="2" y="2" width="3" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="8" y="2" width="4" height="1"/><rect x="13" y="2" width="1" height="1"/><rect x="16" y="2" width="1" height="1"/><rect x="18" y="2" width="3" height="1"/><rect x="22" y="2" width="1" height="1"/><rect x="24" y="2" width="3" height="1"/><rect x="28" y="2" width="1" height="1"/><rect x="0" y="3" width="1" height="1"/><rect x="2" y="3" width="3" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="10" y="3" width="2" height="1"/><rect x="13" y="3" width="2" height="1"/><rect x="17" y="3" width="1" height="1"/><rect x="22" y="3" width="1" height="1"/><rect x="24" y="3" width="3" height="1"/><rect x="28" y="3" width="1" height="1"/><rect x="0" y="4" width="1" height="1"/><rect x="2" y="4" width="3" height="1"/><rect x="6" y="4" width="1" height="1"/><rect x="8" y="4" width="1" height="1"/><rect x="10" y="4" width="1" height="1"/><rect x="12" y="4" width="2" height="1"/><rect x="15" y="4" width="1" height="1"/><rect x="17" y="4" width="1" height="1"/><rect x="22" y="4" width="1" height="1"/><rect x="24" y="4" width="3" height="1"/><rect x="28" y="4" width="1" height="1"/><rect x="0" y="5" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="8" y="5" width="1" height="1"/><rect x="10" y="5" width="1" height="1"/><rect x="14" y="5" width="1" height="1"/><rect x="17" y="5" width="1" height="1"/><rect x="19" y="5" width="1" height="1"/><rect x="22" y="5" width="1" height="1"/><rect x="28" y="5" width="1" height="1"/><rect x="0" y="6" width="7" height="1"/><rect x="8" y="6" width="1" height="1"/><rect x="10" y="6" width="1" height="1"/><rect x="12" y="6" width="1" height="1"/><rect x="14" y="6" width="1" height="1"/><rect x="16" y="6" width="1" height="1"/><rect x="18" y="6" width="1" height="1"/><rect x="20" y="6" width="1" height="1"/><rect x="22" y="6" width="7" height="1"/><rect x="12" y="7" width="2" height="1"/><rect x="15" y="7" width="5" height="1"/><rect x="0" y="8" width="1" height="1"/><rect x="2" y="8" width="1" height="1"/><rect x="4" y="8" width="3" height="1"/><rect x="8" y="8" width="1" height="1"/><rect x="24" y="8" width="1" height="1"/><rect x="26" y="8" width="2" height="1"/><rect x="0" y="9" width="3" height="1"/><rect x="4" y="9" width="2" height="1"/><rect x="12" y="9" width="3" height="1"/><rect x="17" y="9" width="4" height="1"/><rect x="23" y="9" width="4" height="1"/><rect x="4" y="10" width="1" height="1"/><rect x="6" y="10" width="1" height="1"/><rect x="11" y="10" width="3" height="1"/><rect x="15" y="10" width="11" height="1"/><rect x="28" y="10" width="1" height="1"/><rect x="0" y="11" width="4" height="1"/><rect x="7" y="11" width="1" height="1"/><rect x="10" y="11" width="4" height="1"/><rect x="15" y="11" width="2" height="1"/><rect x="19" y="11" width="1" height="1"/><rect x="21" y="11" width="1" height="1"/><rect x="26" y="11" width="3" height="1"/><rect x="3" y="12" width="2" height="1"/><rect x="6" y="12" width="1" height="1"/><rect x="13" y="12" width="1" height="1"/><rect x="15" y="12" width="5" height="1"/><rect x="22" y="12" width="1" height="1"/><rect x="26" y="12" width="3" height="1"/><rect x="0" y="13" width="2" height="1"/><rect x="5" y="13" width="1" height="1"/><rect x="10" y="13" width="1" height="1"/><rect x="15" y="13" width="2" height="1"/><rect x="18" y="13" width="1" height="1"/><rect x="21" y="13" width="2" height="1"/><rect x="25" y="13" width="3" height="1"/><rect x="1" y="14" width="1" height="1"/><rect x="5" y="14" width="2" height="1"/><rect x="9" y="14" width="2" height="1"/><rect x="15" y="14" width="1" height="1"/><rect x="18" y="14" width="4" height="1"/><rect x="23" y="14" width="3" height="1"/><rect x="27" y="14" width="2" height="1"/><rect x="2" y="15" width="1" height="1"/><rect x="9" y="15" width="4" height="1"/><rect x="14" y="15" width="2" height="1"/><rect x="18" y="15" width="1" height="1"/><rect x="22" y="15" width="1" height="1"/><rect x="24" y="15" width="2" height="1"/><rect x="2" y="16" width="1" height="1"/><rect x="6" y="16" width="1" height="1"/><rect x="9" y="16" width="1" height="1"/><rect x="11" y="16" width="1" height="1"/><rect x="16" y="16" width="1" height="1"/><rect x="20" y="16" width="6" height="1"/><rect x="0" y="17" width="1" height="1"/><rect x="3" y="17" width="1" height="1"/><rect x="7" y="17" width="1" height="1"/><rect x="10" y="17" width="1" height="1"/><rect x="14" y="17" width="2" height="1"/><rect x="17" y="17" width="3" height="1"/><rect x="21" y="17" width="1" height="1"/><rect x="23" y="17" width="3" height="1"/><rect x="28" y="17" width="1" height="1"/><rect x="3" y="18" width="4" height="1"/><rect x="9" y="18" width="3" height="1"/><rect x="14" y="18" width="2" height="1"/><rect x="19" y="18" width="2" height="1"/><rect x="22" y="18" width="2" height="1"/><rect x="27" y="18" width="1" height="1"/><rect x="0" y="19" width="1" height="1"/><rect x="2" y="19" width="2" height="1"/><rect x="7" y="19" width="1" height="1"/><rect x="9" y="19" width="1" height="1"/><rect x="11" y="19" width="7" height="1"/><rect x="19" y="19" width="1" height="1"/><rect x="21" y="19" width="5" height="1"/><rect x="28" y="19" width="1" height="1"/><rect x="0" y="20" width="1" height="1"/><rect x="2" y="20" width="1" height="1"/><rect x="4" y="20" width="1" height="1"/><rect x="6" y="20" width="1" height="1"/><rect x="9" y="20" width="1" height="1"/><rect x="13" y="20" width="1" height="1"/><rect x="17" y="20" width="10" height="1"/><rect x="28" y="20" width="1" height="1"/><rect x="9" y="21" width="2" height="1"/><rect x="14" y="21" width="7" height="1"/><rect x="24" y="21" width="2" height="1"/><rect x="0" y="22" width="7" height="1"/><rect x="9" y="22" width="1" height="1"/><rect x="11" y="22" width="5" height="1"/><rect x="17" y="22" width="1" height="1"/><rect x="19" y="22" width="2" height="1"/><rect x="22" y="22" width="1" height="1"/><rect x="24" y="22" width="5" height="1"/><rect x="0" y="23" width="1" height="1"/><rect x="6" y="23" width="1" height="1"/><rect x="9" y="23" width="3" height="1"/><rect x="18" y="23" width="3" height="1"/><rect x="24" y="23" width="1" height="1"/><rect x="26" y="23" width="1" height="1"/><rect x="0" y="24" width="1" height="1"/><rect x="2" y="24" width="3" height="1"/><rect x="6" y="24" width="1" height="1"/><rect x="8" y="24" width="2" height="1"/><rect x="15" y="24" width="1" height="1"/><rect x="20" y="24" width="5" height="1"/><rect x="0" y="25" width="1" height="1"/><rect x="2" y="25" width="3" height="1"/><rect x="6" y="25" width="1" height="1"/><rect x="10" y="25" width="5" height="1"/><rect x="21" y="25" width="1" height="1"/><rect x="27" y="25" width="1" height="1"/><rect x="0" y="26" width="1" height="1"/><rect x="2" y="26" width="3" height="1"/><rect x="6" y="26" width="1" height="1"/><rect x="8" y="26" width="4" height="1"/><rect x="13" y="26" width="1" height="1"/><rect x="17" y="26" width="2" height="1"/><rect x="23" y="26" width="3" height="1"/><rect x="27" y="26" width="1" height="1"/><rect x="0" y="27" width="1" height="1"/><rect x="6" y="27" width="1" height="1"/><rect x="8" y="27" width="4" height="1"/><rect x="15" y="27" width="1" height="1"/><rect x="17" y="27" width="3" height="1"/><rect x="21" y="27" width="1" height="1"/><rect x="24" y="27" width="2" height="1"/><rect x="28" y="27" width="1" height="1"/><rect x="0" y="28" width="7" height="1"/><rect x="9" y="28" width="2" height="1"/><rect x="12" y="28" width="1" height="1"/><rect x="14" y="28" width="1" height="1"/><rect x="17" y="28" width="1" height="1"/><rect x="22" y="28" width="1" height="1"/><rect x="25" y="28" width="2" height="1"/><rect x="28" y="28" width="1" height="1"/></g></svg>
+          </div>
+          <button class="btn btn-secondary btn-sm" type="button" data-toast="Invite link copied"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>Share invite link</button>
+          <span class="transport"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><path d="M12 20h.01"/></svg>Local Wi-Fi · Zero server</span>
+        </div>
+
+        <div class="players">
+          <div class="players-head"><b>4 players joined</b><span class="secondary">Room 4B2F</span></div>
+          <div class="player"><span class="avatar is-host">B</span><span class="name">Bram<small>Host</small></span><span class="state ready"><span class="dot dot-pos"></span>Ready</span></div>
+          <div class="player"><span class="avatar">L</span><span class="name">Lotte</span><span class="state ready"><span class="dot dot-pos"></span>Ready</span></div>
+          <div class="player"><span class="avatar">S</span><span class="name">Sam</span><span class="state"><span class="dot dot-wait"></span>Choosing</span></div>
+          <div class="player"><span class="avatar">N</span><span class="name">Noor</span><span class="state"><span class="dot dot-wait"></span>Choosing</span></div>
+          </div>
+
+        <div class="grow"></div>
+
+        <div class="stepper-row">
+          <span class="label">Rounds <b class="mono">K</b></span>
+          <div class="stepper" role="group" aria-label="Round count">
+            <button type="button" aria-label="Fewer rounds" id="k-minus"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+            <span class="value" id="k-value" aria-live="polite">10</span>
+            <button type="button" aria-label="More rounds" id="k-plus"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+          </div>
+        </div>
+
+        <div class="lobby-actions">
+          <p class="hint">Waiting for Sam and Noor to pick photos</p>
+          <button class="btn btn-primary" type="button" data-toast="Starting match with 10 rounds">Start match</button>
+        </div>
+      </div>
+      <div class="home-ind" aria-hidden="true"><span></span></div>
+    </div>
+    <div class="caption"><span class="idx">02</span><b>Lobby (host)</b></div>
+  </section>
+
+  <section class="slot" aria-label="Prepare photos">
+    <div class="phone">
+      <div class="status"><span>9:43</span><span class="icons" aria-hidden="true">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.86a10 10 0 0 1 14 0"/><path d="M8.5 16.43a5 5 0 0 1 7 0"/></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/></svg>
+      <svg width="22" height="16" viewBox="0 0 28 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="9" rx="2.5"/><path d="M26 7.5v2"/><rect x="3" y="6" width="15" height="5" rx="1" fill="currentColor" stroke="none"/></svg>
+    </span></div>
+      <div class="screen">
+        <div class="prep-head">
+          <h2>Check your photos</h2>
+          <p>Swap anything you would rather not share</p>
+          <div class="status-line"><span class="dot dot-pos"></span><span id="prep-status">Waiting for 1 player · Sam</span></div>
+        </div>
+
+        <div class="sheet">
+          <div class="sheet-head"><span>Your set</span><span class="mono">4 photos · 2 x 2</span></div>
+          <div class="contact-grid" id="contact">
+            <button class="thumb" type="button" aria-label="Swap photo 01"><svg class="scene" viewBox="0 0 300 224" role="img" aria-label="Espresso cup on a saucer beside a notebook">
+  <rect width="300" height="224" fill="#E6DCCB"/>
+  <rect y="150" width="300" height="74" fill="#C8B494"/>
+  <path d="M0 150h300" stroke="#A98F6C" stroke-width="3"/>
+  <path d="M40 46 150 150" stroke="#F2E9D8" stroke-width="38" opacity="0.55"/>
+  <ellipse cx="150" cy="168" rx="86" ry="20" fill="#A98F6C" opacity="0.5"/>
+  <ellipse cx="150" cy="158" rx="80" ry="18" fill="#F4EDE0"/>
+  <ellipse cx="150" cy="155" rx="62" ry="12" fill="#E4D8C2"/>
+  <path d="M112 96h76v34a26 26 0 0 1-26 26h-24a26 26 0 0 1-26-26z" fill="#B4462B"/>
+  <path d="M188 104h8a12 12 0 0 1 0 24h-8" fill="none" stroke="#B4462B" stroke-width="7"/>
+  <ellipse cx="150" cy="96" rx="38" ry="9" fill="#5A3423"/>
+  <ellipse cx="150" cy="95" rx="28" ry="5" fill="#B48A5A"/>
+  <path d="M138 80c-5-7 5-12 0-20M158 80c-5-7 5-12 0-20" stroke="#C4B49A" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <rect x="228" y="120" width="56" height="40" rx="3" fill="#F4EDE0" stroke="#B8A483" stroke-width="2"/>
+  <path d="M238 132h36M238 142h26" stroke="#B8A483" stroke-width="2" stroke-linecap="round"/>
+  <rect x="20" y="112" width="34" height="46" rx="2" fill="#8E9A7C"/>
+  <path d="M28 112v-16h18v16" fill="none" stroke="#8E9A7C" stroke-width="3"/>
+</svg>
+              <span class="num">01</span>
+              <span class="swap" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h13l-3-3M21 16H8l3 3"/></svg>Swap</span>
+            </button>
+            <button class="thumb" type="button" aria-label="Swap photo 02"><svg class="scene" viewBox="0 0 300 224" role="img" aria-label="Bicycle leaning on a beach wall">
+  <rect width="300" height="224" fill="#C9D9DC"/>
+  <rect y="120" width="300" height="104" fill="#E3D2B4"/>
+  <path d="M0 120h300v8H0z" fill="#B9CFD3"/>
+  <circle cx="238" cy="52" r="22" fill="#EBC98C"/>
+  <rect x="0" y="0" width="300" height="120" fill="#DCE7E9"/>
+  <rect x="0" y="118" width="300" height="12" fill="#9FB9BE"/>
+  <rect x="30" y="130" width="46" height="70" rx="2" fill="#B4462B" opacity="0.85"/>
+  <path d="M38 148h30M38 164h22" stroke="#F4EDE0" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="112" cy="176" r="34" fill="none" stroke="#3E3A33" stroke-width="4"/>
+  <circle cx="218" cy="176" r="34" fill="none" stroke="#3E3A33" stroke-width="4"/>
+  <path d="M112 176l26-44h34l46 44M138 132l44 44h-70M182 132l-6-18h18" fill="none" stroke="#3E3A33" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M150 176h40" stroke="#8E9A7C" stroke-width="6"/>
+  <path d="M112 176l-14-50" stroke="#3E3A33" stroke-width="4" stroke-linecap="round"/>
+  <path d="M92 122h24" stroke="#3E3A33" stroke-width="4" stroke-linecap="round"/>
+  <path d="M196 116h34" stroke="#3E3A33" stroke-width="4" stroke-linecap="round"/>
+  <path d="M0 196c40-8 80 6 140 0s120-8 160 2v26H0z" fill="#D6C29E"/>
+</svg>
+              <span class="num">02</span>
+              <span class="swap" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h13l-3-3M21 16H8l3 3"/></svg>Swap</span>
+            </button>
+            <button class="thumb" type="button" aria-label="Swap photo 03"><svg class="scene" viewBox="0 0 300 224" role="img" aria-label="Street cat sitting on a step">
+  <rect width="300" height="224" fill="#D9CFC0"/>
+  <rect y="150" width="300" height="74" fill="#A79A87"/>
+  <path d="M0 150h300v10H0z" fill="#8C8070"/>
+  <rect x="196" y="24" width="86" height="96" fill="#EFE7D8"/>
+  <rect x="196" y="24" width="86" height="96" fill="none" stroke="#8C8070" stroke-width="4"/>
+  <path d="M239 24v96M196 72h86" stroke="#8C8070" stroke-width="4"/>
+  <ellipse cx="140" cy="160" rx="58" ry="12" fill="#8C8070"/>
+  <path d="M96 158c-16 0-22-14-18-26" fill="none" stroke="#4A4038" stroke-width="10" stroke-linecap="round"/>
+  <path d="M104 158c-4-34 10-52 36-52s42 18 38 52z" fill="#4A4038"/>
+  <circle cx="140" cy="84" r="26" fill="#4A4038"/>
+  <path d="M122 66l-4-20 20 10zM158 66l6-20 12 18z" fill="#4A4038"/>
+  <path d="M130 82c2 2 6 2 8 0M148 82c2 2 6 2 8 0" stroke="#D9CFC0" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M138 90h5l-2.5 4z" fill="#C98C8C"/>
+  <path d="M132 106c4 4 12 4 16 0" stroke="#D9CFC0" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M156 120c10 0 10 22 0 22" fill="none" stroke="#4A4038" stroke-width="8" stroke-linecap="round"/>
+</svg>
+              <span class="num">03</span>
+              <span class="swap" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h13l-3-3M21 16H8l3 3"/></svg>Swap</span>
+            </button>
+            <button class="thumb" type="button" aria-label="Swap photo 04"><svg class="scene" viewBox="0 0 300 224" role="img" aria-label="Rain running down a window at dusk">
+  <rect width="300" height="224" fill="#5C6670"/>
+  <rect y="150" width="300" height="74" fill="#3F4750"/>
+  <rect x="18" y="18" width="264" height="188" fill="#8C99A2"/>
+  <path d="M18 150c40-24 80 10 130-8s80-30 134-6v70H18z" fill="#6E7A83"/>
+  <circle cx="222" cy="70" r="12" fill="#EBC98C" opacity="0.7"/>
+  <rect x="18" y="18" width="264" height="188" fill="none" stroke="#3F4750" stroke-width="10"/>
+  <path d="M150 18v188M18 112h264" stroke="#3F4750" stroke-width="8"/>
+  <g stroke="#E8EEF1" stroke-width="2" stroke-linecap="round" opacity="0.75">
+    <path d="M52 40v30M70 66v18M96 30v44M124 80v26M46 120v38M84 132v22M120 150v30M196 40v26M214 90v40M240 120v34M262 60v22M170 160v26M206 168v18M64 186v14"/>
+  </g>
+  <g fill="#E8EEF1" opacity="0.5"><circle cx="52" cy="74" r="2.5"/><circle cx="96" cy="78" r="2.5"/><circle cx="124" cy="110" r="2.5"/><circle cx="214" cy="134" r="2.5"/></g>
+  <rect x="196" y="160" width="70" height="30" rx="2" fill="#5A4632"/>
+  <path d="M206 160c0-14 8-22 25-22s25 8 25 22" fill="none" stroke="#5A4632" stroke-width="4"/>
+</svg>
+              <span class="num">04</span>
+              <span class="swap" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h13l-3-3M21 16H8l3 3"/></svg>Swap</span>
+            </button>
+          </div>
+        </div>
+
+        <button class="plant" type="button" id="plant" hidden>
+          <span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22V12"/><path d="M12 12c0-5-4-8-8-8 0 4 3 8 8 8z"/><path d="M12 14c0-4 3-7 7-7 0 4-3 7-7 7z"/></svg></span>
+          <span class="text"><b>Plant 1 secret photo</b><span id="plant-note">Pick one photo only you know about</span></span>
+          <span class="tag" id="plant-tag">1 left</span>
+        </button>
+
+        <div class="grow"></div>
+
+        <div class="prep-actions">
+          <button class="btn btn-secondary" type="button" id="reroll"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/><path d="M21 17v-6h-6"/><path d="M3 17a9 9 0 0 1 15 6.7L21 13"/></svg>Reroll all</button>
+          <button class="btn btn-primary" type="button" id="ready">Ready</button>
+        </div>
+      </div>
+      <div class="home-ind" aria-hidden="true"><span></span></div>
+    </div>
+    <div class="caption"><span class="idx">03</span><b>Prepare photos</b></div>
+  </section>
+
+  <section class="slot" aria-label="Active round">
+    <div class="phone">
+      <div class="status"><span>9:47</span><span class="icons" aria-hidden="true">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.86a10 10 0 0 1 14 0"/><path d="M8.5 16.43a5 5 0 0 1 7 0"/></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/></svg>
+      <svg width="22" height="16" viewBox="0 0 28 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="9" rx="2.5"/><path d="M26 7.5v2"/><rect x="3" y="6" width="15" height="5" rx="1" fill="currentColor" stroke="none"/></svg>
+    </span></div>
+      <div class="screen">
+        <div class="round-head">
+          <h2>Who took this</h2>
+          <span class="round-tag"><span class="frames" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span>03 / 10</span>
+        </div>
+
+        <div class="print-card">
+          <div class="print">
+            <span class="crop tl"></span><span class="crop tr"></span><span class="crop bl"></span><span class="crop br"></span>
+            <svg class="scene" viewBox="0 0 300 224" role="img" aria-label="Street cat sitting on a step">
+  <rect width="300" height="224" fill="#D9CFC0"/>
+  <rect y="150" width="300" height="74" fill="#A79A87"/>
+  <path d="M0 150h300v10H0z" fill="#8C8070"/>
+  <rect x="196" y="24" width="86" height="96" fill="#EFE7D8"/>
+  <rect x="196" y="24" width="86" height="96" fill="none" stroke="#8C8070" stroke-width="4"/>
+  <path d="M239 24v96M196 72h86" stroke="#8C8070" stroke-width="4"/>
+  <ellipse cx="140" cy="160" rx="58" ry="12" fill="#8C8070"/>
+  <path d="M96 158c-16 0-22-14-18-26" fill="none" stroke="#4A4038" stroke-width="10" stroke-linecap="round"/>
+  <path d="M104 158c-4-34 10-52 36-52s42 18 38 52z" fill="#4A4038"/>
+  <circle cx="140" cy="84" r="26" fill="#4A4038"/>
+  <path d="M122 66l-4-20 20 10zM158 66l6-20 12 18z" fill="#4A4038"/>
+  <path d="M130 82c2 2 6 2 8 0M148 82c2 2 6 2 8 0" stroke="#D9CFC0" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M138 90h5l-2.5 4z" fill="#C98C8C"/>
+  <path d="M132 106c4 4 12 4 16 0" stroke="#D9CFC0" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M156 120c10 0 10 22 0 22" fill="none" stroke="#4A4038" stroke-width="8" stroke-linecap="round"/>
+</svg>
+            <span class="frame-tag"><i></i>03 / 10</span>
+          </div>
+        </div>
+
+        <div class="timer">
+          <div class="timer-row">
+            <span class="t"><span id="timer-val">5.4</span><small>s</small></span>
+            <span class="label">Time left to guess</span>
+          </div>
+          <button class="timer-track-btn" type="button" id="timer-restart" aria-label="Restart the countdown">
+            <span class="timer-track" aria-hidden="true"><span class="timer-fill" id="timer-fill"></span></span>
+          </button>
+        </div>
+
+        <div class="banner" role="status">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3.5"/></svg>
+          <span><b>Lotte</b> took a screenshot</span>
+          <span class="time">0:01</span>
+        </div>
+
+        <p class="guess-label">Who took this photo</p>
+        <div class="guess-grid" id="guesses">
+          <button class="guess" type="button" aria-pressed="false"><span class="avatar">B</span>Bram<span class="key">1</span></button>
+          <button class="guess" type="button" aria-pressed="false"><span class="avatar">L</span>Lotte<span class="key">2</span></button>
+          <button class="guess" type="button" aria-pressed="false"><span class="avatar">S</span>Sam<span class="key">3</span></button>
+          <button class="guess" type="button" aria-pressed="false"><span class="avatar">N</span>Noor<span class="key">4</span></button>
+          </div>
+        <p class="round-foot" id="round-foot">Your pick locks in as soon as you tap</p>
+      </div>
+      <div class="home-ind" aria-hidden="true"><span></span></div>
+    </div>
+    <div class="caption"><span class="idx">04</span><b>Active round</b></div>
+  </section>
+
+  <section class="slot" aria-label="Round reveal and scoreboard">
+    <div class="phone">
+      <div class="status"><span>9:52</span><span class="icons" aria-hidden="true">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.86a10 10 0 0 1 14 0"/><path d="M8.5 16.43a5 5 0 0 1 7 0"/></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/></svg>
+      <svg width="22" height="16" viewBox="0 0 28 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="9" rx="2.5"/><path d="M26 7.5v2"/><rect x="3" y="6" width="15" height="5" rx="1" fill="currentColor" stroke="none"/></svg>
+    </span></div>
+      <div class="screen">
+        <div class="reveal-head">
+          <h2>Round 3 of 10</h2>
+          <span class="mono">5.0s left</span>
+        </div>
+
+        <div class="reveal-photo">
+          <div class="mini"><svg class="scene" viewBox="0 0 300 224" role="img" aria-label="Street cat sitting on a step">
+  <rect width="300" height="224" fill="#D9CFC0"/>
+  <rect y="150" width="300" height="74" fill="#A79A87"/>
+  <path d="M0 150h300v10H0z" fill="#8C8070"/>
+  <rect x="196" y="24" width="86" height="96" fill="#EFE7D8"/>
+  <rect x="196" y="24" width="86" height="96" fill="none" stroke="#8C8070" stroke-width="4"/>
+  <path d="M239 24v96M196 72h86" stroke="#8C8070" stroke-width="4"/>
+  <ellipse cx="140" cy="160" rx="58" ry="12" fill="#8C8070"/>
+  <path d="M96 158c-16 0-22-14-18-26" fill="none" stroke="#4A4038" stroke-width="10" stroke-linecap="round"/>
+  <path d="M104 158c-4-34 10-52 36-52s42 18 38 52z" fill="#4A4038"/>
+  <circle cx="140" cy="84" r="26" fill="#4A4038"/>
+  <path d="M122 66l-4-20 20 10zM158 66l6-20 12 18z" fill="#4A4038"/>
+  <path d="M130 82c2 2 6 2 8 0M148 82c2 2 6 2 8 0" stroke="#D9CFC0" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M138 90h5l-2.5 4z" fill="#C98C8C"/>
+  <path d="M132 106c4 4 12 4 16 0" stroke="#D9CFC0" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M156 120c10 0 10 22 0 22" fill="none" stroke="#4A4038" stroke-width="8" stroke-linecap="round"/>
+</svg></div>
+          <div class="owner">
+            <span class="lbl">Shot by</span>
+            <span class="who"><span class="avatar">S</span>Sam</span>
+            <span class="guessed">1 of 3 other players guessed right</span>
+          </div>
+        </div>
+
+        <div class="ranks">
+          <div class="ranks-head"><span>Scoreboard</span><span>This round</span></div>
+          <div class="rank"><span class="pos">1</span><span class="avatar">L</span><span class="name">Lotte</span><span class="streak"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>Streak 3x</span><span class="score">3,410</span><span class="delta">+860</span></div>
+          <div class="rank"><span class="pos">2</span><span class="avatar">N</span><span class="name">Noor</span><span class="score">3,180</span><span class="delta">+920</span></div>
+          <div class="rank"><span class="pos">3</span><span class="avatar">S</span><span class="name">Sam</span><span class="score">2,740</span><span class="delta">+300</span></div>
+          <div class="rank"><span class="pos">4</span><span class="avatar">B</span><span class="name">Bram</span><span class="score">2,460</span><span class="delta zero">0</span></div>
+          <div class="micro"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>Fastest: Sam 0.4s</div>
+        </div>
+
+        <div class="grow"></div>
+
+        <div class="host-ctrls">
+          <button class="btn btn-secondary" type="button" data-toast="Match ended, final podium">End match</button>
+          <button class="btn btn-primary" type="button" id="keep">Keep playing (+5)</button>
+        </div>
+
+        <div class="popup" id="popup" role="dialog" aria-label="Approve 3 extra photos" hidden>
+          <div class="popup-head"><b>Approve 3 extra photos</b><span class="count" id="popup-count">10s</span></div>
+          <p>Reroll any you would rather not share. Approved automatically at 0.</p>
+          <div class="popup-track"><i id="popup-fill"></i></div>
+          <div class="popup-thumbs" id="popup-thumbs">
+            <span class="t"><svg class="scene" viewBox="0 0 300 224" role="img" aria-label="Bicycle leaning on a beach wall">
+  <rect width="300" height="224" fill="#C9D9DC"/>
+  <rect y="120" width="300" height="104" fill="#E3D2B4"/>
+  <path d="M0 120h300v8H0z" fill="#B9CFD3"/>
+  <circle cx="238" cy="52" r="22" fill="#EBC98C"/>
+  <rect x="0" y="0" width="300" height="120" fill="#DCE7E9"/>
+  <rect x="0" y="118" width="300" height="12" fill="#9FB9BE"/>
+  <rect x="30" y="130" width="46" height="70" rx="2" fill="#B4462B" opacity="0.85"/>
+  <path d="M38 148h30M38 164h22" stroke="#F4EDE0" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="112" cy="176" r="34" fill="none" stroke="#3E3A33" stroke-width="4"/>
+  <circle cx="218" cy="176" r="34" fill="none" stroke="#3E3A33" stroke-width="4"/>
+  <path d="M112 176l26-44h34l46 44M138 132l44 44h-70M182 132l-6-18h18" fill="none" stroke="#3E3A33" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M150 176h40" stroke="#8E9A7C" stroke-width="6"/>
+  <path d="M112 176l-14-50" stroke="#3E3A33" stroke-width="4" stroke-linecap="round"/>
+  <path d="M92 122h24" stroke="#3E3A33" stroke-width="4" stroke-linecap="round"/>
+  <path d="M196 116h34" stroke="#3E3A33" stroke-width="4" stroke-linecap="round"/>
+  <path d="M0 196c40-8 80 6 140 0s120-8 160 2v26H0z" fill="#D6C29E"/>
+</svg></span><span class="t"><svg class="scene" viewBox="0 0 300 224" role="img" aria-label="Pizza slice on a plate">
+  <rect width="300" height="224" fill="#D8CBB6"/>
+  <rect y="140" width="300" height="84" fill="#A98F6C"/>
+  <ellipse cx="150" cy="150" rx="96" ry="34" fill="#F4EDE0"/>
+  <ellipse cx="150" cy="146" rx="76" ry="26" fill="#E4D8C2"/>
+  <path d="M96 140 150 54l54 86z" fill="#E0B15A"/>
+  <path d="M110 128 150 62l40 66z" fill="#C9452A"/>
+  <g fill="#8E3A24"><circle cx="140" cy="96" r="5"/><circle cx="160" cy="112" r="5"/><circle cx="150" cy="86" r="4"/></g>
+  <g fill="#8E9A7C"><circle cx="132" cy="116" r="3"/><circle cx="168" cy="96" r="3"/></g>
+  <path d="M96 140h108" stroke="#B98A3C" stroke-width="6" stroke-linecap="round"/>
+  <rect x="226" y="70" width="30" height="70" rx="3" fill="#F4EDE0" stroke="#B9A583" stroke-width="2"/>
+  <path d="M232 84h18M232 96h12" stroke="#B9A583" stroke-width="2" stroke-linecap="round"/>
+</svg></span><span class="t"><svg class="scene" viewBox="0 0 300 224" role="img" aria-label="Stack of books on a windowsill">
+  <rect width="300" height="224" fill="#E2D8C6"/>
+  <rect y="140" width="300" height="84" fill="#B9A583"/>
+  <rect x="20" y="20" width="90" height="110" fill="#F0E8D9" stroke="#B9A583" stroke-width="4"/>
+  <rect x="64" y="158" width="150" height="18" rx="2" fill="#8E9A7C"/>
+  <rect x="58" y="142" width="162" height="16" rx="2" fill="#B4462B"/>
+  <rect x="70" y="128" width="140" height="14" rx="2" fill="#D9C39C"/>
+  <rect x="76" y="116" width="120" height="12" rx="2" fill="#3E3A33"/>
+  <path d="M84 167h120M80 150h130M88 135h110" stroke="#F4EDE0" stroke-width="2" opacity="0.6"/>
+  <circle cx="236" cy="150" r="16" fill="#F4EDE0" stroke="#B9A583" stroke-width="2"/>
+  <path d="M236 134v-8M236 150h-14" stroke="#15803D" stroke-width="2" stroke-linecap="round"/>
+  <rect x="196" y="40" width="70" height="80" rx="3" fill="#EFE7D8" stroke="#B9A583" stroke-width="2"/>
+  <path d="M206 58h50M206 72h34" stroke="#B9A583" stroke-width="2" stroke-linecap="round"/>
+</svg></span>
+          </div>
+          <div class="popup-actions">
+            <button class="btn btn-secondary" type="button" id="popup-reroll">Reroll</button>
+            <button class="btn btn-primary" type="button" id="popup-approve">Approve</button>
+          </div>
+        </div>
+      </div>
+      <div class="home-ind" aria-hidden="true"><span></span></div>
+    </div>
+    <div class="caption"><span class="idx">05</span><b>Round reveal and scoreboard</b><span>· extend popup preview</span></div>
+  </section>
+
+  <section class="slot" aria-label="Final podium">
+    <div class="phone">
+      <div class="status"><span>10:04</span><span class="icons" aria-hidden="true">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.86a10 10 0 0 1 14 0"/><path d="M8.5 16.43a5 5 0 0 1 7 0"/></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/></svg>
+      <svg width="22" height="16" viewBox="0 0 28 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="9" rx="2.5"/><path d="M26 7.5v2"/><rect x="3" y="6" width="15" height="5" rx="1" fill="currentColor" stroke="none"/></svg>
+    </span></div>
+      <div class="screen">
+        <div class="podium-head">
+          <h2>Final podium</h2>
+          <span class="mono">10 / 10 rounds</span>
+        </div>
+
+        <div class="stage">
+          <div class="podium-bars">
+            <div class="bar-col second">
+              <div class="who"><span class="avatar">N</span><span class="name">Noor</span><span class="score">7,240</span></div>
+              <div class="bar">2</div>
+            </div>
+            <div class="bar-col first">
+              <div class="who"><span class="avatar is-host">L</span><span class="name">Lotte</span><span class="score">8,910</span></div>
+              <div class="bar">1</div>
+            </div>
+            <div class="bar-col third">
+              <div class="who"><span class="avatar">S</span><span class="name">Sam</span><span class="score">6,580</span></div>
+              <div class="bar">3</div>
+            </div>
+          </div>
+          <div class="stage-base"></div>
+          <div class="fourth"><span>Bram</span><span class="mono">5,990</span></div>
+        </div>
+
+        <div class="awards">
+          <div class="award"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3"/></svg><span class="t"><i>Champion</i><b>Lotte</b></span></div>
+          <div class="award"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg><span class="t"><i>Quickest Draw</i><b>Sam 0.4s</b></span></div>
+          <div class="award"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg><span class="t"><i>Unstoppable</i><b>Lotte 5x</b></span></div>
+          <div class="award"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18v4a9 9 0 0 1-18 0z"/><path d="M8 12c1-1 2.5-1 3.5 0M15 12c-.6-1-2-1-3 0"/></svg><span class="t"><i>Master of Mystery</i><b>Noor</b></span></div>
+          <div class="award"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3.5"/></svg><span class="t"><i>Paparazzi</i><b>Lotte 3 shots</b></span></div>
+          <div class="award"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22V12"/><path d="M12 12c0-5-4-8-8-8 0 4 3 8 8 8z"/><path d="M12 14c0-4 3-7 7-7 0 4-3 7-7 7z"/></svg><span class="t"><i>Planted photo</i><b>Noor, fooled 2</b></span></div>
+        </div>
+
+        <div class="grow"></div>
+
+        <div class="podium-actions">
+          <button class="btn btn-primary" type="button" data-toast="Back to lobby with the same players"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/><path d="M21 17v-6h-6"/><path d="M3 17a9 9 0 0 1 15 6.7L21 13"/></svg>Play again</button>
+        </div>
+      </div>
+      <div class="home-ind" aria-hidden="true"><span></span></div>
+    </div>
+    <div class="caption"><span class="idx">06</span><b>Final podium</b></div>
+  </section>
+</main>
+
+<section class="states" aria-label="Empty, loading and error states">
+  <h2>Empty, loading, error</h2>
+  <div class="state-row">
+    <div class="state-card">
+      <span class="k">Empty</span>
+      <span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg></span>
+      <b>No photos to play with</b>
+      <p>Everything is excluded or your library is empty. Allow a few albums in Settings.</p>
+      <button class="btn btn-secondary" type="button" data-toast="Album exclusions open">Open album settings</button>
+    </div>
+    <div class="state-card">
+      <span class="k">Loading</span>
+      <span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18"/></svg></span>
+      <b>Reading your photos</b>
+      <p>Picking 4 frames from albums that are not excluded. Stays on your device.</p>
+      <div class="skel"></div><div class="skel s2"></div><div class="skel s3"></div>
+      <div class="mini-bar" aria-hidden="true"><i></i></div>
+    </div>
+    <div class="state-card error">
+      <span class="k">Error</span>
+      <span class="ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2.5 20h19z"/><path d="M12 10v4M12 17h.01"/></svg></span>
+      <b>Daily TURN limit reached</b>
+      <p class="neg">Online relay is out for today. Local Wi-Fi or a phone hotspot keeps the match running with no server.</p>
+      <button class="btn btn-secondary" type="button" data-toast="Switch to Local Wi-Fi or a hotspot"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><path d="M12 20h.01"/></svg>Use Local Wi-Fi</button>
+    </div>
+  </div>
+</section>
+
+<script>
+
+(() => {
+  'use strict';
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+
+  let toastTimer = 0;
+  function toast(phone, text) {
+    let el = $('.toast', phone);
+    if (!el) { el = document.createElement('div'); el.className = 'toast'; el.setAttribute('role', 'status'); phone.appendChild(el); }
+    el.textContent = text;
+    el.classList.add('is-on');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('is-on'), 1800);
+  }
+  const phones = $$('.phone');
+  const [home, lobby, prep, round, reveal, podium] = phones;
+
+  $$('[data-toast]').forEach((b) => b.addEventListener('click', () => toast(b.closest('.phone') || document.body, b.dataset.toast)));
+
+  /* 1 Home: preset button cycles the match configuration */
+  const configs = ['10 rounds · 8s', '10 rounds · 6s', '15 rounds · 8s', '20 rounds · 10s'];
+  let cfg = 0;
+  const configBtn = $('#host-config-btn', home);
+  configBtn.addEventListener('click', () => {
+    cfg = (cfg + 1) % configs.length;
+    $('#host-config', home).textContent = configs[cfg];
+    toast(home, 'Match set to ' + configs[cfg]);
+  });
+  $('#host-btn', home).addEventListener('click', () => toast(home, 'Hosting a match, ' + configs[cfg]));
+  $('.icon-btn', home).addEventListener('click', () => toast(home, 'Settings open'));
+
+  /* 2 Lobby: K stepper */
+  let k = 10;
+  const kVal = $('#k-value', lobby), kMinus = $('#k-minus', lobby), kPlus = $('#k-plus', lobby);
+  function setK(n) {
+    k = Math.min(20, Math.max(5, n));
+    kVal.textContent = String(k);
+    kMinus.disabled = k === 5;
+    kPlus.disabled = k === 20;
+  }
+  kMinus.addEventListener('click', () => setK(k - 5));
+  kPlus.addEventListener('click', () => setK(k + 5));
+  setK(10);
+
+  /* 3 Prepare: swap cycles a scene, reroll all, ready unlocks plant */
+  const SCENES = {"espresso": "<svg viewBox=\"0 0 300 224\" role=\"img\" aria-label=\"Espresso cup on a saucer beside a notebook\">\n  <rect width=\"300\" height=\"224\" fill=\"#E6DCCB\"/>\n  <rect y=\"150\" width=\"300\" height=\"74\" fill=\"#C8B494\"/>\n  <path d=\"M0 150h300\" stroke=\"#A98F6C\" stroke-width=\"3\"/>\n  <path d=\"M40 46 150 150\" stroke=\"#F2E9D8\" stroke-width=\"38\" opacity=\"0.55\"/>\n  <ellipse cx=\"150\" cy=\"168\" rx=\"86\" ry=\"20\" fill=\"#A98F6C\" opacity=\"0.5\"/>\n  <ellipse cx=\"150\" cy=\"158\" rx=\"80\" ry=\"18\" fill=\"#F4EDE0\"/>\n  <ellipse cx=\"150\" cy=\"155\" rx=\"62\" ry=\"12\" fill=\"#E4D8C2\"/>\n  <path d=\"M112 96h76v34a26 26 0 0 1-26 26h-24a26 26 0 0 1-26-26z\" fill=\"#B4462B\"/>\n  <path d=\"M188 104h8a12 12 0 0 1 0 24h-8\" fill=\"none\" stroke=\"#B4462B\" stroke-width=\"7\"/>\n  <ellipse cx=\"150\" cy=\"96\" rx=\"38\" ry=\"9\" fill=\"#5A3423\"/>\n  <ellipse cx=\"150\" cy=\"95\" rx=\"28\" ry=\"5\" fill=\"#B48A5A\"/>\n  <path d=\"M138 80c-5-7 5-12 0-20M158 80c-5-7 5-12 0-20\" stroke=\"#C4B49A\" stroke-width=\"3\" fill=\"none\" stroke-linecap=\"round\"/>\n  <rect x=\"228\" y=\"120\" width=\"56\" height=\"40\" rx=\"3\" fill=\"#F4EDE0\" stroke=\"#B8A483\" stroke-width=\"2\"/>\n  <path d=\"M238 132h36M238 142h26\" stroke=\"#B8A483\" stroke-width=\"2\" stroke-linecap=\"round\"/>\n  <rect x=\"20\" y=\"112\" width=\"34\" height=\"46\" rx=\"2\" fill=\"#8E9A7C\"/>\n  <path d=\"M28 112v-16h18v16\" fill=\"none\" stroke=\"#8E9A7C\" stroke-width=\"3\"/>\n</svg>", "bicycle": "<svg viewBox=\"0 0 300 224\" role=\"img\" aria-label=\"Bicycle leaning on a beach wall\">\n  <rect width=\"300\" height=\"224\" fill=\"#C9D9DC\"/>\n  <rect y=\"120\" width=\"300\" height=\"104\" fill=\"#E3D2B4\"/>\n  <path d=\"M0 120h300v8H0z\" fill=\"#B9CFD3\"/>\n  <circle cx=\"238\" cy=\"52\" r=\"22\" fill=\"#EBC98C\"/>\n  <rect x=\"0\" y=\"0\" width=\"300\" height=\"120\" fill=\"#DCE7E9\"/>\n  <rect x=\"0\" y=\"118\" width=\"300\" height=\"12\" fill=\"#9FB9BE\"/>\n  <rect x=\"30\" y=\"130\" width=\"46\" height=\"70\" rx=\"2\" fill=\"#B4462B\" opacity=\"0.85\"/>\n  <path d=\"M38 148h30M38 164h22\" stroke=\"#F4EDE0\" stroke-width=\"3\" stroke-linecap=\"round\"/>\n  <circle cx=\"112\" cy=\"176\" r=\"34\" fill=\"none\" stroke=\"#3E3A33\" stroke-width=\"4\"/>\n  <circle cx=\"218\" cy=\"176\" r=\"34\" fill=\"none\" stroke=\"#3E3A33\" stroke-width=\"4\"/>\n  <path d=\"M112 176l26-44h34l46 44M138 132l44 44h-70M182 132l-6-18h18\" fill=\"none\" stroke=\"#3E3A33\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\n  <path d=\"M150 176h40\" stroke=\"#8E9A7C\" stroke-width=\"6\"/>\n  <path d=\"M112 176l-14-50\" stroke=\"#3E3A33\" stroke-width=\"4\" stroke-linecap=\"round\"/>\n  <path d=\"M92 122h24\" stroke=\"#3E3A33\" stroke-width=\"4\" stroke-linecap=\"round\"/>\n  <path d=\"M196 116h34\" stroke=\"#3E3A33\" stroke-width=\"4\" stroke-linecap=\"round\"/>\n  <path d=\"M0 196c40-8 80 6 140 0s120-8 160 2v26H0z\" fill=\"#D6C29E\"/>\n</svg>", "cat": "<svg viewBox=\"0 0 300 224\" role=\"img\" aria-label=\"Street cat sitting on a step\">\n  <rect width=\"300\" height=\"224\" fill=\"#D9CFC0\"/>\n  <rect y=\"150\" width=\"300\" height=\"74\" fill=\"#A79A87\"/>\n  <path d=\"M0 150h300v10H0z\" fill=\"#8C8070\"/>\n  <rect x=\"196\" y=\"24\" width=\"86\" height=\"96\" fill=\"#EFE7D8\"/>\n  <rect x=\"196\" y=\"24\" width=\"86\" height=\"96\" fill=\"none\" stroke=\"#8C8070\" stroke-width=\"4\"/>\n  <path d=\"M239 24v96M196 72h86\" stroke=\"#8C8070\" stroke-width=\"4\"/>\n  <ellipse cx=\"140\" cy=\"160\" rx=\"58\" ry=\"12\" fill=\"#8C8070\"/>\n  <path d=\"M96 158c-16 0-22-14-18-26\" fill=\"none\" stroke=\"#4A4038\" stroke-width=\"10\" stroke-linecap=\"round\"/>\n  <path d=\"M104 158c-4-34 10-52 36-52s42 18 38 52z\" fill=\"#4A4038\"/>\n  <circle cx=\"140\" cy=\"84\" r=\"26\" fill=\"#4A4038\"/>\n  <path d=\"M122 66l-4-20 20 10zM158 66l6-20 12 18z\" fill=\"#4A4038\"/>\n  <path d=\"M130 82c2 2 6 2 8 0M148 82c2 2 6 2 8 0\" stroke=\"#D9CFC0\" stroke-width=\"2.5\" fill=\"none\" stroke-linecap=\"round\"/>\n  <path d=\"M138 90h5l-2.5 4z\" fill=\"#C98C8C\"/>\n  <path d=\"M132 106c4 4 12 4 16 0\" stroke=\"#D9CFC0\" stroke-width=\"2\" fill=\"none\" stroke-linecap=\"round\"/>\n  <path d=\"M156 120c10 0 10 22 0 22\" fill=\"none\" stroke=\"#4A4038\" stroke-width=\"8\" stroke-linecap=\"round\"/>\n</svg>", "window": "<svg viewBox=\"0 0 300 224\" role=\"img\" aria-label=\"Rain running down a window at dusk\">\n  <rect width=\"300\" height=\"224\" fill=\"#5C6670\"/>\n  <rect y=\"150\" width=\"300\" height=\"74\" fill=\"#3F4750\"/>\n  <rect x=\"18\" y=\"18\" width=\"264\" height=\"188\" fill=\"#8C99A2\"/>\n  <path d=\"M18 150c40-24 80 10 130-8s80-30 134-6v70H18z\" fill=\"#6E7A83\"/>\n  <circle cx=\"222\" cy=\"70\" r=\"12\" fill=\"#EBC98C\" opacity=\"0.7\"/>\n  <rect x=\"18\" y=\"18\" width=\"264\" height=\"188\" fill=\"none\" stroke=\"#3F4750\" stroke-width=\"10\"/>\n  <path d=\"M150 18v188M18 112h264\" stroke=\"#3F4750\" stroke-width=\"8\"/>\n  <g stroke=\"#E8EEF1\" stroke-width=\"2\" stroke-linecap=\"round\" opacity=\"0.75\">\n    <path d=\"M52 40v30M70 66v18M96 30v44M124 80v26M46 120v38M84 132v22M120 150v30M196 40v26M214 90v40M240 120v34M262 60v22M170 160v26M206 168v18M64 186v14\"/>\n  </g>\n  <g fill=\"#E8EEF1\" opacity=\"0.5\"><circle cx=\"52\" cy=\"74\" r=\"2.5\"/><circle cx=\"96\" cy=\"78\" r=\"2.5\"/><circle cx=\"124\" cy=\"110\" r=\"2.5\"/><circle cx=\"214\" cy=\"134\" r=\"2.5\"/></g>\n  <rect x=\"196\" y=\"160\" width=\"70\" height=\"30\" rx=\"2\" fill=\"#5A4632\"/>\n  <path d=\"M206 160c0-14 8-22 25-22s25 8 25 22\" fill=\"none\" stroke=\"#5A4632\" stroke-width=\"4\"/>\n</svg>", "books": "<svg viewBox=\"0 0 300 224\" role=\"img\" aria-label=\"Stack of books on a windowsill\">\n  <rect width=\"300\" height=\"224\" fill=\"#E2D8C6\"/>\n  <rect y=\"140\" width=\"300\" height=\"84\" fill=\"#B9A583\"/>\n  <rect x=\"20\" y=\"20\" width=\"90\" height=\"110\" fill=\"#F0E8D9\" stroke=\"#B9A583\" stroke-width=\"4\"/>\n  <rect x=\"64\" y=\"158\" width=\"150\" height=\"18\" rx=\"2\" fill=\"#8E9A7C\"/>\n  <rect x=\"58\" y=\"142\" width=\"162\" height=\"16\" rx=\"2\" fill=\"#B4462B\"/>\n  <rect x=\"70\" y=\"128\" width=\"140\" height=\"14\" rx=\"2\" fill=\"#D9C39C\"/>\n  <rect x=\"76\" y=\"116\" width=\"120\" height=\"12\" rx=\"2\" fill=\"#3E3A33\"/>\n  <path d=\"M84 167h120M80 150h130M88 135h110\" stroke=\"#F4EDE0\" stroke-width=\"2\" opacity=\"0.6\"/>\n  <circle cx=\"236\" cy=\"150\" r=\"16\" fill=\"#F4EDE0\" stroke=\"#B9A583\" stroke-width=\"2\"/>\n  <path d=\"M236 134v-8M236 150h-14\" stroke=\"#15803D\" stroke-width=\"2\" stroke-linecap=\"round\"/>\n  <rect x=\"196\" y=\"40\" width=\"70\" height=\"80\" rx=\"3\" fill=\"#EFE7D8\" stroke=\"#B9A583\" stroke-width=\"2\"/>\n  <path d=\"M206 58h50M206 72h34\" stroke=\"#B9A583\" stroke-width=\"2\" stroke-linecap=\"round\"/>\n</svg>", "pizza": "<svg viewBox=\"0 0 300 224\" role=\"img\" aria-label=\"Pizza slice on a plate\">\n  <rect width=\"300\" height=\"224\" fill=\"#D8CBB6\"/>\n  <rect y=\"140\" width=\"300\" height=\"84\" fill=\"#A98F6C\"/>\n  <ellipse cx=\"150\" cy=\"150\" rx=\"96\" ry=\"34\" fill=\"#F4EDE0\"/>\n  <ellipse cx=\"150\" cy=\"146\" rx=\"76\" ry=\"26\" fill=\"#E4D8C2\"/>\n  <path d=\"M96 140 150 54l54 86z\" fill=\"#E0B15A\"/>\n  <path d=\"M110 128 150 62l40 66z\" fill=\"#C9452A\"/>\n  <g fill=\"#8E3A24\"><circle cx=\"140\" cy=\"96\" r=\"5\"/><circle cx=\"160\" cy=\"112\" r=\"5\"/><circle cx=\"150\" cy=\"86\" r=\"4\"/></g>\n  <g fill=\"#8E9A7C\"><circle cx=\"132\" cy=\"116\" r=\"3\"/><circle cx=\"168\" cy=\"96\" r=\"3\"/></g>\n  <path d=\"M96 140h108\" stroke=\"#B98A3C\" stroke-width=\"6\" stroke-linecap=\"round\"/>\n  <rect x=\"226\" y=\"70\" width=\"30\" height=\"70\" rx=\"3\" fill=\"#F4EDE0\" stroke=\"#B9A583\" stroke-width=\"2\"/>\n  <path d=\"M232 84h18M232 96h12\" stroke=\"#B9A583\" stroke-width=\"2\" stroke-linecap=\"round\"/>\n</svg>", "plant": "<svg viewBox=\"0 0 300 224\" role=\"img\" aria-label=\"Monstera plant by a wall\">\n  <rect width=\"300\" height=\"224\" fill=\"#EDE4D4\"/>\n  <rect y=\"160\" width=\"300\" height=\"64\" fill=\"#CBB896\"/>\n  <path d=\"M0 160h300\" stroke=\"#A98F6C\" stroke-width=\"3\"/>\n  <path d=\"M150 160V84\" stroke=\"#4E6B45\" stroke-width=\"5\" stroke-linecap=\"round\"/>\n  <path d=\"M150 120c-34 2-52-16-54-44 30-6 52 12 54 44z\" fill=\"#5C7D52\"/>\n  <path d=\"M150 100c30 0 46-20 44-46-28-2-46 16-44 46z\" fill=\"#6E8F62\"/>\n  <path d=\"M150 140c-26 0-40-12-42-32 24-4 40 10 42 32z\" fill=\"#6E8F62\"/>\n  <path d=\"M150 70c4-22 18-34 40-36-2 22-18 34-40 36z\" fill=\"#5C7D52\"/>\n  <path d=\"M124 160h52l-6 40h-40z\" fill=\"#B4462B\"/>\n  <rect x=\"120\" y=\"156\" width=\"60\" height=\"10\" rx=\"3\" fill=\"#C9573B\"/>\n  <path d=\"M0 0h300v40H0z\" fill=\"#E2D6C2\"/>\n</svg>", "bridge": "<svg viewBox=\"0 0 300 224\" role=\"img\" aria-label=\"Bridge over a canal at golden hour\">\n  <rect width=\"300\" height=\"224\" fill=\"#EBD9BC\"/>\n  <circle cx=\"72\" cy=\"70\" r=\"26\" fill=\"#E2A85E\"/>\n  <rect y=\"120\" width=\"300\" height=\"104\" fill=\"#B9C7C8\"/>\n  <path d=\"M0 120h300\" stroke=\"#9AA9AA\" stroke-width=\"4\"/>\n  <path d=\"M0 150h300M0 186h300\" stroke=\"#A9B9BA\" stroke-width=\"2\" opacity=\"0.7\"/>\n  <rect x=\"0\" y=\"60\" width=\"300\" height=\"62\" fill=\"#C9B08A\" opacity=\"0.5\"/>\n  <path d=\"M60 120c0-46 40-70 90-70s90 24 90 70z\" fill=\"#9C8262\"/>\n  <path d=\"M84 120c0-34 30-52 66-52s66 18 66 52z\" fill=\"#B9A07C\"/>\n  <path d=\"M150 68v52M110 76v44M190 76v44\" stroke=\"#8C7254\" stroke-width=\"3\"/>\n  <rect x=\"40\" y=\"112\" width=\"220\" height=\"10\" rx=\"2\" fill=\"#7E6A50\"/>\n  <path d=\"M96 150c22-10 44-10 66 0\" fill=\"none\" stroke=\"#8C9C9D\" stroke-width=\"3\"/>\n  <rect x=\"230\" y=\"160\" width=\"40\" height=\"26\" rx=\"3\" fill=\"#B4462B\"/>\n  <rect x=\"236\" y=\"166\" width=\"28\" height=\"12\" rx=\"1\" fill=\"#F4EDE0\"/>\n</svg>", "dog": "<svg viewBox=\"0 0 300 224\" role=\"img\" aria-label=\"Dog resting on a park bench\">\n  <rect width=\"300\" height=\"224\" fill=\"#DCE3D2\"/>\n  <rect y=\"150\" width=\"300\" height=\"74\" fill=\"#9AA87F\"/>\n  <rect x=\"20\" y=\"150\" width=\"260\" height=\"18\" rx=\"3\" fill=\"#B08A5C\"/>\n  <path d=\"M40 168v40M260 168v40\" stroke=\"#8C6A42\" stroke-width=\"6\"/>\n  <ellipse cx=\"150\" cy=\"134\" rx=\"62\" ry=\"20\" fill=\"#C79A62\"/>\n  <circle cx=\"212\" cy=\"112\" r=\"24\" fill=\"#C79A62\"/>\n  <path d=\"M196 94c-10-4-16 6-12 16 6 6 12 2 14-4zM228 94c10-4 16 6 12 16-6 6-12 2-14-4z\" fill=\"#A87B45\"/>\n  <path d=\"M204 110c2 2 6 2 8 0M220 110c2 2 6 2 8 0\" stroke=\"#5A4632\" stroke-width=\"2\" fill=\"none\" stroke-linecap=\"round\"/>\n  <path d=\"M214 120h6l-3 4z\" fill=\"#3E3A33\"/>\n  <path d=\"M96 130c-14-4-18-18-10-26\" fill=\"none\" stroke=\"#C79A62\" stroke-width=\"10\" stroke-linecap=\"round\"/>\n  <path d=\"M0 0h300v50H0z\" fill=\"#C9D4BC\"/>\n</svg>"};
+  const scenes = SCENES;
+  const order = Object.keys(scenes);
+  const thumbs = $$('.thumb', prep);
+  let pool = order.slice();
+  function nextScene(current) {
+    let pick = pool[0];
+    for (let i = 0; i < 6; i++) {
+      pick = order[Math.floor(Math.random() * order.length)];
+      if (pick !== current && !thumbs.some((t) => t.dataset.scene === pick)) break;
+    }
+    return pick;
+  }
+  function paint(btn, name) {
+    const holder = document.createElement('div');
+    holder.innerHTML = scenes[name];
+    const fresh = holder.firstElementChild;
+    fresh.classList.add('scene');
+    btn.querySelector('svg').replaceWith(fresh);
+    btn.dataset.scene = name;
+  }
+  thumbs.forEach((btn, i) => { btn.dataset.scene = order[i]; });
+  thumbs.forEach((btn) => btn.addEventListener('click', () => {
+    const name = nextScene(btn.dataset.scene);
+    paint(btn, name);
+    toast(prep, 'Photo ' + btn.querySelector('.num').textContent + ' swapped');
+  }));
+  $('#reroll', prep).addEventListener('click', () => {
+    const used = thumbs.map((t) => t.dataset.scene);
+    thumbs.forEach((btn) => { let name = nextScene(btn.dataset.scene); paint(btn, name); });
+    toast(prep, 'All 4 photos rerolled');
+  });
+  const ready = $('#ready', prep), plant = $('#plant', prep);
+  ready.addEventListener('click', () => {
+    const on = !ready.classList.contains('is-ready');
+    ready.classList.toggle('is-ready', on);
+    ready.textContent = on ? 'Ready · waiting for Sam' : 'Ready';
+    plant.hidden = !on;
+    $('#prep-status', prep).textContent = on ? 'Ready. Sam is still choosing' : 'Waiting for 1 player · Sam';
+    toast(prep, on ? 'Ready, waiting for Sam' : 'Ready undone');
+  });
+  plant.addEventListener('click', () => {
+    const used = plant.dataset.used === 'true';
+    plant.dataset.used = String(!used);
+    $('#plant-tag', prep).textContent = used ? '1 left' : 'Used';
+    $('#plant-note', prep).textContent = used ? 'Pick one photo only you know about' : 'Hidden until the final podium';
+    toast(prep, used ? 'Plant still available' : 'Secret photo planted');
+  });
+
+  /* 4 Round: one tap locks the guess */
+  const guesses = $$('.guess', round);
+  guesses.forEach((btn) => btn.addEventListener('click', () => {
+    guesses.forEach((o) => { o.classList.toggle('is-picked', o === btn); o.setAttribute('aria-pressed', String(o === btn)); });
+    $('#round-foot', round).textContent = 'Locked in, waiting for the other players';
+    toast(round, 'Guess locked in');
+  }));
+
+  /* 4b Countdown demo: the timer button restarts it */
+  const fill = $('#timer-fill', round), tval = $('#timer-val', round), track = $('#timer-restart', round);
+  let left = 5.4, ticking = 0;
+  function tick() {
+    left = Math.max(0, +(left - 0.1).toFixed(1));
+    tval.textContent = left.toFixed(1);
+    fill.style.width = (left / 8 * 100) + '%';
+    if (left === 0) clearInterval(ticking);
+  }
+  track.addEventListener('click', () => { left = 8; clearInterval(ticking); ticking = setInterval(tick, 100); });
+
+  /* 5 Reveal: host controls open the 10s extend popup */
+  const popup = $('#popup', reveal), count = $('#popup-count', reveal), pfill = $('#popup-fill', reveal);
+  let secs = 10, ticker = 0;
+  function setSecs(n) { secs = n; count.textContent = n + 's'; pfill.style.width = (n * 10) + '%'; }
+  function openPopup() {
+    popup.hidden = false;
+    setSecs(10);
+    clearInterval(ticker);
+    ticker = setInterval(() => {
+      setSecs(secs - 1);
+      if (secs <= 0) { clearInterval(ticker); popup.hidden = true; toast(reveal, 'Timer ran out, 3 photos approved'); }
+    }, 1000);
+    $('#popup-approve', reveal).focus();
+  }
+  $('#keep', reveal).addEventListener('click', openPopup);
+  $('#popup-reroll', reveal).addEventListener('click', () => { setSecs(10); toast(reveal, '3 fresh photos drawn'); });
+  $('#popup-approve', reveal).addEventListener('click', () => { clearInterval(ticker); popup.hidden = true; toast(reveal, '3 photos approved, +5 rounds'); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !popup.hidden) { clearInterval(ticker); popup.hidden = true; } });
+})();
+
+</script>
+
+</body>
+</html>
