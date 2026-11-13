@@ -1,0 +1,44 @@
+# Private docs, AI notes, local planning (never commit)
+private/
+.private/
+*.local.md
+.claude/
+.opencode/
+.cursor/
+
+# Secrets & environment
+.env
+.env.*
+.dev.vars
+*.keystore
+*.jks
+*.p8
+*.p12
+*.mobileprovision
+GoogleService-Info.plist
+google-services.json
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+coverage/
+*.iml
+.idea/
+.vscode/
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/ephemeral/
+android/.gradle/
+android/local.properties
+
+# Cloudflare / Node
+node_modules/
+.wrangler/
+dist/
+
+# OS
+.DS_Store
+Thumbs.db
