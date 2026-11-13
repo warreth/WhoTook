@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- LAN/hotspot WebSockets target raw RFC1918 IPs, which domain-config cannot match; online endpoints are https/wss in Dart. -->
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

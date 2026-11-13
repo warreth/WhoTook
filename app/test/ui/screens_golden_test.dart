@@ -1,0 +1,306 @@
+import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
+import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
+import 'package:whotook/core/models/models.dart';
+import 'package:whotook/core/theme/whotook_theme.dart';
+import 'package:whotook/state/match_coordinator.dart';
+import 'package:whotook/state/providers.dart';
+import 'package:whotook/ui/screens/home_screen.dart';
+import 'package:whotook/ui/screens/lobby_screen.dart';
+import 'package:whotook/ui/screens/onboarding_screen.dart';
+import 'package:whotook/ui/screens/podium_screen.dart';
+import 'package:whotook/ui/screens/prepare_screen.dart';
+import 'package:whotook/ui/screens/round_screen.dart';
+
+/// Renders every screen at phone size so the layout can be checked visually and
+/// changes are caught by the golden diff.
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    SharedPreferencesAsyncPlatform.instance =
+        InMemorySharedPreferencesAsync.empty();
+    await _loadFonts();
+  });
+
+  setUp(() {
+    final view = TestWidgetsFlutterBinding.instance.platformDispatcher
+        .implicitView!;
+    view.physicalSize = const Size(390, 844);
+    view.devicePixelRatio = 1;
+  });
+
+  tearDown(() {
+    final view = TestWidgetsFlutterBinding.instance.platformDispatcher
+        .implicitView!;
+    view.resetPhysicalSize();
+    view.resetDevicePixelRatio();
+  });
+
+  testWidgets('home', (tester) async {
+    await _pump(tester, const HomeScreen(), _settings());
+    await expectLater(
+      find.byType(HomeScreen),
+      matchesGoldenFile('goldens/home.png'),
+    );
+  });
+
+  testWidgets('onboarding', (tester) async {
+    await _pump(tester, const OnboardingScreen(), _settings());
+    await expectLater(
+      find.byType(OnboardingScreen),
+      matchesGoldenFile('goldens/onboarding.png'),
+    );
+  });
+
+  testWidgets('lobby', (tester) async {
+    await _pump(
+      tester,
+      const LobbyScreen(),
+      _settings(),
+      state: _lobbyState(),
+    );
+    await expectLater(
+      find.byType(LobbyScreen),
+      matchesGoldenFile('goldens/lobby.png'),
+    );
+  });
+
+  testWidgets('prepare', (tester) async {
+    final photo = await tester.runAsync(
+      () => _photoBytes(const Color(0xFFC9A227)),
+    );
+    await _pump(
+      tester,
+      const PrepareScreen(),
+      _settings(),
+      state: _prepareState(photo!),
+    );
+    await expectLater(
+      find.byType(PrepareScreen),
+      matchesGoldenFile('goldens/prepare.png'),
+    );
+  });
+
+  testWidgets('round', (tester) async {
+    final photo = await tester.runAsync(
+      () => _photoBytes(const Color(0xFF6E8CA0)),
+    );
+    await _pump(
+      tester,
+      const RoundScreen(),
+      _settings(),
+      state: _roundState(photo!),
+    );
+    await expectLater(
+      find.byType(RoundScreen),
+      matchesGoldenFile('goldens/round.png'),
+    );
+  });
+
+  testWidgets('podium', (tester) async {
+    await _pump(
+      tester,
+      const PodiumScreen(),
+      _settings(),
+      state: _podiumState(),
+    );
+    await expectLater(
+      find.byType(PodiumScreen),
+      matchesGoldenFile('goldens/podium.png'),
+    );
+  });
+}
+
+Future<void> _pump(
+  WidgetTester tester,
+  Widget screen,
+  AppSettings settings, {
+  MatchUiState? state,
+}) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        appSettingsProvider.overrideWith(() => _FixedSettings(settings)),
+        matchStateProvider.overrideWith(
+          (ref) => Stream<MatchUiState>.value(state ?? const MatchUiState()),
+        ),
+      ],
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: buildWhoTookTheme(Brightness.light),
+        home: screen,
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+class _FixedSettings extends AppSettingsController {
+  _FixedSettings(this._value);
+
+  final AppSettings _value;
+
+  @override
+  Future<AppSettings> build() async => _value;
+}
+
+AppSettings _settings() => const AppSettings(
+  nickname: 'Bram',
+  onboardingCompleted: true,
+  excludedAlbumIds: <String>{'screenshots', 'whatsapp', 'documents'},
+);
+
+List<Player> _players() => <Player>[
+  Player(id: 'host', name: 'Bram', isHost: true, score: 2410),
+  Player(id: 'c1', name: 'Lotte', score: 3410, streak: 3, ready: true),
+  Player(id: 'c2', name: 'Sam', score: 2740),
+  Player(id: 'c3', name: 'Noor', score: 3180),
+];
+
+MatchUiState _lobbyState() => MatchUiState(
+  isHosting: true,
+  roomId: 'k8m2p9x4',
+  inviteUrl:
+      'https://whotook.app/j#eyJ2IjoxLCJob3N0SWQiOiJob3N0Iiwicm9vbSI6Ims4bTJwOXg0In0',
+  localPlayerId: 'host',
+  players: _players(),
+  config: const MatchConfig(roundsK: 10, roundSeconds: 8),
+  connectionMode: ConnectionMode.localLan,
+);
+
+MatchUiState _prepareState(Uint8List photo) => MatchUiState(
+  isHosting: true,
+  roomId: 'k8m2p9x4',
+  localPlayerId: 'host',
+  players: _players(),
+  phase: RoundPhase.preparing,
+  photosNeeded: 4,
+  candidates: <PhotoCandidate>[
+    for (var i = 0; i < 4; i++)
+      PhotoCandidate(
+        photoId: 'p$i',
+        localAssetId: 'a$i',
+        ownerId: 'host',
+        bytes: photo,
+      ),
+  ],
+  plantUnlocked: true,
+);
+
+MatchUiState _roundState(Uint8List photo) => MatchUiState(
+  isHosting: true,
+  roomId: 'k8m2p9x4',
+  localPlayerId: 'host',
+  players: _players(),
+  phase: RoundPhase.guessing,
+  currentRound: 3,
+  totalRounds: 10,
+  remainingMs: 5400,
+  config: const MatchConfig(roundsK: 10, roundSeconds: 8),
+  activePhotoBytes: photo,
+  activeRoundOptions: _players(),
+  screenshotAlerts: const <ScreenshotBanner>[
+    ScreenshotBanner(playerId: 'c1', playerName: 'Lotte', atMs: 0),
+  ],
+);
+
+MatchUiState _podiumState() => MatchUiState(
+  isHosting: true,
+  roomId: 'k8m2p9x4',
+  localPlayerId: 'host',
+  players: _players(),
+  phase: RoundPhase.podium,
+  currentRound: 10,
+  totalRounds: 10,
+  awards: const <MatchAward>[
+    MatchAward(
+      kind: MatchAwardKind.champion,
+      playerId: 'c1',
+      playerName: 'Lotte',
+      value: 3410,
+    ),
+    MatchAward(
+      kind: MatchAwardKind.quickestDraw,
+      playerId: 'c2',
+      playerName: 'Sam',
+      value: 400,
+    ),
+    MatchAward(
+      kind: MatchAwardKind.unstoppable,
+      playerId: 'c1',
+      playerName: 'Lotte',
+      value: 5,
+    ),
+    MatchAward(
+      kind: MatchAwardKind.masterOfMystery,
+      playerId: 'c3',
+      playerName: 'Noor',
+      value: 450,
+    ),
+    MatchAward(
+      kind: MatchAwardKind.paparazzi,
+      playerId: 'c1',
+      playerName: 'Lotte',
+      value: 3,
+    ),
+  ],
+);
+
+Future<void> _loadFonts() async {
+  final dmSans = FontLoader('DMSans')
+    ..addFont(rootBundle.load('assets/fonts/DMSans.ttf'));
+  final mono = FontLoader('JetBrainsMono')
+    ..addFont(rootBundle.load('assets/fonts/JetBrainsMono.ttf'));
+  await Future.wait(<Future<void>>[dmSans.load(), mono.load()]);
+  final iconFont = File(
+    '${Platform.environment['FLUTTER_ROOT'] ?? '/opt/flutter'}'
+    '/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf',
+  );
+  if (iconFont.existsSync()) {
+    final loader = FontLoader('MaterialIcons')
+      ..addFont(
+        Future<ByteData>.value(
+          ByteData.sublistView(iconFont.readAsBytesSync()),
+        ),
+      );
+    await loader.load();
+  }
+}
+
+Future<Uint8List> _photoBytes(Color color) async {
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder);
+  const size = Size(300, 224);
+  canvas.drawRect(
+    Offset.zero & size,
+    Paint()..color = color,
+  );
+  canvas.drawRect(
+    const Rect.fromLTWH(0, 150, 300, 74),
+    Paint()..color = color.withValues(alpha: 0.7),
+  );
+  canvas.drawCircle(
+    const Offset(210, 70),
+    22,
+    Paint()..color = const Color(0xFFEBC98C),
+  );
+  canvas.drawRRect(
+    RRect.fromRectAndRadius(
+      const Rect.fromLTWH(40, 80, 120, 90),
+      const Radius.circular(8),
+    ),
+    Paint()..color = const Color(0xFFF4EDE0),
+  );
+  final image = await recorder.endRecording().toImage(300, 224);
+  final data = await image.toByteData(format: ui.ImageByteFormat.png);
+  return data!.buffer.asUint8List();
+}
