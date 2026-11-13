@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/models/models.dart';
 import '../core/theme/whotook_theme.dart';
 import '../state/providers.dart';
+import 'ui/deep_link_listener.dart';
 import 'ui/screens/home_screen.dart';
 import 'ui/screens/lobby_screen.dart';
 import 'ui/screens/onboarding_screen.dart';
@@ -29,6 +30,9 @@ class WhoTookApp extends ConsumerWidget {
         ThemePreference.light => ThemeMode.light,
         ThemePreference.dark => ThemeMode.dark,
       },
+      builder: (context, child) => child == null
+          ? const SizedBox.shrink()
+          : DeepLinkListener(child: child),
       home: settings.when(
         loading: () => const _BootScreen(),
         error: (error, stack) => const _BootScreen(),
