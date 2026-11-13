@@ -9,8 +9,10 @@ import 'webrtc_transport.dart';
 
 /// Builds a local socket client for one advertised endpoint. Injected so the
 /// connector can be tested without real sockets.
-typedef LocalClientFactory =
-    ClientTransport Function(String endpoint, String secret);
+typedef LocalClientFactory = ClientTransport Function(
+  String endpoint,
+  String secret,
+);
 
 /// Builds the online fallback. Injected so the 800 ms race is testable
 /// without a WebRTC plugin.
@@ -26,10 +28,8 @@ class HybridConnector {
     this.localProbeTimeout = const Duration(milliseconds: 800),
   }) : _localFactory =
            localClientFactory ??
-           ((endpoint, secret) => LocalWsClientTransport(
-             endpoint: endpoint,
-             secret: secret,
-           )),
+           ((endpoint, secret) =>
+               LocalWsClientTransport(endpoint: endpoint, secret: secret)),
        _onlineFactory = onlineClientFactory;
 
   final LocalClientFactory _localFactory;
@@ -57,9 +57,7 @@ class HybridConnector {
     if (injected != null) return injected();
     final ice =
         _iceClient ??
-        SignalingIceClient(
-          signalingUrl: _signalingUrl(invite, settings),
-        );
+        SignalingIceClient(signalingUrl: _signalingUrl(invite, settings));
     return WebRtcClientTransport(
       invite: invite,
       iceClient: ice,
@@ -89,16 +87,13 @@ class HybridConnector {
       final client = _localFactory(endpoint, invite.secret);
       attempts.add(client);
       unawaited(
-        client.connect().then(
-          (_) {
-            if (settled.isCompleted) {
-              unawaited(client.close());
-            } else {
-              finish(client);
-            }
-          },
-          onError: (Object _) => unawaited(client.close()),
-        ),
+        client.connect().then((_) {
+          if (settled.isCompleted) {
+            unawaited(client.close());
+          } else {
+            finish(client);
+          }
+        }, onError: (Object _) => unawaited(client.close())),
       );
     }
 

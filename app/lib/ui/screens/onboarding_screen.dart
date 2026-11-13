@@ -61,13 +61,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       setState(() => _error = 'Pick a name your friends will recognise.');
       return;
     }
-    await ref.read(appSettingsProvider.notifier).apply(
-      (current) => current.copyWith(
-        nickname: name,
-        excludedAlbumIds: _excluded,
-        onboardingCompleted: true,
-      ),
-    );
+    await ref
+        .read(appSettingsProvider.notifier)
+        .apply(
+          (current) => current.copyWith(
+            nickname: name,
+            excludedAlbumIds: _excluded,
+            onboardingCompleted: true,
+          ),
+        );
   }
 
   @override
@@ -122,7 +124,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             SectionLabel(
               'Albums to leave out',
               trailing: Text(
-                '${_excluded.length} excluded',
+                _albums.isEmpty ? 'Not loaded' : '${_excluded.length} excluded',
                 style: tabularFigures(
                   TextStyle(fontSize: 12, color: colors.ink3),
                 ),
@@ -196,7 +198,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ),
               const SizedBox(height: AppSpacing.s12),
             ],
-            PrimaryButton(label: 'Start playing', onPressed: _finish),
+            PrimaryButton(label: 'Continue', onPressed: _finish),
             const SizedBox(height: AppSpacing.s12),
             Text(
               'Photos are compressed on this device and only shared with the players in your match.',

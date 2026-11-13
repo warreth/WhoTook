@@ -80,10 +80,13 @@ class _MatchRoot extends ConsumerWidget {
     }
 
     return switch (state.phase) {
-      RoundPhase.lobby => state.roomId == null
-          ? const HomeScreen(key: ValueKey<String>('home'))
-          : const LobbyScreen(key: ValueKey<String>('lobby')),
-      RoundPhase.preparing => const PrepareScreen(key: ValueKey<String>('prepare')),
+      RoundPhase.lobby =>
+        state.roomId == null
+            ? const HomeScreen(key: ValueKey<String>('home'))
+            : const LobbyScreen(key: ValueKey<String>('lobby')),
+      RoundPhase.preparing => const PrepareScreen(
+        key: ValueKey<String>('prepare'),
+      ),
       RoundPhase.countdown ||
       RoundPhase.guessing ||
       RoundPhase.reveal => const RoundScreen(key: ValueKey<String>('round')),

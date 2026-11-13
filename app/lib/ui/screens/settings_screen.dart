@@ -88,17 +88,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   for (final preference in ThemePreference.values)
                     ListTile(
                       dense: true,
-                      title: Text(
-                        switch (preference) {
-                          ThemePreference.system => 'Follow the device',
-                          ThemePreference.light => 'Light',
-                          ThemePreference.dark => 'Dark',
-                        },
-                        style: const TextStyle(fontSize: 14),
-                      ),
+                      title: Text(switch (preference) {
+                        ThemePreference.system => 'Follow the device',
+                        ThemePreference.light => 'Light',
+                        ThemePreference.dark => 'Dark',
+                      }, style: const TextStyle(fontSize: 14)),
                       trailing: Icon(
-                        (settings?.themePreference ??
-                                    ThemePreference.system) ==
+                        (settings?.themePreference ?? ThemePreference.system) ==
                                 preference
                             ? Icons.radio_button_checked
                             : Icons.radio_button_unchecked,
@@ -163,8 +159,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         onChanged: (checked) {
                           unawaited(
                             controller.apply((current) {
-                              final excluded =
-                                  Set<String>.of(current.excludedAlbumIds);
+                              final excluded = Set<String>.of(
+                                current.excludedAlbumIds,
+                              );
                               if (checked ?? false) {
                                 excluded.add(album.id);
                               } else {

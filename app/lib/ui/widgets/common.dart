@@ -373,9 +373,7 @@ class ScoreRow extends StatelessWidget {
           ),
           Text(
             '$score',
-            style: tabularFigures(
-              TextStyle(fontSize: 13, color: colors.ink),
-            ),
+            style: tabularFigures(TextStyle(fontSize: 13, color: colors.ink)),
           ),
           SizedBox(
             width: 56,
@@ -410,9 +408,7 @@ class _StreakChip extends StatelessWidget {
       ),
       child: Text(
         'Streak $streak',
-        style: tabularFigures(
-          TextStyle(fontSize: 11, color: colors.ink2),
-        ),
+        style: tabularFigures(TextStyle(fontSize: 11, color: colors.ink2)),
       ),
     );
   }

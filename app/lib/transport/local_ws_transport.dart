@@ -139,7 +139,10 @@ class LocalWsHostTransport implements HostTransport {
   @override
   Future<void> start() async {
     if (_server != null) return;
-    final server = await HttpServer.bind(InternetAddress.anyIPv4, _requestedPort);
+    final server = await HttpServer.bind(
+      InternetAddress.anyIPv4,
+      _requestedPort,
+    );
     server.autoCompress = false;
     _server = server;
     _subscriptions.add(server.listen(_handleRequest, onError: (Object _) {}));
@@ -245,7 +248,8 @@ class LocalWsClientTransport implements ClientTransport {
 
   final StreamController<WireMessage> _messages =
       StreamController<WireMessage>.broadcast();
-  final StreamController<void> _disconnected = StreamController<void>.broadcast();
+  final StreamController<void> _disconnected =
+      StreamController<void>.broadcast();
 
   WebSocket? _socket;
   StreamSubscription<dynamic>? _subscription;
@@ -269,8 +273,10 @@ class LocalWsClientTransport implements ClientTransport {
     );
     final socket = await WebSocket.connect(uri.toString()).timeout(
       connectTimeout,
-      onTimeout: () =>
-          throw const TransportException('connect_timeout', 'LAN host unreachable'),
+      onTimeout: () => throw const TransportException(
+        'connect_timeout',
+        'LAN host unreachable',
+      ),
     );
     _socket = socket;
     _subscription = socket.listen(

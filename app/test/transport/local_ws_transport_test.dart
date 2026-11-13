@@ -51,24 +51,18 @@ void main() {
 
   test('rejects a wrong room secret before upgrading', () async {
     await expectLater(
-      WebSocket.connect(
-        'ws://${baseUrl()}/ws?token=wrong-secret',
-      ).timeout(const Duration(seconds: 5)),
-      throwsA(
-        anyOf(isA<WebSocketException>(), isA<TimeoutException>()),
-      ),
+      WebSocket.connect('ws://${baseUrl()}/ws?token=wrong-secret')
+          .timeout(const Duration(seconds: 5)),
+      throwsA(anyOf(isA<WebSocketException>(), isA<TimeoutException>())),
     );
     expect(joined, isEmpty);
   });
 
   test('rejects a missing secret', () async {
     await expectLater(
-      WebSocket.connect(
-        'ws://${baseUrl()}/ws',
-      ).timeout(const Duration(seconds: 5)),
-      throwsA(
-        anyOf(isA<WebSocketException>(), isA<TimeoutException>()),
-      ),
+      WebSocket.connect('ws://${baseUrl()}/ws')
+          .timeout(const Duration(seconds: 5)),
+      throwsA(anyOf(isA<WebSocketException>(), isA<TimeoutException>())),
     );
   });
 

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+
 import 'package:flutter/services.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -13,6 +14,7 @@ import '../core/storage/settings_repository.dart';
 import '../engine/host_game_engine.dart';
 import '../transport/game_transport.dart';
 import '../transport/hybrid_connector.dart';
+import '../transport/local_ws_transport.dart';
 import '../transport/webrtc_transport.dart';
 
 class ScreenshotBanner {
@@ -181,6 +183,7 @@ class MatchCoordinator {
     this._hostTransportFactory,
     ScreenshotDetector? screenshots,
     this.random,
+    this.includeOnlineTransport = true,
     this.roundDuration = const Duration(seconds: 8),
     this.countdownDuration = const Duration(seconds: 3),
     this.revealDuration = const Duration(milliseconds: 3500),
@@ -197,6 +200,8 @@ class MatchCoordinator {
   final ScreenshotDetector _screenshots;
   final Random? random;
 
+  /// Off for tests and offline rehearsals; a LAN match never needs the relay.
+  final bool includeOnlineTransport;
   final Duration roundDuration;
   final Duration countdownDuration;
   final Duration revealDuration;
@@ -241,8 +246,6 @@ class MatchCoordinator {
     _emit(_state.copyWith(config: _state.config));
   }
 
-  // ---- hosting ------------------------------------------------------------
-
   Future<void> hostMatch({MatchConfig config = const MatchConfig()}) async {
     _emit(_state.copyWith(loadingMessage: 'Starting match'));
     final roomId = _randomToken(8);
@@ -253,14 +256,17 @@ class MatchCoordinator {
     );
     _engine = engine;
 
-    final transport =
-        _hostTransportFactory?.call(roomId, secret, _lanAddresses) ??
-        LocalOnlyHostTransport(roomId: roomId, secret: secret);
-    _hostTransport = transport;
-    _bindHostTransport(transport);
+    final injected = _hostTransportFactory?.call(roomId, secret, _lanAddresses);
+    final local =
+        injected ??
+        LocalWsHostTransport(
+          roomId: roomId,
+          secret: secret,
+          advertiser: BonsoirMdnsAdvertiser(),
+        );
 
     try {
-      await transport.start();
+      await local.start();
     } on Object catch (error) {
       _emit(
         _state.copyWith(
@@ -271,10 +277,17 @@ class MatchCoordinator {
       return;
     }
 
+    final lanAddresses = local is LocalWsHostTransport
+        ? await local.refreshLanAddresses()
+        : const <String>[];
     final lan = <String>[
-      if (transport.localLanEndpoint != null) transport.localLanEndpoint!,
-      ..._lanAddresses.map((address) => address),
-    ];
+      if (local.localLanEndpoint != null) local.localLanEndpoint!,
+      ...(lanAddresses.isEmpty ? _lanAddresses : lanAddresses).map(
+        (address) =>
+            '$address:${local is LocalWsHostTransport ? local.port : 0}',
+      ),
+    ].where((entry) => !entry.endsWith(':0')).toSet().toList();
+
     final invite = InvitePayload(
       roomId: roomId,
       hostId: 'host',
@@ -283,7 +296,34 @@ class MatchCoordinator {
       signalingUrl: _settings.resolveSignalingUrl(_settingsValue),
     );
 
-    final player = engine.addPlayer(id: 'host', name: _displayName, isHost: true);
+    // Online players are optional: when the relay is unreachable or not
+    // configured the LAN room must still open.
+    final transport =
+        injected ??
+        CompositeHostTransport(<HostTransport>[
+          local,
+          if (includeOnlineTransport)
+            BestEffortHostTransport(
+              WebRtcHostTransport(
+                invite: invite,
+                iceClient: SignalingIceClient(
+                  signalingUrl: invite.signalingUrl!,
+                ),
+                settings: _settingsValue,
+              ),
+            ),
+        ]);
+    _hostTransport = transport;
+    _bindHostTransport(transport);
+    if (injected == null) {
+      await transport.start();
+    }
+
+    final player = engine.addPlayer(
+      id: 'host',
+      name: _displayName,
+      isHost: true,
+    );
     await _startScreenshots();
     await _setAwake(true);
 
@@ -319,9 +359,7 @@ class MatchCoordinator {
         await _broadcastLobby();
       }),
     );
-    _subscriptions.add(
-      transport.messages.listen(_handleHostMessage),
-    );
+    _subscriptions.add(transport.messages.listen(_handleHostMessage));
   }
 
   Future<void> _handleHostMessage(HostIncomingMessage incoming) async {
@@ -381,7 +419,17 @@ class MatchCoordinator {
         }
       case WireType.playerReady:
         final approved = _remotePhotos[clientId];
-        if (approved == null || approved.isEmpty) return;
+        if (approved == null || approved.isEmpty) {
+          await _hostTransport?.sendToClient(
+            clientId,
+            WireMessage(
+              type: WireType.errorNotice,
+              seq: _nextSeq(),
+              payload: <String, dynamic>{'code': 'no_photos'},
+            ),
+          );
+          return;
+        }
         try {
           engine.submitInitialPhotos(clientId, approved);
           engine.markReady(clientId);
@@ -488,8 +536,7 @@ class MatchCoordinator {
     );
   }
 
-  Future<void> _afterReadinessChanged() =>
-      _maybeStartMatch();
+  Future<void> _afterReadinessChanged() => _maybeStartMatch();
 
   Future<void> _maybeStartMatch() async {
     final engine = _engine;
@@ -499,7 +546,14 @@ class MatchCoordinator {
     if (!everyoneReady) return;
     try {
       engine.startGame();
-    } on EngineException {
+    } on EngineException catch (error) {
+      _emit(
+        _state.copyWith(
+          errorMessage: error.code == 'too_few_players'
+              ? 'One more player has to scan the QR code before the match starts'
+              : error.message,
+        ),
+      );
       return;
     }
     _emit(
@@ -565,7 +619,9 @@ class MatchCoordinator {
 
   void _tickRoundProgress() {
     _countdownTicker?.cancel();
-    _countdownTicker = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+    _countdownTicker = Timer.periodic(const Duration(milliseconds: 100), (
+      timer,
+    ) {
       if (_disposed || _state.phase != RoundPhase.guessing) {
         timer.cancel();
         return;
@@ -616,9 +672,7 @@ class MatchCoordinator {
         activePhotoBytes: _state.activePhotoBytes,
       ),
     );
-    _timers.add(
-      Timer(revealDuration, () => unawaited(_advanceAfterReveal())),
-    );
+    _timers.add(Timer(revealDuration, () => unawaited(_advanceAfterReveal())));
   }
 
   Future<void> _advanceAfterReveal() async {
@@ -653,8 +707,6 @@ class MatchCoordinator {
     await _beginRound();
   }
 
-  // ---- host controls -----------------------------------------------------
-
   Future<void> setRounds(int rounds) async {
     final engine = _engine;
     if (engine == null) return;
@@ -663,12 +715,7 @@ class MatchCoordinator {
     } on EngineException {
       return;
     }
-    _emit(
-      _state.copyWith(
-        config: engine.config,
-        players: engine.players,
-      ),
-    );
+    _emit(_state.copyWith(config: engine.config, players: engine.players));
     await _broadcastLobby();
   }
 
@@ -823,7 +870,10 @@ class MatchCoordinator {
       WireMessage(
         type: WireType.screenshotAlert,
         seq: _nextSeq(),
-        payload: <String, dynamic>{'playerId': 'host', 'playerName': _displayName},
+        payload: <String, dynamic>{
+          'playerId': 'host',
+          'playerName': _displayName,
+        },
       ),
     );
   }
@@ -960,6 +1010,8 @@ class MatchCoordinator {
         awards: awards,
         hostDeciding: false,
         activePhotoBytes: null,
+        candidates: const <PhotoCandidate>[],
+        extensionCandidates: const <PhotoCandidate>[],
       ),
     );
   }
@@ -1018,8 +1070,6 @@ class MatchCoordinator {
     _emit(_state.copyWith(players: engine.players, config: engine.config));
   }
 
-  // ---- client ------------------------------------------------------------
-
   Future<void> joinMatch(String rawInvite) async {
     _emit(_state.copyWith(loadingMessage: 'Joining match'));
     final InvitePayload invite;
@@ -1045,8 +1095,7 @@ class MatchCoordinator {
       _emit(
         _state.copyWith(
           turnLimitNotice: error.notice,
-          errorMessage:
-              'Online relay is used up for today. Join the same Wi-Fi or a hotspot to keep playing.',
+          errorMessage: 'Online relay is used up for today. Join the same Wi-Fi or a hotspot to keep playing.',
           clearLoading: true,
         ),
       );
@@ -1105,12 +1154,11 @@ class MatchCoordinator {
     final payload = message.payload;
     switch (message.type) {
       case WireType.joinAck:
-        _emit(
-          _state.copyWith(localPlayerId: payload['playerId'] as String?),
-        );
+        _emit(_state.copyWith(localPlayerId: payload['playerId'] as String?));
       case WireType.lobbyState:
         final players = <Player>[
-          for (final entry in (payload['players'] as List<dynamic>? ?? const []))
+          for (final entry
+              in (payload['players'] as List<dynamic>? ?? const []))
             if (entry is Map<String, dynamic>) Player.fromJson(entry),
         ];
         final config = payload['config'];
@@ -1148,7 +1196,8 @@ class MatchCoordinator {
         }
       case WireType.roundShow:
         final options = <Player>[
-          for (final entry in (payload['options'] as List<dynamic>? ?? const []))
+          for (final entry
+              in (payload['options'] as List<dynamic>? ?? const []))
             if (entry is Map<String, dynamic>) Player.fromJson(entry),
         ];
         _roundStartMs = DateTime.now().millisecondsSinceEpoch;
@@ -1164,10 +1213,27 @@ class MatchCoordinator {
           ),
         );
       case WireType.roundReveal:
+        final reveal = RoundReveal.fromJson(payload);
+        final updated = <Player>[
+          for (final player in _state.players)
+            if (reveal.scoreDeltas.containsKey(player.id) ||
+                reveal.streaks.containsKey(player.id))
+              (Player.fromJson(player.toJson())
+                ..score = player.score + (reveal.scoreDeltas[player.id] ?? 0)
+                ..streak = reveal.streaks[player.id] ?? player.streak
+                ..longestStreak =
+                    player.longestStreak <
+                        (reveal.streaks[player.id] ?? player.streak)
+                    ? (reveal.streaks[player.id] ?? player.streak)
+                    : player.longestStreak)
+            else
+              player,
+        ];
         _emit(
           _state.copyWith(
             phase: RoundPhase.reveal,
-            lastReveal: RoundReveal.fromJson(payload),
+            lastReveal: reveal,
+            players: updated,
           ),
         );
       case WireType.screenshotAlert:
@@ -1202,7 +1268,8 @@ class MatchCoordinator {
             if (entry is Map<String, dynamic>) MatchAward.fromJson(entry),
         ];
         final players = <Player>[
-          for (final entry in (payload['players'] as List<dynamic>? ?? const []))
+          for (final entry
+              in (payload['players'] as List<dynamic>? ?? const []))
             if (entry is Map<String, dynamic>) Player.fromJson(entry),
         ];
         await _stopScreenshots();
@@ -1305,9 +1372,7 @@ class MatchCoordinator {
       WireMessage(
         type: WireType.plantPhoto,
         seq: _nextSeq(),
-        payload: <String, dynamic>{
-          'photo': _state.candidates[index].toJson(),
-        },
+        payload: <String, dynamic>{'photo': _state.candidates[index].toJson()},
       ),
     );
     _emit(_state.copyWith(plantUsed: true));
@@ -1368,8 +1433,6 @@ class MatchCoordinator {
   Future<void> _stopScreenshots() async {
     await _screenshots.stop();
   }
-
-  // ---- lifecycle ---------------------------------------------------------
 
   /// The host keeps the socket alive only while the screen stays on, so the
   /// wake lock is part of the transport contract, not a nicety.
@@ -1434,19 +1497,21 @@ class MatchCoordinator {
   }
 }
 
-/// Fallback host transport used when no socket factory is injected. Keeps the
-/// engine working for a single device rehearsal without opening a port.
-class LocalOnlyHostTransport implements HostTransport {
-  LocalOnlyHostTransport({required this.roomId, required this.secret});
+/// Wraps an optional transport so a failed online path (no relay, no network)
+/// never stops the local room from opening.
+class BestEffortHostTransport implements HostTransport {
+  BestEffortHostTransport(this._inner);
 
-  final String roomId;
-  final String secret;
+  final HostTransport _inner;
   final StreamController<String> _connected =
       StreamController<String>.broadcast();
   final StreamController<String> _disconnected =
       StreamController<String>.broadcast();
   final StreamController<HostIncomingMessage> _messages =
       StreamController<HostIncomingMessage>.broadcast();
+  final List<StreamSubscription<dynamic>> _subscriptions =
+      <StreamSubscription<dynamic>>[];
+  bool _started = false;
 
   @override
   Stream<String> get clientConnected => _connected.stream;
@@ -1461,16 +1526,37 @@ class LocalOnlyHostTransport implements HostTransport {
   String? get localLanEndpoint => null;
 
   @override
-  Future<void> start() async {}
+  Future<void> start() async {
+    _subscriptions.add(_inner.clientConnected.listen(_connected.add));
+    _subscriptions.add(_inner.clientDisconnected.listen(_disconnected.add));
+    _subscriptions.add(_inner.messages.listen(_messages.add));
+    try {
+      await _inner.start();
+      _started = true;
+    } on Object {
+      _started = false;
+    }
+  }
 
   @override
-  Future<void> sendToClient(String clientId, WireMessage message) async {}
+  Future<void> sendToClient(String clientId, WireMessage message) async {
+    if (!_started) return;
+    await _inner.sendToClient(clientId, message);
+  }
 
   @override
-  Future<void> broadcast(WireMessage message) async {}
+  Future<void> broadcast(WireMessage message) async {
+    if (!_started) return;
+    await _inner.broadcast(message);
+  }
 
   @override
   Future<void> close() async {
+    for (final subscription in _subscriptions) {
+      await subscription.cancel();
+    }
+    _subscriptions.clear();
+    await _inner.close();
     await _connected.close();
     await _disconnected.close();
     await _messages.close();

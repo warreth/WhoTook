@@ -40,7 +40,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Guess whose photo it is'), findsOneWidget);
-    expect(find.text('Start playing'), findsOneWidget);
+    expect(find.text('Continue'), findsOneWidget);
   });
 
   testWidgets('host and join are the only two actions on home', (tester) async {

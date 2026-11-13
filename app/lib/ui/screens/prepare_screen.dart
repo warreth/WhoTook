@@ -61,8 +61,7 @@ class PrepareScreen extends ConsumerWidget {
               SurfaceCard(
                 child: EmptyState(
                   title: 'Reading your photos',
-                  body:
-                      'Picking frames from the albums you allowed. This stays on your device.',
+                  body: 'Picking frames from the albums you allowed. This stays on your device.',
                 ),
               )
             else
@@ -70,13 +69,12 @@ class PrepareScreen extends ConsumerWidget {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: state.candidates.length,
-                gridDelegate:
-                    const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: AppSpacing.s12,
-                      crossAxisSpacing: AppSpacing.s12,
-                      childAspectRatio: 0.92,
-                    ),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: AppSpacing.s12,
+                  crossAxisSpacing: AppSpacing.s12,
+                  childAspectRatio: 0.92,
+                ),
                 itemBuilder: (context, index) {
                   final candidate = state.candidates[index];
                   return _CandidateTile(
@@ -93,11 +91,15 @@ class PrepareScreen extends ConsumerWidget {
             const SizedBox(height: AppSpacing.s16),
             if (state.plantUnlocked && !state.plantUsed)
               _PlantTile(
-                onTap: () => unawaited(_plant(context, coordinator, state, isHost)),
+                onTap: () =>
+                    unawaited(_plant(context, coordinator, state, isHost)),
               ),
             if (state.plantUsed) ...<Widget>[
               const SizedBox(height: AppSpacing.s8),
-              StatusRow(label: 'Secret photo planted', tone: StatusTone.positive),
+              StatusRow(
+                label: 'Secret photo planted',
+                tone: StatusTone.positive,
+              ),
             ],
             const SizedBox(height: AppSpacing.s16),
             Row(
@@ -320,7 +322,7 @@ class _PlantTile extends StatelessWidget {
                 child: Icon(
                   Icons.local_florist_outlined,
                   size: 18,
-                  color: colors.accent,
+                  color: colors.ink2,
                 ),
               ),
               const SizedBox(width: AppSpacing.s12),
@@ -377,7 +379,11 @@ class _PhotoBytes extends StatelessWidget {
       errorBuilder: (context, error, stack) => Container(
         color: colors.raised,
         alignment: Alignment.center,
-        child: Icon(Icons.image_not_supported_outlined, size: 20, color: colors.ink3),
+        child: Icon(
+          Icons.image_not_supported_outlined,
+          size: 20,
+          color: colors.ink3,
+        ),
       ),
     );
   }
