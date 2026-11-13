@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/services.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
+import '../core/constants.dart';
 import '../core/media/photo_service.dart';
 import '../core/models/models.dart';
 import '../core/platform/screenshot_detector.dart';
@@ -290,7 +291,7 @@ class MatchCoordinator {
       _state.copyWith(
         isHosting: true,
         roomId: roomId,
-        inviteUrl: encodeInviteUrl(invite),
+        inviteUrl: encodeInviteUrl(invite, baseUrl: kInviteBaseUrl),
         localPlayerId: player.id,
         phase: RoundPhase.lobby,
         players: engine.players,
