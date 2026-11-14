@@ -8,7 +8,7 @@ QR code, and each round shows a photo while the table races to guess who took it
 
 | Round | Lobby | Pick your photos | Podium |
 | --- | --- | --- | --- |
-| <img src="docs/screenshots/round.webp" width="190" alt="A round with a dog photo"> | <img src="docs/screenshots/lobby.webp" width="190" alt="Lobby with a QR code"> | <img src="docs/screenshots/prepare.webp" width="190" alt="Contact sheet with four different photos"> | <img src="docs/screenshots/podium.webp" width="190" alt="Podium and awards"> |
+| <img src="docs/screenshots/round.webp" width="190" alt="A round with a dog photo"> | <img src="docs/screenshots/lobby.webp" width="190" alt="Lobby with a QR code and the chosen setup"> | <img src="docs/screenshots/prepare.webp" width="190" alt="Contact sheet with four different photos"> | <img src="docs/screenshots/podium.webp" width="190" alt="Podium and awards"> |
 
 ## Game modes
 
@@ -19,7 +19,7 @@ QR code, and each round shows a photo while the table races to guess who took it
 
 | Pick a mode | Caption This | Time Traveler |
 | --- | --- | --- |
-| <img src="docs/screenshots/modes.webp" width="190" alt="Lobby with four game modes"> | <img src="docs/screenshots/caption-writing.webp" width="190" alt="Caption This writing screen"> | <img src="docs/screenshots/timeline-reveal.webp" width="190" alt="Time Traveler timeline reveal"> |
+| <img src="docs/screenshots/modes.webp" width="190" alt="Setup screen with four game modes"> | <img src="docs/screenshots/caption-writing.webp" width="190" alt="Caption This writing screen"> | <img src="docs/screenshots/timeline-reveal.webp" width="190" alt="Time Traveler timeline reveal"> |
 
 ## Download
 
@@ -31,7 +31,7 @@ QR code, and each round shows a photo while the table races to guess who took it
 
 ## How it plays
 
-1. **Start a room.** Pick the rounds and the timer, then show the QR code.
+1. **Set the table.** Pick the rounds, the pace and a game mode, then approve your photos. The QR code is the last step.
 2. **Pick your photos.** Everyone approves a handful of photos from their own phone. Swap anything you would rather keep out.
 3. **Guess who took it.** A photo appears and everyone taps a name. Faster correct guesses score more.
 4. **Crown a winner.** The podium hands out awards. Play five more rounds if nobody wants to stop.

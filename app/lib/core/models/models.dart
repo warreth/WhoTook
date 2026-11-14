@@ -75,7 +75,7 @@ class Player {
 
 enum GameMode { classic, captionThis, timeTraveler, mixedParty }
 
-/// Match shape chosen in the lobby.
+/// Match shape chosen before the room opens.
 class MatchConfig {
   const MatchConfig({
     this.roundsK = 10,

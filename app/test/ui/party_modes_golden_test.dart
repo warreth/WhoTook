@@ -12,7 +12,7 @@ import 'package:whotook/core/theme/whotook_theme.dart';
 import 'package:whotook/state/match_coordinator.dart';
 import 'package:whotook/state/providers.dart';
 import 'package:whotook/ui/screens/caption_screen.dart';
-import 'package:whotook/ui/screens/lobby_screen.dart';
+import 'package:whotook/ui/screens/setup/mode_setup_screen.dart';
 import 'package:whotook/ui/screens/timeline_screen.dart';
 import 'package:whotook/ui/widgets/common.dart';
 
@@ -102,9 +102,9 @@ void main() {
   });
 
   testWidgets('mode selector', (tester) async {
-    await _pump(tester, const LobbyScreen(), _lobbyModes());
+    await _pump(tester, const ModeSetupScreen(), _lobbyModes());
     await expectLater(
-      find.byType(LobbyScreen),
+      find.byType(ModeSetupScreen),
       matchesGoldenFile('marketing/modes.png'),
     );
   });

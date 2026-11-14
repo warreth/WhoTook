@@ -264,6 +264,7 @@ class MatchCoordinator {
     ScreenshotDetector? screenshots,
     this.random,
     this.includeOnlineTransport = true,
+    this.wakeLock,
     Duration? roundDuration,
     this.countdownDuration = const Duration(seconds: 3),
     this.revealDuration = const Duration(milliseconds: 3500),
@@ -288,6 +289,9 @@ class MatchCoordinator {
 
   /// Off for tests and offline rehearsals; a LAN match never needs the relay.
   final bool includeOnlineTransport;
+
+  /// Injectable in tests so a widget test does not wait on a platform channel.
+  final Future<void> Function(bool awake)? wakeLock;
   final Duration? _roundDurationOverride;
   final Duration countdownDuration;
   final Duration revealDuration;
@@ -1192,7 +1196,13 @@ class MatchCoordinator {
   Future<void> setMode(GameMode mode) async {
     final engine = _engine;
     if (engine == null) {
-      _emit(_state.copyWith(config: _state.config.copyWith(mode: mode)));
+      if (mode == _state.config.mode) return;
+      _emit(
+        _state.copyWith(
+          config: _state.config.copyWith(mode: mode),
+          candidates: const <PhotoCandidate>[],
+        ),
+      );
       return;
     }
     try {
@@ -1207,8 +1217,13 @@ class MatchCoordinator {
   Future<void> setRounds(int rounds) async {
     final engine = _engine;
     if (engine == null) {
-      if (rounds < 1) return;
-      _emit(_state.copyWith(config: _state.config.copyWith(roundsK: rounds)));
+      if (rounds < 1 || rounds == _state.config.roundsK) return;
+      _emit(
+        _state.copyWith(
+          config: _state.config.copyWith(roundsK: rounds),
+          candidates: const <PhotoCandidate>[],
+        ),
+      );
       return;
     }
     try {
@@ -1238,6 +1253,92 @@ class MatchCoordinator {
     await _broadcastLobby();
   }
 
+  /// Draws the host's photos before the room opens, so the QR code can be the
+  /// last step of the setup flow.
+  Future<void> drawHostCandidates({int count = 4}) async {
+    final picked = await _photos.sampleCandidates(
+      excludedAlbumIds: _settingsValue.excludedAlbumIds,
+      count: count,
+      requireDate: _state.config.needsPhotoDates,
+    );
+    final candidates = <PhotoCandidate>[
+      for (var i = 0; i < picked.length; i++)
+        PhotoCandidate(
+          photoId: 'host-$i-${picked[i].assetId}',
+          localAssetId: picked[i].assetId,
+          ownerId: 'host',
+          bytes: picked[i].bytes,
+          capturedYear: picked[i].capturedAt?.year,
+          capturedMonth: picked[i].capturedAt?.month,
+        ),
+    ];
+    final missingDates = candidates.isEmpty && _state.config.needsPhotoDates;
+    _emit(
+      _state.copyWith(
+        candidates: candidates,
+        clearError: !missingDates,
+        errorMessage: missingDates ? _noDatedPhotosMessage : null,
+      ),
+    );
+  }
+
+  Future<void> rerollHostCandidates() async {
+    final current = _state.candidates;
+    final picked = await _photos.sampleCandidates(
+      excludedAlbumIds: _settingsValue.excludedAlbumIds,
+      count: current.isEmpty ? 4 : current.length,
+      excludeAssetIds: current
+          .map((candidate) => candidate.localAssetId)
+          .toSet(),
+      requireDate: _state.config.needsPhotoDates,
+    );
+    // A small gallery may have no fresh frames left. Keep the ones on screen.
+    if (picked.isEmpty && current.isNotEmpty) return;
+    final candidates = <PhotoCandidate>[
+      for (var i = 0; i < picked.length; i++)
+        PhotoCandidate(
+          photoId: 'host-$i-${picked[i].assetId}',
+          localAssetId: picked[i].assetId,
+          ownerId: 'host',
+          bytes: picked[i].bytes,
+          capturedYear: picked[i].capturedAt?.year,
+          capturedMonth: picked[i].capturedAt?.month,
+        ),
+    ];
+    final missingDates = candidates.isEmpty && _state.config.needsPhotoDates;
+    _emit(
+      _state.copyWith(
+        candidates: candidates,
+        clearError: !missingDates,
+        errorMessage: missingDates ? _noDatedPhotosMessage : null,
+      ),
+    );
+  }
+
+  Future<void> swapHostCandidate(int index) async {
+    final current = _state.candidates;
+    if (index < 0 || index >= current.length) return;
+    final picked = await _photos.sampleCandidates(
+      excludedAlbumIds: _settingsValue.excludedAlbumIds,
+      count: 1,
+      excludeAssetIds: current
+          .map((candidate) => candidate.localAssetId)
+          .toSet(),
+      requireDate: _state.config.needsPhotoDates,
+    );
+    if (picked.isEmpty) return;
+    final replacement = PhotoCandidate(
+      photoId: 'host-$index-${picked.first.assetId}',
+      localAssetId: picked.first.assetId,
+      ownerId: 'host',
+      bytes: picked.first.bytes,
+      capturedYear: picked.first.capturedAt?.year,
+      capturedMonth: picked.first.capturedAt?.month,
+    );
+    final next = List<PhotoCandidate>.of(current)..[index] = replacement;
+    _emit(_state.copyWith(candidates: next));
+  }
+
   /// Host opens the prepare phase and draws its own candidates.
   Future<void> startPrepare() async {
     final engine = _engine;
@@ -1263,7 +1364,15 @@ class MatchCoordinator {
         payload: <String, dynamic>{'photosNeeded': engine.photosNeeded},
       ),
     );
-    await rerollCandidates();
+    if (_state.candidates.isEmpty) {
+      await rerollCandidates();
+    } else if (_state.candidates.length > engine.photosNeeded) {
+      _emit(
+        _state.copyWith(
+          candidates: _state.candidates.take(engine.photosNeeded).toList(),
+        ),
+      );
+    }
     _emit(_state.copyWith(clearLoading: true));
   }
 
@@ -2301,6 +2410,11 @@ class MatchCoordinator {
   /// The host keeps the socket alive only while the screen stays on, so the
   /// wake lock is part of the transport contract, not a nicety.
   Future<void> _setAwake(bool awake) async {
+    final override = wakeLock;
+    if (override != null) {
+      await override(awake);
+      return;
+    }
     try {
       await WakelockPlus.toggle(enable: awake);
     } on MissingPluginException {

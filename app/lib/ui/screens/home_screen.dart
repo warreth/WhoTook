@@ -1,139 +1,105 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/models/models.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
 import 'join_screen.dart';
 import 'settings_screen.dart';
+import 'setup/rounds_setup_screen.dart';
 
+/// The front door: one clear decision, host or join, and nothing else.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = WhoTookColors.of(context);
-    final settings = ref.watch(appSettingsProvider).value;
     final coordinator = ref.read(matchCoordinatorProvider);
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
 
     return Scaffold(
-      bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.fromLTRB(
-          AppSpacing.s20,
-          AppSpacing.s8,
-          AppSpacing.s20,
-          AppSpacing.s16,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            PrimaryButton(
-              label: 'Host a match',
-              icon: Icons.groups_outlined,
-              onPressed: () async {
-                await coordinator.hostMatch(config: state.config);
-                if (!context.mounted) return;
-                final error = coordinator.state.errorMessage;
-                if (error != null) {
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(SnackBar(content: Text(error)));
-                }
-              },
-            ),
-            const SizedBox(height: AppSpacing.s12),
-            SecondaryButton(
-              label: 'Join with a QR code',
-              icon: Icons.qr_code_scanner,
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const JoinScreen()),
-              ),
-            ),
-          ],
-        ),
-      ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.s24,
-            AppSpacing.s16,
-            AppSpacing.s24,
-            AppSpacing.s24,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Row(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.s20,
+                AppSpacing.s8,
+                AppSpacing.s20,
+                AppSpacing.s12,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
-                  WhoTookMark(size: 28, color: colors.accent),
-                  const SizedBox(width: AppSpacing.s12),
-                  const Expanded(
-                    child: Text(
-                      'WhoTook',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: -0.6,
+                  Row(
+                    children: <Widget>[
+                      WhoTookMark(size: 24, color: colors.accent),
+                      const SizedBox(width: AppSpacing.s8),
+                      const Expanded(
+                        child: Text(
+                          'WhoTook',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const SettingsScreen(),
+                          ),
+                        ),
+                        icon: const Icon(Icons.settings_outlined),
+                        tooltip: 'Settings',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.s8),
+                  const Expanded(child: _Hero()),
+                  if (state.turnLimitNotice != null) ...<Widget>[
+                    const SizedBox(height: AppSpacing.s8),
+                    const NoticeBanner(
+                      message: 'Online relay is used up today. Use the same Wi-Fi to keep playing.',
+                      tone: StatusTone.warning,
+                      icon: Icons.wifi_tethering,
+                    ),
+                  ],
+                  const SizedBox(height: AppSpacing.s16),
+                  _BigAction(
+                    title: 'Host a game',
+                    subtitle: 'You set the rounds and pick the photos',
+                    icon: Icons.groups_outlined,
+                    filled: true,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const RoundsSetupScreen(),
                       ),
                     ),
                   ),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).push(
+                  const SizedBox(height: AppSpacing.s12),
+                  _BigAction(
+                    title: 'Join a game',
+                    subtitle: "Scan the host's QR code",
+                    icon: Icons.qr_code_scanner,
+                    onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (_) => const SettingsScreen(),
+                        builder: (_) => const JoinScreen(),
                       ),
                     ),
-                    icon: const Icon(Icons.settings_outlined),
-                    tooltip: 'Settings',
+                  ),
+                  const SizedBox(height: AppSpacing.s12),
+                  Text(
+                    'Same room, same Wi-Fi. Photos stay between players.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: colors.ink3),
                   ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.s8),
-              Text(
-                'Guess whose camera roll it is.',
-                style: TextStyle(fontSize: 15, color: colors.ink2, height: 1.4),
-              ),
-              const SizedBox(height: AppSpacing.s20),
-              _ExclusionSummary(
-                count: settings?.excludedAlbumIds.length ?? 0,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const SettingsScreen(),
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.s16),
-              if (state.turnLimitNotice != null) ...<Widget>[
-                NoticeBanner(
-                  message: 'Online relay is used up today. Use the same Wi-Fi to keep playing.',
-                  tone: StatusTone.warning,
-                  icon: Icons.wifi_tethering,
-                ),
-                const SizedBox(height: AppSpacing.s12),
-              ],
-              if (state.errorMessage != null) ...<Widget>[
-                NoticeBanner(
-                  message: state.errorMessage!,
-                  tone: StatusTone.warning,
-                  icon: Icons.error_outline,
-                ),
-                const SizedBox(height: AppSpacing.s12),
-              ],
-              _MatchPreset(
-                config: state.config,
-                onRounds: (rounds) => unawaited(coordinator.setRounds(rounds)),
-                onSeconds: (seconds) =>
-                    unawaited(coordinator.setRoundSeconds(seconds)),
-              ),
-              const SizedBox(height: AppSpacing.s12),
-              Text(
-                'Photos stay with the players in the match.',
-                style: TextStyle(fontSize: 13, color: colors.ink2, height: 1.4),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -141,31 +107,157 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-class _ExclusionSummary extends StatelessWidget {
-  const _ExclusionSummary({required this.count, required this.onTap});
+class _Hero extends StatelessWidget {
+  const _Hero();
 
-  final int count;
+  @override
+  Widget build(BuildContext context) {
+    const panel = Color(0xFF1B1713);
+    const paper = Color(0xFFF7F4EE);
+    const muted = Color(0xFFC7BFB3);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppRadii.rModal),
+      child: ColoredBox(
+        color: panel,
+        child: Stack(
+          children: <Widget>[
+            Positioned(
+              right: AppSpacing.s20,
+              top: AppSpacing.s20,
+              child: ExcludeSemantics(
+                child: WhoTookMark(size: 132, color: const Color(0x24F7F4EE)),
+              ),
+            ),
+            Positioned.fill(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.s20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    const Spacer(),
+                    const Text(
+                      'Whose camera\nroll is this?',
+                      style: TextStyle(
+                        fontSize: 38,
+                        height: 0.98,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -1.6,
+                        color: paper,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.s12),
+                    Text(
+                      'One photo at a time. Everyone guesses whose it is.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.35,
+                        color: muted,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.s16),
+                    const _ContactStrip(),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A tiny contact sheet: four numbered frames, the game's own visual motif.
+class _ContactStrip extends StatelessWidget {
+  const _ContactStrip();
+
+  @override
+  Widget build(BuildContext context) {
+    return ExcludeSemantics(
+      child: Row(
+        children: <Widget>[
+          for (var i = 0; i < 4; i++) ...<Widget>[
+            if (i > 0) const SizedBox(width: AppSpacing.s8),
+            Expanded(
+              child: AspectRatio(
+                aspectRatio: 1.28,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF27221D),
+                    borderRadius: BorderRadius.circular(AppRadii.rSm),
+                    border: Border.all(
+                      color: i == 0
+                          ? const Color(0xFFE59437)
+                          : const Color(0x33F7F4EE),
+                    ),
+                  ),
+                  child: Stack(
+                    children: <Widget>[
+                      const Positioned.fill(
+                        child: CropFrameOverlay(
+                          color: Color(0x55F7F4EE),
+                          armLength: 7,
+                          strokeWidth: 1,
+                          inset: 5,
+                        ),
+                      ),
+                      Positioned(
+                        left: 5,
+                        top: 5,
+                        child: NumberTag(
+                          label: (i + 1).toString().padLeft(2, '0'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _BigAction extends StatelessWidget {
+  const _BigAction({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.onTap,
+    this.filled = false,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
   final VoidCallback onTap;
+  final bool filled;
 
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final foreground = filled ? colors.onAccent : colors.ink;
+    final secondary = filled
+        ? colors.onAccent.withValues(alpha: 0.78)
+        : colors.ink2;
     return Material(
-      color: colors.card,
+      color: filled ? colors.accent : colors.card,
       borderRadius: BorderRadius.circular(AppRadii.rCard),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadii.rCard),
         child: Container(
-          height: 64,
+          height: 68,
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadii.rCard),
-            border: Border.all(color: colors.hairline),
+            border: filled ? null : Border.all(color: colors.hairline),
           ),
           child: Row(
             children: <Widget>[
-              Icon(Icons.photo_library_outlined, size: 18, color: colors.ink2),
+              Icon(icon, size: 24, color: foreground),
               const SizedBox(width: AppSpacing.s12),
               Expanded(
                 child: Column(
@@ -173,142 +265,33 @@ class _ExclusionSummary extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      count == 0
-                          ? 'No albums excluded'
-                          : '$count albums excluded',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
+                      title,
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.2,
+                        color: foreground,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 1),
                     Text(
-                      count == 0
-                          ? 'Every album can be drawn from'
-                          : 'Private folders stay out of matches',
-                      style: TextStyle(fontSize: 12, color: colors.ink2),
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 12, color: secondary),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, size: 18, color: colors.ink3),
+              Icon(
+                Icons.chevron_right,
+                size: 20,
+                color: filled
+                    ? colors.onAccent.withValues(alpha: 0.7)
+                    : colors.ink3,
+              ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MatchPreset extends StatelessWidget {
-  const _MatchPreset({
-    required this.config,
-    required this.onRounds,
-    required this.onSeconds,
-  });
-
-  final MatchConfig config;
-  final ValueChanged<int> onRounds;
-  final ValueChanged<int> onSeconds;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = WhoTookColors.of(context);
-    return SurfaceCard(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.s16,
-        vertical: AppSpacing.s12,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          const SectionLabel('Rounds per match'),
-          Row(
-            children: <Widget>[
-              for (final rounds in <int>[5, 10, 15, 20])
-                Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      right: rounds == 20 ? 0 : AppSpacing.s8,
-                    ),
-                    child: _PresetChip(
-                      label: '$rounds',
-                      selected: config.roundsK == rounds,
-                      onTap: () => onRounds(rounds),
-                      mono: true,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.s16),
-          const SectionLabel('Seconds per photo'),
-          Row(
-            children: <Widget>[
-              for (final seconds in <int>[6, 8, 12])
-                Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      right: seconds == 12 ? 0 : AppSpacing.s8,
-                    ),
-                    child: _PresetChip(
-                      label: '$seconds',
-                      selected: config.roundSeconds == seconds,
-                      onTap: () => onSeconds(seconds),
-                      mono: true,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.s8),
-          Text(
-            'The host can add five more rounds when the last photo is done.',
-            style: TextStyle(fontSize: 12, color: colors.ink3),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PresetChip extends StatelessWidget {
-  const _PresetChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-    this.mono = false,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  final bool mono;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = WhoTookColors.of(context);
-    final style = TextStyle(
-      fontSize: 13,
-      fontWeight: FontWeight.w500,
-      color: selected ? colors.bg : colors.ink2,
-      fontFamily: mono ? 'JetBrainsMono' : null,
-    );
-    return Semantics(
-      button: true,
-      selected: selected,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadii.rSm),
-        child: Container(
-          height: 48,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: selected ? colors.ink : colors.raised,
-            borderRadius: BorderRadius.circular(AppRadii.rControl),
-            border: Border.all(color: colors.hairline),
-          ),
-          child: Text(label, style: style),
         ),
       ),
     );

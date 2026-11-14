@@ -18,6 +18,10 @@ import 'package:whotook/ui/screens/podium_screen.dart';
 import 'package:whotook/ui/screens/prepare_screen.dart';
 import 'package:whotook/ui/screens/round_screen.dart';
 import 'package:whotook/ui/screens/settings_screen.dart';
+import 'package:whotook/ui/screens/setup/host_photos_screen.dart';
+import 'package:whotook/ui/screens/setup/mode_setup_screen.dart';
+import 'package:whotook/ui/screens/setup/rounds_setup_screen.dart';
+import 'package:whotook/ui/screens/setup/speed_setup_screen.dart';
 
 import '../support/test_photo_library.dart';
 
@@ -99,6 +103,62 @@ void main() {
     await expectLater(
       find.byType(RoundScreen),
       matchesGoldenFile('goldens/round.png'),
+    );
+  });
+
+  testWidgets('rounds setup', (tester) async {
+    await _pump(
+      tester,
+      const RoundsSetupScreen(),
+      _settings(),
+      state: _setupState(),
+    );
+    await expectLater(
+      find.byType(RoundsSetupScreen),
+      matchesGoldenFile('goldens/rounds-setup.png'),
+    );
+  });
+
+  testWidgets('speed setup', (tester) async {
+    await _pump(
+      tester,
+      const SpeedSetupScreen(),
+      _settings(),
+      state: _setupState(),
+    );
+    await expectLater(
+      find.byType(SpeedSetupScreen),
+      matchesGoldenFile('goldens/speed-setup.png'),
+    );
+  });
+
+  testWidgets('mode setup', (tester) async {
+    await _pump(
+      tester,
+      const ModeSetupScreen(),
+      _settings(),
+      state: _setupState(mode: GameMode.captionThis),
+    );
+    await expectLater(
+      find.byType(ModeSetupScreen),
+      matchesGoldenFile('goldens/mode-setup.png'),
+    );
+  });
+
+  testWidgets('host photos', (tester) async {
+    final photos = _fixturePhotos();
+    for (final photo in photos) {
+      await _precachePhoto(tester, photo);
+    }
+    await _pump(
+      tester,
+      const HostPhotosScreen(),
+      _settings(),
+      state: _hostPhotosState(photos),
+    );
+    await expectLater(
+      find.byType(HostPhotosScreen),
+      matchesGoldenFile('goldens/host-photos.png'),
     );
   });
 
@@ -232,6 +292,7 @@ Future<void> _pumpWidget(
     ProviderScope(
       overrides: [
         appSettingsProvider.overrideWith(() => _FixedSettings(settings)),
+        photoLibraryProvider.overrideWithValue(TestPhotoLibrary()),
         matchStateProvider.overrideWith(
           (ref) => Stream<MatchUiState>.value(state ?? const MatchUiState()),
         ),
@@ -266,6 +327,32 @@ List<Player> _players() => <Player>[
   Player(id: 'c2', name: 'Sam', score: 2740),
   Player(id: 'c3', name: 'Noor', score: 3180),
 ];
+
+MatchUiState _setupState({GameMode mode = GameMode.classic}) =>
+    MatchUiState(config: MatchConfig(roundsK: 10, roundSeconds: 8, mode: mode));
+
+MatchUiState _hostPhotosState(List<Uint8List> photos) => MatchUiState(
+  isHosting: true,
+  roomId: 'k8m2p9x4',
+  localPlayerId: 'host',
+  players: _players(),
+  config: const MatchConfig(
+    roundsK: 15,
+    roundSeconds: 6,
+    mode: GameMode.timeTraveler,
+  ),
+  candidates: <PhotoCandidate>[
+    for (var i = 0; i < 4; i++)
+      PhotoCandidate(
+        photoId: 'p$i',
+        localAssetId: 'a$i',
+        ownerId: 'host',
+        bytes: photos[i % photos.length],
+        capturedYear: 2014 + i,
+        capturedMonth: 1 + i * 2,
+      ),
+  ],
+);
 
 MatchUiState _lobbyState() => MatchUiState(
   isHosting: true,
