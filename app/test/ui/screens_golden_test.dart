@@ -71,13 +71,15 @@ void main() {
   });
 
   testWidgets('prepare', (tester) async {
-    final photo = _fixturePhoto();
-    await _precachePhoto(tester, photo);
+    final photos = _fixturePhotos();
+    for (final photo in photos) {
+      await _precachePhoto(tester, photo);
+    }
     await _pump(
       tester,
       const PrepareScreen(),
       _settings(),
-      state: _prepareState(photo),
+      state: _prepareState(photos),
     );
     await expectLater(
       find.byType(PrepareScreen),
@@ -86,7 +88,7 @@ void main() {
   });
 
   testWidgets('round', (tester) async {
-    final photo = _fixturePhoto();
+    final photo = _fixturePhoto('party-dog');
     await _precachePhoto(tester, photo);
     await _pump(
       tester,
@@ -136,7 +138,7 @@ void main() {
 
   testWidgets('marketing round', (tester) async {
     _retina(tester);
-    final photo = _fixturePhoto();
+    final photo = _fixturePhoto('party-dog');
     await _precachePhoto(tester, photo);
     await _pump(
       tester,
@@ -152,13 +154,15 @@ void main() {
 
   testWidgets('marketing prepare', (tester) async {
     _retina(tester);
-    final photo = _fixturePhoto();
-    await _precachePhoto(tester, photo);
+    final photos = _fixturePhotos();
+    for (final photo in photos) {
+      await _precachePhoto(tester, photo);
+    }
     await _pump(
       tester,
       const PrepareScreen(),
       _settings(),
-      state: _prepareState(photo),
+      state: _prepareState(photos),
     );
     await expectLater(
       find.byType(PrepareScreen),
@@ -186,12 +190,14 @@ void main() {
 
   testWidgets('marketing podium', (tester) async {
     _retina(tester);
-    await _pump(
+    await _pumpWidget(
       tester,
       const PodiumScreen(),
       _settings(),
       state: _podiumState(),
     );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 850));
     await expectLater(
       find.byType(PodiumScreen),
       matchesGoldenFile('marketing/podium.png'),
@@ -212,6 +218,16 @@ Future<void> _pump(
   AppSettings settings, {
   MatchUiState? state,
 }) async {
+  await _pumpWidget(tester, screen, settings, state: state);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _pumpWidget(
+  WidgetTester tester,
+  Widget screen,
+  AppSettings settings, {
+  MatchUiState? state,
+}) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -227,7 +243,6 @@ Future<void> _pump(
       ),
     ),
   );
-  await tester.pumpAndSettle();
 }
 
 class _FixedSettings extends AppSettingsController {
@@ -262,7 +277,14 @@ MatchUiState _lobbyState() => MatchUiState(
   connectionMode: ConnectionMode.localLan,
 );
 
-MatchUiState _prepareState(Uint8List photo) => MatchUiState(
+List<Uint8List> _fixturePhotos() => <Uint8List>[
+  _fixturePhoto('party-dog'),
+  _fixturePhoto('party-cat'),
+  _fixturePhoto('party-hamster'),
+  _fixturePhoto('party-pizza'),
+];
+
+MatchUiState _prepareState(List<Uint8List> photos) => MatchUiState(
   isHosting: true,
   roomId: 'k8m2p9x4',
   localPlayerId: 'host',
@@ -275,7 +297,7 @@ MatchUiState _prepareState(Uint8List photo) => MatchUiState(
         photoId: 'p$i',
         localAssetId: 'a$i',
         ownerId: 'host',
-        bytes: photo,
+        bytes: photos[i % photos.length],
       ),
   ],
   plantUnlocked: true,
@@ -361,8 +383,8 @@ Future<void> _loadFonts() async {
   }
 }
 
-Uint8List _fixturePhoto() =>
-    File('test/ui/fixtures/party-dog.jpg').readAsBytesSync();
+Uint8List _fixturePhoto(String name) =>
+    File('test/ui/fixtures/$name.jpg').readAsBytesSync();
 
 /// Fills the image cache before the widget builds, so the golden shows the
 /// photo instead of the empty frame the test renderer paints on a cache miss.

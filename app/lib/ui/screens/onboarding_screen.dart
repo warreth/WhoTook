@@ -111,7 +111,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             ),
             const SizedBox(height: AppSpacing.s8),
             Text(
-              'Every round shows one photo from a friend. Tap the name you think it belongs to, fastest correct guess wins.',
+              'One photo. One guess. Tap who you think took it.',
               style: TextStyle(fontSize: 14, color: colors.ink2, height: 1.45),
             ),
             const SizedBox(height: AppSpacing.s24),
@@ -228,7 +228,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               PrimaryButton(label: 'Continue', onPressed: _finish),
             const SizedBox(height: AppSpacing.s12),
             Text(
-              'Photos are compressed on this device and only shared with the players in your match.',
+              'Photos stay on your phone until the match.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: colors.ink2),
             ),

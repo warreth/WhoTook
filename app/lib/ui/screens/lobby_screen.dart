@@ -105,8 +105,8 @@ class LobbyScreen extends ConsumerWidget {
                     const SizedBox(height: AppSpacing.s12),
                     Text(
                       state.connectionMode == ConnectionMode.localLan
-                          ? 'Local Wi-Fi, no server'
-                          : 'Online relay',
+                          ? 'Same Wi-Fi'
+                          : 'Online',
                       style: TextStyle(fontSize: 13, color: colors.ink2),
                     ),
                   ],

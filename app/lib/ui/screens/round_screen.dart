@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/models.dart';
@@ -54,6 +54,10 @@ class RoundScreen extends ConsumerWidget {
                   FrameCounter(current: roundNumber, total: state.totalRounds),
                 ],
               ),
+              if (state.totalRounds > 0) ...<Widget>[
+                const SizedBox(height: AppSpacing.s8),
+                _RoundProgress(current: roundNumber, total: state.totalRounds),
+              ],
               const SizedBox(height: AppSpacing.s12),
               if (showingCountdown)
                 Expanded(
@@ -74,7 +78,11 @@ class RoundScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppSpacing.s12),
                 if (showingReveal)
-                  _RevealBlock(reveal: reveal, players: state.players)
+                  _RevealBlock(
+                    reveal: reveal,
+                    players: state.players,
+                    localPlayerId: state.localPlayerId,
+                  )
                 else ...<Widget>[
                   const SizedBox(height: AppSpacing.s12),
                   _TimerBar(
@@ -114,8 +122,8 @@ class RoundScreen extends ConsumerWidget {
                   const SizedBox(height: AppSpacing.s8),
                   Text(
                     state.lockedGuessOwnerId == null
-                        ? 'Everyone sees the same names, including their own'
-                        : 'Locked in, waiting for the others',
+                        ? 'Same names on every phone.'
+                        : 'Locked in, waiting for the others.',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 13, color: colors.ink2),
                   ),
@@ -399,60 +407,218 @@ class _GuessGrid extends StatelessWidget {
   }
 }
 
-class _RevealBlock extends StatelessWidget {
-  const _RevealBlock({required this.reveal, required this.players});
+class _RoundProgress extends StatelessWidget {
+  const _RoundProgress({required this.current, required this.total});
 
-  final RoundReveal reveal;
-  final List<Player> players;
+  final int current;
+  final int total;
 
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
-    final owner = players.where((p) => p.id == reveal.ownerId).firstOrNull;
+    if (total > 24) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(3),
+        child: LinearProgressIndicator(
+          value: (current / total).clamp(0.0, 1.0),
+          minHeight: 5,
+          backgroundColor: colors.raised,
+          valueColor: AlwaysStoppedAnimation<Color>(colors.accent),
+        ),
+      );
+    }
+    return ExcludeSemantics(
+      child: Row(
+        children: <Widget>[
+          for (var i = 0; i < total; i++)
+            Expanded(
+              child: Container(
+                height: 5,
+                margin: EdgeInsets.only(right: i == total - 1 ? 0 : 2),
+                decoration: BoxDecoration(
+                  color: i < current ? colors.accent : colors.raised,
+                  borderRadius: BorderRadius.circular(2.5),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RevealBlock extends StatefulWidget {
+  const _RevealBlock({
+    required this.reveal,
+    required this.players,
+    required this.localPlayerId,
+  });
+
+  final RoundReveal reveal;
+  final List<Player> players;
+  final String? localPlayerId;
+
+  @override
+  State<_RevealBlock> createState() => _RevealBlockState();
+}
+
+class _RevealBlockState extends State<_RevealBlock> {
+  bool _shown = false;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleReveal();
+  }
+
+  @override
+  void didUpdateWidget(covariant _RevealBlock oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.reveal.roundNumber != widget.reveal.roundNumber) {
+      _scheduleReveal();
+    }
+  }
+
+  void _scheduleReveal() {
+    _timer?.cancel();
+    _shown = false;
+    _timer = Timer(const Duration(milliseconds: 700), () {
+      if (!mounted) return;
+      setState(() => _shown = true);
+      unawaited(SystemSound.play(SystemSoundType.click));
+      unawaited(HapticFeedback.lightImpact());
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    final reveal = widget.reveal;
+    final owner = widget.players
+        .where((p) => p.id == reveal.ownerId)
+        .firstOrNull;
     final fooled = reveal.guesses
         .where((g) => !g.isOwnPhoto && !g.isCorrect)
         .length;
+    final localId = widget.localPlayerId;
+    final guess = localId == null
+        ? null
+        : reveal.guesses.where((g) => g.playerId == localId).firstOrNull;
+    final ownPhoto = localId != null && reveal.ownerId == localId;
+
+    var result = '';
+    var tone = colors.ink2;
+    var icon = Icons.remove_circle_outline;
+    if (localId != null) {
+      if (ownPhoto) {
+        final fooledOnOwn = reveal.guesses
+            .where(
+              (g) =>
+                  !g.isOwnPhoto && !g.isCorrect && g.guessedOwnerId.isNotEmpty,
+            )
+            .length;
+        result = fooledOnOwn == 0
+            ? 'Your photo. Nobody was fooled.'
+            : 'Your photo. $fooledOnOwn fooled.';
+        tone = fooledOnOwn > 0 ? colors.positive : colors.ink2;
+        icon = Icons.local_florist_outlined;
+      } else if (guess == null) {
+        result = 'Out of time.';
+        tone = colors.negative;
+        icon = Icons.timer_off_outlined;
+      } else if (guess.isCorrect) {
+        result = 'You got it. +${guess.pointsAwarded}';
+        tone = colors.positive;
+        icon = Icons.check_circle_outline;
+      } else {
+        result = 'You were fooled.';
+        tone = colors.negative;
+        icon = Icons.cancel_outlined;
+      }
+    }
+
     return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          SurfaceCard(
-            padding: const EdgeInsets.all(AppSpacing.s12),
-            child: Row(
-              children: <Widget>[
-                PlayerAvatar(
-                  initial: owner?.name ?? '?',
-                  isHost: owner?.isHost ?? false,
-                  size: 32,
-                ),
-                const SizedBox(width: AppSpacing.s12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        'Shot by ${owner?.name ?? 'someone'}',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        fooled == 0
-                            ? 'Everyone got it right'
-                            : fooled == 1
-                            ? '1 player was fooled'
-                            : '$fooled players were fooled',
-                        style: TextStyle(fontSize: 12, color: colors.ink2),
-                      ),
-                    ],
+          Semantics(
+            liveRegion: true,
+            child: SurfaceCard(
+              padding: const EdgeInsets.all(AppSpacing.s12),
+              child: Row(
+                children: <Widget>[
+                  PlayerAvatar(
+                    initial: _shown ? (owner?.name ?? '?') : '?',
+                    isHost: _shown && (owner?.isHost ?? false),
+                    size: 32,
                   ),
-                ),
-              ],
+                  const SizedBox(width: AppSpacing.s12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          _shown
+                              ? 'Shot by ${owner?.name ?? 'someone'}'
+                              : 'Who took it?',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _shown
+                              ? (fooled == 0
+                                    ? 'Everyone got it right'
+                                    : fooled == 1
+                                    ? '1 player was fooled'
+                                    : '$fooled players were fooled')
+                              : 'Revealing...',
+                          style: TextStyle(fontSize: 12, color: colors.ink2),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: AppSpacing.s12),
+          const SizedBox(height: AppSpacing.s8),
+          SizedBox(
+            height: 24,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              child: _shown && localId != null
+                  ? Row(
+                      key: ValueKey<String>('result-${reveal.roundNumber}'),
+                      children: <Widget>[
+                        Icon(icon, size: 15, color: tone),
+                        const SizedBox(width: AppSpacing.s4),
+                        Flexible(
+                          child: Text(
+                            result,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: tone,
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.s8),
           Expanded(
             child: SurfaceCard(
               padding: EdgeInsets.zero,
@@ -462,15 +628,11 @@ class _RevealBlock extends StatelessWidget {
                   for (var i = 0; i < reveal.guesses.length; i++)
                     ScoreRow(
                       position: i + 1,
-                      player: _playerFor(reveal.guesses[i], players),
-                      score: _playerFor(reveal.guesses[i], players).score,
+                      player: _playerFor(reveal.guesses[i]),
+                      score: _playerFor(reveal.guesses[i]).score,
                       delta:
-                          reveal.scoreDeltas[_playerFor(
-                            reveal.guesses[i],
-                            players,
-                          ).id],
-                      streak: reveal
-                          .streaks[_playerFor(reveal.guesses[i], players).id],
+                          reveal.scoreDeltas[_playerFor(reveal.guesses[i]).id],
+                      streak: reveal.streaks[_playerFor(reveal.guesses[i]).id],
                       highlighted: reveal.guesses[i].isOwnPhoto,
                     ),
                 ],
@@ -483,9 +645,12 @@ class _RevealBlock extends StatelessWidget {
               children: <Widget>[
                 Icon(Icons.bolt_outlined, size: 14, color: colors.ink2),
                 const SizedBox(width: AppSpacing.s4),
-                Text(
-                  _microLabel(reveal.microAward!),
-                  style: TextStyle(fontSize: 12, color: colors.ink2),
+                Flexible(
+                  child: Text(
+                    _microLabel(reveal.microAward!),
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12, color: colors.ink2),
+                  ),
                 ),
               ],
             ),
@@ -495,8 +660,8 @@ class _RevealBlock extends StatelessWidget {
     );
   }
 
-  Player _playerFor(GuessRecord guess, List<Player> players) {
-    return players.firstWhere(
+  Player _playerFor(GuessRecord guess) {
+    return widget.players.firstWhere(
       (p) => p.id == guess.playerId,
       orElse: () => Player(id: guess.playerId, name: 'Player'),
     );
