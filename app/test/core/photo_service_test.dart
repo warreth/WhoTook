@@ -38,6 +38,7 @@ class FakePhotoLibraryService implements PhotoLibraryService {
     required Set<String> excludedAlbumIds,
     required int count,
     Set<String> excludeAssetIds = const <String>{},
+    bool requireDate = false,
   }) async {
     sampledExclusions.add(excludedAlbumIds);
     final pool =

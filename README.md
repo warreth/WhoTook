@@ -10,11 +10,23 @@ QR code, and each round shows a photo while the table races to guess who took it
 | --- | --- | --- | --- |
 | <img src="docs/screenshots/round.webp" width="190" alt="A round with a dog photo"> | <img src="docs/screenshots/lobby.webp" width="190" alt="Lobby with a QR code"> | <img src="docs/screenshots/prepare.webp" width="190" alt="Contact sheet with four different photos"> | <img src="docs/screenshots/podium.webp" width="190" alt="Podium and awards"> |
 
+## Game modes
+
+- **Classic:** guess who took the photo.
+- **Caption This:** write the funniest caption, then vote anonymously.
+- **Time Traveler:** guess the year and month on a timeline.
+- **Mixed Party:** all three, shuffled.
+
+| Pick a mode | Caption This | Time Traveler |
+| --- | --- | --- |
+| <img src="docs/screenshots/modes.webp" width="190" alt="Lobby with four game modes"> | <img src="docs/screenshots/caption-writing.webp" width="190" alt="Caption This writing screen"> | <img src="docs/screenshots/timeline-reveal.webp" width="190" alt="Time Traveler timeline reveal"> |
+
 ## Download
 
 - **Android:** [WhoTook.apk](https://github.com/warreth/WhoTook/releases/latest/download/WhoTook.apk), Android 7.0 and newer.
 - **Automatic updates:** [Add to Obtainium](https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fadd%2Fhttps%3A%2F%2Fgithub.com%2Farreth%2FWhoTook), or paste the repository URL in Obtainium.
-- **iPhone:** build from source today. App Store release is coming.
+- **iPhone:** sideload the unsigned IPA with SideStore or AltStore, or build from source. App Store release is coming.
+  Add the source in the app: `https://whotook.party/altstore.json`.
 - **Website:** [whotook.party](https://whotook.party).
 
 ## How it plays

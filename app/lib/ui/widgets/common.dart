@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../../core/models/models.dart';
@@ -482,6 +484,183 @@ class EmptyState extends StatelessWidget {
           else
             SecondaryButton(label: actionLabel!, onPressed: onAction),
         ],
+      ],
+    );
+  }
+}
+
+/// Segmented round progress. More than 24 rounds falls back to a single bar.
+class ProgressSegments extends StatelessWidget {
+  const ProgressSegments({
+    super.key,
+    required this.current,
+    required this.total,
+  });
+
+  final int current;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    if (total <= 0) return const SizedBox.shrink();
+    if (total > 24) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(3),
+        child: LinearProgressIndicator(
+          value: (current / total).clamp(0.0, 1.0),
+          minHeight: 5,
+          backgroundColor: colors.raised,
+          valueColor: AlwaysStoppedAnimation<Color>(colors.accent),
+        ),
+      );
+    }
+    return ExcludeSemantics(
+      child: Row(
+        children: <Widget>[
+          for (var i = 0; i < total; i++)
+            Expanded(
+              child: Container(
+                height: 5,
+                margin: EdgeInsets.only(right: i == total - 1 ? 0 : 2),
+                decoration: BoxDecoration(
+                  color: i < current ? colors.accent : colors.raised,
+                  borderRadius: BorderRadius.circular(2.5),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Contact-sheet framed photo used by the party modes.
+class PhotoPanel extends StatelessWidget {
+  const PhotoPanel({super.key, required this.bytes, this.aspectRatio = 4 / 3});
+
+  final Uint8List? bytes;
+  final double aspectRatio;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    final data = bytes;
+    return AspectRatio(
+      aspectRatio: aspectRatio,
+      child: Container(
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(AppRadii.rCard),
+          border: Border.all(color: colors.hairline),
+        ),
+        padding: const EdgeInsets.all(AppSpacing.s8),
+        child: Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadii.rSm),
+              child: data == null || data.isEmpty
+                  ? Container(
+                      color: colors.raised,
+                      alignment: Alignment.center,
+                      child: Icon(
+                        Icons.image_outlined,
+                        size: 28,
+                        color: colors.ink3,
+                      ),
+                    )
+                  : Image.memory(
+                      data,
+                      fit: BoxFit.cover,
+                      gaplessPlayback: true,
+                      errorBuilder: (context, error, stack) => Container(
+                        color: colors.raised,
+                        alignment: Alignment.center,
+                        child: Icon(
+                          Icons.image_not_supported_outlined,
+                          size: 28,
+                          color: colors.ink3,
+                        ),
+                      ),
+                    ),
+            ),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CropFrameOverlay(
+                  color: colors.ink,
+                  inset: 4,
+                  armLength: 14,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Seconds left plus a thin progress track.
+class CountdownBar extends StatelessWidget {
+  const CountdownBar({
+    super.key,
+    required this.remainingMs,
+    required this.totalMs,
+    required this.label,
+  });
+
+  final int remainingMs;
+  final int totalMs;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    final total = totalMs <= 0 ? 1 : totalMs;
+    final fraction = (remainingMs / total).clamp(0.0, 1.0);
+    final seconds = (remainingMs / 1000).toStringAsFixed(1);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            Text(
+              '$seconds s left',
+              style: tabularFigures(
+                TextStyle(
+                  fontFamily: 'JetBrainsMono',
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: colors.ink,
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.s8),
+            Expanded(
+              child: Text(
+                label,
+                textAlign: TextAlign.right,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, color: colors.ink2),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.s8),
+        Semantics(
+          label: label,
+          value: seconds,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: LinearProgressIndicator(
+              value: fraction,
+              minHeight: 6,
+              backgroundColor: colors.raised,
+              valueColor: AlwaysStoppedAnimation<Color>(colors.accent),
+            ),
+          ),
+        ),
       ],
     );
   }

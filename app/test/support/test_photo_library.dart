@@ -28,6 +28,7 @@ class TestPhotoLibrary implements PhotoLibraryService {
     required Set<String> excludedAlbumIds,
     required int count,
     Set<String> excludeAssetIds = const <String>{},
+    bool requireDate = false,
   }) async {
     _call += 1;
     final result = <PickedPhoto>[];
@@ -43,6 +44,7 @@ class TestPhotoLibrary implements PhotoLibraryService {
         PickedPhoto(
           assetId: id,
           bytes: Uint8List.fromList(<int>[byte, byte, byte, byte]),
+          capturedAt: DateTime(2014 + ((_call + i) % 9), 1 + (i % 12), 12),
         ),
       );
     }
@@ -87,6 +89,7 @@ class TestPhotoLibrary implements PhotoLibraryService {
     return PickedPhoto(
       assetId: assetId,
       bytes: Uint8List.fromList(<int>[byte, byte, byte, byte]),
+      capturedAt: DateTime(2015 + (seed % 7), 1 + (seed % 12), 12),
     );
   }
 

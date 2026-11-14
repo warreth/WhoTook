@@ -20,6 +20,12 @@ abstract final class WireType {
   static const String screenshotTaken = 'screenshot_taken';
   static const String screenshotAlert = 'screenshot_alert';
   static const String roundReveal = 'round_reveal';
+  static const String captionSubmit = 'caption_submit';
+  static const String captionOptions = 'caption_options';
+  static const String captionVote = 'caption_vote';
+  static const String captionReveal = 'caption_reveal';
+  static const String timelineSubmit = 'timeline_submit';
+  static const String timelineReveal = 'timeline_reveal';
   static const String extendPrepare = 'extend_prepare';
   static const String extendSubmit = 'extend_submit';
   static const String gamePodium = 'game_podium';
@@ -44,6 +50,12 @@ abstract final class WireType {
     screenshotTaken,
     screenshotAlert,
     roundReveal,
+    captionSubmit,
+    captionOptions,
+    captionVote,
+    captionReveal,
+    timelineSubmit,
+    timelineReveal,
     extendPrepare,
     extendSubmit,
     gamePodium,

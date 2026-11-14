@@ -50,6 +50,7 @@ class MatchUiState {
     this.currentRound = 0,
     this.totalRounds = 0,
     this.remainingMs = 0,
+    this.phaseDurationMs = 0,
     this.activePhotoBytes,
     this.activeRoundOptions = const <Player>[],
     this.lockedGuessOwnerId,
@@ -63,6 +64,19 @@ class MatchUiState {
     this.errorMessage,
     this.turnLimitNotice,
     this.hostDeciding = false,
+    this.activeMode = GameMode.classic,
+    this.captionOptions = const <CaptionOption>[],
+    this.ownCaptionId,
+    this.votedCaptionId,
+    this.captionSubmitted = false,
+    this.captionsSubmitted = 0,
+    this.votesSubmitted = 0,
+    this.lastCaptionReveal,
+    this.timelineSubmitted = false,
+    this.timelineGuesses = 0,
+    this.lockedTimelineYear,
+    this.lockedTimelineMonth,
+    this.lastTimelineReveal,
   });
 
   final bool isHosting;
@@ -81,6 +95,7 @@ class MatchUiState {
   final int currentRound;
   final int totalRounds;
   final int remainingMs;
+  final int phaseDurationMs;
   final Uint8List? activePhotoBytes;
   final List<Player> activeRoundOptions;
   final String? lockedGuessOwnerId;
@@ -93,6 +108,19 @@ class MatchUiState {
   final String? loadingMessage;
   final String? errorMessage;
   final TurnLimitNotice? turnLimitNotice;
+  final GameMode activeMode;
+  final List<CaptionOption> captionOptions;
+  final String? ownCaptionId;
+  final String? votedCaptionId;
+  final bool captionSubmitted;
+  final int captionsSubmitted;
+  final int votesSubmitted;
+  final CaptionReveal? lastCaptionReveal;
+  final bool timelineSubmitted;
+  final int timelineGuesses;
+  final int? lockedTimelineYear;
+  final int? lockedTimelineMonth;
+  final TimelineReveal? lastTimelineReveal;
 
   /// True when the host has to choose between the podium and `+5` rounds.
   final bool hostDeciding;
@@ -120,6 +148,7 @@ class MatchUiState {
     int? currentRound,
     int? totalRounds,
     int? remainingMs,
+    int? phaseDurationMs,
     Uint8List? activePhotoBytes,
     List<Player>? activeRoundOptions,
     String? lockedGuessOwnerId,
@@ -133,9 +162,23 @@ class MatchUiState {
     String? errorMessage,
     TurnLimitNotice? turnLimitNotice,
     bool? hostDeciding,
+    GameMode? activeMode,
+    List<CaptionOption>? captionOptions,
+    String? ownCaptionId,
+    String? votedCaptionId,
+    bool? captionSubmitted,
+    int? captionsSubmitted,
+    int? votesSubmitted,
+    CaptionReveal? lastCaptionReveal,
+    bool? timelineSubmitted,
+    int? timelineGuesses,
+    int? lockedTimelineYear,
+    int? lockedTimelineMonth,
+    TimelineReveal? lastTimelineReveal,
     bool clearError = false,
     bool clearLoading = false,
     bool clearGuess = false,
+    bool clearRoundInput = false,
   }) => MatchUiState(
     isHosting: isHosting ?? this.isHosting,
     roomId: roomId ?? this.roomId,
@@ -153,6 +196,7 @@ class MatchUiState {
     currentRound: currentRound ?? this.currentRound,
     totalRounds: totalRounds ?? this.totalRounds,
     remainingMs: remainingMs ?? this.remainingMs,
+    phaseDurationMs: phaseDurationMs ?? this.phaseDurationMs,
     activePhotoBytes: activePhotoBytes ?? this.activePhotoBytes,
     activeRoundOptions: activeRoundOptions ?? this.activeRoundOptions,
     lockedGuessOwnerId: clearGuess
@@ -170,6 +214,41 @@ class MatchUiState {
     errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     turnLimitNotice: turnLimitNotice ?? this.turnLimitNotice,
     hostDeciding: hostDeciding ?? this.hostDeciding,
+    activeMode: activeMode ?? this.activeMode,
+    captionOptions: clearRoundInput
+        ? const <CaptionOption>[]
+        : (captionOptions ?? this.captionOptions),
+    ownCaptionId: clearRoundInput ? null : (ownCaptionId ?? this.ownCaptionId),
+    votedCaptionId: clearRoundInput
+        ? null
+        : (votedCaptionId ?? this.votedCaptionId),
+    captionSubmitted: clearRoundInput
+        ? false
+        : (captionSubmitted ?? this.captionSubmitted),
+    captionsSubmitted: clearRoundInput
+        ? 0
+        : (captionsSubmitted ?? this.captionsSubmitted),
+    votesSubmitted: clearRoundInput
+        ? 0
+        : (votesSubmitted ?? this.votesSubmitted),
+    lastCaptionReveal: clearRoundInput
+        ? null
+        : (lastCaptionReveal ?? this.lastCaptionReveal),
+    timelineSubmitted: clearRoundInput
+        ? false
+        : (timelineSubmitted ?? this.timelineSubmitted),
+    timelineGuesses: clearRoundInput
+        ? 0
+        : (timelineGuesses ?? this.timelineGuesses),
+    lockedTimelineYear: clearRoundInput
+        ? null
+        : (lockedTimelineYear ?? this.lockedTimelineYear),
+    lockedTimelineMonth: clearRoundInput
+        ? null
+        : (lockedTimelineMonth ?? this.lockedTimelineMonth),
+    lastTimelineReveal: clearRoundInput
+        ? null
+        : (lastTimelineReveal ?? this.lastTimelineReveal),
   );
 }
 
@@ -188,6 +267,11 @@ class MatchCoordinator {
     Duration? roundDuration,
     this.countdownDuration = const Duration(seconds: 3),
     this.revealDuration = const Duration(milliseconds: 3500),
+    this.captionWriteDuration = const Duration(seconds: 40),
+    this.captionVoteDuration = const Duration(seconds: 25),
+    this.captionRevealDuration = const Duration(seconds: 8),
+    this.timelineDuration = const Duration(seconds: 30),
+    this.timelineRevealDuration = const Duration(seconds: 8),
     this.extendWindow = const Duration(seconds: 10),
   }) : _settings = settings ?? SettingsRepository(),
        _connector = connector ?? HybridConnector(),
@@ -207,12 +291,23 @@ class MatchCoordinator {
   final Duration? _roundDurationOverride;
   final Duration countdownDuration;
   final Duration revealDuration;
+  final Duration captionWriteDuration;
+  final Duration captionVoteDuration;
+  final Duration captionRevealDuration;
+  final Duration timelineDuration;
+  final Duration timelineRevealDuration;
   final Duration extendWindow;
 
   /// The live round length, following the lobby timer once the engine exists.
   Duration get effectiveRoundDuration =>
       _roundDurationOverride ??
       Duration(seconds: _engine?.roundSeconds ?? _state.config.roundSeconds);
+
+  bool get _needsPhotoDates =>
+      (_engine?.config ?? _state.config).needsPhotoDates;
+
+  String get _noDatedPhotosMessage =>
+      'No photos with a date found. Allow another album or pick a different mode.';
 
   final StreamController<MatchUiState> _states =
       StreamController<MatchUiState>.broadcast();
@@ -235,6 +330,8 @@ class MatchCoordinator {
   Timer? _roundTimer;
   Timer? _countdownTicker;
   Timer? _extendTicker;
+  Timer? _captionRevealTimer;
+  Timer? _timelineRevealTimer;
   int _roundStartMs = 0;
   int _seq = 0;
   bool _disposed = false;
@@ -523,6 +620,68 @@ class MatchCoordinator {
           return;
         }
         await _maybeCommitExtension();
+      case WireType.captionSubmit:
+        try {
+          engine.submitCaption(clientId, payload['text'] as String? ?? '');
+        } on EngineException catch (error) {
+          await _hostTransport?.sendToClient(
+            clientId,
+            WireMessage(
+              type: WireType.errorNotice,
+              seq: _nextSeq(),
+              payload: <String, dynamic>{'code': error.code},
+            ),
+          );
+          return;
+        }
+        _emit(_state.copyWith(captionsSubmitted: engine.captionCount));
+        if (engine.allCaptionsSubmitted) {
+          await _startCaptionVoting();
+        }
+      case WireType.captionVote:
+        try {
+          engine.submitCaptionVote(
+            clientId,
+            payload['captionId'] as String? ?? '',
+          );
+        } on EngineException catch (error) {
+          await _hostTransport?.sendToClient(
+            clientId,
+            WireMessage(
+              type: WireType.errorNotice,
+              seq: _nextSeq(),
+              payload: <String, dynamic>{'code': error.code},
+            ),
+          );
+          return;
+        }
+        _emit(_state.copyWith(votesSubmitted: engine.captionVoteCount));
+        if (engine.allCaptionVotesSubmitted) {
+          await _finishCaptionRound();
+        }
+      case WireType.timelineSubmit:
+        try {
+          engine.submitTimelineGuess(
+            playerId: clientId,
+            year: payload['year'] as int? ?? 0,
+            month: payload['month'] as int? ?? 0,
+            elapsedMs: payload['elapsedMs'] as int? ?? 0,
+          );
+        } on EngineException catch (error) {
+          await _hostTransport?.sendToClient(
+            clientId,
+            WireMessage(
+              type: WireType.errorNotice,
+              seq: _nextSeq(),
+              payload: <String, dynamic>{'code': error.code},
+            ),
+          );
+          return;
+        }
+        _emit(_state.copyWith(timelineGuesses: engine.timelineGuessCount));
+        if (engine.allTimelineGuessed) {
+          await _finishTimelineRound();
+        }
       case WireType.ping:
         await _hostTransport?.sendToClient(
           clientId,
@@ -679,15 +838,22 @@ class MatchCoordinator {
       }
     }
 
+    final mode = entry.mode;
+    final duration = switch (mode) {
+      GameMode.classic || GameMode.mixedParty => effectiveRoundDuration,
+      GameMode.captionThis => captionWriteDuration,
+      GameMode.timeTraveler => timelineDuration,
+    };
     await transport.broadcast(
       WireMessage(
         type: WireType.roundShow,
         seq: _nextSeq(),
         payload: <String, dynamic>{
+          'mode': mode.name,
           'roundNumber': entry.roundNumber,
           'totalRounds': engine.totalRounds,
           'photoId': entry.photo.photoId,
-          'durationMs': effectiveRoundDuration.inMilliseconds,
+          'durationMs': duration.inMilliseconds,
           'options': engine.players.map((p) => p.toJson()).toList(),
         },
       ),
@@ -695,45 +861,264 @@ class MatchCoordinator {
 
     _emit(
       _state.copyWith(
-        phase: RoundPhase.guessing,
+        phase: engine.phase,
+        activeMode: mode,
         currentRound: entry.roundNumber,
+        totalRounds: engine.totalRounds,
         activePhotoBytes: bytes,
         activeRoundOptions: engine.players,
-        remainingMs: effectiveRoundDuration.inMilliseconds,
+        remainingMs: duration.inMilliseconds,
+        phaseDurationMs: duration.inMilliseconds,
         clearGuess: true,
+        clearRoundInput: true,
         lockedGuessOwnerId: null,
       ),
     );
 
     _roundTimer?.cancel();
-    _roundTimer = Timer(
-      effectiveRoundDuration,
-      () => unawaited(_finishRound()),
-    );
-    _tickRoundProgress();
+    _roundTimer = Timer(duration, () {
+      switch (mode) {
+        case GameMode.classic || GameMode.mixedParty:
+          unawaited(_finishRound());
+        case GameMode.captionThis:
+          unawaited(_startCaptionVoting());
+        case GameMode.timeTraveler:
+          unawaited(_finishTimelineRound());
+      }
+    });
+    _tickPhaseProgress(duration, engine.phase);
   }
 
-  void _tickRoundProgress() {
+  void _tickPhaseProgress(Duration duration, RoundPhase phase) {
     _countdownTicker?.cancel();
+    final startedAt = DateTime.now().millisecondsSinceEpoch;
     _countdownTicker = Timer.periodic(const Duration(milliseconds: 100), (
       timer,
     ) {
-      if (_disposed || _state.phase != RoundPhase.guessing) {
+      if (_disposed || _state.phase != phase) {
         timer.cancel();
         return;
       }
-      final elapsed = DateTime.now().millisecondsSinceEpoch - _roundStartMs;
-      final remaining = (effectiveRoundDuration.inMilliseconds - elapsed).clamp(
+      final elapsed = DateTime.now().millisecondsSinceEpoch - startedAt;
+      final remaining = (duration.inMilliseconds - elapsed).clamp(
         0,
-        effectiveRoundDuration.inMilliseconds,
+        duration.inMilliseconds,
       );
       _emit(_state.copyWith(remainingMs: remaining));
       final engine = _engine;
-      if (engine != null && engine.allGuessed) {
-        timer.cancel();
-        unawaited(_finishRound());
+      if (engine == null) return;
+      switch (phase) {
+        case RoundPhase.guessing:
+          if (engine.allGuessed) {
+            timer.cancel();
+            unawaited(_finishRound());
+          }
+        case RoundPhase.captionWriting:
+          if (engine.allCaptionsSubmitted) {
+            timer.cancel();
+            unawaited(_startCaptionVoting());
+          }
+        case RoundPhase.captionVoting:
+          if (engine.allCaptionVotesSubmitted) {
+            timer.cancel();
+            unawaited(_finishCaptionRound());
+          }
+        case RoundPhase.timelineGuessing:
+          if (engine.allTimelineGuessed) {
+            timer.cancel();
+            unawaited(_finishTimelineRound());
+          }
+        default:
+          break;
       }
     });
+  }
+
+  Future<void> _startCaptionVoting() async {
+    final engine = _engine;
+    if (engine == null || engine.phase != RoundPhase.captionWriting) return;
+    _roundTimer?.cancel();
+    _countdownTicker?.cancel();
+    if (engine.captionCount < 2) {
+      await _finishCaptionRound();
+      return;
+    }
+    try {
+      engine.beginCaptionVoting();
+    } on EngineException {
+      return;
+    }
+    final options = engine.captionOptions;
+    final duration = captionVoteDuration;
+    _emit(
+      _state.copyWith(
+        phase: RoundPhase.captionVoting,
+        captionOptions: options,
+        ownCaptionId: engine.captionIdFor('host'),
+        votedCaptionId: null,
+        remainingMs: duration.inMilliseconds,
+        phaseDurationMs: duration.inMilliseconds,
+        captionsSubmitted: engine.captionCount,
+        clearError: true,
+      ),
+    );
+    for (final player in engine.players) {
+      if (!player.connected || player.id == 'host') continue;
+      await _hostTransport?.sendToClient(
+        player.id,
+        WireMessage(
+          type: WireType.captionOptions,
+          seq: _nextSeq(),
+          payload: <String, dynamic>{
+            'captions': options.map((option) => option.toJson()).toList(),
+            'ownId': engine.captionIdFor(player.id),
+            'durationMs': duration.inMilliseconds,
+          },
+        ),
+      );
+    }
+    _roundTimer = Timer(duration, () => unawaited(_finishCaptionRound()));
+    _tickPhaseProgress(duration, RoundPhase.captionVoting);
+  }
+
+  Future<void> _finishCaptionRound() async {
+    final engine = _engine;
+    if (engine == null) return;
+    if (engine.phase != RoundPhase.captionWriting &&
+        engine.phase != RoundPhase.captionVoting) {
+      return;
+    }
+    _roundTimer?.cancel();
+    _countdownTicker?.cancel();
+    final reveal = engine.finishCaptionRound();
+    unawaited(HapticFeedback.mediumImpact());
+    await _hostTransport?.broadcast(
+      WireMessage(
+        type: WireType.captionReveal,
+        seq: _nextSeq(),
+        payload: reveal.toJson(),
+      ),
+    );
+    _emit(
+      _state.copyWith(
+        phase: RoundPhase.captionReveal,
+        lastCaptionReveal: reveal,
+        players: engine.players,
+        captionOptions: const <CaptionOption>[],
+        remainingMs: 0,
+      ),
+    );
+    _captionRevealTimer?.cancel();
+    _captionRevealTimer = Timer(
+      captionRevealDuration,
+      () => unawaited(_advanceAfterReveal()),
+    );
+  }
+
+  Future<void> _finishTimelineRound() async {
+    final engine = _engine;
+    if (engine == null || engine.phase != RoundPhase.timelineGuessing) return;
+    _roundTimer?.cancel();
+    _countdownTicker?.cancel();
+    final reveal = engine.finishTimelineRound(
+      durationMs: timelineDuration.inMilliseconds,
+    );
+    unawaited(HapticFeedback.mediumImpact());
+    await _hostTransport?.broadcast(
+      WireMessage(
+        type: WireType.timelineReveal,
+        seq: _nextSeq(),
+        payload: reveal.toJson(),
+      ),
+    );
+    _emit(
+      _state.copyWith(
+        phase: RoundPhase.timelineReveal,
+        lastTimelineReveal: reveal,
+        players: engine.players,
+        remainingMs: 0,
+      ),
+    );
+    _timelineRevealTimer?.cancel();
+    _timelineRevealTimer = Timer(
+      timelineRevealDuration,
+      () => unawaited(_advanceAfterReveal()),
+    );
+  }
+
+  Future<void> submitCaption(String text) async {
+    final engine = _engine;
+    if (engine == null) return;
+    try {
+      engine.submitCaption('host', text);
+    } on EngineException catch (error) {
+      _emit(_state.copyWith(errorMessage: error.message));
+      return;
+    }
+    unawaited(HapticFeedback.selectionClick());
+    unawaited(SystemSound.play(SystemSoundType.click));
+    _emit(
+      _state.copyWith(
+        captionSubmitted: true,
+        captionsSubmitted: engine.captionCount,
+        clearError: true,
+      ),
+    );
+    if (engine.allCaptionsSubmitted) {
+      await _startCaptionVoting();
+    }
+  }
+
+  Future<void> voteCaption(String captionId) async {
+    final engine = _engine;
+    if (engine == null || _state.votedCaptionId != null) return;
+    try {
+      engine.submitCaptionVote('host', captionId);
+    } on EngineException catch (error) {
+      _emit(_state.copyWith(errorMessage: error.message));
+      return;
+    }
+    unawaited(HapticFeedback.selectionClick());
+    _emit(
+      _state.copyWith(
+        votedCaptionId: captionId,
+        votesSubmitted: engine.captionVoteCount,
+        clearError: true,
+      ),
+    );
+    if (engine.allCaptionVotesSubmitted) {
+      await _finishCaptionRound();
+    }
+  }
+
+  Future<void> submitTimeline(int year, int month) async {
+    final engine = _engine;
+    if (engine == null || _state.timelineSubmitted) return;
+    final elapsed = DateTime.now().millisecondsSinceEpoch - _roundStartMs;
+    try {
+      engine.submitTimelineGuess(
+        playerId: 'host',
+        year: year,
+        month: month,
+        elapsedMs: elapsed,
+      );
+    } on EngineException catch (error) {
+      _emit(_state.copyWith(errorMessage: error.message));
+      return;
+    }
+    unawaited(HapticFeedback.selectionClick());
+    unawaited(SystemSound.play(SystemSoundType.click));
+    _emit(
+      _state.copyWith(
+        timelineSubmitted: true,
+        lockedTimelineYear: year,
+        lockedTimelineMonth: month,
+        clearError: true,
+      ),
+    );
+    if (engine.allTimelineGuessed) {
+      await _finishTimelineRound();
+    }
   }
 
   Future<void> _syncGuesses() async {
@@ -802,6 +1187,21 @@ class MatchCoordinator {
     }
     _emit(_state.copyWith(phase: RoundPhase.countdown));
     await _enterRoundCountdown();
+  }
+
+  Future<void> setMode(GameMode mode) async {
+    final engine = _engine;
+    if (engine == null) {
+      _emit(_state.copyWith(config: _state.config.copyWith(mode: mode)));
+      return;
+    }
+    try {
+      engine.setMode(mode);
+    } on EngineException {
+      return;
+    }
+    _emit(_state.copyWith(config: engine.config, clearError: true));
+    await _broadcastLobby();
   }
 
   Future<void> setRounds(int rounds) async {
@@ -876,6 +1276,7 @@ class MatchCoordinator {
       excludedAlbumIds: excluded,
       count: count,
       excludeAssetIds: _state.candidates.map((c) => c.localAssetId).toSet(),
+      requireDate: _needsPhotoDates,
     );
     final candidates = <PhotoCandidate>[
       for (var i = 0; i < picked.length; i++)
@@ -884,9 +1285,18 @@ class MatchCoordinator {
           localAssetId: picked[i].assetId,
           ownerId: 'host',
           bytes: picked[i].bytes,
+          capturedAtMs: picked[i].capturedAt?.millisecondsSinceEpoch,
         ),
     ];
-    _emit(_state.copyWith(candidates: candidates, clearError: true));
+    _emit(
+      _state.copyWith(
+        candidates: candidates,
+        clearError: candidates.isNotEmpty || !_needsPhotoDates,
+        errorMessage: candidates.isEmpty && _needsPhotoDates
+            ? _noDatedPhotosMessage
+            : null,
+      ),
+    );
   }
 
   Future<void> swapCandidate(int index) async {
@@ -898,6 +1308,7 @@ class MatchCoordinator {
       excludedAlbumIds: _settingsValue.excludedAlbumIds,
       count: 1,
       excludeAssetIds: current.map((c) => c.localAssetId).toSet(),
+      requireDate: _needsPhotoDates,
     );
     if (picked.isEmpty) return;
     final replacement = PhotoCandidate(
@@ -905,6 +1316,7 @@ class MatchCoordinator {
       localAssetId: picked.first.assetId,
       ownerId: 'host',
       bytes: picked.first.bytes,
+      capturedAtMs: picked.first.capturedAt?.millisecondsSinceEpoch,
     );
     final next = List<PhotoCandidate>.of(current)..[index] = replacement;
     _emit(_state.copyWith(candidates: next));
@@ -922,6 +1334,7 @@ class MatchCoordinator {
         ..._state.candidates.map((c) => c.localAssetId),
         ...current.map((c) => c.localAssetId),
       },
+      requireDate: _needsPhotoDates,
     );
     final candidates = <PhotoCandidate>[
       for (var i = 0; i < picked.length; i++)
@@ -930,6 +1343,7 @@ class MatchCoordinator {
           localAssetId: picked[i].assetId,
           ownerId: 'host',
           bytes: picked[i].bytes,
+          capturedAtMs: picked[i].capturedAt?.millisecondsSinceEpoch,
         ),
     ];
     _emit(_state.copyWith(extensionCandidates: candidates));
@@ -947,6 +1361,7 @@ class MatchCoordinator {
         ..._state.candidates.map((c) => c.localAssetId),
         ...current.map((c) => c.localAssetId),
       },
+      requireDate: _needsPhotoDates,
     );
     if (picked.isEmpty) return;
     final replacement = PhotoCandidate(
@@ -954,6 +1369,7 @@ class MatchCoordinator {
       localAssetId: picked.first.assetId,
       ownerId: 'host',
       bytes: picked.first.bytes,
+      capturedAtMs: picked.first.capturedAt?.millisecondsSinceEpoch,
     );
     final next = List<PhotoCandidate>.of(current)..[index] = replacement;
     _emit(_state.copyWith(extensionCandidates: next));
@@ -983,7 +1399,11 @@ class MatchCoordinator {
     }
   }
 
-  Future<void> plantSecretPhoto(String assetId, Uint8List bytes) async {
+  Future<void> plantSecretPhoto(
+    String assetId,
+    Uint8List bytes, {
+    int? capturedAtMs,
+  }) async {
     final engine = _engine;
     if (engine == null) return;
     final photo = PhotoCandidate(
@@ -992,6 +1412,7 @@ class MatchCoordinator {
       ownerId: 'host',
       bytes: bytes,
       isPlanted: true,
+      capturedAtMs: capturedAtMs,
     );
     try {
       engine.plantSecretPhoto('host', photo);
@@ -1079,6 +1500,7 @@ class MatchCoordinator {
       excludedAlbumIds: _settingsValue.excludedAlbumIds,
       count: count,
       excludeAssetIds: _state.candidates.map((c) => c.localAssetId).toSet(),
+      requireDate: _needsPhotoDates,
     );
     final candidates = <PhotoCandidate>[
       for (var i = 0; i < picked.length; i++)
@@ -1087,6 +1509,7 @@ class MatchCoordinator {
           localAssetId: picked[i].assetId,
           ownerId: 'host',
           bytes: picked[i].bytes,
+          capturedAtMs: picked[i].capturedAt?.millisecondsSinceEpoch,
         ),
     ];
     _emit(_state.copyWith(extensionCandidates: candidates));
@@ -1363,7 +1786,15 @@ class MatchCoordinator {
           ),
         );
         final drawn = await _drawClientCandidates(needed);
-        _emit(_state.copyWith(candidates: drawn));
+        _emit(
+          _state.copyWith(
+            candidates: drawn,
+            errorMessage: drawn.isEmpty && _state.config.needsPhotoDates
+                ? _noDatedPhotosMessage
+                : null,
+            clearError: drawn.isNotEmpty || !_state.config.needsPhotoDates,
+          ),
+        );
       case WireType.photoChunk:
         final chunk = PhotoChunk.fromJson(payload);
         final localId = _state.localPlayerId ?? 'client';
@@ -1394,18 +1825,30 @@ class MatchCoordinator {
             if (entry is Map<String, dynamic>) Player.fromJson(entry),
         ];
         final photoId = payload['photoId'] as String?;
+        final mode = GameMode.values.firstWhere(
+          (value) => value.name == payload['mode'],
+          orElse: () => GameMode.classic,
+        );
+        final phase = switch (mode) {
+          GameMode.classic || GameMode.mixedParty => RoundPhase.guessing,
+          GameMode.captionThis => RoundPhase.captionWriting,
+          GameMode.timeTraveler => RoundPhase.timelineGuessing,
+        };
         _roundStartMs = DateTime.now().millisecondsSinceEpoch;
         _emit(
           _state.copyWith(
-            phase: RoundPhase.guessing,
+            phase: phase,
+            activeMode: mode,
             currentRound: payload['roundNumber'] as int? ?? 0,
             totalRounds: payload['totalRounds'] as int? ?? _state.totalRounds,
             remainingMs: payload['durationMs'] as int? ?? 8000,
+            phaseDurationMs: payload['durationMs'] as int? ?? 8000,
             activePhotoBytes: photoId == null
                 ? null
                 : _clientRoundPhotos[photoId],
             activeRoundOptions: options,
             clearGuess: true,
+            clearRoundInput: true,
             lockedGuessOwnerId: null,
           ),
         );
@@ -1432,6 +1875,47 @@ class MatchCoordinator {
             phase: RoundPhase.reveal,
             lastReveal: reveal,
             players: updated,
+          ),
+        );
+      case WireType.captionOptions:
+        final captions = <CaptionOption>[
+          for (final entry
+              in (payload['captions'] as List<dynamic>? ?? const []))
+            if (entry is Map<String, dynamic>) CaptionOption.fromJson(entry),
+        ];
+        _emit(
+          _state.copyWith(
+            phase: RoundPhase.captionVoting,
+            captionOptions: captions,
+            ownCaptionId: payload['ownId'] as String?,
+            votedCaptionId: null,
+            remainingMs: payload['durationMs'] as int? ?? 0,
+            phaseDurationMs: payload['durationMs'] as int? ?? 0,
+            captionsSubmitted: _state.captionsSubmitted,
+            clearError: true,
+          ),
+        );
+      case WireType.captionReveal:
+        unawaited(HapticFeedback.mediumImpact());
+        final reveal = CaptionReveal.fromJson(payload);
+        _emit(
+          _state.copyWith(
+            phase: RoundPhase.captionReveal,
+            lastCaptionReveal: reveal,
+            players: _playersWithDeltas(reveal.scoreDeltas),
+            captionOptions: const <CaptionOption>[],
+            remainingMs: 0,
+          ),
+        );
+      case WireType.timelineReveal:
+        unawaited(HapticFeedback.mediumImpact());
+        final reveal = TimelineReveal.fromJson(payload);
+        _emit(
+          _state.copyWith(
+            phase: RoundPhase.timelineReveal,
+            lastTimelineReveal: reveal,
+            players: _playersWithDeltas(reveal.scoreDeltas),
+            remainingMs: 0,
           ),
         );
       case WireType.screenshotAlert:
@@ -1495,11 +1979,21 @@ class MatchCoordinator {
     }
   }
 
+  List<Player> _playersWithDeltas(Map<String, int> deltas) => <Player>[
+    for (final player in _state.players)
+      if (deltas.containsKey(player.id))
+        (Player.fromJson(player.toJson())
+          ..score = player.score + (deltas[player.id] ?? 0))
+      else
+        player,
+  ];
+
   Future<List<PhotoCandidate>> _drawClientCandidates(int count) async {
     final picked = await _photos.sampleCandidates(
       excludedAlbumIds: _settingsValue.excludedAlbumIds,
       count: count,
       excludeAssetIds: _state.candidates.map((c) => c.localAssetId).toSet(),
+      requireDate: _needsPhotoDates,
     );
     final localId = _state.localPlayerId ?? 'pending';
     return <PhotoCandidate>[
@@ -1509,6 +2003,7 @@ class MatchCoordinator {
           localAssetId: picked[i].assetId,
           ownerId: localId,
           bytes: picked[i].bytes,
+          capturedAtMs: picked[i].capturedAt?.millisecondsSinceEpoch,
         ),
     ];
   }
@@ -1525,6 +2020,7 @@ class MatchCoordinator {
       excludedAlbumIds: _settingsValue.excludedAlbumIds,
       count: 1,
       excludeAssetIds: current.map((c) => c.localAssetId).toSet(),
+      requireDate: _needsPhotoDates,
     );
     if (picked.isEmpty) return;
     final localId = _state.localPlayerId ?? 'pending';
@@ -1534,6 +2030,7 @@ class MatchCoordinator {
         localAssetId: picked.first.assetId,
         ownerId: localId,
         bytes: picked.first.bytes,
+        capturedAtMs: picked.first.capturedAt?.millisecondsSinceEpoch,
       );
     _emit(_state.copyWith(candidates: next));
   }
@@ -1548,6 +2045,7 @@ class MatchCoordinator {
         ..._state.candidates.map((c) => c.localAssetId),
         ...current.map((c) => c.localAssetId),
       },
+      requireDate: _needsPhotoDates,
     );
     final localId = _state.localPlayerId ?? 'pending';
     _emit(
@@ -1559,6 +2057,7 @@ class MatchCoordinator {
               localAssetId: picked[i].assetId,
               ownerId: localId,
               bytes: picked[i].bytes,
+              capturedAtMs: picked[i].capturedAt?.millisecondsSinceEpoch,
             ),
         ],
       ),
@@ -1575,6 +2074,7 @@ class MatchCoordinator {
         ..._state.candidates.map((c) => c.localAssetId),
         ...current.map((c) => c.localAssetId),
       },
+      requireDate: _needsPhotoDates,
     );
     if (picked.isEmpty) return;
     final localId = _state.localPlayerId ?? 'pending';
@@ -1584,6 +2084,7 @@ class MatchCoordinator {
         localAssetId: picked.first.assetId,
         ownerId: localId,
         bytes: picked.first.bytes,
+        capturedAtMs: picked.first.capturedAt?.millisecondsSinceEpoch,
       );
     _emit(_state.copyWith(extensionCandidates: next));
   }
@@ -1670,6 +2171,62 @@ class MatchCoordinator {
     _emit(_state.copyWith(lockedGuessOwnerId: guessedOwnerId));
   }
 
+  Future<void> clientSubmitCaption(String text) async {
+    final transport = _clientTransport;
+    if (transport == null || _state.captionSubmitted) return;
+    await transport.send(
+      WireMessage(
+        type: WireType.captionSubmit,
+        seq: _nextSeq(),
+        payload: <String, dynamic>{'text': text},
+      ),
+    );
+    unawaited(HapticFeedback.selectionClick());
+    unawaited(SystemSound.play(SystemSoundType.click));
+    _emit(_state.copyWith(captionSubmitted: true, clearError: true));
+  }
+
+  Future<void> clientVoteCaption(String captionId) async {
+    final transport = _clientTransport;
+    if (transport == null || _state.votedCaptionId != null) return;
+    await transport.send(
+      WireMessage(
+        type: WireType.captionVote,
+        seq: _nextSeq(),
+        payload: <String, dynamic>{'captionId': captionId},
+      ),
+    );
+    unawaited(HapticFeedback.selectionClick());
+    _emit(_state.copyWith(votedCaptionId: captionId, clearError: true));
+  }
+
+  Future<void> clientSubmitTimeline(int year, int month) async {
+    final transport = _clientTransport;
+    if (transport == null || _state.timelineSubmitted) return;
+    final elapsed = DateTime.now().millisecondsSinceEpoch - _roundStartMs;
+    await transport.send(
+      WireMessage(
+        type: WireType.timelineSubmit,
+        seq: _nextSeq(),
+        payload: <String, dynamic>{
+          'year': year,
+          'month': month,
+          'elapsedMs': elapsed,
+        },
+      ),
+    );
+    unawaited(HapticFeedback.selectionClick());
+    unawaited(SystemSound.play(SystemSoundType.click));
+    _emit(
+      _state.copyWith(
+        timelineSubmitted: true,
+        lockedTimelineYear: year,
+        lockedTimelineMonth: month,
+        clearError: true,
+      ),
+    );
+  }
+
   Future<void> clientApproveExtension() async {
     final transport = _clientTransport;
     if (transport == null) return;
@@ -1705,8 +2262,16 @@ class MatchCoordinator {
   }
 
   Future<void> _onLocalScreenshot() async {
-    if (_state.phase != RoundPhase.guessing &&
-        _state.phase != RoundPhase.reveal) {
+    const sharingPhases = <RoundPhase>{
+      RoundPhase.guessing,
+      RoundPhase.reveal,
+      RoundPhase.captionWriting,
+      RoundPhase.captionVoting,
+      RoundPhase.captionReveal,
+      RoundPhase.timelineGuessing,
+      RoundPhase.timelineReveal,
+    };
+    if (!sharingPhases.contains(_state.phase)) {
       return;
     }
     if (_state.isHosting) {
@@ -1761,9 +2326,13 @@ class MatchCoordinator {
     _roundTimer?.cancel();
     _countdownTicker?.cancel();
     _extendTicker?.cancel();
+    _captionRevealTimer?.cancel();
+    _timelineRevealTimer?.cancel();
     _roundTimer = null;
     _countdownTicker = null;
     _extendTicker = null;
+    _captionRevealTimer = null;
+    _timelineRevealTimer = null;
     for (final sub in _subscriptions) {
       await sub.cancel();
     }

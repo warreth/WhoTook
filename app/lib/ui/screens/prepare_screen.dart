@@ -61,8 +61,10 @@ class PrepareScreen extends ConsumerWidget {
             if (state.candidates.isEmpty)
               SurfaceCard(
                 child: EmptyState(
-                  title: 'Reading your photos',
-                  body: 'Picking frames from the albums you allowed. This stays on your device.',
+                  title: state.errorMessage == null
+                      ? 'Reading your photos'
+                      : 'No usable photos',
+                  body: state.errorMessage ?? 'Picking frames from the albums you allowed. This stays on your device.',
                 ),
               )
             else
@@ -458,7 +460,15 @@ class _PlantPickerSheetState extends ConsumerState<_PlantPickerSheet> {
       _error = null;
     });
     try {
-      await _plant(PickedPhoto(assetId: candidate.localAssetId, bytes: bytes));
+      await _plant(
+        PickedPhoto(
+          assetId: candidate.localAssetId,
+          bytes: bytes,
+          capturedAt: candidate.capturedAtMs == null
+              ? null
+              : DateTime.fromMillisecondsSinceEpoch(candidate.capturedAtMs!),
+        ),
+      );
     } on Object {
       if (!mounted) return;
       setState(() {
@@ -470,7 +480,11 @@ class _PlantPickerSheetState extends ConsumerState<_PlantPickerSheet> {
 
   Future<void> _plant(PickedPhoto picked) async {
     if (widget.isHost) {
-      await widget.coordinator.plantSecretPhoto(picked.assetId, picked.bytes);
+      await widget.coordinator.plantSecretPhoto(
+        picked.assetId,
+        picked.bytes,
+        capturedAtMs: picked.capturedAt?.millisecondsSinceEpoch,
+      );
     } else {
       await widget.coordinator.clientPlantPickedPhoto(
         PhotoCandidate(
@@ -479,6 +493,7 @@ class _PlantPickerSheetState extends ConsumerState<_PlantPickerSheet> {
           ownerId: widget.localPlayerId ?? 'client',
           bytes: picked.bytes,
           isPlanted: true,
+          capturedAtMs: picked.capturedAt?.millisecondsSinceEpoch,
         ),
       );
     }

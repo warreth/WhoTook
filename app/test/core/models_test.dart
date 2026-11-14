@@ -151,8 +151,19 @@ void main() {
       RoundPhase.countdown,
       RoundPhase.guessing,
       RoundPhase.reveal,
+      RoundPhase.captionWriting,
+      RoundPhase.captionVoting,
+      RoundPhase.captionReveal,
+      RoundPhase.timelineGuessing,
+      RoundPhase.timelineReveal,
       RoundPhase.extendPrompt,
       RoundPhase.podium,
+    ]);
+    expect(GameMode.values, <GameMode>[
+      GameMode.classic,
+      GameMode.captionThis,
+      GameMode.timeTraveler,
+      GameMode.mixedParty,
     ]);
     expect(ConnectionMode.values.length, 4);
     expect(ThemePreference.values.length, 3);

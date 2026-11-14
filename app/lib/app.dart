@@ -5,6 +5,7 @@ import '../core/models/models.dart';
 import '../core/theme/whotook_theme.dart';
 import '../state/providers.dart';
 import 'ui/deep_link_listener.dart';
+import 'ui/screens/caption_screen.dart';
 import 'ui/screens/extend_screen.dart';
 import 'ui/screens/home_screen.dart';
 import 'ui/screens/lobby_screen.dart';
@@ -12,6 +13,7 @@ import 'ui/screens/onboarding_screen.dart';
 import 'ui/screens/podium_screen.dart';
 import 'ui/screens/prepare_screen.dart';
 import 'ui/screens/round_screen.dart';
+import 'ui/screens/timeline_screen.dart';
 
 class WhoTookApp extends ConsumerWidget {
   const WhoTookApp({super.key});
@@ -91,6 +93,13 @@ class _MatchRoot extends ConsumerWidget {
       RoundPhase.countdown ||
       RoundPhase.guessing ||
       RoundPhase.reveal => const RoundScreen(key: ValueKey<String>('round')),
+      RoundPhase.captionWriting ||
+      RoundPhase.captionVoting ||
+      RoundPhase.captionReveal => const CaptionScreen(
+        key: ValueKey<String>('caption'),
+      ),
+      RoundPhase.timelineGuessing || RoundPhase.timelineReveal =>
+        const TimelineScreen(key: ValueKey<String>('timeline')),
       RoundPhase.extendPrompt => const ExtendScreen(
         key: ValueKey<String>('extend'),
       ),

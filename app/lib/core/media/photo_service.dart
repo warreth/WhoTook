@@ -26,10 +26,17 @@ class AlbumSummary {
 }
 
 class PickedPhoto {
-  const PickedPhoto({required this.assetId, required this.bytes});
+  const PickedPhoto({
+    required this.assetId,
+    required this.bytes,
+    this.capturedAt,
+  });
 
   final String assetId;
   final Uint8List bytes;
+
+  /// Gallery capture time. Time Traveler refuses photos without a usable date.
+  final DateTime? capturedAt;
 }
 
 /// One tile in the album browser: a small decoded thumbnail plus its asset id.
@@ -53,6 +60,7 @@ abstract class PhotoLibraryService {
     required Set<String> excludedAlbumIds,
     required int count,
     Set<String> excludeAssetIds = const <String>{},
+    bool requireDate = false,
   });
 
   Future<PickedPhoto?> pickSinglePhoto();
@@ -174,6 +182,7 @@ class DevicePhotoLibraryService implements PhotoLibraryService {
     required Set<String> excludedAlbumIds,
     required int count,
     Set<String> excludeAssetIds = const <String>{},
+    bool requireDate = false,
   }) async {
     if (count <= 0) {
       return const <PickedPhoto>[];
@@ -206,9 +215,9 @@ class DevicePhotoLibraryService implements PhotoLibraryService {
           continue;
         }
         final photo = await _readAsset(asset);
-        if (photo != null) {
-          picked.add(photo);
-        }
+        if (photo == null) continue;
+        if (requireDate && !_hasUsableDate(photo.capturedAt)) continue;
+        picked.add(photo);
       }
     }
     return picked;
@@ -276,9 +285,21 @@ class DevicePhotoLibraryService implements PhotoLibraryService {
       if (raw == null || raw.isEmpty) {
         return null;
       }
-      return PickedPhoto(assetId: asset.id, bytes: await compressPhoto(raw));
+      final capturedAt = asset.createDateTime;
+      return PickedPhoto(
+        assetId: asset.id,
+        bytes: await compressPhoto(raw),
+        capturedAt: _hasUsableDate(capturedAt) ? capturedAt : null,
+      );
     } on Exception {
       return null;
     }
+  }
+
+  static bool _hasUsableDate(DateTime? value) {
+    if (value == null) return false;
+    final year = value.year;
+    if (year < 1970 || year > DateTime.now().year + 1) return false;
+    return value.month >= 1 && value.month <= 12;
   }
 }
