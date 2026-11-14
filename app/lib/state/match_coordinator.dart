@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -184,13 +185,14 @@ class MatchCoordinator {
     ScreenshotDetector? screenshots,
     this.random,
     this.includeOnlineTransport = true,
-    this.roundDuration = const Duration(seconds: 8),
+    Duration? roundDuration,
     this.countdownDuration = const Duration(seconds: 3),
     this.revealDuration = const Duration(milliseconds: 3500),
     this.extendWindow = const Duration(seconds: 10),
   }) : _settings = settings ?? SettingsRepository(),
        _connector = connector ?? HybridConnector(),
-       _screenshots = screenshots ?? ScreenshotDetector();
+       _screenshots = screenshots ?? ScreenshotDetector(),
+       _roundDurationOverride = roundDuration;
 
   final PhotoLibraryService _photos;
   final SettingsRepository _settings;
@@ -202,15 +204,22 @@ class MatchCoordinator {
 
   /// Off for tests and offline rehearsals; a LAN match never needs the relay.
   final bool includeOnlineTransport;
-  final Duration roundDuration;
+  final Duration? _roundDurationOverride;
   final Duration countdownDuration;
   final Duration revealDuration;
   final Duration extendWindow;
+
+  /// The live round length, following the lobby timer once the engine exists.
+  Duration get effectiveRoundDuration =>
+      _roundDurationOverride ??
+      Duration(seconds: _engine?.roundSeconds ?? _state.config.roundSeconds);
 
   final StreamController<MatchUiState> _states =
       StreamController<MatchUiState>.broadcast();
   final Map<String, List<PhotoCandidate>> _remotePhotos =
       <String, List<PhotoCandidate>>{};
+  final Map<String, Uint8List> _assembledHostBytes = <String, Uint8List>{};
+  final Map<String, Uint8List> _clientRoundPhotos = <String, Uint8List>{};
   final Map<String, PhotoChunkAssembler> _assemblers =
       <String, PhotoChunkAssembler>{};
   final List<StreamSubscription<dynamic>> _subscriptions =
@@ -235,6 +244,10 @@ class MatchCoordinator {
 
   MatchUiState get state => _state;
 
+  /// Exposed for integration tests that assert on the authoritative deck.
+  @visibleForTesting
+  HostGameEngine? get engine => _engine;
+
   void _emit(MatchUiState next) {
     if (_disposed) return;
     _state = next;
@@ -247,7 +260,7 @@ class MatchCoordinator {
   }
 
   Future<void> hostMatch({MatchConfig config = const MatchConfig()}) async {
-    _emit(_state.copyWith(loadingMessage: 'Starting match'));
+    _emit(_state.copyWith(loadingMessage: 'Starting match', clearError: true));
     final roomId = _randomToken(8);
     final secret = _randomToken(24);
     final engine = HostGameEngine(
@@ -408,6 +421,7 @@ class MatchCoordinator {
         );
         final bytes = assembler.add(chunk);
         if (bytes != null) {
+          _assembledHostBytes['$clientId:${chunk.photoId}'] = bytes;
           final photos = _remotePhotos[clientId];
           if (photos != null) {
             for (var i = 0; i < photos.length; i++) {
@@ -437,12 +451,28 @@ class MatchCoordinator {
           return;
         }
         await _afterReadinessChanged();
+        if (engine.phase == RoundPhase.preparing) {
+          await _broadcastLobby();
+        }
       case WireType.plantPhoto:
         final photo = PhotoCandidate.fromJson(
           payload['photo'] as Map<String, dynamic>,
         );
+        var assembled = _assembledHostBytes['$clientId:${photo.photoId}'];
+        if (assembled == null) {
+          for (final candidate
+              in _remotePhotos[clientId] ?? const <PhotoCandidate>[]) {
+            if (candidate.photoId == photo.photoId && candidate.bytes != null) {
+              assembled = candidate.bytes;
+              break;
+            }
+          }
+        }
+        final hydrated = assembled == null
+            ? photo
+            : photo.copyWith(bytes: assembled);
         try {
-          engine.plantSecretPhoto(clientId, photo);
+          engine.plantSecretPhoto(clientId, hydrated);
           await _hostTransport?.sendToClient(
             clientId,
             WireMessage(
@@ -480,7 +510,11 @@ class MatchCoordinator {
         final photos = <PhotoCandidate>[];
         for (final entry in (payload['photos'] as List<dynamic>? ?? const [])) {
           if (entry is Map<String, dynamic>) {
-            photos.add(PhotoCandidate.fromJson(entry));
+            final photo = PhotoCandidate.fromJson(entry);
+            final assembled = _assembledHostBytes['$clientId:${photo.photoId}'];
+            photos.add(
+              assembled == null ? photo : photo.copyWith(bytes: assembled),
+            );
           }
         }
         try {
@@ -562,7 +596,66 @@ class MatchCoordinator {
         totalRounds: engine.totalRounds,
       ),
     );
-    await _beginRound();
+    await _enterRoundCountdown();
+  }
+
+  /// Shows the between-round countdown, or starts the round at once when the
+  /// countdown is disabled (tests and offline rehearsals).
+  Future<void> _enterRoundCountdown() async {
+    final engine = _engine;
+    if (engine == null) return;
+    if (countdownDuration <= Duration.zero) {
+      await _beginRound();
+      return;
+    }
+    _countdownTicker?.cancel();
+    _roundTimer?.cancel();
+    final nextRound = engine.currentRound + 1;
+    final total = engine.totalRounds;
+    final ms = countdownDuration.inMilliseconds;
+
+    _emit(
+      _state.copyWith(
+        phase: RoundPhase.countdown,
+        currentRound: nextRound,
+        totalRounds: total,
+        remainingMs: ms,
+        clearGuess: true,
+        lockedGuessOwnerId: null,
+      ),
+    );
+    await _hostTransport?.broadcast(
+      WireMessage(
+        type: WireType.roundCountdown,
+        seq: _nextSeq(),
+        payload: <String, dynamic>{
+          'roundNumber': nextRound,
+          'totalRounds': total,
+          'durationMs': ms,
+        },
+      ),
+    );
+
+    final startedAt = DateTime.now().millisecondsSinceEpoch;
+    _countdownTicker = Timer.periodic(const Duration(milliseconds: 100), (
+      timer,
+    ) {
+      final engine = _engine;
+      if (_disposed ||
+          engine == null ||
+          _state.phase != RoundPhase.countdown ||
+          engine.phase != RoundPhase.countdown) {
+        timer.cancel();
+        return;
+      }
+      final elapsed = DateTime.now().millisecondsSinceEpoch - startedAt;
+      final remaining = (ms - elapsed).clamp(0, ms);
+      _emit(_state.copyWith(remainingMs: remaining));
+      if (remaining <= 0) {
+        timer.cancel();
+        unawaited(_beginRound());
+      }
+    });
   }
 
   Future<void> _beginRound() async {
@@ -594,7 +687,7 @@ class MatchCoordinator {
           'roundNumber': entry.roundNumber,
           'totalRounds': engine.totalRounds,
           'photoId': entry.photo.photoId,
-          'durationMs': roundDuration.inMilliseconds,
+          'durationMs': effectiveRoundDuration.inMilliseconds,
           'options': engine.players.map((p) => p.toJson()).toList(),
         },
       ),
@@ -606,14 +699,17 @@ class MatchCoordinator {
         currentRound: entry.roundNumber,
         activePhotoBytes: bytes,
         activeRoundOptions: engine.players,
-        remainingMs: roundDuration.inMilliseconds,
+        remainingMs: effectiveRoundDuration.inMilliseconds,
         clearGuess: true,
         lockedGuessOwnerId: null,
       ),
     );
 
     _roundTimer?.cancel();
-    _roundTimer = Timer(roundDuration, () => unawaited(_finishRound()));
+    _roundTimer = Timer(
+      effectiveRoundDuration,
+      () => unawaited(_finishRound()),
+    );
     _tickRoundProgress();
   }
 
@@ -627,9 +723,9 @@ class MatchCoordinator {
         return;
       }
       final elapsed = DateTime.now().millisecondsSinceEpoch - _roundStartMs;
-      final remaining = (roundDuration.inMilliseconds - elapsed).clamp(
+      final remaining = (effectiveRoundDuration.inMilliseconds - elapsed).clamp(
         0,
-        roundDuration.inMilliseconds,
+        effectiveRoundDuration.inMilliseconds,
       );
       _emit(_state.copyWith(remainingMs: remaining));
       final engine = _engine;
@@ -704,12 +800,16 @@ class MatchCoordinator {
       return;
     }
     _emit(_state.copyWith(phase: RoundPhase.countdown));
-    await _beginRound();
+    await _enterRoundCountdown();
   }
 
   Future<void> setRounds(int rounds) async {
     final engine = _engine;
-    if (engine == null) return;
+    if (engine == null) {
+      if (rounds < 1) return;
+      _emit(_state.copyWith(config: _state.config.copyWith(roundsK: rounds)));
+      return;
+    }
     try {
       engine.setRoundsK(rounds);
     } on EngineException {
@@ -721,7 +821,13 @@ class MatchCoordinator {
 
   Future<void> setRoundSeconds(int seconds) async {
     final engine = _engine;
-    if (engine == null) return;
+    if (engine == null) {
+      if (seconds < 1) return;
+      _emit(
+        _state.copyWith(config: _state.config.copyWith(roundSeconds: seconds)),
+      );
+      return;
+    }
     try {
       engine.setRoundSeconds(seconds);
     } on EngineException {
@@ -746,6 +852,7 @@ class MatchCoordinator {
         phase: RoundPhase.preparing,
         photosNeeded: engine.photosNeeded,
         loadingMessage: 'Reading your photos',
+        clearError: true,
       ),
     );
     await _hostTransport?.broadcast(
@@ -778,7 +885,7 @@ class MatchCoordinator {
           bytes: picked[i].bytes,
         ),
     ];
-    _emit(_state.copyWith(candidates: candidates));
+    _emit(_state.copyWith(candidates: candidates, clearError: true));
   }
 
   Future<void> swapCandidate(int index) async {
@@ -802,6 +909,55 @@ class MatchCoordinator {
     _emit(_state.copyWith(candidates: next));
   }
 
+  Future<void> rerollExtensionCandidates() async {
+    final engine = _engine;
+    if (engine == null) return;
+    final current = _state.extensionCandidates;
+    if (current.isEmpty) return;
+    final picked = await _photos.sampleCandidates(
+      excludedAlbumIds: _settingsValue.excludedAlbumIds,
+      count: current.length,
+      excludeAssetIds: <String>{
+        ..._state.candidates.map((c) => c.localAssetId),
+        ...current.map((c) => c.localAssetId),
+      },
+    );
+    final candidates = <PhotoCandidate>[
+      for (var i = 0; i < picked.length; i++)
+        PhotoCandidate(
+          photoId: 'ext-$i-${picked[i].assetId}',
+          localAssetId: picked[i].assetId,
+          ownerId: 'host',
+          bytes: picked[i].bytes,
+        ),
+    ];
+    _emit(_state.copyWith(extensionCandidates: candidates));
+  }
+
+  Future<void> swapExtensionCandidate(int index) async {
+    final engine = _engine;
+    if (engine == null) return;
+    final current = _state.extensionCandidates;
+    if (index < 0 || index >= current.length) return;
+    final picked = await _photos.sampleCandidates(
+      excludedAlbumIds: _settingsValue.excludedAlbumIds,
+      count: 1,
+      excludeAssetIds: <String>{
+        ..._state.candidates.map((c) => c.localAssetId),
+        ...current.map((c) => c.localAssetId),
+      },
+    );
+    if (picked.isEmpty) return;
+    final replacement = PhotoCandidate(
+      photoId: 'ext-$index-${picked.first.assetId}',
+      localAssetId: picked.first.assetId,
+      ownerId: 'host',
+      bytes: picked.first.bytes,
+    );
+    final next = List<PhotoCandidate>.of(current)..[index] = replacement;
+    _emit(_state.copyWith(extensionCandidates: next));
+  }
+
   Future<void> markLocalReady() async {
     final engine = _engine;
     if (engine == null) return;
@@ -817,9 +973,13 @@ class MatchCoordinator {
         localReady: true,
         plantUnlocked: engine.plantAvailable,
         players: engine.players,
+        clearError: true,
       ),
     );
     await _maybeStartMatch();
+    if (engine.phase == RoundPhase.preparing) {
+      await _broadcastLobby();
+    }
   }
 
   Future<void> plantSecretPhoto(String assetId, Uint8List bytes) async {
@@ -894,6 +1054,7 @@ class MatchCoordinator {
         extensionSecondsLeft: seconds,
         extensionCandidates: const <PhotoCandidate>[],
         extensionApproved: false,
+        clearError: true,
       ),
     );
     await _hostTransport?.broadcast(
@@ -937,7 +1098,7 @@ class MatchCoordinator {
       _emit(_state.copyWith(errorMessage: error.message));
       return;
     }
-    _emit(_state.copyWith(extensionApproved: true));
+    _emit(_state.copyWith(extensionApproved: true, clearError: true));
     await _maybeCommitExtension();
   }
 
@@ -980,7 +1141,7 @@ class MatchCoordinator {
         localReady: false,
       ),
     );
-    await _beginRound();
+    await _enterRoundCountdown();
   }
 
   void _engineExtend(List<PhotoCandidate> photos, String playerId) {
@@ -1038,6 +1199,8 @@ class MatchCoordinator {
       }
     }
     _remotePhotos.clear();
+    _assembledHostBytes.clear();
+    _clientRoundPhotos.clear();
     _emit(
       MatchUiState(
         isHosting: true,
@@ -1071,7 +1234,7 @@ class MatchCoordinator {
   }
 
   Future<void> joinMatch(String rawInvite) async {
-    _emit(_state.copyWith(loadingMessage: 'Joining match'));
+    _emit(_state.copyWith(loadingMessage: 'Joining match', clearError: true));
     final InvitePayload invite;
     try {
       invite = tryParseInvite(rawInvite);
@@ -1162,13 +1325,28 @@ class MatchCoordinator {
             if (entry is Map<String, dynamic>) Player.fromJson(entry),
         ];
         final config = payload['config'];
+        final phaseName = payload['phase'] as String?;
+        var parsedPhase = RoundPhase.lobby;
+        for (final phase in RoundPhase.values) {
+          if (phase.name == phaseName) {
+            parsedPhase = phase;
+            break;
+          }
+        }
+        final plantUnlocked =
+            parsedPhase == RoundPhase.preparing &&
+            _state.localReady &&
+            !_state.plantUsed &&
+            players.length >= 2 &&
+            players.any((p) => !p.ready);
         _emit(
           _state.copyWith(
             players: players,
             config: config is Map<String, dynamic>
                 ? MatchConfig.fromJson(config)
                 : _state.config,
-            phase: RoundPhase.lobby,
+            phase: parsedPhase,
+            plantUnlocked: plantUnlocked,
           ),
         );
       case WireType.startPrepare:
@@ -1192,14 +1370,27 @@ class MatchCoordinator {
         );
         final bytes = assembler.add(chunk);
         if (bytes != null) {
+          _clientRoundPhotos[chunk.photoId] = bytes;
           _emit(_state.copyWith(activePhotoBytes: bytes));
         }
+      case WireType.roundCountdown:
+        _emit(
+          _state.copyWith(
+            phase: RoundPhase.countdown,
+            currentRound: payload['roundNumber'] as int? ?? 0,
+            totalRounds: payload['totalRounds'] as int? ?? _state.totalRounds,
+            remainingMs: payload['durationMs'] as int? ?? 0,
+            clearGuess: true,
+            lockedGuessOwnerId: null,
+          ),
+        );
       case WireType.roundShow:
         final options = <Player>[
           for (final entry
               in (payload['options'] as List<dynamic>? ?? const []))
             if (entry is Map<String, dynamic>) Player.fromJson(entry),
         ];
+        final photoId = payload['photoId'] as String?;
         _roundStartMs = DateTime.now().millisecondsSinceEpoch;
         _emit(
           _state.copyWith(
@@ -1207,6 +1398,9 @@ class MatchCoordinator {
             currentRound: payload['roundNumber'] as int? ?? 0,
             totalRounds: payload['totalRounds'] as int? ?? _state.totalRounds,
             remainingMs: payload['durationMs'] as int? ?? 8000,
+            activePhotoBytes: photoId == null
+                ? null
+                : _clientRoundPhotos[photoId],
             activeRoundOptions: options,
             clearGuess: true,
             lockedGuessOwnerId: null,
@@ -1273,6 +1467,8 @@ class MatchCoordinator {
             if (entry is Map<String, dynamic>) Player.fromJson(entry),
         ];
         await _stopScreenshots();
+        _assembledHostBytes.clear();
+        _clientRoundPhotos.clear();
         _emit(
           _state.copyWith(
             phase: RoundPhase.podium,
@@ -1281,6 +1477,10 @@ class MatchCoordinator {
             activePhotoBytes: null,
           ),
         );
+      case WireType.plantPhoto:
+        if (payload['accepted'] == true) {
+          _emit(_state.copyWith(plantUsed: true));
+        }
       case WireType.errorNotice:
         _emit(
           _state.copyWith(
@@ -1333,6 +1533,56 @@ class MatchCoordinator {
     _emit(_state.copyWith(candidates: next));
   }
 
+  Future<void> clientRerollExtension() async {
+    final current = _state.extensionCandidates;
+    if (current.isEmpty) return;
+    final picked = await _photos.sampleCandidates(
+      excludedAlbumIds: _settingsValue.excludedAlbumIds,
+      count: current.length,
+      excludeAssetIds: <String>{
+        ..._state.candidates.map((c) => c.localAssetId),
+        ...current.map((c) => c.localAssetId),
+      },
+    );
+    final localId = _state.localPlayerId ?? 'pending';
+    _emit(
+      _state.copyWith(
+        extensionCandidates: <PhotoCandidate>[
+          for (var i = 0; i < picked.length; i++)
+            PhotoCandidate(
+              photoId: '$localId-ext-$i-${picked[i].assetId}',
+              localAssetId: picked[i].assetId,
+              ownerId: localId,
+              bytes: picked[i].bytes,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> clientSwapExtensionCandidate(int index) async {
+    final current = _state.extensionCandidates;
+    if (index < 0 || index >= current.length) return;
+    final picked = await _photos.sampleCandidates(
+      excludedAlbumIds: _settingsValue.excludedAlbumIds,
+      count: 1,
+      excludeAssetIds: <String>{
+        ..._state.candidates.map((c) => c.localAssetId),
+        ...current.map((c) => c.localAssetId),
+      },
+    );
+    if (picked.isEmpty) return;
+    final localId = _state.localPlayerId ?? 'pending';
+    final next = List<PhotoCandidate>.of(current)
+      ..[index] = PhotoCandidate(
+        photoId: '$localId-ext-$index-${picked.first.assetId}',
+        localAssetId: picked.first.assetId,
+        ownerId: localId,
+        bytes: picked.first.bytes,
+      );
+    _emit(_state.copyWith(extensionCandidates: next));
+  }
+
   Future<void> clientMarkReady() async {
     final transport = _clientTransport;
     if (transport == null) return;
@@ -1358,21 +1608,39 @@ class MatchCoordinator {
         );
       }
     }
+    _emit(_state.copyWith(localReady: true));
     await transport.send(
       WireMessage(type: WireType.playerReady, seq: _nextSeq()),
     );
-    _emit(_state.copyWith(localReady: true));
   }
 
   Future<void> clientPlantPhoto(int index) async {
+    if (index < 0 || index >= _state.candidates.length) return;
+    await clientPlantPickedPhoto(_state.candidates[index]);
+  }
+
+  Future<void> clientPlantPickedPhoto(PhotoCandidate candidate) async {
     final transport = _clientTransport;
     if (transport == null) return;
-    if (index < 0 || index >= _state.candidates.length) return;
+    final bytes = candidate.bytes;
+    if (bytes == null || bytes.isEmpty) return;
+    final photo = candidate.copyWith(
+      ownerId: _state.localPlayerId ?? candidate.ownerId,
+    );
+    for (final chunk in PhotoChunker.split(photo.photoId, bytes)) {
+      await transport.send(
+        WireMessage(
+          type: WireType.photoChunk,
+          seq: _nextSeq(),
+          payload: chunk.toJson(),
+        ),
+      );
+    }
     await transport.send(
       WireMessage(
         type: WireType.plantPhoto,
         seq: _nextSeq(),
-        payload: <String, dynamic>{'photo': _state.candidates[index].toJson()},
+        payload: <String, dynamic>{'photo': photo.toJson()},
       ),
     );
     _emit(_state.copyWith(plantUsed: true));
@@ -1398,6 +1666,19 @@ class MatchCoordinator {
   Future<void> clientApproveExtension() async {
     final transport = _clientTransport;
     if (transport == null) return;
+    for (final candidate in _state.extensionCandidates) {
+      final bytes = candidate.bytes;
+      if (bytes == null || bytes.isEmpty) continue;
+      for (final chunk in PhotoChunker.split(candidate.photoId, bytes)) {
+        await transport.send(
+          WireMessage(
+            type: WireType.photoChunk,
+            seq: _nextSeq(),
+            payload: chunk.toJson(),
+          ),
+        );
+      }
+    }
     await transport.send(
       WireMessage(
         type: WireType.extendSubmit,
@@ -1487,6 +1768,8 @@ class MatchCoordinator {
     _engine = null;
     _remotePhotos.clear();
     _assemblers.clear();
+    _assembledHostBytes.clear();
+    _clientRoundPhotos.clear();
     _emit(const MatchUiState());
   }
 

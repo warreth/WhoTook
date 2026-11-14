@@ -194,6 +194,34 @@ class FrameCounter extends StatelessWidget {
   }
 }
 
+/// Small white corner tag that numbers a photo on the contact sheet.
+class NumberTag extends StatelessWidget {
+  const NumberTag({super.key, required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: tabularFigures(
+          const TextStyle(
+            fontFamily: 'JetBrainsMono',
+            fontSize: 10,
+            color: Color(0xFF1F1B16),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class PlayerAvatar extends StatelessWidget {
   const PlayerAvatar({
     super.key,

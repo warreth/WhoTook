@@ -65,6 +65,34 @@ class FakePhotoLibraryService implements PhotoLibraryService {
   }
 
   @override
+  Future<List<AlbumPhotoThumb>> listAlbumPhotos(
+    String albumId, {
+    int page = 0,
+    int size = 36,
+  }) async {
+    final ids = assets.entries
+        .where((e) => e.value == albumId)
+        .map((e) => e.key)
+        .toList();
+    final start = page * size;
+    if (start >= ids.length || size <= 0) return const <AlbumPhotoThumb>[];
+    final end = (start + size) > ids.length ? ids.length : start + size;
+    return <AlbumPhotoThumb>[
+      for (final id in ids.sublist(start, end))
+        AlbumPhotoThumb(
+          assetId: id,
+          thumbnailBytes: Uint8List.fromList(<int>[3]),
+        ),
+    ];
+  }
+
+  @override
+  Future<PickedPhoto?> loadPhotoById(String assetId) async {
+    if (!assets.containsKey(assetId)) return null;
+    return PickedPhoto(assetId: assetId, bytes: Uint8List.fromList(<int>[4]));
+  }
+
+  @override
   Future<Uint8List> compressPhoto(Uint8List raw) async =>
       Uint8List.fromList(<int>[raw.length & 0xFF]);
 }

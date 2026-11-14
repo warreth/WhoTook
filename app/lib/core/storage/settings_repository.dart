@@ -6,7 +6,7 @@ import '../models/models.dart';
 
 /// Default signaling endpoint. Self-hosters override it in Settings or by
 /// passing [SettingsRepository.defaultSignalingUrl].
-const String kDefaultSignalingUrl = 'https://whotook-signaling.whotook.app';
+const String kDefaultSignalingUrl = 'https://signal.whotook.party';
 
 const String kSettingsStorageKey = 'whotook.settings.v1';
 

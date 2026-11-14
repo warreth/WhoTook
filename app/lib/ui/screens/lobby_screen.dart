@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -246,28 +247,63 @@ class LobbyScreen extends ConsumerWidget {
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      builder: (sheetContext) => Padding(
-        padding: const EdgeInsets.all(AppSpacing.s24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            const Text(
-              'Invite link',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-            ),
-            const SizedBox(height: AppSpacing.s8),
-            SelectableText(
-              url,
-              style: const TextStyle(fontSize: 12, fontFamily: 'JetBrainsMono'),
-            ),
-            const SizedBox(height: AppSpacing.s16),
-            SecondaryButton(
-              label: 'Close',
-              onPressed: () => Navigator.of(sheetContext).pop(),
-            ),
-          ],
-        ),
+      builder: (_) => _InviteSheet(url: url),
+    );
+  }
+}
+
+class _InviteSheet extends StatefulWidget {
+  const _InviteSheet({required this.url});
+
+  final String url;
+
+  @override
+  State<_InviteSheet> createState() => _InviteSheetState();
+}
+
+class _InviteSheetState extends State<_InviteSheet> {
+  bool _copied = false;
+
+  Future<void> _copy() async {
+    await Clipboard.setData(ClipboardData(text: widget.url));
+    if (!mounted) return;
+    setState(() => _copied = true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.s24,
+        0,
+        AppSpacing.s24,
+        AppSpacing.s24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          const Text(
+            'Invite link',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: AppSpacing.s8),
+          SelectableText(
+            widget.url,
+            style: const TextStyle(fontSize: 12, fontFamily: 'JetBrainsMono'),
+          ),
+          const SizedBox(height: AppSpacing.s16),
+          PrimaryButton(
+            label: _copied ? 'Copied' : 'Copy link',
+            icon: _copied ? Icons.check : Icons.copy,
+            onPressed: () => unawaited(_copy()),
+          ),
+          const SizedBox(height: AppSpacing.s12),
+          SecondaryButton(
+            label: 'Close',
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
       ),
     );
   }

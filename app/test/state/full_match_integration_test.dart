@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
+import 'package:whotook/core/media/photo_service.dart';
 import 'package:whotook/core/models/models.dart';
 import 'package:whotook/core/storage/settings_repository.dart';
 import 'package:whotook/state/match_coordinator.dart';
@@ -251,6 +252,126 @@ void main() {
     );
   }, timeout: const Timeout(Duration(seconds: 45)));
 
+  test('home preset rounds and timer update before hosting', () async {
+    final draft = MatchCoordinator(
+      photos: TestPhotoLibrary(seed: 9),
+      settings: SettingsRepository(),
+      includeOnlineTransport: false,
+      countdownDuration: Duration.zero,
+    );
+    await draft.loadSettings();
+
+    await draft.setRounds(6);
+    await draft.setRoundSeconds(4);
+
+    expect(draft.state.config.roundsK, 6);
+    expect(draft.state.config.roundSeconds, 4);
+    await draft.dispose();
+  }, timeout: const Timeout(Duration(seconds: 30)));
+
+  test('client plant unlocks while another player is still choosing', () async {
+    await host.setRounds(2);
+    await host.startPrepare();
+    await _waitFor(() => host.state.candidates.isNotEmpty);
+    await _waitFor(() => clientOne.state.candidates.isNotEmpty);
+
+    expect(clientOne.state.plantUnlocked, isFalse);
+    await clientOne.clientMarkReady();
+    await _waitFor(() => clientOne.state.localReady);
+    await _waitFor(() => clientOne.state.plantUnlocked);
+
+    expect(clientOne.state.plantUnlocked, isTrue);
+    expect(host.state.players.any((p) => !p.ready), isTrue);
+  }, timeout: const Timeout(Duration(seconds: 45)));
+
+  test('client extension photos reach the host deck with bytes', () async {
+    await prepareAndStart(rounds: 2);
+    await playUntilPodium();
+    expect(host.state.phase, RoundPhase.podium);
+    final roundsBefore = host.state.totalRounds;
+    final clientId = clientOne.state.localPlayerId!;
+
+    await host.extendMatch(extraRounds: 3, extraPhotos: 2);
+    await _waitFor(() => clientOne.state.extensionCandidates.isNotEmpty);
+    await _waitFor(() => clientTwo.state.extensionCandidates.isNotEmpty);
+
+    await clientOne.clientApproveExtension();
+    await clientTwo.clientApproveExtension();
+    await host.approveExtension();
+    await _waitFor(() => host.state.totalRounds > roundsBefore);
+
+    final extensionEntries = host.engine!.deck
+        .where((entry) => entry.roundNumber > roundsBefore)
+        .where((entry) => entry.ownerId == clientId)
+        .toList();
+    expect(extensionEntries, hasLength(1));
+    expect(extensionEntries.single.photo.bytes, isNotNull);
+    expect(extensionEntries.single.photo.bytes, isNotEmpty);
+  }, timeout: const Timeout(Duration(seconds: 60)));
+
+  test('client planted photo reaches the host deck with bytes', () async {
+    final plantHub = LoopbackHub();
+    final plantHost = MatchCoordinator(
+      photos: _TwoPhotoLibrary(),
+      settings: SettingsRepository(),
+      hostTransportFactory: (roomId, secret, lan) =>
+          LoopbackHostTransport(plantHub),
+      roundDuration: const Duration(milliseconds: 900),
+      countdownDuration: Duration.zero,
+      revealDuration: const Duration(milliseconds: 40),
+      extendWindow: const Duration(milliseconds: 300),
+    );
+    final plantClient = MatchCoordinator(
+      photos: _TwoPhotoLibrary(),
+      settings: SettingsRepository(),
+      connector: HybridConnector(
+        onlineClientFactory: () => LoopbackClientTransport(plantHub),
+      ),
+      roundDuration: const Duration(milliseconds: 900),
+      countdownDuration: Duration.zero,
+      revealDuration: const Duration(milliseconds: 40),
+      extendWindow: const Duration(milliseconds: 300),
+    );
+    await plantHost.loadSettings();
+    await plantClient.loadSettings();
+
+    await plantHost.hostMatch();
+    await plantClient.joinMatch(plantHost.state.inviteUrl!);
+    await _waitFor(() => plantHost.state.players.length == 2);
+
+    await plantHost.setRounds(4);
+    await plantHost.startPrepare();
+    await _waitFor(() => plantHost.state.candidates.isNotEmpty);
+    await _waitFor(() => plantClient.state.candidates.isNotEmpty);
+    expect(plantHost.state.candidates, hasLength(2));
+    expect(plantClient.state.candidates, hasLength(2));
+
+    await plantClient.clientMarkReady();
+    await _waitFor(() => plantClient.state.plantUnlocked);
+    await plantClient.clientPlantPickedPhoto(
+      plantClient.state.candidates.first,
+    );
+    await _waitFor(() => plantClient.state.plantUsed);
+
+    await plantHost.markLocalReady();
+    await _waitFor(() => plantHost.state.phase == RoundPhase.guessing);
+
+    final planted = plantHost.engine!.deck
+        .where(
+          (entry) =>
+              entry.ownerId == plantClient.state.localPlayerId &&
+              entry.photo.isPlanted,
+        )
+        .toList();
+    expect(planted, hasLength(1));
+    expect(planted.single.photo.bytes, isNotNull);
+    expect(planted.single.photo.bytes, isNotEmpty);
+
+    await plantClient.dispose();
+    await plantHost.dispose();
+    await plantHub.dispose();
+  }, timeout: const Timeout(Duration(seconds: 45)));
+
   test('play again returns everyone to a clean lobby', () async {
     await prepareAndStart(rounds: 1);
     await playUntilPodium();
@@ -287,5 +408,25 @@ Future<void> _waitFor(
       throw TimeoutException('condition not met within $timeout');
     }
     await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+}
+
+/// Produces a short candidate list so a small deck deals every photo,
+/// including whichever one the engine randomly planted.
+class _TwoPhotoLibrary extends TestPhotoLibrary {
+  _TwoPhotoLibrary() : super(seed: 11);
+
+  @override
+  Future<List<PickedPhoto>> sampleCandidates({
+    required Set<String> excludedAlbumIds,
+    required int count,
+    Set<String> excludeAssetIds = const <String>{},
+  }) async {
+    final all = await super.sampleCandidates(
+      excludedAlbumIds: excludedAlbumIds,
+      count: count,
+      excludeAssetIds: excludeAssetIds,
+    );
+    return all.take(2).toList();
   }
 }

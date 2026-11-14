@@ -44,14 +44,14 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- autoVerify stays off: the join link works without a hosted assetlinks.json -->
-            <intent-filter android:autoVerify="false">
+            <!-- autoVerify claims whotook.party, which serves assetlinks.json -->
+            <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
                     android:scheme="https"
-                    android:host="whotook.app"
+                    android:host="whotook.party"
                     android:pathPrefix="/j" />
             </intent-filter>
             <intent-filter>

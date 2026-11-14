@@ -208,8 +208,12 @@ class LocalWsHostTransport implements HostTransport {
   @override
   Future<void> broadcast(WireMessage message) async {
     final frame = message.encode();
-    for (final socket in _sockets.values) {
-      socket.add(frame);
+    for (final socket in List<WebSocket>.of(_sockets.values)) {
+      try {
+        socket.add(frame);
+      } on Object {
+        // A half closed socket must not stop the frame reaching other players.
+      }
     }
   }
 

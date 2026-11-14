@@ -71,6 +71,7 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
               children: <Widget>[
                 MobileScanner(
                   controller: _controller,
+                  errorBuilder: (context, error) => const _CameraUnavailable(),
                   onDetect: (capture) {
                     for (final barcode in capture.barcodes) {
                       final value = barcode.rawValue;
@@ -150,6 +151,27 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Keeps the screen usable when the camera is missing, denied or busy: the
+/// paste field below still gets the player into the match.
+class _CameraUnavailable extends StatelessWidget {
+  const _CameraUnavailable();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    return Container(
+      color: colors.raised,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.all(AppSpacing.s24),
+      child: const NoticeBanner(
+        message: 'Camera unavailable. Allow camera access in system settings or paste an invite link below.',
+        tone: StatusTone.warning,
+        icon: Icons.no_photography_outlined,
       ),
     );
   }

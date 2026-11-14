@@ -32,6 +32,14 @@ class PickedPhoto {
   final Uint8List bytes;
 }
 
+/// One tile in the album browser: a small decoded thumbnail plus its asset id.
+class AlbumPhotoThumb {
+  const AlbumPhotoThumb({required this.assetId, required this.thumbnailBytes});
+
+  final String assetId;
+  final Uint8List thumbnailBytes;
+}
+
 /// Photo access behind one seam so the prepare screen can be driven by a fake
 /// in tests. Every byte returned here is already compressed and EXIF-free.
 abstract class PhotoLibraryService {
@@ -48,6 +56,18 @@ abstract class PhotoLibraryService {
   });
 
   Future<PickedPhoto?> pickSinglePhoto();
+
+  /// One page of album tiles, using small thumbnails so browsing a huge
+  /// album never decodes full resolution images into memory.
+  Future<List<AlbumPhotoThumb>> listAlbumPhotos(
+    String albumId, {
+    int page = 0,
+    int size = 36,
+  });
+
+  /// Reads and compresses one specific asset, e.g. a photo picked from the
+  /// album browser.
+  Future<PickedPhoto?> loadPhotoById(String assetId);
 
   Future<Uint8List> compressPhoto(Uint8List raw);
 }
@@ -102,6 +122,51 @@ class DevicePhotoLibraryService implements PhotoLibraryService {
       );
     }
     return albums;
+  }
+
+  @override
+  Future<List<AlbumPhotoThumb>> listAlbumPhotos(
+    String albumId, {
+    int page = 0,
+    int size = 36,
+  }) async {
+    final paths = await PhotoManager.getAssetPathList(
+      hasAll: true,
+      type: RequestType.image,
+    );
+    AssetPathEntity? album;
+    for (final path in paths) {
+      if (path.id == albumId) {
+        album = path;
+        break;
+      }
+    }
+    if (album == null) {
+      return const <AlbumPhotoThumb>[];
+    }
+    final assets = await album.getAssetListPaged(
+      page: page,
+      size: size,
+      type: RequestType.image,
+    );
+    final thumbs = <AlbumPhotoThumb>[];
+    for (final asset in assets) {
+      // Square 240 px thumbs keep a long album scroller light on memory.
+      final thumb = await asset.thumbnailDataWithSize(
+        const ThumbnailSize.square(240),
+        quality: 75,
+      );
+      if (thumb == null || thumb.isEmpty) continue;
+      thumbs.add(AlbumPhotoThumb(assetId: asset.id, thumbnailBytes: thumb));
+    }
+    return thumbs;
+  }
+
+  @override
+  Future<PickedPhoto?> loadPhotoById(String assetId) async {
+    final asset = await AssetEntity.fromId(assetId);
+    if (asset == null) return null;
+    return _readAsset(asset);
   }
 
   @override
