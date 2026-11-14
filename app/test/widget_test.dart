@@ -56,8 +56,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Host a match'), findsOneWidget);
-    expect(find.text('Join with a QR code'), findsOneWidget);
+    expect(find.text('Host a game'), findsOneWidget);
+    expect(find.text('Join a game'), findsOneWidget);
     expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
   });
 }
