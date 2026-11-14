@@ -182,15 +182,20 @@ class _PodiumBar extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.s8),
-          Container(
-            height: height,
-            margin: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
-            decoration: BoxDecoration(
-              color: place == 1 ? colors.accent : colors.raised,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(AppRadii.rSm),
+          TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0, end: height),
+            duration: const Duration(milliseconds: 550),
+            curve: Curves.easeOutCubic,
+            builder: (context, value, _) => Container(
+              height: value,
+              margin: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
+              decoration: BoxDecoration(
+                color: place == 1 ? colors.accent : colors.raised,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(AppRadii.rSm),
+                ),
+                border: Border.all(color: colors.hairline),
               ),
-              border: Border.all(color: colors.hairline),
             ),
           ),
         ],

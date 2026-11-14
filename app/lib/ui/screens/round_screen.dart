@@ -62,7 +62,16 @@ class RoundScreen extends ConsumerWidget {
                   ),
                 )
               else ...<Widget>[
-                Expanded(child: _PhotoFrame(bytes: state.activePhotoBytes)),
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    switchInCurve: Curves.easeOut,
+                    child: _PhotoFrame(
+                      key: ValueKey<int>(state.currentRound),
+                      bytes: state.activePhotoBytes,
+                    ),
+                  ),
+                ),
                 const SizedBox(height: AppSpacing.s12),
                 if (showingReveal)
                   _RevealBlock(reveal: reveal, players: state.players)
@@ -148,15 +157,25 @@ class _CountdownView extends StatelessWidget {
                 style: TextStyle(fontSize: 15, color: colors.ink2),
               ),
               const SizedBox(height: AppSpacing.s8),
-              Text(
-                '$seconds',
-                style: tabularFigures(
-                  TextStyle(
-                    fontFamily: 'JetBrainsMono',
-                    fontSize: 48,
-                    fontWeight: FontWeight.w500,
-                    height: 1.1,
-                    color: colors.ink,
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 180),
+                transitionBuilder: (child, animation) => ScaleTransition(
+                  scale: Tween<double>(begin: 0.88, end: 1).animate(
+                    CurvedAnimation(parent: animation, curve: Curves.easeOut),
+                  ),
+                  child: FadeTransition(opacity: animation, child: child),
+                ),
+                child: Text(
+                  '$seconds',
+                  key: ValueKey<int>(seconds),
+                  style: tabularFigures(
+                    TextStyle(
+                      fontFamily: 'JetBrainsMono',
+                      fontSize: 48,
+                      fontWeight: FontWeight.w500,
+                      height: 1.1,
+                      color: colors.ink,
+                    ),
                   ),
                 ),
               ),
@@ -175,7 +194,7 @@ class _CountdownView extends StatelessWidget {
 }
 
 class _PhotoFrame extends StatelessWidget {
-  const _PhotoFrame({required this.bytes});
+  const _PhotoFrame({super.key, required this.bytes});
 
   final Uint8List? bytes;
 

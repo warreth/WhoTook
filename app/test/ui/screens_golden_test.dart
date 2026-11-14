@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -72,14 +71,13 @@ void main() {
   });
 
   testWidgets('prepare', (tester) async {
-    final photo = await tester.runAsync(
-      () => _photoBytes(const Color(0xFFC9A227)),
-    );
+    final photo = _fixturePhoto();
+    await _precachePhoto(tester, photo);
     await _pump(
       tester,
       const PrepareScreen(),
       _settings(),
-      state: _prepareState(photo!),
+      state: _prepareState(photo),
     );
     await expectLater(
       find.byType(PrepareScreen),
@@ -88,14 +86,13 @@ void main() {
   });
 
   testWidgets('round', (tester) async {
-    final photo = await tester.runAsync(
-      () => _photoBytes(const Color(0xFF6E8CA0)),
-    );
+    final photo = _fixturePhoto();
+    await _precachePhoto(tester, photo);
     await _pump(
       tester,
       const RoundScreen(),
       _settings(),
-      state: _roundState(photo!),
+      state: _roundState(photo),
     );
     await expectLater(
       find.byType(RoundScreen),
@@ -136,6 +133,77 @@ void main() {
       matchesGoldenFile('goldens/podium.png'),
     );
   });
+
+  testWidgets('marketing round', (tester) async {
+    _retina(tester);
+    final photo = _fixturePhoto();
+    await _precachePhoto(tester, photo);
+    await _pump(
+      tester,
+      const RoundScreen(),
+      _settings(),
+      state: _roundState(photo),
+    );
+    await expectLater(
+      find.byType(RoundScreen),
+      matchesGoldenFile('marketing/round.png'),
+    );
+  });
+
+  testWidgets('marketing prepare', (tester) async {
+    _retina(tester);
+    final photo = _fixturePhoto();
+    await _precachePhoto(tester, photo);
+    await _pump(
+      tester,
+      const PrepareScreen(),
+      _settings(),
+      state: _prepareState(photo),
+    );
+    await expectLater(
+      find.byType(PrepareScreen),
+      matchesGoldenFile('marketing/prepare.png'),
+    );
+  });
+
+  testWidgets('marketing lobby', (tester) async {
+    _retina(tester);
+    await _pump(tester, const LobbyScreen(), _settings(), state: _lobbyState());
+    await expectLater(
+      find.byType(LobbyScreen),
+      matchesGoldenFile('marketing/lobby.png'),
+    );
+  });
+
+  testWidgets('marketing home', (tester) async {
+    _retina(tester);
+    await _pump(tester, const HomeScreen(), _settings());
+    await expectLater(
+      find.byType(HomeScreen),
+      matchesGoldenFile('marketing/home.png'),
+    );
+  });
+
+  testWidgets('marketing podium', (tester) async {
+    _retina(tester);
+    await _pump(
+      tester,
+      const PodiumScreen(),
+      _settings(),
+      state: _podiumState(),
+    );
+    await expectLater(
+      find.byType(PodiumScreen),
+      matchesGoldenFile('marketing/podium.png'),
+    );
+  });
+}
+
+void _retina(WidgetTester tester) {
+  final view =
+      TestWidgetsFlutterBinding.instance.platformDispatcher.implicitView!;
+  view.physicalSize = const Size(780, 1688);
+  view.devicePixelRatio = 2;
 }
 
 Future<void> _pump(
@@ -293,28 +361,27 @@ Future<void> _loadFonts() async {
   }
 }
 
-Future<Uint8List> _photoBytes(Color color) async {
-  final recorder = ui.PictureRecorder();
-  final canvas = Canvas(recorder);
-  const size = Size(300, 224);
-  canvas.drawRect(Offset.zero & size, Paint()..color = color);
-  canvas.drawRect(
-    const Rect.fromLTWH(0, 150, 300, 74),
-    Paint()..color = color.withValues(alpha: 0.7),
-  );
-  canvas.drawCircle(
-    const Offset(210, 70),
-    22,
-    Paint()..color = const Color(0xFFEBC98C),
-  );
-  canvas.drawRRect(
-    RRect.fromRectAndRadius(
-      const Rect.fromLTWH(40, 80, 120, 90),
-      const Radius.circular(8),
-    ),
-    Paint()..color = const Color(0xFFF4EDE0),
-  );
-  final image = await recorder.endRecording().toImage(300, 224);
-  final data = await image.toByteData(format: ui.ImageByteFormat.png);
-  return data!.buffer.asUint8List();
+Uint8List _fixturePhoto() =>
+    File('test/ui/fixtures/party-dog.jpg').readAsBytesSync();
+
+/// Fills the image cache before the widget builds, so the golden shows the
+/// photo instead of the empty frame the test renderer paints on a cache miss.
+Future<void> _precachePhoto(WidgetTester tester, Uint8List bytes) async {
+  await tester.runAsync(() async {
+    final stream = MemoryImage(bytes).resolve(ImageConfiguration.empty);
+    final done = Completer<void>();
+    late ImageStreamListener listener;
+    listener = ImageStreamListener(
+      (_, _) {
+        if (!done.isCompleted) done.complete();
+        stream.removeListener(listener);
+      },
+      onError: (_, _) {
+        if (!done.isCompleted) done.complete();
+        stream.removeListener(listener);
+      },
+    );
+    stream.addListener(listener);
+    await done.future;
+  });
 }

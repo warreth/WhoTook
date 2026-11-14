@@ -91,7 +91,12 @@ class HomeScreen extends ConsumerWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.s24),
+              const SizedBox(height: AppSpacing.s8),
+              Text(
+                'Guess whose camera roll it is.',
+                style: TextStyle(fontSize: 15, color: colors.ink2, height: 1.4),
+              ),
+              const SizedBox(height: AppSpacing.s20),
               _ExclusionSummary(
                 count: settings?.excludedAlbumIds.length ?? 0,
                 onTap: () => Navigator.of(context).push(
