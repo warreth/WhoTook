@@ -132,7 +132,14 @@ void main() {
 
       expect(find.byType(PrepareScreen), findsOneWidget);
       expect(find.text('Check your photos'), findsOneWidget);
-      expect(find.byType(NumberTag), findsNWidgets(4));
+      expect(coordinator.state.candidates, hasLength(16));
+      expect(find.byType(NumberTag), findsNWidgets(16));
+      expect(
+        find.text(
+          'This is your full set. Swap anything you would rather keep out.',
+        ),
+        findsOneWidget,
+      );
     },
   );
 }

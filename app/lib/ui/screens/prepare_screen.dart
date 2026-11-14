@@ -24,6 +24,44 @@ class PrepareScreen extends ConsumerWidget {
     final isHost = state.isHosting;
 
     return Scaffold(
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(
+          AppSpacing.s20,
+          AppSpacing.s8,
+          AppSpacing.s20,
+          AppSpacing.s16,
+        ),
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: SecondaryButton(
+                label: 'Reroll all',
+                icon: Icons.refresh,
+                onPressed: () => unawaited(
+                  isHost
+                      ? coordinator.rerollCandidates()
+                      : coordinator.clientRerollAll(),
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.s12),
+            Expanded(
+              child: PrimaryButton(
+                label: state.localReady
+                    ? (state.isHosting ? 'Waiting for players' : 'Ready')
+                    : 'Ready',
+                onPressed: state.localReady || state.candidates.isEmpty
+                    ? null
+                    : () => unawaited(
+                        isHost
+                            ? coordinator.markLocalReady()
+                            : coordinator.clientMarkReady(),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(
@@ -54,7 +92,12 @@ class PrepareScreen extends ConsumerWidget {
             ),
             const SizedBox(height: AppSpacing.s4),
             Text(
-              'Swap anything you would rather keep out.',
+              state.photosNeeded > 0 &&
+                      state.candidates.length >= state.photosNeeded
+                  ? 'This is your full set. Swap anything you would rather keep out.'
+                  : state.photosNeeded > 0 && state.candidates.isNotEmpty
+                  ? 'You have ${state.candidates.length} of ${state.photosNeeded}. Reroll to fill the set.'
+                  : 'Swap anything you would rather keep out.',
               style: TextStyle(fontSize: 13, color: colors.ink2, height: 1.4),
             ),
             const SizedBox(height: AppSpacing.s16),
@@ -68,26 +111,38 @@ class PrepareScreen extends ConsumerWidget {
                 ),
               )
             else
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: state.candidates.length,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: AppSpacing.s12,
-                  crossAxisSpacing: AppSpacing.s12,
-                  childAspectRatio: 0.84,
-                ),
-                itemBuilder: (context, index) {
-                  final candidate = state.candidates[index];
-                  return _CandidateTile(
-                    candidate: candidate,
-                    index: index,
-                    onSwap: () => unawaited(
-                      isHost
-                          ? coordinator.swapCandidate(index)
-                          : coordinator.clientSwapCandidate(index),
-                    ),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final columns = _photoColumns(
+                    constraints.maxWidth,
+                    state.candidates.length,
+                  );
+                  final tileWidth =
+                      (constraints.maxWidth - AppSpacing.s12 * (columns - 1)) /
+                      columns;
+                  return Wrap(
+                    spacing: AppSpacing.s12,
+                    runSpacing: AppSpacing.s12,
+                    children: <Widget>[
+                      for (
+                        var index = 0;
+                        index < state.candidates.length;
+                        index++
+                      )
+                        SizedBox(
+                          width: tileWidth,
+                          height: tileWidth / 0.82,
+                          child: _CandidateTile(
+                            candidate: state.candidates[index],
+                            index: index,
+                            onSwap: () => unawaited(
+                              isHost
+                                  ? coordinator.swapCandidate(index)
+                                  : coordinator.clientSwapCandidate(index),
+                            ),
+                          ),
+                        ),
+                    ],
                   );
                 },
               ),
@@ -104,37 +159,6 @@ class PrepareScreen extends ConsumerWidget {
                 tone: StatusTone.positive,
               ),
             ],
-            const SizedBox(height: AppSpacing.s16),
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: SecondaryButton(
-                    label: 'Reroll all',
-                    icon: Icons.refresh,
-                    onPressed: () => unawaited(
-                      isHost
-                          ? coordinator.rerollCandidates()
-                          : coordinator.clientRerollAll(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.s12),
-                Expanded(
-                  child: PrimaryButton(
-                    label: state.localReady
-                        ? (state.isHosting ? 'Waiting for players' : 'Ready')
-                        : 'Ready',
-                    onPressed: state.localReady
-                        ? null
-                        : () => unawaited(
-                            isHost
-                                ? coordinator.markLocalReady()
-                                : coordinator.clientMarkReady(),
-                          ),
-                  ),
-                ),
-              ],
-            ),
             if (state.errorMessage != null) ...<Widget>[
               const SizedBox(height: AppSpacing.s12),
               NoticeBanner(
@@ -167,6 +191,13 @@ class PrepareScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+int _photoColumns(double width, int count) {
+  if (count <= 4) return 2;
+  if (width < 330) return 2;
+  if (width >= 640) return 4;
+  return 3;
 }
 
 class _CandidateTile extends StatelessWidget {

@@ -179,7 +179,7 @@ class _HostPhotosScreenState extends ConsumerState<HostPhotosScreen> {
                 const SizedBox(width: AppSpacing.s8),
                 Expanded(
                   child: Text(
-                    'You can add more photos once friends join. ${mode.label} starts after everyone readies up.',
+                    'We fill the rest of your set when friends join. ${mode.label} starts after everyone readies up.',
                     style: TextStyle(
                       fontSize: 12,
                       height: 1.4,
