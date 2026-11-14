@@ -112,9 +112,14 @@ void main() {
       expect(find.byType(NumberTag), findsNWidgets(4));
       expect(find.text('Open the room'), findsOneWidget);
 
+      final beforeShuffle = coordinator.state.candidates.first.localAssetId;
       await tester.tap(find.text('Shuffle these frames'));
       await tester.pumpAndSettle();
       expect(find.byType(NumberTag), findsNWidgets(4));
+      expect(
+        coordinator.state.candidates.first.localAssetId,
+        isNot(beforeShuffle),
+      );
 
       await tester.tap(find.text('Open the room'));
       await tester.pumpAndSettle();
@@ -136,7 +141,7 @@ void main() {
       expect(find.byType(NumberTag), findsNWidgets(16));
       expect(
         find.text(
-          'This is your full set. Swap anything you would rather keep out.',
+          'All 16 photos for this match are here. Reroll all for a different set.',
         ),
         findsOneWidget,
       );

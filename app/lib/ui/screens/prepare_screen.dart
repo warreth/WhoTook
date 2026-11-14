@@ -94,10 +94,10 @@ class PrepareScreen extends ConsumerWidget {
             Text(
               state.photosNeeded > 0 &&
                       state.candidates.length >= state.photosNeeded
-                  ? 'This is your full set. Swap anything you would rather keep out.'
+                  ? 'All ${state.candidates.length} photos for this match are here. Reroll all for a different set.'
                   : state.photosNeeded > 0 && state.candidates.isNotEmpty
-                  ? 'You have ${state.candidates.length} of ${state.photosNeeded}. Reroll to fill the set.'
-                  : 'Swap anything you would rather keep out.',
+                  ? 'You have ${state.candidates.length} of ${state.photosNeeded}. Reroll all to fill the set.'
+                  : 'Reading the photos for this match.',
               style: TextStyle(fontSize: 13, color: colors.ink2, height: 1.4),
             ),
             const SizedBox(height: AppSpacing.s16),
@@ -131,15 +131,10 @@ class PrepareScreen extends ConsumerWidget {
                       )
                         SizedBox(
                           width: tileWidth,
-                          height: tileWidth / 0.82,
-                          child: _CandidateTile(
+                          height: tileWidth,
+                          child: _PhotoTile(
                             candidate: state.candidates[index],
                             index: index,
-                            onSwap: () => unawaited(
-                              isHost
-                                  ? coordinator.swapCandidate(index)
-                                  : coordinator.clientSwapCandidate(index),
-                            ),
                           ),
                         ),
                     ],
@@ -195,21 +190,16 @@ class PrepareScreen extends ConsumerWidget {
 
 int _photoColumns(double width, int count) {
   if (count <= 4) return 2;
-  if (width < 330) return 2;
-  if (width >= 640) return 4;
-  return 3;
+  if (count <= 9) return 3;
+  if (width < 330) return 3;
+  return 4;
 }
 
-class _CandidateTile extends StatelessWidget {
-  const _CandidateTile({
-    required this.candidate,
-    required this.index,
-    required this.onSwap,
-  });
+class _PhotoTile extends StatelessWidget {
+  const _PhotoTile({required this.candidate, required this.index});
 
   final PhotoCandidate candidate;
   final int index;
-  final VoidCallback onSwap;
 
   @override
   Widget build(BuildContext context) {
@@ -221,44 +211,19 @@ class _CandidateTile extends StatelessWidget {
         border: Border.all(color: colors.hairline),
       ),
       padding: const EdgeInsets.all(AppSpacing.s4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(AppRadii.rSm),
-              child: Stack(
-                fit: StackFit.expand,
-                children: <Widget>[
-                  _PhotoBytes(bytes: candidate.bytes, fit: BoxFit.cover),
-                  Positioned(
-                    left: AppSpacing.s8,
-                    top: AppSpacing.s8,
-                    child: NumberTag(
-                      label: (index + 1).toString().padLeft(2, '0'),
-                    ),
-                  ),
-                ],
-              ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadii.rSm),
+        child: Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            _PhotoBytes(bytes: candidate.bytes),
+            Positioned(
+              left: AppSpacing.s8,
+              top: AppSpacing.s8,
+              child: NumberTag(label: (index + 1).toString().padLeft(2, '0')),
             ),
-          ),
-          SizedBox(
-            height: 44,
-            width: double.infinity,
-            child: TextButton.icon(
-              onPressed: onSwap,
-              icon: const Icon(Icons.swap_horiz, size: 16),
-              label: const Text('Swap', style: TextStyle(fontSize: 13)),
-              style: TextButton.styleFrom(
-                foregroundColor: colors.ink2,
-                padding: EdgeInsets.zero,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadii.rSm),
-                ),
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -332,10 +297,9 @@ class _PlantTile extends StatelessWidget {
 /// Renders compressed bytes, with a calm placeholder when a photo is still in
 /// flight or the platform image decoder is unavailable.
 class _PhotoBytes extends StatelessWidget {
-  const _PhotoBytes({required this.bytes, this.fit = BoxFit.cover});
+  const _PhotoBytes({required this.bytes});
 
   final Uint8List? bytes;
-  final BoxFit fit;
 
   @override
   Widget build(BuildContext context) {
@@ -350,7 +314,7 @@ class _PhotoBytes extends StatelessWidget {
     }
     return Image.memory(
       data,
-      fit: fit,
+      fit: BoxFit.cover,
       gaplessPlayback: true,
       errorBuilder: (context, error, stack) => Container(
         color: colors.raised,

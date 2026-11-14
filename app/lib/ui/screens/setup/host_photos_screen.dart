@@ -22,7 +22,6 @@ class HostPhotosScreen extends ConsumerStatefulWidget {
 class _HostPhotosScreenState extends ConsumerState<HostPhotosScreen> {
   bool _loading = true;
   bool _opening = false;
-  int? _swapping;
 
   @override
   void initState() {
@@ -48,15 +47,6 @@ class _HostPhotosScreenState extends ConsumerState<HostPhotosScreen> {
     await ref.read(matchCoordinatorProvider).rerollHostCandidates();
     if (!mounted) return;
     setState(() => _loading = false);
-    unawaited(HapticFeedback.selectionClick());
-  }
-
-  Future<void> _swap(int index) async {
-    if (_swapping != null) return;
-    setState(() => _swapping = index);
-    await ref.read(matchCoordinatorProvider).swapHostCandidate(index);
-    if (!mounted) return;
-    setState(() => _swapping = null);
     unawaited(HapticFeedback.selectionClick());
   }
 
@@ -92,7 +82,7 @@ class _HostPhotosScreenState extends ConsumerState<HostPhotosScreen> {
     return SetupScaffold(
       step: 4,
       title: 'Pick your photos',
-      subtitle: 'These frames go into the deck first. Swap any you would rather keep private.',
+      subtitle: 'These four go into the deck first. Shuffle the whole set if you want different ones.',
       primaryLabel: 'Open the room',
       primaryEnabled: !_loading && !_opening && candidates.isNotEmpty,
       busy: _opening,
@@ -146,8 +136,6 @@ class _HostPhotosScreenState extends ConsumerState<HostPhotosScreen> {
                 candidate: candidates[index],
                 index: index,
                 showDate: state.config.needsPhotoDates,
-                busy: _swapping == index,
-                onSwap: () => unawaited(_swap(index)),
               ),
             ),
           if (candidates.isNotEmpty) ...<Widget>[
@@ -261,15 +249,11 @@ class _PhotoTile extends StatelessWidget {
     required this.candidate,
     required this.index,
     required this.showDate,
-    required this.busy,
-    required this.onSwap,
   });
 
   final PhotoCandidate candidate;
   final int index;
   final bool showDate;
-  final bool busy;
-  final VoidCallback onSwap;
 
   @override
   Widget build(BuildContext context) {
@@ -322,38 +306,6 @@ class _PhotoTile extends StatelessWidget {
                     ),
                   ),
                 ),
-              Positioned(
-                right: AppSpacing.s8,
-                bottom: AppSpacing.s8,
-                child: Semantics(
-                  button: true,
-                  label: 'Swap photo ${index + 1}',
-                  child: Material(
-                    color: const Color(0xCC1F1B16),
-                    shape: const CircleBorder(),
-                    child: InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: busy ? null : onSwap,
-                      child: SizedBox.square(
-                        dimension: 44,
-                        child: busy
-                            ? const Padding(
-                                padding: EdgeInsets.all(13),
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Color(0xFFF7F4EE),
-                                ),
-                              )
-                            : const Icon(
-                                Icons.swap_horiz,
-                                size: 20,
-                                color: Color(0xFFF7F4EE),
-                              ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
             ],
           ),
         ),
