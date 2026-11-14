@@ -150,6 +150,10 @@ jobs:
           TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           VERSION: ${{ needs.android.outputs.version }}
         run: |
+          if [ "${TAG#v}" != "$VERSION" ]; then
+            echo "Tag $TAG does not match pubspec version $VERSION" >&2
+            exit 1
+          fi
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" dist/* --clobber
           else
