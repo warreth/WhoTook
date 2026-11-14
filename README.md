@@ -72,8 +72,8 @@ npx wrangler dev
 
 ## Store releases
 
-The `Release` workflow builds a signed APK and AAB on every `v*` tag and attaches
-them to a GitHub release. Bump `version` in `app/pubspec.yaml` before tagging; the
+The `Release` workflow builds a signed APK and AAB, plus an unsigned IPA for
+SideStore and AltStore, on every `v*` tag and attaches them to a GitHub release. Bump `version` in `app/pubspec.yaml` before tagging; the
 workflow refuses a tag that does not match. Google Play and App Store uploads are optional and skip
 when their secrets are missing. Add them when the listings are ready:
 
