@@ -18,16 +18,19 @@ class DeckEntry {
     required this.roundNumber,
     required this.ownerId,
     required this.photo,
+    this.mode = GameMode.classic,
   });
 
   final int roundNumber;
   final String ownerId;
   final PhotoCandidate photo;
+  final GameMode mode;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
     'roundNumber': roundNumber,
     'ownerId': ownerId,
     'photo': photo.toJson(),
+    'mode': mode.name,
   };
 }
 
@@ -40,6 +43,7 @@ class HostGameEngine {
     DateTime Function()? clock,
   }) : _roundsK = config.roundsK,
        _roundSeconds = config.roundSeconds,
+       _mode = config.mode,
        _random = random ?? Random(),
        _clock = clock ?? DateTime.now;
 
@@ -63,11 +67,20 @@ class HostGameEngine {
   final Map<String, int> _photoCursor = <String, int>{};
   final Map<String, int> _roundDeltas = <String, int>{};
   final Map<String, GuessRecord> _guesses = <String, GuessRecord>{};
+  final Map<String, String> _captions = <String, String>{};
+  final Map<String, String> _captionIdByPlayer = <String, String>{};
+  final Map<String, String> _captionPlayerById = <String, String>{};
+  final Map<String, String> _captionVotes = <String, String>{};
+  final Map<String, TimelineGuess> _timelineGuesses = <String, TimelineGuess>{};
+  final List<GameMode> _mixedCycle = <GameMode>[];
   final Map<String, List<PhotoCandidate>> _pendingExtension =
       <String, List<PhotoCandidate>>{};
 
   int _roundsK;
   int _roundSeconds;
+  GameMode _mode;
+  GameMode _activeMode = GameMode.classic;
+  int _captionSerial = 0;
   RoundPhase _phase = RoundPhase.lobby;
   int _photosNeeded = 0;
   int _currentRound = 0;
@@ -77,11 +90,20 @@ class HostGameEngine {
   int _plantedFooledCount = 0;
   String? _plantedOwnerId;
   RoundReveal? _lastReveal;
+  CaptionReveal? _lastCaptionReveal;
+  TimelineReveal? _lastTimelineReveal;
   MicroAward? _lastMicroAward;
 
   MatchConfig get config =>
-      MatchConfig(roundsK: _roundsK, roundSeconds: _roundSeconds);
+      MatchConfig(roundsK: _roundsK, roundSeconds: _roundSeconds, mode: _mode);
   RoundPhase get phase => _phase;
+  GameMode get mode => _mode;
+  GameMode get activeMode => _activeMode;
+  CaptionReveal? get lastCaptionReveal => _lastCaptionReveal;
+  TimelineReveal? get lastTimelineReveal => _lastTimelineReveal;
+  int get captionCount => _captions.length;
+  int get captionVoteCount => _captionVotes.length;
+  int get timelineGuessCount => _timelineGuesses.length;
   int get roundsK => _roundsK;
   int get roundSeconds => _roundSeconds;
   int get roundMs => _roundSeconds * 1000;
@@ -177,6 +199,16 @@ class HostGameEngine {
       throw const EngineException('invalid_timer', 'timer must be >= 1s');
     }
     _roundSeconds = seconds;
+  }
+
+  void setMode(GameMode mode) {
+    if (_phase != RoundPhase.lobby) {
+      throw const EngineException(
+        'wrong_phase',
+        'the game mode can only change in the lobby',
+      );
+    }
+    _mode = mode;
   }
 
   void startPrepare() {
@@ -318,6 +350,15 @@ class HostGameEngine {
     }
     final order = _players.keys.toList();
     final startRound = _deck.length + 1;
+    if (_mode == GameMode.mixedParty && _mixedCycle.isEmpty) {
+      _mixedCycle.addAll(
+        <GameMode>[
+          GameMode.classic,
+          GameMode.captionThis,
+          GameMode.timeTraveler,
+        ]..shuffle(_random),
+      );
+    }
     var previousLast = _deck.isEmpty ? null : _deck.last.ownerId;
     final neededCycles = (rounds / order.length).ceil();
     final entries = <DeckEntry>[];
@@ -336,11 +377,19 @@ class HostGameEngine {
         if (photo == null) {
           continue;
         }
+        final roundIndex = startRound - 1 + entries.length;
+        var mode = _mode == GameMode.mixedParty
+            ? _mixedCycle[roundIndex % _mixedCycle.length]
+            : _mode;
+        if (mode == GameMode.timeTraveler && photo.capturedAtMs == null) {
+          mode = GameMode.classic;
+        }
         entries.add(
           DeckEntry(
             roundNumber: startRound + entries.length,
             ownerId: ownerId,
             photo: photo,
+            mode: mode,
           ),
         );
       }
@@ -398,6 +447,12 @@ class HostGameEngine {
     }
     _currentRound++;
     _guesses.clear();
+    _captions.clear();
+    _captionIdByPlayer.clear();
+    _captionPlayerById.clear();
+    _captionVotes.clear();
+    _captionSerial = 0;
+    _timelineGuesses.clear();
     _roundDeltas
       ..clear()
       ..addEntries(_players.keys.map((id) => MapEntry(id, 0)));
@@ -405,8 +460,15 @@ class HostGameEngine {
       player.ready = false;
     }
     _roundStartedAtMs = _clock().millisecondsSinceEpoch;
-    _phase = RoundPhase.guessing;
-    return _deck[_currentRound - 1];
+    final entry = _deck[_currentRound - 1];
+    _activeMode = entry.mode;
+    _phase = switch (entry.mode) {
+      GameMode.classic => RoundPhase.guessing,
+      GameMode.captionThis => RoundPhase.captionWriting,
+      GameMode.timeTraveler => RoundPhase.timelineGuessing,
+      GameMode.mixedParty => RoundPhase.guessing,
+    };
+    return entry;
   }
 
   void submitGuess(String playerId, String guessedOwnerId, int elapsedMs) {
@@ -500,6 +562,295 @@ class HostGameEngine {
     }
   }
 
+  // Caption This ------------------------------------------------------------
+
+  bool get allCaptionsSubmitted =>
+      _phase == RoundPhase.captionWriting &&
+      _players.values
+          .where((player) => player.connected)
+          .every((player) => _captions.containsKey(player.id));
+
+  bool get allCaptionVotesSubmitted =>
+      _phase == RoundPhase.captionVoting &&
+      _players.values
+          .where((player) => player.connected)
+          .every((player) => _captionVotes.containsKey(player.id));
+
+  List<CaptionOption> get captionOptions {
+    final options = <CaptionOption>[
+      for (final entry in _captionPlayerById.entries)
+        if (_captions[entry.value] != null)
+          CaptionOption(id: entry.key, text: _captions[entry.value]!),
+    ]..sort((a, b) => a.id.compareTo(b.id));
+    return List<CaptionOption>.unmodifiable(options);
+  }
+
+  String? captionIdFor(String playerId) => _captionIdByPlayer[playerId];
+
+  bool isOwnCaption(String playerId, String captionId) =>
+      _captionPlayerById[captionId] == playerId;
+
+  void submitCaption(String playerId, String text) {
+    _requirePlayer(playerId);
+    if (_phase != RoundPhase.captionWriting) {
+      throw const EngineException('wrong_phase', 'not writing captions');
+    }
+    if (_captions.containsKey(playerId)) {
+      throw const EngineException('already_captioned', 'caption is locked');
+    }
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) {
+      throw const EngineException('empty_caption', 'write something first');
+    }
+    if (trimmed.length > 80) {
+      throw const EngineException('caption_too_long', 'keep it under 80');
+    }
+    final id = 'cap-${_captionSerial++}';
+    _captions[playerId] = trimmed;
+    _captionIdByPlayer[playerId] = id;
+    _captionPlayerById[id] = playerId;
+  }
+
+  void beginCaptionVoting() {
+    if (_phase != RoundPhase.captionWriting) {
+      throw const EngineException('wrong_phase', 'not writing captions');
+    }
+    if (_captions.isEmpty) {
+      throw const EngineException('no_captions', 'nothing to vote on');
+    }
+    _phase = RoundPhase.captionVoting;
+  }
+
+  void submitCaptionVote(String playerId, String captionId) {
+    _requirePlayer(playerId);
+    if (_phase != RoundPhase.captionVoting) {
+      throw const EngineException('wrong_phase', 'not voting');
+    }
+    if (!_captionPlayerById.containsKey(captionId)) {
+      throw const EngineException('unknown_caption', 'caption not found');
+    }
+    if (_captionPlayerById[captionId] == playerId) {
+      throw const EngineException(
+        'own_caption',
+        'you cannot vote for yourself',
+      );
+    }
+    if (_captionVotes.containsKey(playerId)) {
+      throw const EngineException('already_voted', 'vote is locked');
+    }
+    _captionVotes[playerId] = captionId;
+  }
+
+  CaptionReveal finishCaptionRound() {
+    if (_phase != RoundPhase.captionWriting &&
+        _phase != RoundPhase.captionVoting) {
+      throw const EngineException('wrong_phase', 'no caption round running');
+    }
+    final entry = _deck[_currentRound - 1];
+    final deltas = <String, int>{
+      for (final player in _players.values) player.id: 0,
+    };
+    final votesById = <String, int>{
+      for (final id in _captionPlayerById.keys) id: 0,
+    };
+    for (final captionId in _captionVotes.values) {
+      votesById[captionId] = (votesById[captionId] ?? 0) + 1;
+    }
+    final maxVotes = votesById.values.fold<int>(0, max);
+
+    final entries = <CaptionEntry>[];
+    for (final mapEntry in _captionPlayerById.entries) {
+      final author = _players[mapEntry.value];
+      if (author == null) continue;
+      final votes = votesById[mapEntry.key] ?? 0;
+      final points =
+          votes * 100 + (maxVotes > 0 && votes == maxVotes ? 200 : 0);
+      deltas[author.id] = (deltas[author.id] ?? 0) + points;
+      entries.add(
+        CaptionEntry(
+          id: mapEntry.key,
+          text: _captions[author.id] ?? '',
+          authorId: author.id,
+          authorName: author.name,
+          votes: votes,
+          points: points,
+        ),
+      );
+    }
+    entries.sort((a, b) {
+      final byVotes = b.votes.compareTo(a.votes);
+      return byVotes != 0 ? byVotes : a.id.compareTo(b.id);
+    });
+    if (maxVotes > 0 && entries.isNotEmpty) {
+      final winner = entries.first;
+      entries.removeAt(0);
+      entries.insert(0, winner);
+    }
+    for (final player in _players.values) {
+      player.score += deltas[player.id] ?? 0;
+    }
+    final winners = maxVotes <= 0
+        ? const <String>[]
+        : <String>[
+            for (final caption in entries)
+              if (caption.votes == maxVotes) caption.id,
+          ];
+    final reveal = CaptionReveal(
+      roundNumber: entry.roundNumber,
+      photoId: entry.photo.photoId,
+      ownerId: entry.ownerId,
+      entries: List<CaptionEntry>.unmodifiable(entries),
+      winnerIds: List<String>.unmodifiable(winners),
+      scoreDeltas: Map<String, int>.unmodifiable(deltas),
+    );
+    _lastCaptionReveal = reveal;
+    _phase = RoundPhase.captionReveal;
+    return reveal;
+  }
+
+  // Time Traveler -----------------------------------------------------------
+
+  bool get allTimelineGuessed {
+    if (_phase != RoundPhase.timelineGuessing) return false;
+    final ownerId = _deck[_currentRound - 1].ownerId;
+    return _players.values
+        .where((player) => player.connected && player.id != ownerId)
+        .every((player) => _timelineGuesses.containsKey(player.id));
+  }
+
+  void submitTimelineGuess({
+    required String playerId,
+    required int year,
+    required int month,
+    required int elapsedMs,
+  }) {
+    _requirePlayer(playerId);
+    if (_phase != RoundPhase.timelineGuessing) {
+      throw const EngineException('wrong_phase', 'not guessing a date');
+    }
+    final now = _clock().year;
+    if (year < 1970 || year > now + 1 || month < 1 || month > 12) {
+      throw const EngineException('invalid_date', 'that date is out of range');
+    }
+    if (_timelineGuesses.containsKey(playerId)) {
+      throw const EngineException('already_guessed', 'guess is locked');
+    }
+    _timelineGuesses[playerId] = TimelineGuess(
+      playerId: playerId,
+      year: year,
+      month: month,
+      elapsedMs: elapsedMs.clamp(0, 3600000),
+    );
+  }
+
+  TimelineReveal finishTimelineRound({int durationMs = 30000}) {
+    if (_phase != RoundPhase.timelineGuessing) {
+      throw const EngineException('wrong_phase', 'not guessing a date');
+    }
+    final entry = _deck[_currentRound - 1];
+    final capturedAt = entry.photo.capturedAtMs;
+    if (capturedAt == null) {
+      throw const EngineException('no_date', 'photo has no capture date');
+    }
+    final actual = DateTime.fromMillisecondsSinceEpoch(capturedAt);
+    final deltas = <String, int>{
+      for (final player in _players.values) player.id: 0,
+    };
+    final entries = <TimelineEntry>[];
+    String? closestId;
+    String? furthestId;
+    int? closestOff;
+    int? furthestOff;
+    int? closestMs;
+    int? furthestMs;
+
+    for (final player in _players.values) {
+      if (player.id == entry.ownerId) {
+        deltas[player.id] = 100;
+        entries.add(
+          TimelineEntry(
+            playerId: player.id,
+            playerName: player.name,
+            points: 100,
+            year: actual.year,
+            month: actual.month,
+            monthsOff: 0,
+            isOwner: true,
+          ),
+        );
+        continue;
+      }
+      final guess = _timelineGuesses[player.id];
+      if (guess == null) {
+        entries.add(
+          TimelineEntry(
+            playerId: player.id,
+            playerName: player.name,
+            points: 0,
+            timedOut: true,
+          ),
+        );
+        continue;
+      }
+      final monthsOff =
+          ((guess.year - actual.year) * 12 + (guess.month - actual.month))
+              .abs();
+      final accuracy = max(0, 1000 - monthsOff * 35);
+      final speed = max(
+        0,
+        200 - ((guess.elapsedMs / max(1, durationMs)) * 200).round(),
+      );
+      final points = accuracy + speed;
+      deltas[player.id] = points;
+      entries.add(
+        TimelineEntry(
+          playerId: player.id,
+          playerName: player.name,
+          points: points,
+          year: guess.year,
+          month: guess.month,
+          monthsOff: monthsOff,
+        ),
+      );
+      if (closestOff == null ||
+          monthsOff < closestOff ||
+          (monthsOff == closestOff &&
+              guess.elapsedMs < (closestMs ?? 1 << 30))) {
+        closestId = player.id;
+        closestOff = monthsOff;
+        closestMs = guess.elapsedMs;
+      }
+      if (furthestOff == null ||
+          monthsOff > furthestOff ||
+          (monthsOff == furthestOff && guess.elapsedMs > (furthestMs ?? -1))) {
+        furthestId = player.id;
+        furthestOff = monthsOff;
+        furthestMs = guess.elapsedMs;
+      }
+    }
+    for (final player in _players.values) {
+      player.score += deltas[player.id] ?? 0;
+    }
+    entries.sort((a, b) {
+      if (a.isOwner != b.isOwner) return a.isOwner ? 1 : -1;
+      return (a.monthsOff ?? 9999).compareTo(b.monthsOff ?? 9999);
+    });
+    final reveal = TimelineReveal(
+      roundNumber: entry.roundNumber,
+      photoId: entry.photo.photoId,
+      ownerId: entry.ownerId,
+      actualYear: actual.year,
+      actualMonth: actual.month,
+      entries: List<TimelineEntry>.unmodifiable(entries),
+      scoreDeltas: Map<String, int>.unmodifiable(deltas),
+      closestId: closestId,
+      furthestId: furthestId,
+    );
+    _lastTimelineReveal = reveal;
+    _phase = RoundPhase.timelineReveal;
+    return reveal;
+  }
+
   RoundReveal finishRound() {
     if (_phase != RoundPhase.guessing) {
       throw const EngineException('wrong_phase', 'not guessing');
@@ -584,7 +935,9 @@ class HostGameEngine {
   /// Closes the reveal. Moves to the podium after the last round, otherwise
   /// to the next countdown.
   void advanceAfterReveal() {
-    if (_phase != RoundPhase.reveal) {
+    if (_phase != RoundPhase.reveal &&
+        _phase != RoundPhase.captionReveal &&
+        _phase != RoundPhase.timelineReveal) {
       throw const EngineException('wrong_phase', 'not revealing');
     }
     if (_currentRound >= _deck.length) {
@@ -824,6 +1177,10 @@ class HostGameEngine {
     'currentEntry': currentEntry?.toJson(),
     'guesses': _guesses.values.map((g) => g.toJson()).toList(),
     'lastReveal': _lastReveal?.toJson(),
+    'mode': _mode.name,
+    'activeMode': _activeMode.name,
+    'captionReveal': _lastCaptionReveal?.toJson(),
+    'timelineReveal': _lastTimelineReveal?.toJson(),
   };
 
   Player _requirePlayer(String id) {

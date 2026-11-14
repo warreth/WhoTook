@@ -56,7 +56,7 @@ class RoundScreen extends ConsumerWidget {
               ),
               if (state.totalRounds > 0) ...<Widget>[
                 const SizedBox(height: AppSpacing.s8),
-                _RoundProgress(current: roundNumber, total: state.totalRounds),
+                ProgressSegments(current: roundNumber, total: state.totalRounds),
               ],
               const SizedBox(height: AppSpacing.s12),
               if (showingCountdown)
@@ -402,46 +402,6 @@ class _GuessGrid extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _RoundProgress extends StatelessWidget {
-  const _RoundProgress({required this.current, required this.total});
-
-  final int current;
-  final int total;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = WhoTookColors.of(context);
-    if (total > 24) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(3),
-        child: LinearProgressIndicator(
-          value: (current / total).clamp(0.0, 1.0),
-          minHeight: 5,
-          backgroundColor: colors.raised,
-          valueColor: AlwaysStoppedAnimation<Color>(colors.accent),
-        ),
-      );
-    }
-    return ExcludeSemantics(
-      child: Row(
-        children: <Widget>[
-          for (var i = 0; i < total; i++)
-            Expanded(
-              child: Container(
-                height: 5,
-                margin: EdgeInsets.only(right: i == total - 1 ? 0 : 2),
-                decoration: BoxDecoration(
-                  color: i < current ? colors.accent : colors.raised,
-                  borderRadius: BorderRadius.circular(2.5),
-                ),
-              ),
-            ),
-        ],
       ),
     );
   }

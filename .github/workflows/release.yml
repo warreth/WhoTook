@@ -131,9 +131,47 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
+  ios-unsigned:
+    name: Unsigned IPA for SideStore
+    runs-on: macos-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.2
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        working-directory: app
+        run: flutter pub get
+
+      - name: Build unsigned iOS app
+        working-directory: app
+        run: flutter build ios --release --no-codesign
+
+      - name: Package unsigned IPA
+        run: |
+          VERSION=$(awk '/^version:/ {print $2}' app/pubspec.yaml | cut -d+ -f1)
+          mkdir -p dist/Payload
+          cp -R app/build/ios/iphoneos/Runner.app dist/Payload/
+          cd dist
+          zip -qry WhoTook-unsigned.ipa Payload
+          cp WhoTook-unsigned.ipa "WhoTook-${VERSION}-unsigned.ipa"
+          sha256sum WhoTook-unsigned.ipa > SHA256SUMS-ios.txt
+          ls -lh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-unsigned
+          path: dist/*
+          if-no-files-found: error
+
   release:
     name: GitHub release
-    needs: android
+    needs: [android, ios-unsigned]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -143,6 +181,16 @@ jobs:
         with:
           name: android
           path: dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ios-unsigned
+          path: dist
+
+      - name: Rebuild checksums
+        run: |
+          rm -f dist/SHA256SUMS-ios.txt
+          (sha256sum dist/WhoTook.apk dist/WhoTook-*.apk dist/WhoTook-*.aab dist/WhoTook-unsigned.ipa 2>/dev/null || true) > dist/SHA256SUMS.txt
 
       - name: Publish
         env:

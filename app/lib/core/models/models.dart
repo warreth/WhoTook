@@ -73,30 +73,48 @@ class Player {
   );
 }
 
+enum GameMode { classic, captionThis, timeTraveler, mixedParty }
+
 /// Match shape chosen in the lobby.
 class MatchConfig {
-  const MatchConfig({this.roundsK = 10, this.roundSeconds = 8})
-    : assert(roundsK > 0),
-      assert(roundSeconds > 0);
+  const MatchConfig({
+    this.roundsK = 10,
+    this.roundSeconds = 8,
+    this.mode = GameMode.classic,
+  }) : assert(roundsK > 0),
+       assert(roundSeconds > 0);
 
   final int roundsK;
   final int roundSeconds;
+  final GameMode mode;
 
   int get roundMs => roundSeconds * 1000;
 
-  MatchConfig copyWith({int? roundsK, int? roundSeconds}) => MatchConfig(
-    roundsK: roundsK ?? this.roundsK,
-    roundSeconds: roundSeconds ?? this.roundSeconds,
-  );
+  /// Time Traveler needs a verified capture date, and a mixed match uses the
+  /// same photo pool for its timeline rounds.
+  bool get needsPhotoDates =>
+      mode == GameMode.timeTraveler || mode == GameMode.mixedParty;
+
+  MatchConfig copyWith({int? roundsK, int? roundSeconds, GameMode? mode}) =>
+      MatchConfig(
+        roundsK: roundsK ?? this.roundsK,
+        roundSeconds: roundSeconds ?? this.roundSeconds,
+        mode: mode ?? this.mode,
+      );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
     'roundsK': roundsK,
     'roundSeconds': roundSeconds,
+    'mode': mode.name,
   };
 
   factory MatchConfig.fromJson(Map<String, dynamic> json) => MatchConfig(
     roundsK: (json['roundsK'] as int?) ?? 10,
     roundSeconds: (json['roundSeconds'] as int?) ?? 8,
+    mode: GameMode.values.firstWhere(
+      (mode) => mode.name == json['mode'],
+      orElse: () => GameMode.classic,
+    ),
   );
 }
 
@@ -109,6 +127,7 @@ class PhotoCandidate {
     required this.ownerId,
     this.bytes,
     this.isPlanted = false,
+    this.capturedAtMs,
   });
 
   final String photoId;
@@ -117,18 +136,24 @@ class PhotoCandidate {
   final Uint8List? bytes;
   final bool isPlanted;
 
+  /// Capture time from the gallery, in milliseconds since epoch. Kept out of
+  /// every broadcast except the Time Traveler reveal so nobody can cheat.
+  final int? capturedAtMs;
+
   PhotoCandidate copyWith({
     String? photoId,
     String? localAssetId,
     String? ownerId,
     Uint8List? bytes,
     bool? isPlanted,
+    int? capturedAtMs,
   }) => PhotoCandidate(
     photoId: photoId ?? this.photoId,
     localAssetId: localAssetId ?? this.localAssetId,
     ownerId: ownerId ?? this.ownerId,
     bytes: bytes ?? this.bytes,
     isPlanted: isPlanted ?? this.isPlanted,
+    capturedAtMs: capturedAtMs ?? this.capturedAtMs,
   );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -136,6 +161,7 @@ class PhotoCandidate {
     'localAssetId': localAssetId,
     'ownerId': ownerId,
     'isPlanted': isPlanted,
+    'capturedAtMs': capturedAtMs,
   };
 
   factory PhotoCandidate.fromJson(Map<String, dynamic> json) => PhotoCandidate(
@@ -143,6 +169,7 @@ class PhotoCandidate {
     localAssetId: (json['localAssetId'] as String?) ?? '',
     ownerId: json['ownerId'] as String,
     isPlanted: (json['isPlanted'] as bool?) ?? false,
+    capturedAtMs: json['capturedAtMs'] as int?,
   );
 }
 
@@ -152,6 +179,11 @@ enum RoundPhase {
   countdown,
   guessing,
   reveal,
+  captionWriting,
+  captionVoting,
+  captionReveal,
+  timelineGuessing,
+  timelineReveal,
   extendPrompt,
   podium,
 }
@@ -327,6 +359,221 @@ class MatchAward {
     playerId: json['playerId'] as String,
     playerName: json['playerName'] as String,
     value: json['value'] as int?,
+  );
+}
+
+/// One anonymous caption shown to voters.
+class CaptionOption {
+  const CaptionOption({required this.id, required this.text});
+
+  final String id;
+  final String text;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{'id': id, 'text': text};
+
+  factory CaptionOption.fromJson(Map<String, dynamic> json) =>
+      CaptionOption(id: json['id'] as String, text: json['text'] as String);
+}
+
+/// A caption after the votes are counted, with its author revealed.
+class CaptionEntry {
+  const CaptionEntry({
+    required this.id,
+    required this.text,
+    required this.authorId,
+    required this.authorName,
+    required this.votes,
+    required this.points,
+  });
+
+  final String id;
+  final String text;
+  final String authorId;
+  final String authorName;
+  final int votes;
+  final int points;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'id': id,
+    'text': text,
+    'authorId': authorId,
+    'authorName': authorName,
+    'votes': votes,
+    'points': points,
+  };
+
+  factory CaptionEntry.fromJson(Map<String, dynamic> json) => CaptionEntry(
+    id: json['id'] as String,
+    text: json['text'] as String,
+    authorId: json['authorId'] as String,
+    authorName: json['authorName'] as String,
+    votes: json['votes'] as int,
+    points: json['points'] as int,
+  );
+}
+
+class CaptionReveal {
+  const CaptionReveal({
+    required this.roundNumber,
+    required this.photoId,
+    required this.ownerId,
+    required this.entries,
+    required this.winnerIds,
+    required this.scoreDeltas,
+  });
+
+  final int roundNumber;
+  final String photoId;
+  final String ownerId;
+  final List<CaptionEntry> entries;
+  final List<String> winnerIds;
+  final Map<String, int> scoreDeltas;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'roundNumber': roundNumber,
+    'photoId': photoId,
+    'ownerId': ownerId,
+    'entries': entries.map((entry) => entry.toJson()).toList(),
+    'winnerIds': winnerIds,
+    'scoreDeltas': scoreDeltas,
+  };
+
+  factory CaptionReveal.fromJson(Map<String, dynamic> json) => CaptionReveal(
+    roundNumber: json['roundNumber'] as int,
+    photoId: json['photoId'] as String,
+    ownerId: json['ownerId'] as String,
+    entries: (json['entries'] as List<dynamic>)
+        .map((entry) => CaptionEntry.fromJson(entry as Map<String, dynamic>))
+        .toList(),
+    winnerIds: ((json['winnerIds'] as List<dynamic>?) ?? const [])
+        .cast<String>(),
+    scoreDeltas: (json['scoreDeltas'] as Map<String, dynamic>).map(
+      (key, value) => MapEntry(key, value as int),
+    ),
+  );
+}
+
+class TimelineGuess {
+  const TimelineGuess({
+    required this.playerId,
+    required this.year,
+    required this.month,
+    required this.elapsedMs,
+  });
+
+  final String playerId;
+  final int year;
+  final int month;
+  final int elapsedMs;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'playerId': playerId,
+    'year': year,
+    'month': month,
+    'elapsedMs': elapsedMs,
+  };
+
+  factory TimelineGuess.fromJson(Map<String, dynamic> json) => TimelineGuess(
+    playerId: json['playerId'] as String,
+    year: json['year'] as int,
+    month: json['month'] as int,
+    elapsedMs: json['elapsedMs'] as int,
+  );
+}
+
+class TimelineEntry {
+  const TimelineEntry({
+    required this.playerId,
+    required this.playerName,
+    required this.points,
+    this.year,
+    this.month,
+    this.monthsOff,
+    this.isOwner = false,
+    this.timedOut = false,
+  });
+
+  final String playerId;
+  final String playerName;
+  final int points;
+  final int? year;
+  final int? month;
+  final int? monthsOff;
+  final bool isOwner;
+  final bool timedOut;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'playerId': playerId,
+    'playerName': playerName,
+    'points': points,
+    'year': year,
+    'month': month,
+    'monthsOff': monthsOff,
+    'isOwner': isOwner,
+    'timedOut': timedOut,
+  };
+
+  factory TimelineEntry.fromJson(Map<String, dynamic> json) => TimelineEntry(
+    playerId: json['playerId'] as String,
+    playerName: json['playerName'] as String,
+    points: json['points'] as int,
+    year: json['year'] as int?,
+    month: json['month'] as int?,
+    monthsOff: json['monthsOff'] as int?,
+    isOwner: (json['isOwner'] as bool?) ?? false,
+    timedOut: (json['timedOut'] as bool?) ?? false,
+  );
+}
+
+class TimelineReveal {
+  const TimelineReveal({
+    required this.roundNumber,
+    required this.photoId,
+    required this.ownerId,
+    required this.actualYear,
+    required this.actualMonth,
+    required this.entries,
+    required this.scoreDeltas,
+    this.closestId,
+    this.furthestId,
+  });
+
+  final int roundNumber;
+  final String photoId;
+  final String ownerId;
+  final int actualYear;
+  final int actualMonth;
+  final List<TimelineEntry> entries;
+  final Map<String, int> scoreDeltas;
+  final String? closestId;
+  final String? furthestId;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'roundNumber': roundNumber,
+    'photoId': photoId,
+    'ownerId': ownerId,
+    'actualYear': actualYear,
+    'actualMonth': actualMonth,
+    'entries': entries.map((entry) => entry.toJson()).toList(),
+    'scoreDeltas': scoreDeltas,
+    'closestId': closestId,
+    'furthestId': furthestId,
+  };
+
+  factory TimelineReveal.fromJson(Map<String, dynamic> json) => TimelineReveal(
+    roundNumber: json['roundNumber'] as int,
+    photoId: json['photoId'] as String,
+    ownerId: json['ownerId'] as String,
+    actualYear: json['actualYear'] as int,
+    actualMonth: json['actualMonth'] as int,
+    entries: (json['entries'] as List<dynamic>)
+        .map((entry) => TimelineEntry.fromJson(entry as Map<String, dynamic>))
+        .toList(),
+    scoreDeltas: (json['scoreDeltas'] as Map<String, dynamic>).map(
+      (key, value) => MapEntry(key, value as int),
+    ),
+    closestId: json['closestId'] as String?,
+    furthestId: json['furthestId'] as String?,
   );
 }
 

@@ -117,6 +117,19 @@ class LobbyScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
+                    const SectionLabel('Game mode'),
+                    _ModeGrid(
+                      mode: state.config.mode,
+                      onSelect: (mode) => unawaited(coordinator.setMode(mode)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.s12),
+              SurfaceCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
                     SectionLabel('Rounds'),
                     Row(
                       children: <Widget>[
@@ -170,11 +183,14 @@ class LobbyScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: AppSpacing.s12),
-            ] else
+            ] else ...<Widget>[
+              SurfaceCard(child: _ModeSummary(mode: state.config.mode)),
+              const SizedBox(height: AppSpacing.s12),
               NoticeBanner(
                 message: 'Waiting for the host to start',
                 icon: Icons.hourglass_empty,
               ),
+            ],
             const SizedBox(height: AppSpacing.s8),
             SurfaceCard(
               padding: EdgeInsets.zero,
@@ -346,3 +362,165 @@ class _PlayerRow extends StatelessWidget {
     );
   }
 }
+
+class _ModeGrid extends StatelessWidget {
+  const _ModeGrid({required this.mode, required this.onSelect});
+
+  final GameMode mode;
+  final ValueChanged<GameMode> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: AppSpacing.s8,
+      crossAxisSpacing: AppSpacing.s8,
+      childAspectRatio: 2.15,
+      children: <Widget>[
+        for (final value in GameMode.values)
+          _ModeTile(
+            mode: value,
+            selected: value == mode,
+            onTap: () {
+              unawaited(HapticFeedback.selectionClick());
+              onSelect(value);
+            },
+          ),
+      ],
+    );
+  }
+}
+
+class _ModeTile extends StatelessWidget {
+  const _ModeTile({
+    required this.mode,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final GameMode mode;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    final (label, blurb, icon) = _modeInfo(mode);
+    return Semantics(
+      selected: selected,
+      button: true,
+      label: '$label. $blurb',
+      child: Material(
+        color: selected ? colors.raised : colors.card,
+        borderRadius: BorderRadius.circular(AppRadii.rControl),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadii.rControl),
+          child: Container(
+            padding: const EdgeInsets.all(AppSpacing.s8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadii.rControl),
+              border: Border.all(
+                color: selected ? colors.accent : colors.hairline,
+              ),
+            ),
+            child: Row(
+              children: <Widget>[
+                Icon(
+                  icon,
+                  size: 18,
+                  color: selected ? colors.accent : colors.ink2,
+                ),
+                const SizedBox(width: AppSpacing.s8),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        blurb,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 10,
+                          height: 1.2,
+                          color: colors.ink2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (selected) Icon(Icons.check, size: 15, color: colors.accent),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ModeSummary extends StatelessWidget {
+  const _ModeSummary({required this.mode});
+
+  final GameMode mode;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    final (label, blurb, icon) = _modeInfo(mode);
+    return Row(
+      children: <Widget>[
+        Icon(icon, size: 20, color: colors.accent),
+        const SizedBox(width: AppSpacing.s12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(blurb, style: TextStyle(fontSize: 12, color: colors.ink2)),
+            ],
+          ),
+        ),
+        Text('Host picks', style: TextStyle(fontSize: 11, color: colors.ink3)),
+      ],
+    );
+  }
+}
+
+(String, String, IconData) _modeInfo(GameMode mode) => switch (mode) {
+  GameMode.classic => (
+    'Classic',
+    'Guess who took it.',
+    Icons.photo_camera_outlined,
+  ),
+  GameMode.captionThis => (
+    'Caption This',
+    'Write the funniest caption.',
+    Icons.chat_bubble_outline,
+  ),
+  GameMode.timeTraveler => (
+    'Time Traveler',
+    'Guess the year and month.',
+    Icons.history,
+  ),
+  GameMode.mixedParty => ('Mixed Party', 'All three, shuffled.', Icons.shuffle),
+};

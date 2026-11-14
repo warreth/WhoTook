@@ -372,6 +372,82 @@ void main() {
     await plantHub.dispose();
   }, timeout: const Timeout(Duration(seconds: 45)));
 
+  test(
+    'Caption This runs from writing to anonymous voting to reveal',
+    () async {
+      await host.setMode(GameMode.captionThis);
+      await _waitFor(() => clientOne.state.config.mode == GameMode.captionThis);
+      await host.startPrepare();
+      await _waitFor(() => host.state.candidates.isNotEmpty);
+      await _waitFor(() => clientOne.state.candidates.isNotEmpty);
+      await _waitFor(() => clientTwo.state.candidates.isNotEmpty);
+      await host.markLocalReady();
+      await clientOne.clientMarkReady();
+      await clientTwo.clientMarkReady();
+      await _waitFor(() => host.state.phase == RoundPhase.captionWriting);
+
+      await host.submitCaption('host caption');
+      await clientOne.clientSubmitCaption('one caption');
+      await clientTwo.clientSubmitCaption('two caption');
+      await _waitFor(() => host.state.phase == RoundPhase.captionVoting);
+      await _waitFor(() => clientOne.state.captionOptions.isNotEmpty);
+      await _waitFor(() => clientTwo.state.captionOptions.isNotEmpty);
+
+      expect(host.state.captionOptions, hasLength(3));
+      expect(clientOne.state.captionOptions, hasLength(3));
+      expect(clientOne.state.ownCaptionId, isNotNull);
+      final hostVote = host.state.captionOptions.firstWhere(
+        (option) => option.id != host.state.ownCaptionId,
+      );
+      final clientVote = clientOne.state.captionOptions.firstWhere(
+        (option) => option.id != clientOne.state.ownCaptionId,
+      );
+      final clientTwoVote = clientTwo.state.captionOptions.first;
+      await host.voteCaption(hostVote.id);
+      await clientOne.clientVoteCaption(clientVote.id);
+      await clientTwo.clientVoteCaption(clientTwoVote.id);
+
+      await _waitFor(() => host.state.phase == RoundPhase.captionReveal);
+      await _waitFor(() => clientOne.state.phase == RoundPhase.captionReveal);
+      final reveal = host.state.lastCaptionReveal;
+      expect(reveal, isNotNull);
+      expect(reveal!.entries, hasLength(3));
+      expect(
+        reveal.entries.map((entry) => entry.authorName),
+        contains('Player'),
+      );
+      expect(reveal.scoreDeltas.values.any((value) => value > 0), isTrue);
+    },
+    timeout: const Timeout(Duration(seconds: 60)),
+  );
+
+  test('Time Traveler syncs guesses and reveals the actual month', () async {
+    await host.setMode(GameMode.timeTraveler);
+    await _waitFor(() => clientOne.state.config.mode == GameMode.timeTraveler);
+    await host.startPrepare();
+    await _waitFor(() => host.state.candidates.isNotEmpty);
+    await _waitFor(() => clientOne.state.candidates.isNotEmpty);
+    await _waitFor(() => clientTwo.state.candidates.isNotEmpty);
+    await host.markLocalReady();
+    await clientOne.clientMarkReady();
+    await clientTwo.clientMarkReady();
+    await _waitFor(() => host.state.phase == RoundPhase.timelineGuessing);
+
+    await host.submitTimeline(2018, 5);
+    await clientOne.clientSubmitTimeline(2015, 8);
+    await clientTwo.clientSubmitTimeline(2021, 2);
+    await _waitFor(() => host.state.phase == RoundPhase.timelineReveal);
+    await _waitFor(() => clientOne.state.phase == RoundPhase.timelineReveal);
+
+    final reveal = host.state.lastTimelineReveal;
+    expect(reveal, isNotNull);
+    expect(reveal!.actualYear, greaterThan(2000));
+    expect(reveal.entries, hasLength(3));
+    expect(reveal.entries.any((entry) => entry.isOwner), isTrue);
+    expect(reveal.closestId, isNotNull);
+    expect(clientOne.state.lastTimelineReveal?.actualYear, reveal.actualYear);
+  }, timeout: const Timeout(Duration(seconds: 60)));
+
   test('play again returns everyone to a clean lobby', () async {
     await prepareAndStart(rounds: 1);
     await playUntilPodium();
@@ -421,11 +497,13 @@ class _TwoPhotoLibrary extends TestPhotoLibrary {
     required Set<String> excludedAlbumIds,
     required int count,
     Set<String> excludeAssetIds = const <String>{},
+    bool requireDate = false,
   }) async {
     final all = await super.sampleCandidates(
       excludedAlbumIds: excludedAlbumIds,
       count: count,
       excludeAssetIds: excludeAssetIds,
+      requireDate: requireDate,
     );
     return all.take(2).toList();
   }

@@ -10,15 +10,26 @@ class _FakeClock {
   void advance(int ms) => now = now.add(Duration(milliseconds: ms));
 }
 
-List<PhotoCandidate> photos(String ownerId, int count, {String prefix = 'p'}) =>
-    List<PhotoCandidate>.generate(
-      count,
-      (i) => PhotoCandidate(
-        photoId: '$prefix-$ownerId-$i',
-        localAssetId: 'asset-$ownerId-$i',
-        ownerId: ownerId,
-      ),
-    );
+List<PhotoCandidate> photos(
+  String ownerId,
+  int count, {
+  String prefix = 'p',
+  bool dated = false,
+}) => List<PhotoCandidate>.generate(
+  count,
+  (i) => PhotoCandidate(
+    photoId: '$prefix-$ownerId-$i',
+    localAssetId: 'asset-$ownerId-$i',
+    ownerId: ownerId,
+    capturedAtMs: dated
+        ? DateTime(
+            2015 + (i % 6),
+            1 + ((i * 3) % 12),
+            12,
+          ).millisecondsSinceEpoch
+        : null,
+  ),
+);
 
 /// Lobby with [count] players and a config, all prepped and ready.
 HostGameEngine readyEngine({
@@ -27,9 +38,15 @@ HostGameEngine readyEngine({
   int roundSeconds = 8,
   int seed = 7,
   int? photosPerPlayer,
+  GameMode mode = GameMode.classic,
+  bool datedPhotos = false,
 }) {
   final engine = HostGameEngine(
-    config: MatchConfig(roundsK: roundsK, roundSeconds: roundSeconds),
+    config: MatchConfig(
+      roundsK: roundsK,
+      roundSeconds: roundSeconds,
+      mode: mode,
+    ),
     random: Random(seed),
   );
   for (var i = 0; i < players; i++) {
@@ -38,7 +55,10 @@ HostGameEngine readyEngine({
   engine.startPrepare();
   final perPlayer = photosPerPlayer ?? engine.photosNeeded;
   for (var i = 0; i < players; i++) {
-    engine.submitInitialPhotos('p$i', photos('p$i', perPlayer));
+    engine.submitInitialPhotos(
+      'p$i',
+      photos('p$i', perPlayer, dated: datedPhotos),
+    );
     engine.markReady('p$i');
   }
   return engine;
@@ -214,6 +234,138 @@ void main() {
       for (final ids in byOwner.values) {
         expect(ids.toSet().length, ids.length);
       }
+    });
+  });
+
+  group('Caption This', () {
+    test('keeps captions anonymous and pays the vote winners', () {
+      final engine = readyEngine(
+        players: 3,
+        roundsK: 3,
+        photosPerPlayer: 3,
+        mode: GameMode.captionThis,
+      );
+      engine.startGame();
+      final entry = engine.startRound();
+      expect(entry.mode, GameMode.captionThis);
+      expect(engine.phase, RoundPhase.captionWriting);
+
+      engine.submitCaption('p0', 'the first one');
+      engine.submitCaption('p1', 'the funny one');
+      engine.submitCaption('p2', 'the quiet one');
+      expect(engine.allCaptionsSubmitted, isTrue);
+      engine.beginCaptionVoting();
+      expect(engine.phase, RoundPhase.captionVoting);
+      expect(engine.captionOptions, hasLength(3));
+
+      final p0Caption = engine.captionIdFor('p0')!;
+      final p1Caption = engine.captionIdFor('p1')!;
+      expect(
+        () => engine.submitCaptionVote('p0', p0Caption),
+        throwsA(
+          isA<EngineException>().having((e) => e.code, 'code', 'own_caption'),
+        ),
+      );
+      engine.submitCaptionVote('p0', p1Caption);
+      engine.submitCaptionVote('p1', p0Caption);
+      engine.submitCaptionVote('p2', p1Caption);
+      expect(engine.allCaptionVotesSubmitted, isTrue);
+
+      final reveal = engine.finishCaptionRound();
+      expect(engine.phase, RoundPhase.captionReveal);
+      expect(reveal.entries.first.authorId, 'p1');
+      expect(reveal.entries.first.votes, 2);
+      expect(reveal.entries.first.points, 400);
+      expect(reveal.winnerIds, <String>[p1Caption]);
+      expect(engine.player('p1')!.score, 400);
+      expect(engine.player('p0')!.score, 100);
+      expect(engine.player('p2')!.score, 0);
+      final before = engine.player('p1')!.score;
+      engine.advanceAfterReveal();
+      expect(engine.phase, RoundPhase.countdown);
+      expect(engine.player('p1')!.score, before);
+    });
+  });
+
+  group('Time Traveler', () {
+    test('scores by month distance and crowns the closest and furthest', () {
+      final engine = readyEngine(
+        players: 3,
+        roundsK: 3,
+        photosPerPlayer: 3,
+        mode: GameMode.timeTraveler,
+        datedPhotos: true,
+      );
+      engine.startGame();
+      final entry = engine.startRound();
+      expect(entry.mode, GameMode.timeTraveler);
+      expect(engine.phase, RoundPhase.timelineGuessing);
+      final actual = DateTime.fromMillisecondsSinceEpoch(
+        entry.photo.capturedAtMs!,
+      );
+      final others = engine.players
+          .where((player) => player.id != entry.ownerId)
+          .toList();
+      final exact = others.first;
+      final far = others.last;
+      if (exact.id == far.id) {
+        return;
+      }
+      engine.submitTimelineGuess(
+        playerId: exact.id,
+        year: actual.year,
+        month: actual.month,
+        elapsedMs: 1000,
+      );
+      final farDate = DateTime(actual.year - 3, actual.month, 1);
+      engine.submitTimelineGuess(
+        playerId: far.id,
+        year: farDate.year,
+        month: farDate.month,
+        elapsedMs: 9000,
+      );
+      expect(engine.allTimelineGuessed, isTrue);
+
+      final reveal = engine.finishTimelineRound(durationMs: 30000);
+      expect(engine.phase, RoundPhase.timelineReveal);
+      expect(reveal.actualYear, actual.year);
+      expect(reveal.actualMonth, actual.month);
+      expect(reveal.closestId, exact.id);
+      expect(reveal.furthestId, far.id);
+      final exactEntry = reveal.entries.firstWhere(
+        (item) => item.playerId == exact.id,
+      );
+      final farEntry = reveal.entries.firstWhere(
+        (item) => item.playerId == far.id,
+      );
+      final ownerEntry = reveal.entries.firstWhere(
+        (item) => item.playerId == entry.ownerId,
+      );
+      expect(exactEntry.monthsOff, 0);
+      expect(exactEntry.points, greaterThan(farEntry.points));
+      expect(farEntry.monthsOff, 36);
+      expect(ownerEntry.isOwner, isTrue);
+      expect(ownerEntry.points, 100);
+    });
+  });
+
+  group('Mixed Party', () {
+    test('rotates through all three modes and repeats the cycle', () {
+      final engine = readyEngine(
+        players: 3,
+        roundsK: 6,
+        photosPerPlayer: 3,
+        mode: GameMode.mixedParty,
+        datedPhotos: true,
+      );
+      engine.startGame();
+      final modes = engine.deck.map((entry) => entry.mode).toList();
+      final firstCycle = modes.take(3).toSet();
+      expect(firstCycle, hasLength(3));
+      expect(firstCycle, isNot(contains(GameMode.mixedParty)));
+      expect(modes[3], modes[0]);
+      expect(modes[4], modes[1]);
+      expect(modes[5], modes[2]);
     });
   });
 
