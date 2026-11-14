@@ -8,7 +8,7 @@ QR code, and each round shows a photo while the table races to guess who took it
 
 | Round | Lobby | Podium |
 | --- | --- | --- |
-| ![A round with a dog photo](docs/screenshots/round.webp) | ![Lobby with a QR code](docs/screenshots/lobby.webp) | ![Podium and awards](docs/screenshots/podium.webp) |
+| <img src="docs/screenshots/round.webp" width="240" alt="A round with a dog photo"> | <img src="docs/screenshots/lobby.webp" width="240" alt="Lobby with a QR code"> | <img src="docs/screenshots/podium.webp" width="240" alt="Podium and awards"> |
 
 ## Download
 
