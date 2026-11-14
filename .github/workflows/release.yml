@@ -159,6 +159,7 @@ jobs:
           cp -R app/build/ios/iphoneos/Runner.app dist/Payload/
           cd dist
           zip -qry WhoTook-unsigned.ipa Payload
+          rm -rf Payload
           cp WhoTook-unsigned.ipa "WhoTook-${VERSION}-unsigned.ipa"
           sha256sum WhoTook-unsigned.ipa > SHA256SUMS-ios.txt
           ls -lh
