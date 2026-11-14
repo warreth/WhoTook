@@ -127,7 +127,8 @@ class PhotoCandidate {
     required this.ownerId,
     this.bytes,
     this.isPlanted = false,
-    this.capturedAtMs,
+    this.capturedYear,
+    this.capturedMonth,
   });
 
   final String photoId;
@@ -136,9 +137,12 @@ class PhotoCandidate {
   final Uint8List? bytes;
   final bool isPlanted;
 
-  /// Capture time from the gallery, in milliseconds since epoch. Kept out of
-  /// every broadcast except the Time Traveler reveal so nobody can cheat.
-  final int? capturedAtMs;
+  /// Capture month from the gallery. Only the year and month are ever sent
+  /// over the wire, so a Time Traveler round cannot leak the full timestamp.
+  final int? capturedYear;
+  final int? capturedMonth;
+
+  bool get hasCaptureDate => capturedYear != null && capturedMonth != null;
 
   PhotoCandidate copyWith({
     String? photoId,
@@ -146,14 +150,16 @@ class PhotoCandidate {
     String? ownerId,
     Uint8List? bytes,
     bool? isPlanted,
-    int? capturedAtMs,
+    int? capturedYear,
+    int? capturedMonth,
   }) => PhotoCandidate(
     photoId: photoId ?? this.photoId,
     localAssetId: localAssetId ?? this.localAssetId,
     ownerId: ownerId ?? this.ownerId,
     bytes: bytes ?? this.bytes,
     isPlanted: isPlanted ?? this.isPlanted,
-    capturedAtMs: capturedAtMs ?? this.capturedAtMs,
+    capturedYear: capturedYear ?? this.capturedYear,
+    capturedMonth: capturedMonth ?? this.capturedMonth,
   );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -161,16 +167,28 @@ class PhotoCandidate {
     'localAssetId': localAssetId,
     'ownerId': ownerId,
     'isPlanted': isPlanted,
-    'capturedAtMs': capturedAtMs,
+    'capturedYear': capturedYear,
+    'capturedMonth': capturedMonth,
   };
 
-  factory PhotoCandidate.fromJson(Map<String, dynamic> json) => PhotoCandidate(
-    photoId: json['photoId'] as String,
-    localAssetId: (json['localAssetId'] as String?) ?? '',
-    ownerId: json['ownerId'] as String,
-    isPlanted: (json['isPlanted'] as bool?) ?? false,
-    capturedAtMs: json['capturedAtMs'] as int?,
-  );
+  factory PhotoCandidate.fromJson(Map<String, dynamic> json) {
+    var year = json['capturedYear'] as int?;
+    var month = json['capturedMonth'] as int?;
+    final legacy = json['capturedAtMs'];
+    if (legacy is int && (year == null || month == null)) {
+      final date = DateTime.fromMillisecondsSinceEpoch(legacy);
+      year ??= date.year;
+      month ??= date.month;
+    }
+    return PhotoCandidate(
+      photoId: json['photoId'] as String,
+      localAssetId: (json['localAssetId'] as String?) ?? '',
+      ownerId: json['ownerId'] as String,
+      isPlanted: (json['isPlanted'] as bool?) ?? false,
+      capturedYear: year,
+      capturedMonth: month,
+    );
+  }
 }
 
 enum RoundPhase {

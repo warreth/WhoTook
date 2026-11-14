@@ -464,9 +464,9 @@ class _PlantPickerSheetState extends ConsumerState<_PlantPickerSheet> {
         PickedPhoto(
           assetId: candidate.localAssetId,
           bytes: bytes,
-          capturedAt: candidate.capturedAtMs == null
-              ? null
-              : DateTime.fromMillisecondsSinceEpoch(candidate.capturedAtMs!),
+          capturedAt: candidate.hasCaptureDate
+              ? DateTime(candidate.capturedYear!, candidate.capturedMonth!, 1)
+              : null,
         ),
       );
     } on Object {
@@ -483,7 +483,8 @@ class _PlantPickerSheetState extends ConsumerState<_PlantPickerSheet> {
       await widget.coordinator.plantSecretPhoto(
         picked.assetId,
         picked.bytes,
-        capturedAtMs: picked.capturedAt?.millisecondsSinceEpoch,
+        capturedYear: picked.capturedAt?.year,
+        capturedMonth: picked.capturedAt?.month,
       );
     } else {
       await widget.coordinator.clientPlantPickedPhoto(
@@ -493,7 +494,8 @@ class _PlantPickerSheetState extends ConsumerState<_PlantPickerSheet> {
           ownerId: widget.localPlayerId ?? 'client',
           bytes: picked.bytes,
           isPlanted: true,
-          capturedAtMs: picked.capturedAt?.millisecondsSinceEpoch,
+          capturedYear: picked.capturedAt?.year,
+          capturedMonth: picked.capturedAt?.month,
         ),
       );
     }

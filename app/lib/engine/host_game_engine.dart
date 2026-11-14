@@ -381,7 +381,7 @@ class HostGameEngine {
         var mode = _mode == GameMode.mixedParty
             ? _mixedCycle[roundIndex % _mixedCycle.length]
             : _mode;
-        if (mode == GameMode.timeTraveler && photo.capturedAtMs == null) {
+        if (mode == GameMode.timeTraveler && !photo.hasCaptureDate) {
           mode = GameMode.classic;
         }
         entries.add(
@@ -748,11 +748,11 @@ class HostGameEngine {
       throw const EngineException('wrong_phase', 'not guessing a date');
     }
     final entry = _deck[_currentRound - 1];
-    final capturedAt = entry.photo.capturedAtMs;
-    if (capturedAt == null) {
+    final actualYear = entry.photo.capturedYear;
+    final actualMonth = entry.photo.capturedMonth;
+    if (actualYear == null || actualMonth == null) {
       throw const EngineException('no_date', 'photo has no capture date');
     }
-    final actual = DateTime.fromMillisecondsSinceEpoch(capturedAt);
     final deltas = <String, int>{
       for (final player in _players.values) player.id: 0,
     };
@@ -772,8 +772,8 @@ class HostGameEngine {
             playerId: player.id,
             playerName: player.name,
             points: 100,
-            year: actual.year,
-            month: actual.month,
+            year: actualYear,
+            month: actualMonth,
             monthsOff: 0,
             isOwner: true,
           ),
@@ -793,8 +793,7 @@ class HostGameEngine {
         continue;
       }
       final monthsOff =
-          ((guess.year - actual.year) * 12 + (guess.month - actual.month))
-              .abs();
+          ((guess.year - actualYear) * 12 + (guess.month - actualMonth)).abs();
       final accuracy = max(0, 1000 - monthsOff * 35);
       final speed = max(
         0,
@@ -839,8 +838,8 @@ class HostGameEngine {
       roundNumber: entry.roundNumber,
       photoId: entry.photo.photoId,
       ownerId: entry.ownerId,
-      actualYear: actual.year,
-      actualMonth: actual.month,
+      actualYear: actualYear,
+      actualMonth: actualMonth,
       entries: List<TimelineEntry>.unmodifiable(entries),
       scoreDeltas: Map<String, int>.unmodifiable(deltas),
       closestId: closestId,
