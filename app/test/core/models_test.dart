@@ -144,6 +144,29 @@ void main() {
     );
   });
 
+  test('photo metadata carries only the year and month', () {
+    final photo = PhotoCandidate(
+      photoId: 'p1',
+      localAssetId: 'a1',
+      ownerId: 'host',
+      capturedYear: 2019,
+      capturedMonth: 8,
+    );
+    final json = photo.toJson();
+    expect(json['capturedYear'], 2019);
+    expect(json['capturedMonth'], 8);
+    expect(json.containsKey('capturedAtMs'), isFalse);
+
+    final legacy = PhotoCandidate.fromJson(<String, dynamic>{
+      'photoId': 'p2',
+      'localAssetId': 'a2',
+      'ownerId': 'client',
+      'capturedAtMs': DateTime(2019, 8, 12).millisecondsSinceEpoch,
+    });
+    expect(legacy.capturedYear, 2019);
+    expect(legacy.capturedMonth, 8);
+  });
+
   test('enums cover the documented phases and modes', () {
     expect(RoundPhase.values, <RoundPhase>[
       RoundPhase.lobby,

@@ -1285,7 +1285,8 @@ class MatchCoordinator {
           localAssetId: picked[i].assetId,
           ownerId: 'host',
           bytes: picked[i].bytes,
-          capturedAtMs: picked[i].capturedAt?.millisecondsSinceEpoch,
+          capturedYear: picked[i].capturedAt?.year,
+          capturedMonth: picked[i].capturedAt?.month,
         ),
     ];
     _emit(
@@ -1316,7 +1317,8 @@ class MatchCoordinator {
       localAssetId: picked.first.assetId,
       ownerId: 'host',
       bytes: picked.first.bytes,
-      capturedAtMs: picked.first.capturedAt?.millisecondsSinceEpoch,
+      capturedYear: picked.first.capturedAt?.year,
+      capturedMonth: picked.first.capturedAt?.month,
     );
     final next = List<PhotoCandidate>.of(current)..[index] = replacement;
     _emit(_state.copyWith(candidates: next));
@@ -1343,7 +1345,8 @@ class MatchCoordinator {
           localAssetId: picked[i].assetId,
           ownerId: 'host',
           bytes: picked[i].bytes,
-          capturedAtMs: picked[i].capturedAt?.millisecondsSinceEpoch,
+          capturedYear: picked[i].capturedAt?.year,
+          capturedMonth: picked[i].capturedAt?.month,
         ),
     ];
     _emit(_state.copyWith(extensionCandidates: candidates));
@@ -1369,7 +1372,8 @@ class MatchCoordinator {
       localAssetId: picked.first.assetId,
       ownerId: 'host',
       bytes: picked.first.bytes,
-      capturedAtMs: picked.first.capturedAt?.millisecondsSinceEpoch,
+      capturedYear: picked.first.capturedAt?.year,
+      capturedMonth: picked.first.capturedAt?.month,
     );
     final next = List<PhotoCandidate>.of(current)..[index] = replacement;
     _emit(_state.copyWith(extensionCandidates: next));
@@ -1402,7 +1406,8 @@ class MatchCoordinator {
   Future<void> plantSecretPhoto(
     String assetId,
     Uint8List bytes, {
-    int? capturedAtMs,
+    int? capturedYear,
+    int? capturedMonth,
   }) async {
     final engine = _engine;
     if (engine == null) return;
@@ -1412,7 +1417,8 @@ class MatchCoordinator {
       ownerId: 'host',
       bytes: bytes,
       isPlanted: true,
-      capturedAtMs: capturedAtMs,
+      capturedYear: capturedYear,
+      capturedMonth: capturedMonth,
     );
     try {
       engine.plantSecretPhoto('host', photo);
@@ -1509,7 +1515,8 @@ class MatchCoordinator {
           localAssetId: picked[i].assetId,
           ownerId: 'host',
           bytes: picked[i].bytes,
-          capturedAtMs: picked[i].capturedAt?.millisecondsSinceEpoch,
+          capturedYear: picked[i].capturedAt?.year,
+          capturedMonth: picked[i].capturedAt?.month,
         ),
     ];
     _emit(_state.copyWith(extensionCandidates: candidates));
@@ -2003,7 +2010,8 @@ class MatchCoordinator {
           localAssetId: picked[i].assetId,
           ownerId: localId,
           bytes: picked[i].bytes,
-          capturedAtMs: picked[i].capturedAt?.millisecondsSinceEpoch,
+          capturedYear: picked[i].capturedAt?.year,
+          capturedMonth: picked[i].capturedAt?.month,
         ),
     ];
   }
@@ -2030,7 +2038,8 @@ class MatchCoordinator {
         localAssetId: picked.first.assetId,
         ownerId: localId,
         bytes: picked.first.bytes,
-        capturedAtMs: picked.first.capturedAt?.millisecondsSinceEpoch,
+        capturedYear: picked.first.capturedAt?.year,
+        capturedMonth: picked.first.capturedAt?.month,
       );
     _emit(_state.copyWith(candidates: next));
   }
@@ -2057,7 +2066,8 @@ class MatchCoordinator {
               localAssetId: picked[i].assetId,
               ownerId: localId,
               bytes: picked[i].bytes,
-              capturedAtMs: picked[i].capturedAt?.millisecondsSinceEpoch,
+              capturedYear: picked[i].capturedAt?.year,
+              capturedMonth: picked[i].capturedAt?.month,
             ),
         ],
       ),
@@ -2084,7 +2094,8 @@ class MatchCoordinator {
         localAssetId: picked.first.assetId,
         ownerId: localId,
         bytes: picked.first.bytes,
-        capturedAtMs: picked.first.capturedAt?.millisecondsSinceEpoch,
+        capturedYear: picked.first.capturedAt?.year,
+        capturedMonth: picked.first.capturedAt?.month,
       );
     _emit(_state.copyWith(extensionCandidates: next));
   }

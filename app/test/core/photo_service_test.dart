@@ -99,6 +99,22 @@ class FakePhotoLibraryService implements PhotoLibraryService {
 }
 
 void main() {
+  test('capture dates reject the Unix epoch and impossible months', () {
+    expect(
+      DevicePhotoLibraryService.isUsableCaptureDate(DateTime(1970, 1, 1)),
+      isFalse,
+    );
+    expect(
+      DevicePhotoLibraryService.isUsableCaptureDate(DateTime(2019, 8, 12)),
+      isTrue,
+    );
+    expect(
+      DevicePhotoLibraryService.isUsableCaptureDate(DateTime(3000, 1, 1)),
+      isFalse,
+    );
+    expect(DevicePhotoLibraryService.isUsableCaptureDate(null), isFalse);
+  });
+
   test('the fake honours album exclusions and already used assets', () async {
     final service = FakePhotoLibraryService(
       albums: const <AlbumSummary>[

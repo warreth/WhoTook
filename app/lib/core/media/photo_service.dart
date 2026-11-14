@@ -216,7 +216,7 @@ class DevicePhotoLibraryService implements PhotoLibraryService {
         }
         final photo = await _readAsset(asset);
         if (photo == null) continue;
-        if (requireDate && !_hasUsableDate(photo.capturedAt)) continue;
+        if (requireDate && !isUsableCaptureDate(photo.capturedAt)) continue;
         picked.add(photo);
       }
     }
@@ -289,17 +289,19 @@ class DevicePhotoLibraryService implements PhotoLibraryService {
       return PickedPhoto(
         assetId: asset.id,
         bytes: await compressPhoto(raw),
-        capturedAt: _hasUsableDate(capturedAt) ? capturedAt : null,
+        capturedAt: isUsableCaptureDate(capturedAt) ? capturedAt : null,
       );
     } on Exception {
       return null;
     }
   }
 
-  static bool _hasUsableDate(DateTime? value) {
+  static bool isUsableCaptureDate(DateTime? value) {
     if (value == null) return false;
     final year = value.year;
     if (year < 1970 || year > DateTime.now().year + 1) return false;
-    return value.month >= 1 && value.month <= 12;
+    if (value.month < 1 || value.month > 12) return false;
+    // Photo managers return the Unix epoch for photos without a capture date.
+    return !(year == 1970 && value.month == 1 && value.day == 1);
   }
 }

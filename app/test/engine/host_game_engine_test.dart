@@ -21,13 +21,8 @@ List<PhotoCandidate> photos(
     photoId: '$prefix-$ownerId-$i',
     localAssetId: 'asset-$ownerId-$i',
     ownerId: ownerId,
-    capturedAtMs: dated
-        ? DateTime(
-            2015 + (i % 6),
-            1 + ((i * 3) % 12),
-            12,
-          ).millisecondsSinceEpoch
-        : null,
+    capturedYear: dated ? 2015 + (i % 6) : null,
+    capturedMonth: dated ? 1 + ((i * 3) % 12) : null,
   ),
 );
 
@@ -300,9 +295,8 @@ void main() {
       final entry = engine.startRound();
       expect(entry.mode, GameMode.timeTraveler);
       expect(engine.phase, RoundPhase.timelineGuessing);
-      final actual = DateTime.fromMillisecondsSinceEpoch(
-        entry.photo.capturedAtMs!,
-      );
+      final actualYear = entry.photo.capturedYear!;
+      final actualMonth = entry.photo.capturedMonth!;
       final others = engine.players
           .where((player) => player.id != entry.ownerId)
           .toList();
@@ -313,11 +307,11 @@ void main() {
       }
       engine.submitTimelineGuess(
         playerId: exact.id,
-        year: actual.year,
-        month: actual.month,
+        year: actualYear,
+        month: actualMonth,
         elapsedMs: 1000,
       );
-      final farDate = DateTime(actual.year - 3, actual.month, 1);
+      final farDate = DateTime(actualYear - 3, actualMonth, 1);
       engine.submitTimelineGuess(
         playerId: far.id,
         year: farDate.year,
@@ -328,8 +322,8 @@ void main() {
 
       final reveal = engine.finishTimelineRound(durationMs: 30000);
       expect(engine.phase, RoundPhase.timelineReveal);
-      expect(reveal.actualYear, actual.year);
-      expect(reveal.actualMonth, actual.month);
+      expect(reveal.actualYear, actualYear);
+      expect(reveal.actualMonth, actualMonth);
       expect(reveal.closestId, exact.id);
       expect(reveal.furthestId, far.id);
       final exactEntry = reveal.entries.firstWhere(
