@@ -91,6 +91,23 @@ void main() {
     );
   });
 
+  testWidgets('prepare full set', (tester) async {
+    final photos = _fixturePhotos();
+    for (final photo in photos) {
+      await _precachePhoto(tester, photo);
+    }
+    await _pump(
+      tester,
+      const PrepareScreen(),
+      _settings(),
+      state: _prepareState(photos, count: 16, needed: 16),
+    );
+    await expectLater(
+      find.byType(PrepareScreen),
+      matchesGoldenFile('goldens/prepare-full-set.png'),
+    );
+  });
+
   testWidgets('round', (tester) async {
     final photo = _fixturePhoto('party-dog');
     await _precachePhoto(tester, photo);
@@ -371,15 +388,19 @@ List<Uint8List> _fixturePhotos() => <Uint8List>[
   _fixturePhoto('party-pizza'),
 ];
 
-MatchUiState _prepareState(List<Uint8List> photos) => MatchUiState(
+MatchUiState _prepareState(
+  List<Uint8List> photos, {
+  int count = 4,
+  int needed = 4,
+}) => MatchUiState(
   isHosting: true,
   roomId: 'k8m2p9x4',
   localPlayerId: 'host',
   players: _players(),
   phase: RoundPhase.preparing,
-  photosNeeded: 4,
+  photosNeeded: needed,
   candidates: <PhotoCandidate>[
-    for (var i = 0; i < 4; i++)
+    for (var i = 0; i < count; i++)
       PhotoCandidate(
         photoId: 'p$i',
         localAssetId: 'a$i',

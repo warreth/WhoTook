@@ -1372,8 +1372,48 @@ class MatchCoordinator {
           candidates: _state.candidates.take(engine.photosNeeded).toList(),
         ),
       );
+    } else if (_state.candidates.length < engine.photosNeeded) {
+      // The host picked a starter set before the room opened. Now that the
+      // player count is known, fill the set so the review screen shows every
+      // photo that will go into the deck.
+      await _topUpHostCandidates(engine.photosNeeded);
     }
     _emit(_state.copyWith(clearLoading: true));
+  }
+
+  Future<void> _topUpHostCandidates(int target) async {
+    final current = _state.candidates;
+    final missing = target - current.length;
+    if (missing <= 0) return;
+    final picked = await _photos.sampleCandidates(
+      excludedAlbumIds: _settingsValue.excludedAlbumIds,
+      count: missing,
+      excludeAssetIds: current.map((c) => c.localAssetId).toSet(),
+      requireDate: _needsPhotoDates,
+    );
+    if (picked.isEmpty) {
+      if (_needsPhotoDates) {
+        _emit(_state.copyWith(errorMessage: _noDatedPhotosMessage));
+      }
+      return;
+    }
+    final added = <PhotoCandidate>[
+      for (var i = 0; i < picked.length; i++)
+        PhotoCandidate(
+          photoId: 'host-${current.length + i}-${picked[i].assetId}',
+          localAssetId: picked[i].assetId,
+          ownerId: 'host',
+          bytes: picked[i].bytes,
+          capturedYear: picked[i].capturedAt?.year,
+          capturedMonth: picked[i].capturedAt?.month,
+        ),
+    ];
+    _emit(
+      _state.copyWith(
+        candidates: <PhotoCandidate>[...current, ...added],
+        clearError: true,
+      ),
+    );
   }
 
   Future<void> rerollCandidates() async {
