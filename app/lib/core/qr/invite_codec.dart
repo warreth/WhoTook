@@ -169,7 +169,8 @@ InvitePayload _decodeBody(String body) {
 InvitePayload? _tryBase64Json(String body) {
   final List<int> bytes;
   try {
-    bytes = base64Url.decode(base64Url.normalize(body));
+    final cleaned = body.replaceAll(RegExp(r'=+$'), '');
+    bytes = base64Url.decode(base64Url.normalize(cleaned));
   } on FormatException {
     return null;
   }
