@@ -753,6 +753,7 @@ class MatchCoordinator {
     _roundTimer?.cancel();
     _countdownTicker?.cancel();
     final reveal = engine.finishRound();
+    unawaited(HapticFeedback.mediumImpact());
     await _hostTransport?.broadcast(
       WireMessage(
         type: WireType.roundReveal,
@@ -1010,6 +1011,7 @@ class MatchCoordinator {
   Future<void> submitGuess(String guessedOwnerId) async {
     final engine = _engine;
     if (engine == null || _state.lockedGuessOwnerId != null) return;
+    unawaited(HapticFeedback.selectionClick());
     final elapsed = DateTime.now().millisecondsSinceEpoch - _roundStartMs;
     engine.submitGuess('host', guessedOwnerId, elapsed);
     _emit(_state.copyWith(lockedGuessOwnerId: guessedOwnerId));
@@ -1407,6 +1409,7 @@ class MatchCoordinator {
           ),
         );
       case WireType.roundReveal:
+        unawaited(HapticFeedback.mediumImpact());
         final reveal = RoundReveal.fromJson(payload);
         final updated = <Player>[
           for (final player in _state.players)
@@ -1457,6 +1460,7 @@ class MatchCoordinator {
         );
         _emit(_state.copyWith(extensionCandidates: drawn));
       case WireType.gamePodium:
+        unawaited(HapticFeedback.heavyImpact());
         final awards = <MatchAward>[
           for (final entry in (payload['awards'] as List<dynamic>? ?? const []))
             if (entry is Map<String, dynamic>) MatchAward.fromJson(entry),
@@ -1649,6 +1653,7 @@ class MatchCoordinator {
   Future<void> clientSubmitGuess(String guessedOwnerId) async {
     final transport = _clientTransport;
     if (transport == null || _state.lockedGuessOwnerId != null) return;
+    unawaited(HapticFeedback.selectionClick());
     final elapsed = DateTime.now().millisecondsSinceEpoch - _roundStartMs;
     await transport.send(
       WireMessage(
