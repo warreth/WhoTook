@@ -169,7 +169,7 @@ class _CameraUnavailable extends StatelessWidget {
       alignment: Alignment.center,
       padding: const EdgeInsets.all(AppSpacing.s24),
       child: const NoticeBanner(
-        message: 'Camera unavailable. Allow camera access in system settings or paste an invite link below.',
+        message: 'Camera unavailable. Allow access or paste a link below.',
         tone: StatusTone.warning,
         icon: Icons.no_photography_outlined,
       ),

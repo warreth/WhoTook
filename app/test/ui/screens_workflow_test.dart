@@ -10,6 +10,7 @@ import 'package:whotook/core/theme/whotook_theme.dart';
 import 'package:whotook/state/match_coordinator.dart';
 import 'package:whotook/state/providers.dart';
 import 'package:whotook/ui/screens/extend_screen.dart';
+import 'package:whotook/ui/screens/podium_screen.dart';
 import 'package:whotook/ui/screens/round_screen.dart';
 import 'package:whotook/ui/screens/settings_screen.dart';
 import 'package:whotook/ui/widgets/common.dart';
@@ -60,15 +61,37 @@ void main() {
     expect(find.text('5 more rounds'), findsOneWidget);
     expect(find.text('42s'), findsOneWidget);
     expect(
-      find.text(
-        'Swap anything you want before time runs out. Unapproved frames auto-approve at zero.',
-      ),
+      find.text('Swap anything you like before the timer ends.'),
       findsOneWidget,
     );
     expect(find.byType(NumberTag), findsNWidgets(3));
     expect(find.text('Swap'), findsNWidgets(3));
     expect(find.text('01'), findsOneWidget);
     expect(find.text('Approve'), findsOneWidget);
+  });
+
+  testWidgets('podium crowns a champion and offers one more round', (
+    tester,
+  ) async {
+    await _pumpMatchScreen(tester, const PodiumScreen(), _podiumState());
+    await tester.pump(const Duration(milliseconds: 1600));
+
+    expect(find.text('CHAMPION'), findsOneWidget);
+    expect(find.text('Lotte'), findsWidgets);
+    expect(find.text('3410 pts'), findsOneWidget);
+    expect(find.text('One more round (5)'), findsOneWidget);
+  });
+
+  testWidgets('reveal builds suspense, then names the owner', (tester) async {
+    await _pumpMatchScreen(tester, const RoundScreen(), _revealState());
+
+    expect(find.text('Who took it?'), findsOneWidget);
+    expect(find.text('Shot by Lotte'), findsNothing);
+
+    await tester.pump(const Duration(milliseconds: 750));
+
+    expect(find.text('Shot by Lotte'), findsOneWidget);
+    expect(find.text('You got it. +820'), findsOneWidget);
   });
 
   testWidgets('settings saves the nickname while typing and opens the relay', (
@@ -170,6 +193,54 @@ class _RecordingSettings extends AppSettingsController {
     state = AsyncData<AppSettings>(next);
   }
 }
+
+MatchUiState _podiumState() => MatchUiState(
+  isHosting: true,
+  roomId: 'k8m2p9x4',
+  localPlayerId: 'host',
+  players: _players(),
+  phase: RoundPhase.podium,
+  currentRound: 10,
+  totalRounds: 10,
+  awards: const <MatchAward>[
+    MatchAward(
+      kind: MatchAwardKind.champion,
+      playerId: 'c1',
+      playerName: 'Lotte',
+      value: 3410,
+    ),
+  ],
+);
+
+MatchUiState _revealState() => MatchUiState(
+  isHosting: true,
+  roomId: 'k8m2p9x4',
+  localPlayerId: 'host',
+  players: _players(),
+  phase: RoundPhase.reveal,
+  currentRound: 3,
+  totalRounds: 10,
+  lastReveal: RoundReveal(
+    roundNumber: 3,
+    ownerId: 'c1',
+    photoId: 'p1',
+    isPlanted: false,
+    guesses: const <GuessRecord>[
+      GuessRecord(
+        playerId: 'host',
+        guessedOwnerId: 'c1',
+        elapsedMs: 1200,
+        isCorrect: true,
+        isOwnPhoto: false,
+        pointsAwarded: 820,
+      ),
+    ],
+    scoreDeltas: const <String, int>{'host': 820},
+    streaks: const <String, int>{'host': 2},
+    nobodyGuessed: false,
+    everyoneGuessed: true,
+  ),
+);
 
 List<Player> _players() => <Player>[
   Player(id: 'host', name: 'Bram', isHost: true, score: 2410),

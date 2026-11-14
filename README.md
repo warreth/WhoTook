@@ -6,9 +6,9 @@ QR code, and each round shows a photo while the table races to guess who took it
 [![CI](https://github.com/warreth/WhoTook/actions/workflows/ci.yml/badge.svg)](https://github.com/warreth/WhoTook/actions/workflows/ci.yml)
 [![Release](https://github.com/warreth/WhoTook/actions/workflows/release.yml/badge.svg)](https://github.com/warreth/WhoTook/actions/workflows/release.yml)
 
-| Round | Lobby | Podium |
-| --- | --- | --- |
-| <img src="docs/screenshots/round.webp" width="240" alt="A round with a dog photo"> | <img src="docs/screenshots/lobby.webp" width="240" alt="Lobby with a QR code"> | <img src="docs/screenshots/podium.webp" width="240" alt="Podium and awards"> |
+| Round | Lobby | Pick your photos | Podium |
+| --- | --- | --- | --- |
+| <img src="docs/screenshots/round.webp" width="190" alt="A round with a dog photo"> | <img src="docs/screenshots/lobby.webp" width="190" alt="Lobby with a QR code"> | <img src="docs/screenshots/prepare.webp" width="190" alt="Contact sheet with four different photos"> | <img src="docs/screenshots/podium.webp" width="190" alt="Podium and awards"> |
 
 ## Download
 
@@ -90,5 +90,7 @@ certificate, not the upload key.
 | `cloudflare-signaling/` | Worker, Durable Objects, website and invite page |
 | `.github/workflows/` | CI and release automation |
 
-The code is [AGPLv3](LICENSE). Issues and pull requests are welcome at
+The code is [AGPLv3](LICENSE). The **WhoTook** name and the viewfinder logo are
+trademarks: forks are welcome, but a distributed fork needs its own name and
+icon. See [TRADEMARK.md](TRADEMARK.md). Issues and pull requests are welcome at
 [github.com/warreth/WhoTook](https://github.com/warreth/WhoTook).

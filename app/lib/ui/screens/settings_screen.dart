@@ -320,7 +320,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: AppSpacing.s24),
             const SectionLabel('Online relay'),
             Text(
-              'Local Wi-Fi and hotspots never touch a server. Online play uses a small relay, limited per network each day so it stays free.',
+              'Local play never uses a server. Online play uses a small relay for friends elsewhere.',
               style: TextStyle(fontSize: 13, color: colors.ink2, height: 1.45),
             ),
             const SizedBox(height: AppSpacing.s12),
@@ -438,8 +438,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Divider(color: colors.hairline, height: 1),
             const SizedBox(height: AppSpacing.s12),
             Text(
-              'WhoTook is open source under the AGPLv3. Photos are processed on device and never stored on a server.',
+              'Open source under the AGPLv3. Photos stay on your phone.',
               style: TextStyle(fontSize: 13, color: colors.ink2, height: 1.45),
+            ),
+            const SizedBox(height: AppSpacing.s8),
+            Text(
+              'WhoTook™ is a trademark of the project owner.',
+              style: TextStyle(fontSize: 12, color: colors.ink3, height: 1.4),
             ),
           ],
         ),

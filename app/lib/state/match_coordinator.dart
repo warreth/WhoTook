@@ -1012,6 +1012,7 @@ class MatchCoordinator {
     final engine = _engine;
     if (engine == null || _state.lockedGuessOwnerId != null) return;
     unawaited(HapticFeedback.selectionClick());
+    unawaited(SystemSound.play(SystemSoundType.click));
     final elapsed = DateTime.now().millisecondsSinceEpoch - _roundStartMs;
     engine.submitGuess('host', guessedOwnerId, elapsed);
     _emit(_state.copyWith(lockedGuessOwnerId: guessedOwnerId));
@@ -1654,6 +1655,7 @@ class MatchCoordinator {
     final transport = _clientTransport;
     if (transport == null || _state.lockedGuessOwnerId != null) return;
     unawaited(HapticFeedback.selectionClick());
+    unawaited(SystemSound.play(SystemSoundType.click));
     final elapsed = DateTime.now().millisecondsSinceEpoch - _roundStartMs;
     await transport.send(
       WireMessage(

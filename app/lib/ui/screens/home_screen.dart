@@ -108,7 +108,7 @@ class HomeScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.s16),
               if (state.turnLimitNotice != null) ...<Widget>[
                 NoticeBanner(
-                  message: 'Online relay is used up for today. Join the same Wi-Fi or a hotspot to keep playing.',
+                  message: 'Online relay is used up today. Use the same Wi-Fi to keep playing.',
                   tone: StatusTone.warning,
                   icon: Icons.wifi_tethering,
                 ),
@@ -130,7 +130,7 @@ class HomeScreen extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.s12),
               Text(
-                'Photos stay on your device and go only to the players in the match.',
+                'Photos stay with the players in the match.',
                 style: TextStyle(fontSize: 13, color: colors.ink2, height: 1.4),
               ),
             ],

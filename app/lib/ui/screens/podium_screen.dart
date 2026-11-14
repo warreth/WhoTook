@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,16 +9,52 @@ import '../../core/theme/whotook_theme.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
 
-class PodiumScreen extends ConsumerWidget {
+/// The finish line: a champion print, a two-step podium and one burst of
+/// paper confetti. The animation runs once and stops, so nothing loops.
+class PodiumScreen extends ConsumerStatefulWidget {
   const PodiumScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PodiumScreen> createState() => _PodiumScreenState();
+}
+
+class _PodiumScreenState extends ConsumerState<PodiumScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _stage;
+  late final List<_ConfettiPiece> _confetti = _buildConfetti();
+
+  @override
+  void initState() {
+    super.initState();
+    _stage = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..forward();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.maybeOf(context)?.disableAnimations ?? false) {
+      _stage.value = 1;
+    }
+  }
+
+  @override
+  void dispose() {
+    _stage.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
     final coordinator = ref.read(matchCoordinatorProvider);
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
     final board = state.leaderboard;
     final top = board.take(3).toList();
+    final champion = top.isEmpty ? null : top.first;
+    final runners = top.skip(1).toList();
 
     return Scaffold(
       body: SafeArea(
@@ -51,32 +88,58 @@ class PodiumScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: AppSpacing.s16),
-            SurfaceCard(
-              child: SizedBox(
-                height: 252,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: <Widget>[
-                    if (top.length > 1)
-                      _PodiumBar(
-                        player: top[1],
-                        place: 2,
-                        topScore: top[0].score,
+            SizedBox(
+              height: 304,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: <Widget>[
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: CustomPaint(
+                        painter: _ConfettiPainter(
+                          pieces: _confetti,
+                          progress: _stage,
+                          colors: colors,
+                        ),
                       ),
-                    if (top.isNotEmpty)
-                      _PodiumBar(
-                        player: top[0],
-                        place: 1,
-                        topScore: top[0].score,
+                    ),
+                  ),
+                  if (champion != null)
+                    Align(
+                      alignment: Alignment.topCenter,
+                      child: ScaleTransition(
+                        scale: CurvedAnimation(
+                          parent: _stage,
+                          curve: const Interval(
+                            0,
+                            0.55,
+                            curve: Curves.easeOutBack,
+                          ),
+                        ),
+                        child: _ChampionPrint(player: champion),
                       ),
-                    if (top.length > 2)
-                      _PodiumBar(
-                        player: top[2],
-                        place: 3,
-                        topScore: top[0].score,
+                    ),
+                  if (runners.isNotEmpty)
+                    Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          for (var i = 0; i < runners.length; i++)
+                            SizedBox(
+                              width: 140,
+                              child: _RunnerUp(
+                                player: runners[i],
+                                place: i + 2,
+                                topScore: champion?.score ?? 0,
+                                stage: _stage,
+                                delay: i == 0 ? 0.18 : 0.28,
+                              ),
+                            ),
+                        ],
                       ),
-                  ],
-                ),
+                    ),
+                ],
               ),
             ),
             const SizedBox(height: AppSpacing.s16),
@@ -108,30 +171,29 @@ class PodiumScreen extends ConsumerWidget {
             const SizedBox(height: AppSpacing.s16),
             if (state.isHosting) ...<Widget>[
               PrimaryButton(
-                label: 'Keep playing, 5 more rounds',
+                label: 'One more round (5)',
+                icon: Icons.replay,
                 onPressed: () => unawaited(coordinator.extendMatch()),
               ),
               const SizedBox(height: AppSpacing.s12),
               SecondaryButton(
-                label: 'Play again with the same players',
-                icon: Icons.replay,
+                label: 'Play again',
                 onPressed: () => unawaited(coordinator.playAgain()),
               ),
               const SizedBox(height: AppSpacing.s12),
               SecondaryButton(
-                label: 'Leave the match',
+                label: 'Leave',
                 onPressed: () => unawaited(coordinator.leaveMatch()),
               ),
             ] else
               NoticeBanner(
-                message: 'The host decides whether to play on',
+                message: 'Waiting for the host',
                 icon: Icons.hourglass_empty,
               ),
             if (state.screenshotAlerts.isNotEmpty) ...<Widget>[
               const SizedBox(height: AppSpacing.s16),
               NoticeBanner(
-                message:
-                    'Screenshots this match: ${state.screenshotAlerts.length}',
+                message: 'Screenshots: ${state.screenshotAlerts.length}',
                 icon: Icons.camera_alt_outlined,
               ),
             ],
@@ -142,64 +204,225 @@ class PodiumScreen extends ConsumerWidget {
   }
 }
 
-class _PodiumBar extends StatelessWidget {
-  const _PodiumBar({
+class _ChampionPrint extends StatelessWidget {
+  const _ChampionPrint({required this.player});
+
+  final Player player;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    return Semantics(
+      label: 'Champion ${player.name}, ${player.score} points',
+      child: Transform.rotate(
+        angle: -0.022,
+        child: Container(
+          width: 244,
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.s16,
+            AppSpacing.s12,
+            AppSpacing.s16,
+            AppSpacing.s12,
+          ),
+          decoration: BoxDecoration(
+            color: colors.card,
+            borderRadius: BorderRadius.circular(AppRadii.rCard),
+            border: Border.all(color: colors.hairline),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: colors.ink.withValues(alpha: 0.10),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: <Widget>[
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: CropFrameOverlay(
+                    color: colors.ink3,
+                    inset: 2,
+                    armLength: 10,
+                  ),
+                ),
+              ),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      PlayerAvatar(
+                        initial: player.name,
+                        isHost: player.isHost,
+                        size: 42,
+                      ),
+                      const Spacer(),
+                      Transform.rotate(
+                        angle: 0.06,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: colors.accent),
+                            borderRadius: BorderRadius.circular(AppRadii.rSm),
+                          ),
+                          child: Text(
+                            'CHAMPION',
+                            style: TextStyle(
+                              fontFamily: 'JetBrainsMono',
+                              fontSize: 9,
+                              letterSpacing: 0.9,
+                              color: colors.accent,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.s8),
+                  Text(
+                    player.name,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 21,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.4,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${player.score} pts',
+                    style: tabularFigures(
+                      TextStyle(
+                        fontFamily: 'JetBrainsMono',
+                        fontSize: 24,
+                        fontWeight: FontWeight.w500,
+                        color: colors.ink,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.s8),
+                  Container(
+                    width: 34,
+                    height: 3,
+                    decoration: BoxDecoration(
+                      color: colors.accent,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RunnerUp extends StatelessWidget {
+  const _RunnerUp({
     required this.player,
     required this.place,
     required this.topScore,
+    required this.stage,
+    required this.delay,
   });
 
   final Player player;
   final int place;
   final int topScore;
+  final Animation<double> stage;
+  final double delay;
 
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
-    final tallest = 132.0;
     final share = topScore <= 0 ? 0.0 : player.score / topScore;
-    final height = (56 + 76 * share).clamp(56.0, tallest);
-    return Expanded(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: <Widget>[
-          PlayerAvatar(initial: player.name, isHost: player.isHost, size: 32),
-          const SizedBox(height: AppSpacing.s8),
-          Text(
-            player.name,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            '${player.score}',
-            style: tabularFigures(
-              TextStyle(
-                fontFamily: 'JetBrainsMono',
-                fontSize: 12,
-                color: colors.ink2,
-              ),
+    final height = (44 + 58 * share).clamp(44.0, 102.0);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Text(
+          player.name,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          '${player.score}',
+          style: tabularFigures(
+            TextStyle(
+              fontFamily: 'JetBrainsMono',
+              fontSize: 12,
+              color: colors.ink2,
             ),
           ),
-          const SizedBox(height: AppSpacing.s8),
-          TweenAnimationBuilder<double>(
-            tween: Tween<double>(begin: 0, end: height),
-            duration: const Duration(milliseconds: 550),
-            curve: Curves.easeOutCubic,
-            builder: (context, value, _) => Container(
-              height: value,
-              margin: const EdgeInsets.symmetric(horizontal: AppSpacing.s4),
+        ),
+        const SizedBox(height: AppSpacing.s8),
+        AnimatedBuilder(
+          animation: stage,
+          builder: (context, _) {
+            final raw = ((stage.value - delay) / (0.86 - delay)).clamp(
+              0.0,
+              1.0,
+            );
+            final value = Curves.easeOutCubic.transform(raw);
+            return Container(
+              height: height * value,
+              margin: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
+              clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
-                color: place == 1 ? colors.accent : colors.raised,
+                color: colors.raised,
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(AppRadii.rSm),
                 ),
                 border: Border.all(color: colors.hairline),
               ),
-            ),
-          ),
-        ],
-      ),
+              child: Stack(
+                children: <Widget>[
+                  Positioned(
+                    top: 6,
+                    left: 0,
+                    right: 0,
+                    child: Text(
+                      '$place',
+                      textAlign: TextAlign.center,
+                      style: tabularFigures(
+                        TextStyle(
+                          fontFamily: 'JetBrainsMono',
+                          fontSize: 11,
+                          color: colors.ink3,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 2,
+                    child: Text(
+                      '$place',
+                      textAlign: TextAlign.center,
+                      style: tabularFigures(
+                        TextStyle(
+                          fontFamily: 'JetBrainsMono',
+                          fontSize: 44,
+                          height: 1,
+                          color: colors.ink3.withValues(alpha: 0.18),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 }
@@ -259,4 +482,102 @@ class _AwardRow extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ConfettiPiece {
+  const _ConfettiPiece({
+    required this.x,
+    required this.delay,
+    required this.speed,
+    required this.size,
+    required this.rotation,
+    required this.spin,
+    required this.phase,
+    required this.tone,
+    required this.circle,
+  });
+
+  final double x;
+  final double delay;
+  final double speed;
+  final double size;
+  final double rotation;
+  final double spin;
+  final double phase;
+  final int tone;
+  final bool circle;
+}
+
+List<_ConfettiPiece> _buildConfetti() {
+  final random = Random(14);
+  return <_ConfettiPiece>[
+    for (var i = 0; i < 34; i++)
+      _ConfettiPiece(
+        x: random.nextDouble(),
+        delay: random.nextDouble() * 0.22,
+        speed: 0.62 + random.nextDouble() * 0.5,
+        size: 4 + random.nextDouble() * 5,
+        rotation: random.nextDouble() * pi,
+        spin: (random.nextDouble() - 0.5) * 5,
+        phase: random.nextDouble() * 6,
+        tone: random.nextInt(4),
+        circle: random.nextInt(5) == 0,
+      ),
+  ];
+}
+
+class _ConfettiPainter extends CustomPainter {
+  _ConfettiPainter({
+    required this.pieces,
+    required this.progress,
+    required this.colors,
+  }) : super(repaint: progress);
+
+  final List<_ConfettiPiece> pieces;
+  final Animation<double> progress;
+  final WhoTookColors colors;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final t = progress.value;
+    if (t <= 0 || t >= 1) return;
+    final palette = <Color>[
+      colors.accent,
+      colors.ink,
+      colors.ink3,
+      colors.positive,
+    ];
+    for (final piece in pieces) {
+      final local = ((t - piece.delay) / (1 - piece.delay)).clamp(0.0, 1.0);
+      if (local <= 0) continue;
+      final y = -16 + local * (size.height + 28) * piece.speed;
+      final x = piece.x * size.width + sin(local * 9 + piece.phase) * 10;
+      final opacity = (1 - local).clamp(0.0, 1.0);
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate(piece.rotation + local * piece.spin);
+      final paint = Paint()
+        ..color = palette[piece.tone].withValues(alpha: opacity * 0.9);
+      if (piece.circle) {
+        canvas.drawCircle(Offset.zero, piece.size / 2, paint);
+      } else {
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromCenter(
+              center: Offset.zero,
+              width: piece.size,
+              height: piece.size * 0.55,
+            ),
+            const Radius.circular(1.5),
+          ),
+          paint,
+        );
+      }
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ConfettiPainter oldDelegate) =>
+      oldDelegate.colors != colors || oldDelegate.pieces != pieces;
 }

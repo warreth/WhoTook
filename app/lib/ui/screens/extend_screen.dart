@@ -50,7 +50,7 @@ class ExtendScreen extends ConsumerWidget {
             ),
             const SizedBox(height: AppSpacing.s4),
             Text(
-              'Swap anything you want before time runs out. Unapproved frames auto-approve at zero.',
+              'Swap anything you like before the timer ends.',
               style: TextStyle(fontSize: 13, color: colors.ink2, height: 1.4),
             ),
             const SizedBox(height: AppSpacing.s16),

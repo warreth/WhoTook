@@ -54,7 +54,7 @@ class PrepareScreen extends ConsumerWidget {
             ),
             const SizedBox(height: AppSpacing.s4),
             Text(
-              'Swap anything you would rather not share. Nothing is shown to the group yet.',
+              'Swap anything you would rather keep out.',
               style: TextStyle(fontSize: 13, color: colors.ink2, height: 1.4),
             ),
             const SizedBox(height: AppSpacing.s16),
