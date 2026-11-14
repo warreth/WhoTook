@@ -12,6 +12,7 @@ private/
 .dev.vars
 *.keystore
 *.jks
+key.properties
 *.p8
 *.p12
 *.mobileprovision

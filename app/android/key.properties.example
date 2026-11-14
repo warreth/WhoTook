@@ -1,0 +1,6 @@
+# Copy to app/android/key.properties (git-ignored) to sign release builds.
+# storeFile is relative to app/android/ unless you give an absolute path.
+storeFile=../keys/upload-keystore.jks
+storePassword=<your-store-password>
+keyAlias=whotook
+keyPassword=<your-key-password>
