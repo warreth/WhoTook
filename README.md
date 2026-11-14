@@ -70,42 +70,6 @@ npm test
 npx wrangler dev
 ```
 
-## Store releases
-
-The `Release` workflow builds a signed APK and AAB, plus an unsigned IPA for
-SideStore and AltStore, on every `v*` tag and attaches them to a GitHub release. Bump `version` in `app/pubspec.yaml` before tagging; the
-workflow refuses a tag that does not match. Google Play and App Store uploads are optional and skip
-when their secrets are missing. Add them when the listings are ready:
-
-| Secret | Purpose |
-| --- | --- |
-| `PLAY_SERVICE_ACCOUNT_JSON` | Google Play service account JSON |
-| `IOS_DIST_CERT_P12_BASE64` | Apple distribution certificate (base64) |
-| `IOS_DIST_CERT_PASSWORD` | Certificate password |
-| `IOS_PROVISIONING_PROFILE_BASE64` | App Store provisioning profile (base64) |
-| `IOS_TEAM_ID` | Apple Developer Team ID |
-| `APPSTORE_API_KEY_ID` | App Store Connect API key ID |
-| `APPSTORE_API_ISSUER_ID` | App Store Connect issuer ID |
-| `APPSTORE_API_PRIVATE_KEY` | App Store Connect `.p8` contents |
-
-The SideStore and AltStore source lives at `cloudflare-signaling/public/altstore.json`.
-Keep its `version`, `buildVersion` and `size` in sync with the IPA in each release;
-the download URL already points at the stable `WhoTook-unsigned.ipa` asset.
-
-Android signing uses `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`,
-`ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD`. The App Links fingerprint in
-`cloudflare-signaling/wrangler.jsonc` must match the certificate that ends up on
-the phone. With Play App Signing, that is the Play Console app signing
-certificate, not the upload key.
-
-## Repository
-
-| Path | Contents |
-| --- | --- |
-| `app/` | Flutter app, Android 7.0+ and iOS 15+ |
-| `cloudflare-signaling/` | Worker, Durable Objects, website and invite page |
-| `.github/workflows/` | CI and release automation |
-
 The code is [AGPLv3](LICENSE). The **WhoTook** name and the viewfinder logo are
 trademarks: forks are welcome, but a distributed fork needs its own name and
 icon. See [TRADEMARK.md](TRADEMARK.md). Issues and pull requests are welcome at
