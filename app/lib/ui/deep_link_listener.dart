@@ -6,8 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/providers.dart';
 
-/// Routes an invite opened from a chat app into the join flow. The link is
-/// handled once per URI so a rebuild never joins twice.
+/// Routes an invite opened from a chat app into the join flow. Duplicate
+/// initial and stream events are ignored, but a deliberate re-tap works once
+/// the previous attempt has failed and left the room unset.
 class DeepLinkListener extends ConsumerStatefulWidget {
   const DeepLinkListener({super.key, required this.child});
 
@@ -18,9 +19,12 @@ class DeepLinkListener extends ConsumerStatefulWidget {
 }
 
 class _DeepLinkListenerState extends ConsumerState<DeepLinkListener> {
+  static const Duration _duplicateWindow = Duration(seconds: 2);
+
   final AppLinks _links = AppLinks();
   StreamSubscription<Uri>? _subscription;
   String? _handled;
+  DateTime? _handledAt;
 
   @override
   void initState() {
@@ -43,9 +47,19 @@ class _DeepLinkListenerState extends ConsumerState<DeepLinkListener> {
 
   void _handle(Uri uri) {
     final raw = uri.toString();
-    if (raw == _handled) return;
-    _handled = raw;
     final coordinator = ref.read(matchCoordinatorProvider);
+    final now = DateTime.now();
+    final handledAt = _handledAt;
+    final insideWindow =
+        handledAt != null && now.difference(handledAt) < _duplicateWindow;
+    // The initial link and the stream often deliver the same URI. Ignore the
+    // repeat while a join is in flight, but allow a deliberate re-tap once the
+    // previous attempt failed and left the room unset.
+    if (raw == _handled && (coordinator.state.roomId != null || insideWindow)) {
+      return;
+    }
+    _handled = raw;
+    _handledAt = now;
     if (coordinator.state.roomId != null) return;
     unawaited(coordinator.joinMatch(raw));
   }

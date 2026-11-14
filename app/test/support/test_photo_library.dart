@@ -56,5 +56,40 @@ class TestPhotoLibrary implements PhotoLibraryService {
   )).first;
 
   @override
+  Future<List<AlbumPhotoThumb>> listAlbumPhotos(
+    String albumId, {
+    int page = 0,
+    int size = 36,
+  }) async {
+    final total = albumId == 'screenshots' ? 4 : assetsPerAlbum;
+    final start = page < 0 ? 0 : page * size;
+    if (start >= total || size <= 0) return const <AlbumPhotoThumb>[];
+    final end = (start + size) > total ? total : start + size;
+    return <AlbumPhotoThumb>[
+      for (var i = start; i < end; i++)
+        AlbumPhotoThumb(
+          assetId: '$albumId-$_seed-$i',
+          thumbnailBytes: Uint8List.fromList(<int>[
+            (i * 13) % 251,
+            (i * 7) % 251,
+            40,
+            40,
+          ]),
+        ),
+    ];
+  }
+
+  @override
+  Future<PickedPhoto?> loadPhotoById(String assetId) async {
+    final digits = RegExp(r'(\d+)$').firstMatch(assetId)?.group(1);
+    final seed = digits == null ? 0 : int.parse(digits);
+    final byte = (seed * 37) % 251;
+    return PickedPhoto(
+      assetId: assetId,
+      bytes: Uint8List.fromList(<int>[byte, byte, byte, byte]),
+    );
+  }
+
+  @override
   Future<Uint8List> compressPhoto(Uint8List raw) async => raw;
 }

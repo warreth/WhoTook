@@ -89,11 +89,11 @@ class InvitePayload {
   static final RegExp _secretPattern = RegExp(r'^[A-Za-z0-9_-]{8,128}$');
 }
 
-/// Encodes an invite as `https://whotook.app/j#<base64url(JSON)>`. Padding is
+/// Encodes an invite as `https://whotook.party/j#<base64url(JSON)>`. Padding is
 /// dropped so the fragment stays inside QR alphanumeric mode.
 String encodeInviteUrl(
   InvitePayload payload, {
-  String baseUrl = 'https://whotook.app/j',
+  String baseUrl = 'https://whotook.party/j',
 }) {
   final body = base64Url
       .encode(utf8.encode(jsonEncode(payload.toJson())))

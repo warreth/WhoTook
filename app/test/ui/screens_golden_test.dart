@@ -187,7 +187,7 @@ List<Player> _players() => <Player>[
 MatchUiState _lobbyState() => MatchUiState(
   isHosting: true,
   roomId: 'k8m2p9x4',
-  inviteUrl: 'https://whotook.app/j#eyJ2IjoxLCJob3N0SWQiOiJob3N0Iiwicm9vbSI6Ims4bTJwOXg0In0',
+  inviteUrl: 'https://whotook.party/j#eyJ2IjoxLCJob3N0SWQiOiJob3N0Iiwicm9vbSI6Ims4bTJwOXg0In0',
   localPlayerId: 'host',
   players: _players(),
   config: const MatchConfig(roundsK: 10, roundSeconds: 8),

@@ -108,7 +108,11 @@ class SignalingIceClient {
     AppSettings settings = const AppSettings(),
   }) async {
     final custom = _customTurn(settings);
-    final base = Uri.parse(signalingUrl);
+    // A `wss://` custom URL is common, but ICE config is a plain HTTPS call.
+    final origin = signalingUrl
+        .replaceFirst(RegExp(r'^ws://'), 'http://')
+        .replaceFirst(RegExp(r'^wss://'), 'https://');
+    final base = Uri.parse(origin);
     final endpoint = base.replace(
       path: '${base.path.replaceAll(RegExp(r'/+$'), '')}/ice-config',
       query: null,
@@ -310,6 +314,13 @@ abstract class _WebRtcTransportBase {
   }
 }
 
+/// Converts an HTTP(S) signaling origin to the matching WebSocket scheme.
+String _toWebSocketOrigin(String url) {
+  if (url.startsWith('https://')) return 'wss://${url.substring(8)}';
+  if (url.startsWith('http://')) return 'ws://${url.substring(7)}';
+  return url;
+}
+
 /// Host side of the online path. One peer connection per remote player is
 /// created by the host when the signaling server reports a joiner.
 class WebRtcHostTransport implements HostTransport {
@@ -355,8 +366,9 @@ class WebRtcHostTransport implements HostTransport {
       token: invite.secret,
       settings: settings,
     );
+    final origin = _toWebSocketOrigin(invite.signalingUrl ?? '');
     final uri = Uri.parse(
-      '${(invite.signalingUrl ?? '').replaceFirst(RegExp(r'^http'), 'ws').replaceAll(RegExp(r'/+$'), '')}'
+      '${origin.replaceAll(RegExp(r'/+$'), '')}'
       '/room/${invite.roomId}?role=host&token=${invite.secret}',
     );
     final channel = WebSocketChannel.connect(uri);
@@ -379,37 +391,75 @@ class WebRtcHostTransport implements HostTransport {
     } on FormatException {
       return;
     }
-    if (frame['type'] != 'peer_joined') return;
-    final peerId = frame['peerId'] as String?;
-    if (peerId == null) return;
-    final peer = WebRtcHostPeer(
-      peerId: peerId,
-      configuration:
-          (_iceConfig ??
-                  const IceConfig(
-                    turnAllowed: false,
-                    iceServers: <IceServerConfig>[],
-                  ))
-              .toRtcConfiguration(),
-      sendSignal: (type, payload) => _sendSignal(type, peerId, payload),
-      onMessage: (message) {
-        if (!_messages.isClosed) {
-          _messages.add(
-            HostIncomingMessage(clientId: peerId, message: message),
-          );
-        }
-      },
-      onOpen: () {
-        if (!_connected.isClosed) _connected.add(peerId);
-      },
-      onClosed: () {
-        _peers.remove(peerId);
-        if (!_disconnected.isClosed) _disconnected.add(peerId);
-      },
-    );
-    _peers[peerId] = peer;
-    await peer.createOffer();
+    await handleSignalingFrame(frame);
   }
+
+  /// Routes one signaling frame. Public so frame parsing can be unit tested
+  /// without a live WebSocket or a native peer connection.
+  Future<void> handleSignalingFrame(Map<String, dynamic> frame) async {
+    switch (frame['type']) {
+      case 'peer_joined':
+        final peerId = frame['peerId'] as String?;
+        if (peerId == null) return;
+        final existing = _peers.remove(peerId);
+        if (existing != null) await existing.close();
+        final peer = _createPeer(peerId);
+        _peers[peerId] = peer;
+        await peer.createOffer();
+      case 'answer':
+        final from = frame['from'] as String?;
+        final payload = frame['payload'] as Map<String, dynamic>?;
+        if (from == null || payload == null) return;
+        await _peers[from]?.onAnswer(
+          RTCSessionDescription(
+            payload['sdp'] as String?,
+            payload['type'] as String?,
+          ),
+        );
+      case 'ice':
+        final from = frame['from'] as String?;
+        final payload = frame['payload'] as Map<String, dynamic>?;
+        final candidate = payload?['candidate'] as String?;
+        if (from == null || candidate == null) return;
+        await _peers[from]?.onRemoteIce(
+          RTCIceCandidate(
+            candidate,
+            payload!['sdpMid'] as String?,
+            payload['sdpMLineIndex'] as int?,
+          ),
+        );
+      case 'peer_left':
+        final peerId = frame['peerId'] as String?;
+        if (peerId == null) return;
+        final peer = _peers.remove(peerId);
+        await peer?.close();
+        if (!_disconnected.isClosed) _disconnected.add(peerId);
+    }
+  }
+
+  WebRtcHostPeer _createPeer(String peerId) => WebRtcHostPeer(
+    peerId: peerId,
+    configuration:
+        (_iceConfig ??
+                const IceConfig(
+                  turnAllowed: false,
+                  iceServers: <IceServerConfig>[],
+                ))
+            .toRtcConfiguration(),
+    sendSignal: (type, payload) => _sendSignal(type, peerId, payload),
+    onMessage: (message) {
+      if (!_messages.isClosed) {
+        _messages.add(HostIncomingMessage(clientId: peerId, message: message));
+      }
+    },
+    onOpen: () {
+      if (!_connected.isClosed) _connected.add(peerId);
+    },
+    onClosed: () {
+      _peers.remove(peerId);
+      if (!_disconnected.isClosed) _disconnected.add(peerId);
+    },
+  );
 
   void _sendSignal(String type, String to, Map<String, dynamic> payload) {
     _signaling?.sink.add(
@@ -428,8 +478,13 @@ class WebRtcHostTransport implements HostTransport {
 
   @override
   Future<void> broadcast(WireMessage message) async {
-    for (final peer in _peers.values) {
-      await peer.send(message);
+    for (final peer in List<WebRtcHostPeer>.of(_peers.values)) {
+      if (!peer.isOpen) continue;
+      try {
+        await peer.send(message);
+      } on TransportException {
+        // A peer that is closing must not abort delivery to healthy peers.
+      }
     }
   }
 
@@ -471,6 +526,8 @@ class WebRtcHostPeer {
 
   RTCPeerConnection? _peer;
   RTCDataChannel? _channel;
+
+  bool get isOpen => _channel?.state == RTCDataChannelState.RTCDataChannelOpen;
 
   Future<void> createOffer() async {
     final peer = await createPeerConnection(configuration);

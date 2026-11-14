@@ -20,6 +20,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final TextEditingController _name = TextEditingController();
   List<AlbumSummary> _albums = const <AlbumSummary>[];
   final Set<String> _excluded = <String>{};
+  PermissionState? _permissionState;
   bool _loading = false;
   String? _error;
 
@@ -39,6 +40,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       final permission = await photos.requestPermission();
       if (permission == PermissionState.denied) {
         setState(() {
+          _permissionState = permission;
           _error = 'Photo access is needed to pick match photos.';
           _loading = false;
         });
@@ -46,7 +48,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       }
       final albums = await photos.listAlbums();
       if (!mounted) return;
-      setState(() => _albums = albums);
+      setState(() {
+        _permissionState = permission;
+        _albums = albums;
+      });
     } on Object catch (error) {
       if (!mounted) return;
       setState(() => _error = 'Could not read albums: $error');
@@ -134,6 +139,25 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               'Screenshots, work folders and anything else private stay out of every match.',
               style: TextStyle(fontSize: 13, color: colors.ink2),
             ),
+            if (_permissionState == PermissionState.limited)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  onPressed: _loading ? null : _loadAlbums,
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(0, 44),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.s8,
+                    ),
+                    foregroundColor: colors.ink,
+                    textStyle: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  child: const Text('Allow more photos'),
+                ),
+              ),
             const SizedBox(height: AppSpacing.s12),
             if (_albums.isEmpty)
               SurfaceCard(

@@ -17,32 +17,87 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  static const Duration _nameDebounceDelay = Duration(milliseconds: 300);
+
   final TextEditingController _name = TextEditingController();
+  final TextEditingController _signalingUrl = TextEditingController();
+  final TextEditingController _turnUrl = TextEditingController();
+  final TextEditingController _turnUsername = TextEditingController();
+  final TextEditingController _turnCredential = TextEditingController();
+  late final AppSettingsController _settings;
+  Timer? _nameDebounce;
+  String? _pendingName;
+  String? _relayStatus;
+  bool _relayStatusWarning = false;
   List<AlbumSummary>? _albums;
   bool _albumError = false;
 
   @override
   void initState() {
     super.initState();
-    unawaited(_loadName());
+    _settings = ref.read(appSettingsProvider.notifier);
+    unawaited(_loadSettings());
     unawaited(_loadAlbums());
   }
 
-  /// The settings provider is still loading on the first frame, so the field is
-  /// filled once the stored value arrives instead of showing an empty box.
-  Future<void> _loadName() async {
+  /// The provider is still loading on the first frame, so the fields are filled
+  /// once the stored values arrive instead of showing an empty box.
+  Future<void> _loadSettings() async {
     final settings = await ref.read(appSettingsProvider.future);
     if (!mounted) return;
     _name.text = settings.nickname;
+    _signalingUrl.text = settings.customSignalingUrl ?? '';
+    _turnUrl.text = settings.customTurnUrl ?? '';
+    _turnUsername.text = settings.customTurnUsername ?? '';
+    _turnCredential.text = settings.customTurnCredential ?? '';
+  }
+
+  Future<void> _saveName(String value) async {
+    _nameDebounce?.cancel();
+    _nameDebounce = null;
+    _pendingName = null;
+    final name = value.trim();
+    if (name.isEmpty) return;
+    await _settings.apply((current) => current.copyWith(nickname: name));
+  }
+
+  /// Typing saves on its own; the field never depends on the keyboard submit.
+  void _onNameChanged(String value) {
+    _pendingName = value;
+    _nameDebounce?.cancel();
+    _nameDebounce = Timer(
+      _nameDebounceDelay,
+      () => unawaited(_saveName(value)),
+    );
   }
 
   @override
   void dispose() {
+    _nameDebounce?.cancel();
+    final pending = _pendingName;
+    if (pending != null) {
+      final name = pending.trim();
+      if (name.isNotEmpty) {
+        unawaited(
+          _settings.apply((current) => current.copyWith(nickname: name)),
+        );
+      }
+    }
     _name.dispose();
+    _signalingUrl.dispose();
+    _turnUrl.dispose();
+    _turnUsername.dispose();
+    _turnCredential.dispose();
     super.dispose();
   }
 
-  Future<void> _loadAlbums() async {
+  Future<void> _loadAlbums({bool reset = false}) async {
+    if (reset) {
+      setState(() {
+        _albumError = false;
+        _albums = null;
+      });
+    }
     try {
       final albums = await ref.read(photoLibraryProvider).listAlbums();
       if (!mounted) return;
@@ -53,11 +108,82 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  /// Asks for photo access again before reloading, which is the only way a
+  /// limited selection can be widened after onboarding.
+  Future<void> _retryAlbums() async {
+    await ref.read(photoLibraryProvider).requestPermission();
+    await _loadAlbums(reset: true);
+  }
+
+  Future<void> _saveRelay() async {
+    final signaling = _signalingUrl.text.trim();
+    final turn = _turnUrl.text.trim();
+    final hasSignalingScheme =
+        signaling.startsWith('https://') ||
+        signaling.startsWith('http://') ||
+        signaling.startsWith('wss://') ||
+        signaling.startsWith('ws://');
+    if (!hasSignalingScheme) {
+      setState(() {
+        _relayStatus =
+            'Signaling URL must start with https://, http://, wss:// or ws://';
+        _relayStatusWarning = true;
+      });
+      return;
+    }
+    final lowerTurn = turn.toLowerCase();
+    if (turn.isNotEmpty &&
+        !lowerTurn.startsWith('turn:') &&
+        !lowerTurn.startsWith('turns:')) {
+      setState(() {
+        _relayStatus = 'TURN URL must start with turn: or turns:';
+        _relayStatusWarning = true;
+      });
+      return;
+    }
+    final username = _turnUsername.text.trim();
+    final credential = _turnCredential.text.trim();
+    await _settings.apply((current) {
+      // Clearing first lets empty fields really mean "not set" instead of
+      // keeping the previous value.
+      final cleared = current.copyWith(
+        clearCustomSignalingUrl: true,
+        clearTurn: true,
+      );
+      return cleared.copyWith(
+        customSignalingUrl: signaling,
+        customTurnUrl: turn.isEmpty ? null : turn,
+        customTurnUsername: username.isEmpty ? null : username,
+        customTurnCredential: credential.isEmpty ? null : credential,
+      );
+    });
+    if (!mounted) return;
+    setState(() {
+      _relayStatus = 'Relay saved';
+      _relayStatusWarning = false;
+    });
+  }
+
+  Future<void> _resetRelay() async {
+    await _settings.apply(
+      (current) =>
+          current.copyWith(clearCustomSignalingUrl: true, clearTurn: true),
+    );
+    if (!mounted) return;
+    setState(() {
+      _signalingUrl.clear();
+      _turnUrl.clear();
+      _turnUsername.clear();
+      _turnCredential.clear();
+      _relayStatus = 'Back to the default relay';
+      _relayStatusWarning = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
     final settings = ref.watch(appSettingsProvider).value;
-    final controller = ref.read(appSettingsProvider.notifier);
 
     return Scaffold(
       appBar: AppBar(
@@ -80,11 +206,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   borderRadius: BorderRadius.circular(AppRadii.rControl),
                 ),
               ),
-              onSubmitted: (value) => unawaited(
-                controller.apply(
-                  (current) => current.copyWith(nickname: value.trim()),
-                ),
-              ),
+              onChanged: _onNameChanged,
+              onSubmitted: (value) => unawaited(_saveName(value)),
             ),
             const SizedBox(height: AppSpacing.s24),
             SectionLabel('Theme'),
@@ -109,7 +232,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         color: colors.ink2,
                       ),
                       onTap: () => unawaited(
-                        controller.apply(
+                        _settings.apply(
                           (current) =>
                               current.copyWith(themePreference: preference),
                         ),
@@ -134,7 +257,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   title: 'Album list unavailable',
                   body: 'Photo access was not granted. Allow it and try again.',
                   actionLabel: 'Retry',
-                  onAction: _loadAlbums,
+                  onAction: () => unawaited(_retryAlbums()),
                 ),
               )
             else if (_albums == null)
@@ -165,7 +288,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             false,
                         onChanged: (checked) {
                           unawaited(
-                            controller.apply((current) {
+                            _settings.apply((current) {
                               final excluded = Set<String>.of(
                                 current.excludedAlbumIds,
                               );
@@ -199,6 +322,116 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Text(
               'Local Wi-Fi and hotspots never touch a server. Online play uses a small relay, limited per network each day so it stays free.',
               style: TextStyle(fontSize: 13, color: colors.ink2, height: 1.45),
+            ),
+            const SizedBox(height: AppSpacing.s12),
+            SurfaceCard(
+              padding: EdgeInsets.zero,
+              child: ExpansionTile(
+                shape: const Border(),
+                collapsedShape: const Border(),
+                tilePadding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.s16,
+                ),
+                childrenPadding: const EdgeInsets.fromLTRB(
+                  AppSpacing.s16,
+                  0,
+                  AppSpacing.s16,
+                  AppSpacing.s16,
+                ),
+                expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
+                title: const Text(
+                  'Self-hosted relay',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+                subtitle: Text(
+                  'Point the app at your own signaling and TURN server',
+                  style: TextStyle(fontSize: 12, color: colors.ink3),
+                ),
+                children: <Widget>[
+                  TextField(
+                    controller: _signalingUrl,
+                    keyboardType: TextInputType.url,
+                    style: const TextStyle(fontSize: 14),
+                    decoration: InputDecoration(
+                      labelText: 'Signaling URL',
+                      helperText: 'Default: https://signal.whotook.party',
+                      isDense: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppRadii.rControl),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.s12),
+                  TextField(
+                    controller: _turnUrl,
+                    keyboardType: TextInputType.url,
+                    style: const TextStyle(fontSize: 14),
+                    decoration: InputDecoration(
+                      labelText: 'Custom TURN URL',
+                      helperText: 'Optional, e.g. turn:turn.example.org:3478',
+                      isDense: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppRadii.rControl),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.s12),
+                  TextField(
+                    controller: _turnUsername,
+                    style: const TextStyle(fontSize: 14),
+                    decoration: InputDecoration(
+                      labelText: 'TURN username',
+                      isDense: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppRadii.rControl),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.s12),
+                  TextField(
+                    controller: _turnCredential,
+                    obscureText: true,
+                    style: const TextStyle(fontSize: 14),
+                    decoration: InputDecoration(
+                      labelText: 'TURN credential',
+                      isDense: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppRadii.rControl),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.s16),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: SecondaryButton(
+                          label: 'Reset to default',
+                          onPressed: () => unawaited(_resetRelay()),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.s12),
+                      Expanded(
+                        child: PrimaryButton(
+                          label: 'Save relay',
+                          onPressed: () => unawaited(_saveRelay()),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_relayStatus != null) ...<Widget>[
+                    const SizedBox(height: AppSpacing.s8),
+                    Text(
+                      _relayStatus!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _relayStatusWarning
+                            ? colors.negative
+                            : colors.positive,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
             const SizedBox(height: AppSpacing.s24),
             const SectionLabel('About'),

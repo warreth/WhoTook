@@ -5,6 +5,7 @@ import '../core/models/models.dart';
 import '../core/theme/whotook_theme.dart';
 import '../state/providers.dart';
 import 'ui/deep_link_listener.dart';
+import 'ui/screens/extend_screen.dart';
 import 'ui/screens/home_screen.dart';
 import 'ui/screens/lobby_screen.dart';
 import 'ui/screens/onboarding_screen.dart';
@@ -90,7 +91,7 @@ class _MatchRoot extends ConsumerWidget {
       RoundPhase.countdown ||
       RoundPhase.guessing ||
       RoundPhase.reveal => const RoundScreen(key: ValueKey<String>('round')),
-      RoundPhase.extendPrompt => const PrepareScreen(
+      RoundPhase.extendPrompt => const ExtendScreen(
         key: ValueKey<String>('extend'),
       ),
       RoundPhase.podium => const PodiumScreen(key: ValueKey<String>('podium')),

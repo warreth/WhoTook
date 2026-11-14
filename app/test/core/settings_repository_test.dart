@@ -12,7 +12,7 @@ void main() {
   });
 
   test('the default signaling url is the documented one', () {
-    expect(kDefaultSignalingUrl, 'https://whotook-signaling.whotook.app');
+    expect(kDefaultSignalingUrl, 'https://signal.whotook.party');
   });
 
   test('loads defaults when nothing was stored', () async {

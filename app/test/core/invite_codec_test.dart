@@ -8,7 +8,7 @@ const InvitePayload sample = InvitePayload(
   hostId: 'h_9a1f',
   secret: '0123456789abcdef0123456789abcdef',
   lanEndpoints: <String>['192.168.1.42:8765'],
-  signalingUrl: 'wss://signal.whotook.app',
+  signalingUrl: 'wss://signal.whotook.party',
 );
 
 Matcher throwsInvalidInvite([String? reasonPart]) => throwsA(
@@ -23,7 +23,7 @@ void main() {
   group('encodeInviteUrl', () {
     test('puts the payload in the URL fragment', () {
       final url = encodeInviteUrl(sample);
-      expect(url.startsWith('https://whotook.app/j#'), isTrue);
+      expect(url.startsWith('https://whotook.party/j#'), isTrue);
       final fragment = url.split('#').last;
       expect(fragment, isNotEmpty);
       // base64url only, so the QR stays inside the alphanumeric mode.
@@ -47,7 +47,7 @@ void main() {
       expect(json['room'], 'k8m2p9x4');
       expect(json['hostId'], 'h_9a1f');
       expect(json['lan'], <String>['192.168.1.42:8765']);
-      expect(json['sig'], 'wss://signal.whotook.app');
+      expect(json['sig'], 'wss://signal.whotook.party');
       expect(json['secret'], sample.secret);
     });
   });
@@ -59,7 +59,7 @@ void main() {
       expect(parsed.hostId, 'h_9a1f');
       expect(parsed.secret, sample.secret);
       expect(parsed.lanEndpoints, <String>['192.168.1.42:8765']);
-      expect(parsed.signalingUrl, 'wss://signal.whotook.app');
+      expect(parsed.signalingUrl, 'wss://signal.whotook.party');
       expect(parsed.version, 1);
     });
 
@@ -120,7 +120,7 @@ void main() {
 
     test('rejects a URL with an empty fragment', () {
       expect(
-        () => tryParseInvite('https://whotook.app/j#'),
+        () => tryParseInvite('https://whotook.party/j#'),
         throwsInvalidInvite('empty'),
       );
     });
@@ -128,7 +128,7 @@ void main() {
     test('rejects the wrong path', () {
       final body = encodeInviteUrl(sample).split('#').last;
       expect(
-        () => tryParseInvite('https://whotook.app/other#$body'),
+        () => tryParseInvite('https://whotook.party/other#$body'),
         throwsInvalidInvite('/j'),
       );
     });
@@ -136,7 +136,7 @@ void main() {
     test('rejects an unsupported scheme', () {
       final body = encodeInviteUrl(sample).split('#').last;
       expect(
-        () => tryParseInvite('ftp://whotook.app/j#$body'),
+        () => tryParseInvite('ftp://whotook.party/j#$body'),
         throwsInvalidInvite('scheme'),
       );
     });

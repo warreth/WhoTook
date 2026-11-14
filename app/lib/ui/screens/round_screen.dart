@@ -21,6 +21,8 @@ class RoundScreen extends ConsumerWidget {
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
     final reveal = state.lastReveal;
     final showingReveal = state.phase == RoundPhase.reveal && reveal != null;
+    final showingCountdown = state.phase == RoundPhase.countdown;
+    final roundNumber = showingReveal ? reveal.roundNumber : state.currentRound;
 
     return Scaffold(
       body: SafeArea(
@@ -38,8 +40,8 @@ class RoundScreen extends ConsumerWidget {
                 children: <Widget>[
                   Expanded(
                     child: Text(
-                      showingReveal
-                          ? 'Round ${reveal.roundNumber} of ${state.totalRounds}'
+                      showingReveal || showingCountdown
+                          ? 'Round $roundNumber of ${state.totalRounds}'
                           : 'Who took this',
                       style: TextStyle(
                         fontSize: 20,
@@ -49,59 +51,121 @@ class RoundScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  FrameCounter(
-                    current: reveal?.roundNumber ?? state.currentRound,
-                    total: state.totalRounds,
-                  ),
+                  FrameCounter(current: roundNumber, total: state.totalRounds),
                 ],
               ),
               const SizedBox(height: AppSpacing.s12),
-              Expanded(child: _PhotoFrame(bytes: state.activePhotoBytes)),
-              const SizedBox(height: AppSpacing.s12),
-              if (showingReveal)
-                _RevealBlock(reveal: reveal, players: state.players)
+              if (showingCountdown)
+                Expanded(
+                  child: _CountdownView(
+                    seconds: ((state.remainingMs + 999) ~/ 1000).clamp(1, 9),
+                  ),
+                )
               else ...<Widget>[
+                Expanded(child: _PhotoFrame(bytes: state.activePhotoBytes)),
                 const SizedBox(height: AppSpacing.s12),
-                _TimerBar(
-                  remainingMs: state.remainingMs,
-                  totalMs: (state.config.roundSeconds * 1000).clamp(1, 60000),
-                ),
-                const SizedBox(height: AppSpacing.s12),
-                _GuessGrid(
-                  options: state.activeRoundOptions,
-                  lockedOwnerId: state.lockedGuessOwnerId,
-                  onGuess: (ownerId) => unawaited(
-                    state.isHosting
-                        ? coordinator.submitGuess(ownerId)
-                        : coordinator.clientSubmitGuess(ownerId),
+                if (showingReveal)
+                  _RevealBlock(reveal: reveal, players: state.players)
+                else ...<Widget>[
+                  const SizedBox(height: AppSpacing.s12),
+                  _TimerBar(
+                    remainingMs: state.remainingMs,
+                    totalMs: (state.config.roundSeconds * 1000).clamp(1, 60000),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.s8),
-                if (state.screenshotAlerts.isNotEmpty)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: <Widget>[
-                      Icon(
-                        Icons.camera_alt_outlined,
-                        size: 14,
-                        color: colors.ink2,
-                      ),
-                      const SizedBox(width: AppSpacing.s4),
-                      Text(
-                        '${state.screenshotAlerts.last.playerName} took a screenshot',
-                        style: TextStyle(fontSize: 13, color: colors.ink2),
-                      ),
-                    ],
+                  const SizedBox(height: AppSpacing.s12),
+                  _GuessGrid(
+                    options: state.activeRoundOptions,
+                    lockedOwnerId: state.lockedGuessOwnerId,
+                    onGuess: (ownerId) => unawaited(
+                      state.isHosting
+                          ? coordinator.submitGuess(ownerId)
+                          : coordinator.clientSubmitGuess(ownerId),
+                    ),
                   ),
-                const SizedBox(height: AppSpacing.s8),
-                Text(
-                  state.lockedGuessOwnerId == null
-                      ? 'Everyone sees the same names, including their own'
-                      : 'Locked in, waiting for the others',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 13, color: colors.ink2),
-                ),
+                  const SizedBox(height: AppSpacing.s8),
+                  if (state.screenshotAlerts.isNotEmpty)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget>[
+                        Icon(
+                          Icons.camera_alt_outlined,
+                          size: 14,
+                          color: colors.ink2,
+                        ),
+                        const SizedBox(width: AppSpacing.s4),
+                        Flexible(
+                          child: Text(
+                            '${state.screenshotAlerts.last.playerName} took a screenshot',
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 13, color: colors.ink2),
+                          ),
+                        ),
+                      ],
+                    ),
+                  const SizedBox(height: AppSpacing.s8),
+                  Text(
+                    state.lockedGuessOwnerId == null
+                        ? 'Everyone sees the same names, including their own'
+                        : 'Locked in, waiting for the others',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, color: colors.ink2),
+                  ),
+                ],
               ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The gap between "photos are ready" and the first frame. A calm numeral, no
+/// empty photo box and no ticking timer that is not running yet.
+class _CountdownView extends StatelessWidget {
+  const _CountdownView({required this.seconds});
+
+  final int seconds;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    return Center(
+      child: Semantics(
+        liveRegion: true,
+        label: 'Countdown',
+        value: '$seconds seconds',
+        child: SurfaceCard(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.s24,
+            vertical: AppSpacing.s32,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                'Get ready',
+                style: TextStyle(fontSize: 15, color: colors.ink2),
+              ),
+              const SizedBox(height: AppSpacing.s8),
+              Text(
+                '$seconds',
+                style: tabularFigures(
+                  TextStyle(
+                    fontFamily: 'JetBrainsMono',
+                    fontSize: 48,
+                    fontWeight: FontWeight.w500,
+                    height: 1.1,
+                    color: colors.ink,
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.s12),
+              Text(
+                'Tap who took the photo as soon as it appears',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: colors.ink2, height: 1.4),
+              ),
             ],
           ),
         ),
@@ -203,10 +267,14 @@ class _TimerBar extends StatelessWidget {
                 ),
               ),
             ),
-            const Spacer(),
-            Text(
-              'Tap a name to lock in',
-              style: TextStyle(fontSize: 12, color: colors.ink2),
+            const SizedBox(width: AppSpacing.s8),
+            Expanded(
+              child: Text(
+                'Tap a name to lock in',
+                textAlign: TextAlign.right,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, color: colors.ink2),
+              ),
             ),
           ],
         ),
