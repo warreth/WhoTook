@@ -88,6 +88,10 @@ when their secrets are missing. Add them when the listings are ready:
 | `APPSTORE_API_ISSUER_ID` | App Store Connect issuer ID |
 | `APPSTORE_API_PRIVATE_KEY` | App Store Connect `.p8` contents |
 
+The SideStore and AltStore source lives at `cloudflare-signaling/public/altstore.json`.
+Keep its `version`, `buildVersion` and `size` in sync with the IPA in each release;
+the download URL already points at the stable `WhoTook-unsigned.ipa` asset.
+
 Android signing uses `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`,
 `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD`. The App Links fingerprint in
 `cloudflare-signaling/wrangler.jsonc` must match the certificate that ends up on
