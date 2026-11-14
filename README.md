@@ -31,8 +31,8 @@ QR code, and each round shows a photo while the table races to guess who took it
 
 ## How it plays
 
-1. **Set the table.** Pick the rounds, the pace and a game mode, then approve your photos. The QR code is the last step.
-2. **Pick your photos.** Everyone approves a handful of photos from their own phone. Swap anything you would rather keep out.
+1. **Set the table.** Pick the rounds, the pace, a game mode and your first photos. The QR code is the last step.
+2. **Fill the deck.** Everyone approves a handful of photos from their own phone. Swap anything you would rather keep out.
 3. **Guess who took it.** A photo appears and everyone taps a name. Faster correct guesses score more.
 4. **Crown a winner.** The podium hands out awards. Play five more rounds if nobody wants to stop.
 
