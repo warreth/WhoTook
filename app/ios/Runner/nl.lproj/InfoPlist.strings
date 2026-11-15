@@ -1,0 +1,3 @@
+"NSCameraUsageDescription" = "WhoTook gebruikt de camera om QR-codes van spelen te scannen en een selfie-avatar te nemen.";
+"NSPhotoLibraryUsageDescription" = "WhoTook kiest willekeurige foto's uit albums die je toestaat en kan één foto als avatar gebruiken. Foto's blijven tijdens het spel op de toestellen van de spelers.";
+"NSLocalNetworkUsageDescription" = "WhoTook vindt spelers in de buurt op dezelfde wifi of hotspot, zonder externe server.";

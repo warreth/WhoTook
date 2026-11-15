@@ -75,7 +75,7 @@ void main() {
     });
 
     test('every protocol constant is unique and non empty', () {
-      expect(WireType.all.length, 31);
+      expect(WireType.all.length, 32);
       for (final type in WireType.all) {
         expect(type, isNotEmpty);
       }
@@ -112,6 +112,7 @@ void main() {
         'extend_submit',
         'game_podium',
         'state_sync',
+        'room_closed',
         'error_notice',
         'ping',
         'pong',

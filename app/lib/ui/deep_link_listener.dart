@@ -4,7 +4,9 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/navigation.dart';
 import '../state/providers.dart';
+import 'screens/join_confirm_screen.dart';
 
 /// Routes an invite opened from a chat app into the join flow. Duplicate
 /// initial and stream events are ignored, but a deliberate re-tap works once
@@ -61,7 +63,19 @@ class _DeepLinkListenerState extends ConsumerState<DeepLinkListener> {
     _handled = raw;
     _handledAt = now;
     if (coordinator.state.roomId != null) return;
-    unawaited(coordinator.joinMatch(raw));
+    if (ref.read(appSettingsProvider).value?.onboardingCompleted != true) {
+      return;
+    }
+    final navigator = appNavigatorKey.currentState;
+    if (navigator == null) {
+      unawaited(coordinator.joinMatch(raw));
+      return;
+    }
+    unawaited(
+      navigator.push<bool>(
+        MaterialPageRoute<bool>(builder: (_) => JoinConfirmScreen(invite: raw)),
+      ),
+    );
   }
 
   @override

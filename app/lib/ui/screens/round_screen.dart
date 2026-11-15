@@ -6,8 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/models.dart';
 import '../../core/theme/whotook_theme.dart';
+import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
+import '../widgets/host_controls.dart';
 
 /// One photo, one timer, and every player in the room as a button, including
 /// yourself, so a glance at a screen never gives the owner away.
@@ -17,6 +19,7 @@ class RoundScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     final coordinator = ref.read(matchCoordinatorProvider);
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
     final reveal = state.lastReveal;
@@ -41,8 +44,8 @@ class RoundScreen extends ConsumerWidget {
                   Expanded(
                     child: Text(
                       showingReveal || showingCountdown
-                          ? 'Round $roundNumber of ${state.totalRounds}'
-                          : 'Who took this',
+                          ? l10n.roundOf(roundNumber, state.totalRounds)
+                          : l10n.whoTookThis,
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w500,
@@ -51,6 +54,7 @@ class RoundScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
+                  const HostControlsButton(),
                   FrameCounter(current: roundNumber, total: state.totalRounds),
                 ],
               ),
@@ -76,6 +80,7 @@ class RoundScreen extends ConsumerWidget {
                     child: _PhotoFrame(
                       key: ValueKey<int>(state.currentRound),
                       bytes: state.activePhotoBytes,
+                      isPanorama: state.activePhotoIsPanorama,
                     ),
                   ),
                 ),
@@ -84,6 +89,7 @@ class RoundScreen extends ConsumerWidget {
                   _RevealBlock(
                     reveal: reveal,
                     players: state.players,
+                    avatarPhotos: state.avatarPhotos,
                     localPlayerId: state.localPlayerId,
                   )
                 else ...<Widget>[
@@ -95,6 +101,7 @@ class RoundScreen extends ConsumerWidget {
                   const SizedBox(height: AppSpacing.s12),
                   _GuessGrid(
                     options: state.activeRoundOptions,
+                    avatarPhotos: state.avatarPhotos,
                     lockedOwnerId: state.lockedGuessOwnerId,
                     onGuess: (ownerId) {
                       unawaited(HapticFeedback.selectionClick());
@@ -118,7 +125,11 @@ class RoundScreen extends ConsumerWidget {
                         const SizedBox(width: AppSpacing.s4),
                         Flexible(
                           child: Text(
-                            '${state.screenshotAlerts.last.playerName} took a screenshot',
+                            l10n.screenshotBy(
+                              state.screenshotAlerts.last.playerName.isEmpty
+                                  ? l10n.player
+                                  : state.screenshotAlerts.last.playerName,
+                            ),
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(fontSize: 13, color: colors.ink2),
                           ),
@@ -128,7 +139,7 @@ class RoundScreen extends ConsumerWidget {
                   const SizedBox(height: AppSpacing.s8),
                   if (state.lockedGuessOwnerId != null)
                     Text(
-                      'Locked in, waiting for the others.',
+                      l10n.lockedInWaiting,
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 13, color: colors.ink2),
                     ),
@@ -152,11 +163,12 @@ class _CountdownView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     return Center(
       child: Semantics(
         liveRegion: true,
-        label: 'Countdown',
-        value: '$seconds seconds',
+        label: l10n.countdown,
+        value: l10n.countdownSeconds(seconds),
         child: SurfaceCard(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.s24,
@@ -166,7 +178,7 @@ class _CountdownView extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               Text(
-                'Get ready',
+                l10n.getReady,
                 style: TextStyle(fontSize: 15, color: colors.ink2),
               ),
               const SizedBox(height: AppSpacing.s8),
@@ -194,7 +206,7 @@ class _CountdownView extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.s12),
               Text(
-                'Tap who took the photo as soon as it appears',
+                l10n.tapWhoTook,
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 13, color: colors.ink2, height: 1.4),
               ),
@@ -207,9 +219,10 @@ class _CountdownView extends StatelessWidget {
 }
 
 class _PhotoFrame extends StatelessWidget {
-  const _PhotoFrame({super.key, required this.bytes});
+  const _PhotoFrame({super.key, required this.bytes, this.isPanorama = false});
 
   final Uint8List? bytes;
+  final bool isPanorama;
 
   @override
   Widget build(BuildContext context) {
@@ -233,7 +246,7 @@ class _PhotoFrame extends StatelessWidget {
         children: <Widget>[
           ClipRRect(
             borderRadius: BorderRadius.circular(AppRadii.rSm),
-            child: _Photo(bytes: bytes),
+            child: _Photo(bytes: bytes, isPanorama: isPanorama),
           ),
           Positioned.fill(
             child: CropFrameOverlay(color: colors.ink, inset: 4, armLength: 14),
@@ -245,9 +258,10 @@ class _PhotoFrame extends StatelessWidget {
 }
 
 class _Photo extends StatelessWidget {
-  const _Photo({required this.bytes});
+  const _Photo({required this.bytes, this.isPanorama = false});
 
   final Uint8List? bytes;
+  final bool isPanorama;
 
   @override
   Widget build(BuildContext context) {
@@ -260,17 +274,20 @@ class _Photo extends StatelessWidget {
         child: Icon(Icons.image_outlined, size: 28, color: colors.ink3),
       );
     }
-    return Image.memory(
-      data,
-      fit: BoxFit.cover,
-      gaplessPlayback: true,
-      errorBuilder: (context, error, stack) => Container(
-        color: colors.raised,
-        alignment: Alignment.center,
-        child: Icon(
-          Icons.image_not_supported_outlined,
-          size: 28,
-          color: colors.ink3,
+    return ColoredBox(
+      color: colors.ink,
+      child: Image.memory(
+        data,
+        fit: isPanorama ? BoxFit.contain : BoxFit.cover,
+        gaplessPlayback: true,
+        errorBuilder: (context, error, stack) => Container(
+          color: colors.raised,
+          alignment: Alignment.center,
+          child: Icon(
+            Icons.image_not_supported_outlined,
+            size: 28,
+            color: colors.ink3,
+          ),
         ),
       ),
     );
@@ -286,6 +303,7 @@ class _TimerBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     final fraction = remainingMs <= 0
         ? 0.0
         : (remainingMs / totalMs).clamp(0.0, 1.0);
@@ -296,7 +314,7 @@ class _TimerBar extends StatelessWidget {
         Row(
           children: <Widget>[
             Text(
-              '$seconds s left',
+              l10n.secondsLeftShort(seconds),
               style: tabularFigures(
                 TextStyle(
                   fontFamily: 'JetBrainsMono',
@@ -309,7 +327,7 @@ class _TimerBar extends StatelessWidget {
             const SizedBox(width: AppSpacing.s8),
             Expanded(
               child: Text(
-                'Tap a name to lock in',
+                l10n.tapNameToLock,
                 textAlign: TextAlign.right,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 12, color: colors.ink2),
@@ -319,7 +337,7 @@ class _TimerBar extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.s8),
         Semantics(
-          label: 'Seconds left to guess',
+          label: l10n.secondsLeftToGuess,
           value: seconds,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(3),
@@ -339,11 +357,13 @@ class _TimerBar extends StatelessWidget {
 class _GuessGrid extends StatelessWidget {
   const _GuessGrid({
     required this.options,
+    required this.avatarPhotos,
     required this.lockedOwnerId,
     required this.onGuess,
   });
 
   final List<Player> options;
+  final Map<String, String> avatarPhotos;
   final String? lockedOwnerId;
   final ValueChanged<String> onGuess;
 
@@ -394,6 +414,7 @@ class _GuessGrid extends StatelessWidget {
               PlayerAvatar(
                 initial: player.name,
                 avatar: player.avatar,
+                photoBase64: avatarPhotos[player.id],
                 isHost: player.isHost,
                 size: 26,
               ),
@@ -424,11 +445,13 @@ class _RevealBlock extends StatefulWidget {
   const _RevealBlock({
     required this.reveal,
     required this.players,
+    required this.avatarPhotos,
     required this.localPlayerId,
   });
 
   final RoundReveal reveal;
   final List<Player> players;
+  final Map<String, String> avatarPhotos;
   final String? localPlayerId;
 
   @override
@@ -473,6 +496,7 @@ class _RevealBlockState extends State<_RevealBlock> {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     final reveal = widget.reveal;
     final owner = widget.players
         .where((p) => p.id == reveal.ownerId)
@@ -496,24 +520,24 @@ class _RevealBlockState extends State<_RevealBlock> {
     var icon = Icons.remove_circle_outline;
     if (localId != null) {
       if (guess == null || guess.guessedOwnerId.isEmpty) {
-        result = 'No answer.';
+        result = l10n.noAnswer;
         tone = colors.negative;
         icon = Icons.timer_off_outlined;
       } else if (guess.isCorrect) {
         result = ownPhoto
-            ? 'Your photo. You got it. +${guess.pointsAwarded}'
-            : 'You got it. +${guess.pointsAwarded}';
+            ? l10n.yourPhotoYouGotIt(guess.pointsAwarded)
+            : l10n.youGotIt(guess.pointsAwarded);
         tone = colors.positive;
         icon = Icons.check_circle_outline;
       } else {
-        result = ownPhoto ? 'Your photo. Wrong guess.' : 'Wrong guess.';
+        result = ownPhoto ? l10n.yourPhotoWrongGuess : l10n.wrongGuess;
         tone = colors.negative;
         icon = Icons.cancel_outlined;
       }
     }
     final summary = <String>[
-      if (fooled > 0) '$fooled ${fooled == 1 ? 'player' : 'players'} fooled',
-      if (missed > 0) '$missed did not answer',
+      if (fooled > 0) l10n.playersFooled(fooled),
+      if (missed > 0) l10n.playersDidNotAnswer(missed),
     ].join(' · ');
 
     return Expanded(
@@ -529,6 +553,9 @@ class _RevealBlockState extends State<_RevealBlock> {
                   PlayerAvatar(
                     initial: _shown ? (owner?.name ?? '?') : '?',
                     avatar: _shown ? (owner?.avatar ?? '') : '',
+                    photoBase64: _shown && owner != null
+                        ? widget.avatarPhotos[owner.id]
+                        : null,
                     isHost: _shown && (owner?.isHost ?? false),
                     size: 32,
                   ),
@@ -539,8 +566,8 @@ class _RevealBlockState extends State<_RevealBlock> {
                       children: <Widget>[
                         Text(
                           _shown
-                              ? 'Shot by ${owner?.name ?? 'someone'}'
-                              : 'Who took it?',
+                              ? l10n.shotBy(owner?.name ?? l10n.player)
+                              : l10n.whoTookIt,
                           style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w500,
@@ -550,9 +577,9 @@ class _RevealBlockState extends State<_RevealBlock> {
                         Text(
                           _shown
                               ? (summary.isEmpty
-                                    ? 'Everyone got it right'
+                                    ? l10n.everyoneGotItRight
                                     : summary)
-                              : 'Revealing...',
+                              : l10n.revealing,
                           style: TextStyle(fontSize: 12, color: colors.ink2),
                         ),
                       ],
@@ -599,11 +626,20 @@ class _RevealBlockState extends State<_RevealBlock> {
                   for (var i = 0; i < reveal.guesses.length; i++)
                     ScoreRow(
                       position: i + 1,
-                      player: _playerFor(reveal.guesses[i]),
-                      score: _playerFor(reveal.guesses[i]).score,
+                      player: _playerFor(context, reveal.guesses[i]),
+                      photoBase64:
+                          widget.avatarPhotos[_playerFor(
+                            context,
+                            reveal.guesses[i],
+                          ).id],
+                      score: _playerFor(context, reveal.guesses[i]).score,
                       delta:
-                          reveal.scoreDeltas[_playerFor(reveal.guesses[i]).id],
-                      streak: reveal.streaks[_playerFor(reveal.guesses[i]).id],
+                          reveal.scoreDeltas[_playerFor(
+                            context,
+                            reveal.guesses[i],
+                          ).id],
+                      streak: reveal
+                          .streaks[_playerFor(context, reveal.guesses[i]).id],
                       highlighted: reveal.guesses[i].isOwnPhoto,
                     ),
                 ],
@@ -618,7 +654,7 @@ class _RevealBlockState extends State<_RevealBlock> {
                 const SizedBox(width: AppSpacing.s4),
                 Flexible(
                   child: Text(
-                    _microLabel(reveal.microAward!),
+                    _microLabel(context, reveal.microAward!),
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 12, color: colors.ink2),
                   ),
@@ -631,20 +667,23 @@ class _RevealBlockState extends State<_RevealBlock> {
     );
   }
 
-  Player _playerFor(GuessRecord guess) {
+  Player _playerFor(BuildContext context, GuessRecord guess) {
     return widget.players.firstWhere(
       (p) => p.id == guess.playerId,
-      orElse: () => Player(id: guess.playerId, name: 'Player'),
+      orElse: () => Player(id: guess.playerId, name: context.l10n.player),
     );
   }
 
-  String _microLabel(MicroAward award) {
+  String _microLabel(BuildContext context, MicroAward award) {
+    final l10n = context.l10n;
     return switch (award.kind) {
-      MicroAwardKind.fastestGuess =>
-        'Fastest: ${award.playerName ?? ''} ${((award.elapsedMs ?? 0) / 1000).toStringAsFixed(1)}s',
-      MicroAwardKind.nobodyGuessed => 'Nobody guessed it',
-      MicroAwardKind.everyoneGuessed => 'Everyone nailed it',
-      MicroAwardKind.screenshot => 'Screenshot by ${award.playerName ?? ''}',
+      MicroAwardKind.fastestGuess => l10n.fastestAward(
+        award.playerName ?? '',
+        ((award.elapsedMs ?? 0) / 1000).toStringAsFixed(1),
+      ),
+      MicroAwardKind.nobodyGuessed => l10n.nobodyGuessed,
+      MicroAwardKind.everyoneGuessed => l10n.everyoneNailedIt,
+      MicroAwardKind.screenshot => l10n.screenshotBy(award.playerName ?? ''),
     };
   }
 }

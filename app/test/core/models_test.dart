@@ -116,12 +116,16 @@ void main() {
       nickname: 'Sam',
       excludedAlbumIds: <String>{'b', 'a'},
       themePreference: ThemePreference.light,
+      language: AppLanguage.dutch,
+      avatarPhoto: 'abc',
       onboardingCompleted: true,
     );
     final restored = AppSettings.fromJson(settings.toJson());
     expect(restored.nickname, 'Sam');
     expect(restored.excludedAlbumIds, <String>{'a', 'b'});
     expect(restored.themePreference, ThemePreference.light);
+    expect(restored.language, AppLanguage.dutch);
+    expect(restored.avatarPhoto, 'abc');
     expect(restored.onboardingCompleted, isTrue);
     expect(restored.copyWith(nickname: 'Alex').nickname, 'Alex');
     expect(restored.copyWith(nickname: 'Alex').avatarColorIndex, 0);

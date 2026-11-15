@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../core/links.dart';
 import '../../core/models/models.dart';
 import '../../core/theme/whotook_theme.dart';
+import '../../l10n/l10n.dart';
 
 /// A skippable warning shown over the room when this phone runs an older
 /// build than someone else. The room keeps playing; updating is optional.
@@ -21,6 +22,7 @@ class VersionWarningCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     return Material(
       elevation: 3,
       shadowColor: colors.ink.withValues(alpha: 0.18),
@@ -47,14 +49,21 @@ class VersionWarningCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  const Text(
-                    'Different app versions',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  Text(
+                    l10n.differentVersions,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Someone is on ${warning.latestVersion} (build ${warning.latestBuild}). '
-                    'You are on ${warning.ownVersion} (build ${warning.ownBuild}). Update so rounds and photos stay in sync.',
+                    l10n.versionWarningBody(
+                      warning.latestVersion,
+                      warning.latestBuild,
+                      warning.ownVersion,
+                      warning.ownBuild,
+                    ),
                     style: TextStyle(
                       fontSize: 12,
                       height: 1.4,
@@ -74,7 +83,7 @@ class VersionWarningCard extends StatelessWidget {
                             horizontal: AppSpacing.s8,
                           ),
                         ),
-                        child: const Text('Get the update'),
+                        child: Text(l10n.getUpdate),
                       ),
                       const SizedBox(width: AppSpacing.s4),
                       TextButton(
@@ -86,7 +95,7 @@ class VersionWarningCard extends StatelessWidget {
                           ),
                           foregroundColor: colors.ink2,
                         ),
-                        child: const Text('Keep playing'),
+                        child: Text(l10n.keepPlaying),
                       ),
                     ],
                   ),
@@ -94,7 +103,7 @@ class VersionWarningCard extends StatelessWidget {
               ),
             ),
             IconButton(
-              tooltip: 'Keep playing',
+              tooltip: l10n.keepPlaying,
               onPressed: onDismiss,
               icon: const Icon(Icons.close, size: 18),
               visualDensity: VisualDensity.compact,

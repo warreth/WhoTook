@@ -3,12 +3,14 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:whotook/l10n/l10n.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:whotook/core/models/models.dart';
 import 'package:whotook/core/theme/whotook_theme.dart';
 import 'package:whotook/state/match_coordinator.dart';
 import 'package:whotook/state/providers.dart';
+import 'package:whotook/ui/screens/caption_screen.dart';
 import 'package:whotook/ui/screens/extend_screen.dart';
 import 'package:whotook/ui/screens/podium_screen.dart';
 import 'package:whotook/ui/screens/round_screen.dart';
@@ -82,6 +84,33 @@ void main() {
     expect(find.text('One more round (5)'), findsOneWidget);
   });
 
+  testWidgets('host controls expose skip and remove', (tester) async {
+    await _pumpMatchScreen(tester, const RoundScreen(), _revealState());
+    await tester.pump(const Duration(milliseconds: 900));
+    expect(find.byTooltip('Host controls'), findsOneWidget);
+    await tester.tap(find.byTooltip('Host controls'));
+    await tester.pumpAndSettle();
+    expect(find.text('Skip round'), findsOneWidget);
+    expect(find.text('Remove player'), findsOneWidget);
+    await tester.tap(find.text('Skip round'));
+    await tester.pumpAndSettle();
+    expect(find.text('Skip this round?'), findsOneWidget);
+  });
+
+  testWidgets('caption voting offers a host reveal after the grace', (
+    tester,
+  ) async {
+    await _pumpMatchScreen(
+      tester,
+      const CaptionScreen(),
+      _captionVotingState(),
+    );
+    expect(find.text('Reveal now'), findsNothing);
+    await tester.pump(const Duration(seconds: 10));
+    await tester.pump();
+    expect(find.text('Reveal now'), findsOneWidget);
+  });
+
   testWidgets('reveal builds suspense, then names the owner', (tester) async {
     await _pumpMatchScreen(tester, const RoundScreen(), _revealState());
 
@@ -107,6 +136,9 @@ void main() {
           photoLibraryProvider.overrideWithValue(TestPhotoLibrary()),
         ],
         child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           debugShowCheckedModeBanner: false,
           theme: buildWhoTookTheme(Brightness.light),
           home: const SettingsScreen(),
@@ -157,6 +189,9 @@ Future<void> _pumpMatchScreen(
         ),
       ],
       child: MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         debugShowCheckedModeBanner: false,
         theme: buildWhoTookTheme(Brightness.light),
         home: screen,
@@ -247,6 +282,25 @@ List<Player> _players() => <Player>[
   Player(id: 'c1', name: 'Lotte', score: 3410, streak: 3, ready: true),
   Player(id: 'c2', name: 'Sam', score: 2740),
 ];
+
+MatchUiState _captionVotingState() => MatchUiState(
+  isHosting: true,
+  roomId: 'k8m2p9x4',
+  localPlayerId: 'host',
+  players: _players(),
+  phase: RoundPhase.captionVoting,
+  activeMode: GameMode.captionThis,
+  currentRound: 2,
+  totalRounds: 6,
+  captionsSubmitted: 3,
+  votesSubmitted: 1,
+  ownCaptionId: 'cap-0',
+  captionOptions: const <CaptionOption>[
+    CaptionOption(id: 'cap-0', text: 'This is the last photo before...'),
+    CaptionOption(id: 'cap-1', text: 'When the cake hits the floor.'),
+    CaptionOption(id: 'cap-2', text: 'POV: you said one more round.'),
+  ],
+);
 
 MatchUiState _countdownState() => MatchUiState(
   isHosting: true,

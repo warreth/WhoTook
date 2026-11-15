@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../l10n/l10n.dart';
 import '../../../state/providers.dart';
 import '../../widgets/mode_picker.dart';
 import 'rounds_setup_screen.dart';
@@ -17,9 +18,9 @@ class ModeSetupScreen extends ConsumerWidget {
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
     return SetupScaffold(
       step: 1,
-      title: 'Choose the game',
-      subtitle: 'Classic, Caption This, Time Traveler or a bit of everything.',
-      primaryLabel: 'Next: rounds',
+      title: context.l10n.chooseGame,
+      subtitle: context.l10n.chooseGameSubtitle,
+      primaryLabel: context.l10n.nextRounds,
       onPrimary: () => Navigator.of(context).push(
         MaterialPageRoute<void>(builder: (_) => const RoundsSetupScreen()),
       ),

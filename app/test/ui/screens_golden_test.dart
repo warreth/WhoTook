@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:whotook/l10n/l10n.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:whotook/core/models/models.dart';
@@ -66,6 +67,8 @@ void main() {
       LastRoom(
         inviteUrl: 'https://whotook.party/j#abc',
         roomId: 'k8m2p9x4',
+        playerId: 'p_test',
+        playerToken: 'token_test',
         joinedAtUtc: DateTime.now().toUtc(),
       ),
     );
@@ -218,6 +221,9 @@ void main() {
           photoLibraryProvider.overrideWithValue(TestPhotoLibrary()),
         ],
         child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
           debugShowCheckedModeBanner: false,
           theme: buildWhoTookTheme(Brightness.light),
           home: const SettingsScreen(),
@@ -242,6 +248,78 @@ void main() {
       find.byType(PodiumScreen),
       matchesGoldenFile('goldens/podium.png'),
     );
+  });
+
+  testWidgets('Dutch home fits', (tester) async {
+    await _precacheHomePhotos(tester);
+    await _pump(
+      tester,
+      const HomeScreen(),
+      _settings(),
+      locale: const Locale('nl'),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Dutch onboarding fits', (tester) async {
+    await _pump(
+      tester,
+      const OnboardingScreen(),
+      _settings(),
+      locale: const Locale('nl'),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Dutch lobby fits', (tester) async {
+    await _pump(
+      tester,
+      const LobbyScreen(),
+      _settings(),
+      state: _lobbyState(),
+      locale: const Locale('nl'),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Dutch prepare fits', (tester) async {
+    final photos = _fixturePhotos();
+    for (final photo in photos) {
+      await _precachePhoto(tester, photo);
+    }
+    await _pump(
+      tester,
+      const PrepareScreen(),
+      _settings(),
+      state: _prepareState(photos),
+      locale: const Locale('nl'),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Dutch round fits', (tester) async {
+    final photo = _fixturePhoto('party-dog');
+    await _precachePhoto(tester, photo);
+    await _pump(
+      tester,
+      const RoundScreen(),
+      _settings(),
+      state: _roundState(photo),
+      locale: const Locale('nl'),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Dutch podium fits', (tester) async {
+    await _pump(
+      tester,
+      const PodiumScreen(),
+      _settings(),
+      state: _podiumState(),
+      locale: const Locale('nl'),
+    );
+    await tester.pump(const Duration(milliseconds: 850));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('marketing round', (tester) async {
@@ -362,8 +440,9 @@ Future<void> _pump(
   Widget screen,
   AppSettings settings, {
   MatchUiState? state,
+  Locale locale = const Locale('en'),
 }) async {
-  await _pumpWidget(tester, screen, settings, state: state);
+  await _pumpWidget(tester, screen, settings, state: state, locale: locale);
   await tester.pumpAndSettle();
 }
 
@@ -372,6 +451,7 @@ Future<void> _pumpWidget(
   Widget screen,
   AppSettings settings, {
   MatchUiState? state,
+  Locale locale = const Locale('en'),
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -383,6 +463,9 @@ Future<void> _pumpWidget(
         ),
       ],
       child: MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         debugShowCheckedModeBanner: false,
         theme: buildWhoTookTheme(Brightness.light),
         home: screen,

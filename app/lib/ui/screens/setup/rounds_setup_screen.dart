@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/whotook_theme.dart';
+import '../../../l10n/l10n.dart';
 import '../../../state/providers.dart';
 import 'setup_scaffold.dart';
 import 'speed_setup_screen.dart';
@@ -17,11 +18,12 @@ class RoundsSetupScreen extends ConsumerWidget {
     final coordinator = ref.read(matchCoordinatorProvider);
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
     final rounds = state.config.roundsK;
+    final l10n = context.l10n;
     return SetupScaffold(
       step: 2,
-      title: 'How many rounds?',
-      subtitle: 'Short and sharp. You can always add five more at the podium.',
-      primaryLabel: 'Next: pick the pace',
+      title: l10n.howManyRounds,
+      subtitle: l10n.roundsSubtitle,
+      primaryLabel: l10n.nextPace,
       onPrimary: () => Navigator.of(
         context,
       ).push(MaterialPageRoute<void>(builder: (_) => const SpeedSetupScreen())),
@@ -36,6 +38,7 @@ class RoundsSetupScreen extends ConsumerWidget {
           for (final option in _RoundOptions.values)
             _RoundOption(
               option: option,
+              blurb: option.blurb(context.l10n),
               selected: option.rounds == rounds,
               onTap: () {
                 unawaited(HapticFeedback.selectionClick());
@@ -49,27 +52,35 @@ class RoundsSetupScreen extends ConsumerWidget {
 }
 
 class _RoundOptions {
-  const _RoundOptions(this.rounds, this.blurb);
+  const _RoundOptions(this.rounds);
 
   final int rounds;
-  final String blurb;
 
   static const List<_RoundOptions> values = <_RoundOptions>[
-    _RoundOptions(5, 'Quick game'),
-    _RoundOptions(10, 'Party size'),
-    _RoundOptions(15, 'Long table'),
-    _RoundOptions(20, 'All nighter'),
+    _RoundOptions(5),
+    _RoundOptions(10),
+    _RoundOptions(15),
+    _RoundOptions(20),
   ];
+
+  String blurb(AppLocalizations l10n) => switch (rounds) {
+    5 => l10n.quickGame,
+    10 => l10n.partySize,
+    15 => l10n.longTable,
+    _ => l10n.allNighter,
+  };
 }
 
 class _RoundOption extends StatelessWidget {
   const _RoundOption({
     required this.option,
+    required this.blurb,
     required this.selected,
     required this.onTap,
   });
 
   final _RoundOptions option;
+  final String blurb;
   final bool selected;
   final VoidCallback onTap;
 
@@ -79,7 +90,7 @@ class _RoundOption extends StatelessWidget {
     return Semantics(
       selected: selected,
       button: true,
-      label: '${option.rounds} rounds. ${option.blurb}.',
+      label: '${context.l10n.roundsCount(option.rounds)}. $blurb.',
       child: Material(
         color: selected ? colors.raised : colors.card,
         borderRadius: BorderRadius.circular(AppRadii.rCard),
@@ -112,7 +123,7 @@ class _RoundOption extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.s4),
                 Text(
-                  'rounds',
+                  context.l10n.roundsUnit,
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
@@ -120,10 +131,7 @@ class _RoundOption extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  option.blurb,
-                  style: TextStyle(fontSize: 11, color: colors.ink3),
-                ),
+                Text(blurb, style: TextStyle(fontSize: 11, color: colors.ink3)),
               ],
             ),
           ),

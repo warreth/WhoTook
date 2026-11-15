@@ -5,40 +5,35 @@ import 'package:flutter/services.dart';
 
 import '../../core/models/models.dart';
 import '../../core/theme/whotook_theme.dart';
+import '../../l10n/l10n.dart';
 
 class ModeInfo {
-  const ModeInfo({
-    required this.label,
-    required this.blurb,
-    required this.icon,
-  });
+  const ModeInfo({required this.icon});
 
-  final String label;
-  final String blurb;
   final IconData icon;
 }
 
-ModeInfo modeInfo(GameMode mode) => switch (mode) {
-  GameMode.classic => const ModeInfo(
-    label: 'Classic',
-    blurb: 'Guess who took it.',
-    icon: Icons.photo_camera_outlined,
-  ),
-  GameMode.captionThis => const ModeInfo(
-    label: 'Caption This',
-    blurb: 'Write the funniest caption.',
-    icon: Icons.chat_bubble_outline,
-  ),
-  GameMode.timeTraveler => const ModeInfo(
-    label: 'Time Traveler',
-    blurb: 'Guess the year and month.',
-    icon: Icons.history,
-  ),
-  GameMode.mixedParty => const ModeInfo(
-    label: 'Mixed Party',
-    blurb: 'All three, shuffled.',
-    icon: Icons.shuffle,
-  ),
+ModeInfo modeInfo(GameMode mode) => ModeInfo(
+  icon: switch (mode) {
+    GameMode.classic => Icons.photo_camera_outlined,
+    GameMode.captionThis => Icons.chat_bubble_outline,
+    GameMode.timeTraveler => Icons.history,
+    GameMode.mixedParty => Icons.shuffle,
+  },
+);
+
+String modeLabel(AppLocalizations l10n, GameMode mode) => switch (mode) {
+  GameMode.classic => l10n.modeClassic,
+  GameMode.captionThis => l10n.modeCaptionThis,
+  GameMode.timeTraveler => l10n.modeTimeTraveler,
+  GameMode.mixedParty => l10n.modeMixedParty,
+};
+
+String modeBlurb(AppLocalizations l10n, GameMode mode) => switch (mode) {
+  GameMode.classic => l10n.modeClassicBlurb,
+  GameMode.captionThis => l10n.modeCaptionThisBlurb,
+  GameMode.timeTraveler => l10n.modeTimeTravelerBlurb,
+  GameMode.mixedParty => l10n.modeMixedPartyBlurb,
 };
 
 /// The host's 2x2 mode picker. The selected card carries the accent border.
@@ -86,11 +81,14 @@ class _ModeTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     final info = modeInfo(mode);
+    final label = modeLabel(l10n, mode);
+    final blurb = modeBlurb(l10n, mode);
     return Semantics(
       selected: selected,
       button: true,
-      label: '${info.label}. ${info.blurb}',
+      label: l10n.modeSemantic(label, blurb),
       child: Material(
         color: selected ? colors.raised : colors.card,
         clipBehavior: Clip.antiAlias,
@@ -133,7 +131,7 @@ class _ModeTile extends StatelessWidget {
                 ),
                 const Spacer(),
                 Text(
-                  info.label,
+                  label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -144,7 +142,7 @@ class _ModeTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  info.blurb,
+                  blurb,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(

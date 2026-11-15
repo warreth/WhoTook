@@ -6,9 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/models.dart';
 import '../../core/theme/whotook_theme.dart';
+import '../../l10n/l10n.dart';
 import '../../state/match_coordinator.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
+import '../widgets/host_controls.dart';
 
 /// Caption This: write, vote, then watch the authors get exposed.
 class CaptionScreen extends ConsumerStatefulWidget {
@@ -42,6 +44,9 @@ class _CaptionScreenState extends ConsumerState<CaptionScreen> {
                   ? coordinator.voteCaption(id)
                   : coordinator.clientVoteCaption(id),
             ),
+            onRevealNow: state.isHosting
+                ? () => unawaited(coordinator.revealCaptionNow())
+                : null,
           ),
           RoundPhase.captionReveal => _CaptionReveal(state: state),
           _ => _CaptionWriting(
@@ -72,6 +77,7 @@ class _CaptionWriting extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.s20,
@@ -82,17 +88,21 @@ class _CaptionWriting extends StatelessWidget {
       children: <Widget>[
         _CaptionHeader(state: state),
         const SizedBox(height: AppSpacing.s12),
-        PhotoPanel(bytes: state.activePhotoBytes, aspectRatio: 1.15),
+        PhotoPanel(
+          bytes: state.activePhotoBytes,
+          aspectRatio: 1.15,
+          isPanorama: state.activePhotoIsPanorama,
+        ),
         const SizedBox(height: AppSpacing.s12),
         CountdownBar(
           remainingMs: state.remainingMs,
           totalMs: state.phaseDurationMs,
-          label: 'Write the funniest caption',
+          label: l10n.writeFunniestCaption,
         ),
         const SizedBox(height: AppSpacing.s16),
         if (state.captionSubmitted) ...<Widget>[
-          const NoticeBanner(
-            message: 'Caption sent. Waiting for the others.',
+          NoticeBanner(
+            message: l10n.captionSentWaiting,
             icon: Icons.hourglass_empty,
           ),
           const SizedBox(height: AppSpacing.s12),
@@ -105,8 +115,8 @@ class _CaptionWriting extends StatelessWidget {
           textCapitalization: TextCapitalization.sentences,
           style: const TextStyle(fontSize: 16),
           decoration: InputDecoration(
-            labelText: 'Your caption',
-            hintText: 'Make it weird.',
+            labelText: l10n.yourCaption,
+            hintText: l10n.makeItWeird,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadii.rControl),
             ),
@@ -114,15 +124,12 @@ class _CaptionWriting extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.s16),
         if (state.captionSubmitted)
-          const SecondaryButton(
-            label: 'Waiting for the others',
-            onPressed: null,
-          )
+          SecondaryButton(label: l10n.waitingForOthers, onPressed: null)
         else
           ValueListenableBuilder<TextEditingValue>(
             valueListenable: controller,
             builder: (context, value, _) => PrimaryButton(
-              label: 'Send caption',
+              label: l10n.sendCaption,
               onPressed: value.text.trim().isEmpty
                   ? null
                   : () => onSubmit(value.text),
@@ -141,15 +148,52 @@ class _CaptionWriting extends StatelessWidget {
   }
 }
 
-class _CaptionVoting extends StatelessWidget {
-  const _CaptionVoting({required this.state, required this.onVote});
+class _CaptionVoting extends StatefulWidget {
+  const _CaptionVoting({
+    required this.state,
+    required this.onVote,
+    this.onRevealNow,
+  });
 
   final MatchUiState state;
   final ValueChanged<String> onVote;
+  final VoidCallback? onRevealNow;
+
+  @override
+  State<_CaptionVoting> createState() => _CaptionVotingState();
+}
+
+class _CaptionVotingState extends State<_CaptionVoting> {
+  Timer? _graceTimer;
+  int _graceLeft = 10;
+
+  @override
+  void initState() {
+    super.initState();
+    _graceTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      if (_graceLeft <= 1) {
+        timer.cancel();
+        setState(() => _graceLeft = 0);
+        return;
+      }
+      setState(() => _graceLeft -= 1);
+    });
+  }
+
+  @override
+  void dispose() {
+    _graceTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
+    final state = widget.state;
+    final total = state.players.where((p) => p.connected).length;
+    final allVoted = total == 0 || state.votesSubmitted >= total;
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.s20,
@@ -160,7 +204,11 @@ class _CaptionVoting extends StatelessWidget {
       children: <Widget>[
         _CaptionHeader(state: state),
         const SizedBox(height: AppSpacing.s12),
-        PhotoPanel(bytes: state.activePhotoBytes, aspectRatio: 1.8),
+        PhotoPanel(
+          bytes: state.activePhotoBytes,
+          aspectRatio: 1.8,
+          isPanorama: state.activePhotoIsPanorama,
+        ),
         const SizedBox(height: AppSpacing.s12),
         Container(
           padding: const EdgeInsets.all(AppSpacing.s12),
@@ -174,8 +222,10 @@ class _CaptionVoting extends StatelessWidget {
               const SizedBox(width: AppSpacing.s8),
               Expanded(
                 child: Text(
-                  '${state.votesSubmitted} of ${state.players.where((p) => p.connected).length} votes in. '
-                  'The reveal starts when everyone has voted.',
+                  l10n.votesIn(
+                    state.votesSubmitted,
+                    state.players.where((p) => p.connected).length,
+                  ),
                   style: TextStyle(
                     fontSize: 12,
                     height: 1.35,
@@ -189,22 +239,37 @@ class _CaptionVoting extends StatelessWidget {
         const SizedBox(height: AppSpacing.s12),
         Text(
           state.votedCaptionId == null
-              ? 'Tap one caption. You cannot pick your own.'
-              : 'Vote locked. Waiting for the table.',
+              ? l10n.tapOneCaption
+              : l10n.voteLockedWaiting,
           style: TextStyle(fontSize: 13, color: colors.ink2),
         ),
         const SizedBox(height: AppSpacing.s12),
+        if (!allVoted &&
+            _graceLeft == 0 &&
+            widget.onRevealNow != null) ...<Widget>[
+          OutlinedButton.icon(
+            onPressed: widget.onRevealNow,
+            icon: const Icon(Icons.visibility_outlined, size: 18),
+            label: Text(l10n.revealNow),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+              foregroundColor: colors.accent,
+              side: BorderSide(color: colors.accent),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadii.rControl),
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.s12),
+        ],
         if (state.captionOptions.isEmpty)
-          const EmptyState(
-            title: 'No captions',
-            body: 'This round will move on.',
-          )
+          EmptyState(title: l10n.noCaptions, body: l10n.thisRoundMovesOn)
         else
           _StaggeredCaptionList(
             captions: state.captionOptions,
             ownId: state.ownCaptionId,
             votedId: state.votedCaptionId,
-            onVote: onVote,
+            onVote: widget.onVote,
           ),
         if (state.errorMessage != null) ...<Widget>[
           const SizedBox(height: AppSpacing.s12),
@@ -227,6 +292,7 @@ class _CaptionReveal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     final reveal = state.lastCaptionReveal;
     if (reveal == null) {
       return const Center(child: CircularProgressIndicator());
@@ -249,10 +315,14 @@ class _CaptionReveal extends StatelessWidget {
       children: <Widget>[
         _CaptionHeader(state: state),
         const SizedBox(height: AppSpacing.s12),
-        PhotoPanel(bytes: state.activePhotoBytes, aspectRatio: 1.8),
+        PhotoPanel(
+          bytes: state.activePhotoBytes,
+          aspectRatio: 1.8,
+          isPanorama: state.activePhotoIsPanorama,
+        ),
         const SizedBox(height: AppSpacing.s12),
         Text(
-          'The table has spoken',
+          l10n.tableHasSpoken,
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w500,
@@ -266,7 +336,12 @@ class _CaptionReveal extends StatelessWidget {
             null) ...<Widget>[
           const SizedBox(height: 2),
           Text(
-            'Photo by ${state.players.where((player) => player.id == reveal.ownerId).first.name}',
+            l10n.photoBy(
+              state.players
+                  .where((player) => player.id == reveal.ownerId)
+                  .first
+                  .name,
+            ),
             style: TextStyle(fontSize: 12, color: colors.ink2),
           ),
         ],
@@ -276,8 +351,8 @@ class _CaptionReveal extends StatelessWidget {
           const SizedBox(height: AppSpacing.s4),
           Text(
             own.votes == 0
-                ? 'Your caption got zero votes. Brutal.'
-                : 'Your caption got ${own.votes} ${own.votes == 1 ? 'vote' : 'votes'}.',
+                ? l10n.yourCaptionZero
+                : l10n.yourCaptionVotes(own.votes),
             style: TextStyle(
               fontSize: 13,
               color: own.votes == 0 ? colors.ink2 : colors.positive,
@@ -287,7 +362,7 @@ class _CaptionReveal extends StatelessWidget {
         ],
         const SizedBox(height: AppSpacing.s12),
         Text(
-          'Next round in a moment.',
+          l10n.nextRoundInMoment,
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 12, color: colors.ink3),
         ),
@@ -304,6 +379,7 @@ class _CaptionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -311,7 +387,7 @@ class _CaptionHeader extends StatelessWidget {
           children: <Widget>[
             Expanded(
               child: Text(
-                'Caption This',
+                l10n.modeCaptionThis,
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w500,
@@ -320,6 +396,7 @@ class _CaptionHeader extends StatelessWidget {
                 ),
               ),
             ),
+            const HostControlsButton(),
             FrameCounter(current: state.currentRound, total: state.totalRounds),
           ],
         ),
@@ -426,6 +503,7 @@ class _CaptionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     return Opacity(
       opacity: own ? 0.55 : 1,
       child: Material(
@@ -461,7 +539,7 @@ class _CaptionCard extends StatelessWidget {
                 const SizedBox(width: AppSpacing.s8),
                 if (own)
                   Text(
-                    'Yours',
+                    l10n.yours,
                     style: TextStyle(fontSize: 12, color: colors.ink3),
                   )
                 else if (selected)
@@ -557,14 +635,13 @@ class _CaptionResultCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     final isTop = topVotes > 0 && entry.votes == topVotes;
     final badge = entry.votes == 0
-        ? 'Zero votes'
+        ? l10n.zeroVotes
         : isTop
-        ? (entry.votes >= 3 ? 'Group menace' : 'Top caption')
-        : entry.votes == 1
-        ? '1 vote'
-        : '${entry.votes} votes';
+        ? (entry.votes >= 3 ? l10n.groupMenace : l10n.topCaption)
+        : l10n.voteCount(entry.votes);
     return SurfaceCard(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -599,7 +676,7 @@ class _CaptionResultCard extends StatelessWidget {
                   children: <Widget>[
                     Expanded(
                       child: Text(
-                        '${entry.authorName} · $badge',
+                        l10n.captionAuthorBadge(entry.authorName, badge),
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: 12, color: colors.ink2),
                       ),

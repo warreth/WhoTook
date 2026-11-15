@@ -8,9 +8,11 @@ import '../../core/constants.dart';
 import '../../core/links.dart';
 import '../../core/media/photo_service.dart';
 import '../../core/models/models.dart';
+import '../../core/storage/settings_repository.dart';
 import '../../core/theme/whotook_theme.dart';
+import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
-import '../widgets/avatar_picker.dart';
+import '../widgets/avatar_editor.dart';
 import '../widgets/common.dart';
 import 'demo_screen.dart';
 
@@ -130,6 +132,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _saveRelay() async {
+    final l10n = context.l10n;
     final signaling = _signalingUrl.text.trim();
     final turn = _turnUrl.text.trim();
     final hasSignalingScheme =
@@ -139,8 +142,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         signaling.startsWith('ws://');
     if (!hasSignalingScheme) {
       setState(() {
-        _relayStatus =
-            'Signaling URL must start with https://, http://, wss:// or ws://';
+        _relayStatus = l10n.relaySignalingSchemeError;
         _relayStatusWarning = true;
       });
       return;
@@ -150,7 +152,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         !lowerTurn.startsWith('turn:') &&
         !lowerTurn.startsWith('turns:')) {
       setState(() {
-        _relayStatus = 'TURN URL must start with turn: or turns:';
+        _relayStatus = l10n.relayTurnSchemeError;
         _relayStatusWarning = true;
       });
       return;
@@ -173,12 +175,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     });
     if (!mounted) return;
     setState(() {
-      _relayStatus = 'Relay saved';
+      _relayStatus = l10n.relaySaved;
       _relayStatusWarning = false;
     });
   }
 
   Future<void> _resetRelay() async {
+    final l10n = context.l10n;
     await _settings.apply(
       (current) =>
           current.copyWith(clearCustomSignalingUrl: true, clearTurn: true),
@@ -189,7 +192,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _turnUrl.clear();
       _turnUsername.clear();
       _turnCredential.clear();
-      _relayStatus = 'Back to the default relay';
+      _relayStatus = l10n.relayDefault;
       _relayStatusWarning = false;
     });
   }
@@ -197,11 +200,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     final settings = ref.watch(appSettingsProvider).value;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: Text(l10n.settingsTitle),
         backgroundColor: colors.bg,
         surfaceTintColor: Colors.transparent,
       ),
@@ -214,8 +218,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               controller: _name,
               textCapitalization: TextCapitalization.words,
               decoration: InputDecoration(
-                labelText: 'Name',
-                helperText: 'Shown to other players',
+                labelText: l10n.nameLabel,
+                helperText: l10n.nameHelper,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadii.rControl),
                 ),
@@ -224,15 +228,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onSubmitted: (value) => unawaited(_saveName(value)),
             ),
             const SizedBox(height: AppSpacing.s24),
-            const SectionLabel('Avatar'),
-            AvatarPicker(
-              selected: normalizeAvatar(settings?.avatar),
-              onSelect: (avatar) => unawaited(
-                _settings.apply((current) => current.copyWith(avatar: avatar)),
+            SectionLabel(l10n.avatar),
+            AvatarEditor(
+              avatar: normalizeAvatar(settings?.avatar),
+              photoBase64: settings?.avatarPhoto,
+              onChanged: (avatar, photo) => unawaited(
+                _settings.apply(
+                  (current) => current.copyWith(
+                    avatar: avatar,
+                    avatarPhoto: photo,
+                    clearAvatarPhoto: photo == null,
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: AppSpacing.s24),
-            SectionLabel('Theme'),
+            SectionLabel(l10n.theme),
             SurfaceCard(
               padding: EdgeInsets.zero,
               child: Column(
@@ -241,9 +252,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ListTile(
                       minTileHeight: 56,
                       title: Text(switch (preference) {
-                        ThemePreference.system => 'Follow the device',
-                        ThemePreference.light => 'Light',
-                        ThemePreference.dark => 'Dark',
+                        ThemePreference.system => l10n.themeSystem,
+                        ThemePreference.light => l10n.themeLight,
+                        ThemePreference.dark => l10n.themeDark,
                       }, style: const TextStyle(fontSize: 14)),
                       trailing: Icon(
                         (settings?.themePreference ?? ThemePreference.system) ==
@@ -264,26 +275,56 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ),
             const SizedBox(height: AppSpacing.s24),
+            SectionLabel(l10n.language),
+            SurfaceCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: <Widget>[
+                  for (final language in AppLanguage.values)
+                    ListTile(
+                      minTileHeight: 56,
+                      title: Text(switch (language) {
+                        AppLanguage.system => l10n.languageSystem,
+                        AppLanguage.english => l10n.languageEnglish,
+                        AppLanguage.dutch => l10n.languageDutch,
+                      }, style: const TextStyle(fontSize: 14)),
+                      trailing: Icon(
+                        (settings?.language ?? AppLanguage.system) == language
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_unchecked,
+                        size: 18,
+                        color: colors.ink2,
+                      ),
+                      onTap: () => unawaited(
+                        _settings.apply(
+                          (current) => current.copyWith(language: language),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.s24),
             SectionLabel(
-              'Private albums',
+              l10n.privateAlbums,
               trailing: Text(
-                '${settings?.excludedAlbumIds.length ?? 0} excluded',
+                l10n.excludedCount(settings?.excludedAlbumIds.length ?? 0),
                 style: tabularFigures(
                   TextStyle(fontSize: 12, color: colors.ink3),
                 ),
               ),
             ),
             Text(
-              'Optional. Excluded albums are never drawn from in any match.',
+              l10n.privateAlbumsBody,
               style: TextStyle(fontSize: 13, color: colors.ink2, height: 1.4),
             ),
             const SizedBox(height: AppSpacing.s12),
             if (_albumError)
               SurfaceCard(
                 child: EmptyState(
-                  title: 'Album list unavailable',
-                  body: 'Photo access was not granted. Allow it and try again.',
-                  actionLabel: 'Retry',
+                  title: l10n.albumListUnavailable,
+                  body: l10n.albumListUnavailableBody,
+                  actionLabel: l10n.retry,
                   onAction: () => unawaited(_retryAlbums()),
                 ),
               )
@@ -299,16 +340,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ),
                     ),
                     const SizedBox(width: AppSpacing.s12),
-                    const Text('Reading your albums'),
+                    Text(l10n.readingAlbums),
                   ],
                 ),
               )
             else if (_albums!.isEmpty)
               SurfaceCard(
                 child: EmptyState(
-                  title: 'No albums found',
-                  body: 'Allow photo access to choose private albums. Photos are only read when a match starts.',
-                  actionLabel: 'Allow photo access',
+                  title: l10n.noAlbums,
+                  body: l10n.noAlbumsBody,
+                  actionLabel: l10n.allowPhotoAccess,
                   onAction: () => unawaited(_retryAlbums()),
                 ),
               )
@@ -344,7 +385,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           style: const TextStyle(fontSize: 14),
                         ),
                         subtitle: Text(
-                          '${album.assetCount} photos',
+                          l10n.photosCount(album.assetCount),
                           style: TextStyle(fontSize: 12, color: colors.ink3),
                         ),
                         controlAffinity: ListTileControlAffinity.trailing,
@@ -354,9 +395,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
             const SizedBox(height: AppSpacing.s24),
-            const SectionLabel('Online relay'),
+            SectionLabel(l10n.onlineRelay),
             Text(
-              'Local play never uses a server. Online play uses a small relay for friends elsewhere.',
+              l10n.onlineRelayBody,
               style: TextStyle(fontSize: 13, color: colors.ink2, height: 1.45),
             ),
             const SizedBox(height: AppSpacing.s12),
@@ -375,12 +416,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   AppSpacing.s16,
                 ),
                 expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
-                title: const Text(
-                  'Self-hosted relay',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                title: Text(
+                  l10n.selfHostedRelay,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
                 subtitle: Text(
-                  'Point the app at your own signaling and TURN server',
+                  l10n.selfHostedRelayBody,
                   style: TextStyle(fontSize: 12, color: colors.ink3),
                 ),
                 children: <Widget>[
@@ -389,8 +433,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     keyboardType: TextInputType.url,
                     style: const TextStyle(fontSize: 14),
                     decoration: InputDecoration(
-                      labelText: 'Signaling URL',
-                      helperText: 'Default: https://signal.whotook.party',
+                      labelText: l10n.signalingUrl,
+                      helperText: l10n.signalingUrlHelper(kDefaultSignalingUrl),
                       isDense: true,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppRadii.rControl),
@@ -403,8 +447,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     keyboardType: TextInputType.url,
                     style: const TextStyle(fontSize: 14),
                     decoration: InputDecoration(
-                      labelText: 'Custom TURN URL',
-                      helperText: 'Optional, e.g. turn:turn.example.org:3478',
+                      labelText: l10n.customTurnUrl,
+                      helperText: l10n.customTurnHelper,
                       isDense: true,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppRadii.rControl),
@@ -416,7 +460,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     controller: _turnUsername,
                     style: const TextStyle(fontSize: 14),
                     decoration: InputDecoration(
-                      labelText: 'TURN username',
+                      labelText: l10n.turnUsername,
                       isDense: true,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppRadii.rControl),
@@ -429,7 +473,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     obscureText: true,
                     style: const TextStyle(fontSize: 14),
                     decoration: InputDecoration(
-                      labelText: 'TURN credential',
+                      labelText: l10n.turnCredential,
                       isDense: true,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppRadii.rControl),
@@ -441,14 +485,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     children: <Widget>[
                       Expanded(
                         child: SecondaryButton(
-                          label: 'Reset to default',
+                          label: l10n.resetToDefault,
                           onPressed: () => unawaited(_resetRelay()),
                         ),
                       ),
                       const SizedBox(width: AppSpacing.s12),
                       Expanded(
                         child: PrimaryButton(
-                          label: 'Save relay',
+                          label: l10n.saveRelay,
                           onPressed: () => unawaited(_saveRelay()),
                         ),
                       ),
@@ -470,7 +514,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ),
             const SizedBox(height: AppSpacing.s24),
-            const SectionLabel('Help and legal'),
+            SectionLabel(l10n.helpAndLegal),
             SurfaceCard(
               padding: EdgeInsets.zero,
               child: Column(
@@ -478,15 +522,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ListTile(
                     minTileHeight: 56,
                     leading: const Icon(Icons.outlined_flag, size: 20),
-                    title: const Text(
-                      'Report content or a player',
-                      style: TextStyle(
+                    title: Text(
+                      l10n.reportContent,
+                      style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                     subtitle: Text(
-                      'Send the room code and what happened to $kSupportEmail',
+                      l10n.reportBody(kSupportEmail),
                       style: TextStyle(fontSize: 12, color: colors.ink2),
                     ),
                     onTap: () => unawaited(
@@ -500,9 +544,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ListTile(
                     minTileHeight: 56,
                     leading: const Icon(Icons.mail_outline, size: 20),
-                    title: const Text(
-                      'Support',
-                      style: TextStyle(
+                    title: Text(
+                      l10n.support,
+                      style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
@@ -517,9 +561,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ListTile(
                     minTileHeight: 56,
                     leading: const Icon(Icons.gavel_outlined, size: 20),
-                    title: const Text(
-                      'Terms and community rules',
-                      style: TextStyle(
+                    title: Text(
+                      l10n.termsAndRules,
+                      style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
@@ -530,9 +574,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ListTile(
                     minTileHeight: 56,
                     leading: const Icon(Icons.privacy_tip_outlined, size: 20),
-                    title: const Text(
-                      'Privacy',
-                      style: TextStyle(
+                    title: Text(
+                      l10n.privacy,
+                      style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
@@ -543,11 +587,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ),
             const SizedBox(height: AppSpacing.s24),
-            const SectionLabel('About'),
+            SectionLabel(l10n.about),
             Divider(color: colors.hairline, height: 1),
             const SizedBox(height: AppSpacing.s12),
             Text(
-              'Open source under the AGPLv3. Photos stay on your phone.',
+              l10n.openSource,
               style: TextStyle(fontSize: 13, color: colors.ink2, height: 1.45),
             ),
             const SizedBox(height: AppSpacing.s8),
@@ -555,7 +599,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               behavior: HitTestBehavior.opaque,
               onTap: _onAboutTap,
               child: Text(
-                'WhoTook™ is a trademark of the project owner.',
+                l10n.trademark,
                 style: TextStyle(fontSize: 12, color: colors.ink3, height: 1.4),
               ),
             ),

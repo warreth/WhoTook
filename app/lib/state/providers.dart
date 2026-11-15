@@ -4,6 +4,7 @@ import '../core/media/photo_service.dart';
 import '../core/models/models.dart';
 import '../core/storage/last_room_repository.dart';
 import '../core/storage/settings_repository.dart';
+import '../core/app_info.dart';
 import '../state/match_coordinator.dart';
 
 final settingsRepositoryProvider = Provider<SettingsRepository>(
@@ -40,9 +41,12 @@ class AppSettingsController extends AsyncNotifier<AppSettings> {
 
 /// One coordinator per app session; it owns sockets, timers and photo memory.
 final matchCoordinatorProvider = Provider<MatchCoordinator>((ref) {
+  final info = ref.watch(appInfoProvider);
   final coordinator = MatchCoordinator(
     photos: ref.watch(photoLibraryProvider),
     settings: ref.watch(settingsRepositoryProvider),
+    appVersion: info.version,
+    appBuild: info.build,
   );
   ref.onDispose(coordinator.dispose);
   return coordinator;

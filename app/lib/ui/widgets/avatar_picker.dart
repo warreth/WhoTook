@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/avatars.dart';
 import '../../core/theme/whotook_theme.dart';
+import '../../l10n/l10n.dart';
 
 IconData avatarIcon(String avatar) => switch (avatar) {
   'face' => Icons.face_outlined,
@@ -35,7 +36,7 @@ class AvatarPicker extends StatelessWidget {
           Semantics(
             selected: avatar == selected,
             button: true,
-            label: 'Avatar $avatar',
+            label: context.l10n.avatarOption(kAvatarIds.indexOf(avatar) + 1),
             child: Material(
               color: avatar == selected ? colors.raised : colors.card,
               shape: RoundedRectangleBorder(

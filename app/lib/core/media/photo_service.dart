@@ -30,10 +30,12 @@ class PickedPhoto {
     required this.assetId,
     required this.bytes,
     this.capturedAt,
+    this.isPanorama = false,
   });
 
   final String assetId;
   final Uint8List bytes;
+  final bool isPanorama;
 
   /// Gallery capture time. Time Traveler refuses photos without a usable date.
   final DateTime? capturedAt;
@@ -199,22 +201,29 @@ class DevicePhotoLibraryService implements PhotoLibraryService {
     }
     allowed.shuffle(_random);
 
-    final picked = <PickedPhoto>[];
+    // Build one mixed pool first, then read a few thumbnails at a time. The
+    // pool keeps the result random across albums instead of draining the first
+    // album before looking at the next one.
     final seen = <String>{...excludeAssetIds};
+    final pool = <AssetEntity>[];
+    final poolTarget = max(count * 4, 12);
     for (final path in allowed) {
-      if (picked.length >= count) {
-        break;
-      }
+      if (pool.length >= poolTarget) break;
       final assets = await _collectAssets(path, seen);
-      assets.shuffle(_random);
       for (final asset in assets) {
-        if (picked.length >= count) {
-          break;
-        }
-        if (!seen.add(asset.id)) {
-          continue;
-        }
-        final photo = await _readAsset(asset);
+        if (seen.add(asset.id)) pool.add(asset);
+      }
+    }
+    pool.shuffle(_random);
+
+    final picked = <PickedPhoto>[];
+    var index = 0;
+    while (index < pool.length && picked.length < count) {
+      final batch = pool.skip(index).take(4).toList();
+      index += batch.length;
+      final photos = await Future.wait(batch.map(_readAsset));
+      for (final photo in photos) {
+        if (picked.length >= count) break;
         if (photo == null) continue;
         if (requireDate && !isUsableCaptureDate(photo.capturedAt)) continue;
         picked.add(photo);
@@ -294,6 +303,7 @@ class DevicePhotoLibraryService implements PhotoLibraryService {
           assetId: asset.id,
           bytes: thumb,
           capturedAt: isUsableCaptureDate(capturedAt) ? capturedAt : null,
+          isPanorama: _isPanorama(asset),
         );
       }
       final raw = await asset.originBytes;
@@ -304,10 +314,18 @@ class DevicePhotoLibraryService implements PhotoLibraryService {
         assetId: asset.id,
         bytes: await compressPhoto(raw),
         capturedAt: isUsableCaptureDate(capturedAt) ? capturedAt : null,
+        isPanorama: _isPanorama(asset),
       );
-    } on Exception {
+    } on Object {
       return null;
     }
+  }
+
+  static bool _isPanorama(AssetEntity asset) {
+    final width = asset.width;
+    final height = asset.height;
+    if (width <= 0 || height <= 0) return false;
+    return width / height > 2.2 || height / width > 2.2;
   }
 
   static bool isUsableCaptureDate(DateTime? value) {

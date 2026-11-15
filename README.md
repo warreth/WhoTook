@@ -2,6 +2,8 @@
 
 A party game for your camera roll. One phone starts a room, everyone joins with a
 QR code, and each round shows a photo while the table races to guess who took it.
+Choose an avatar, play in English or Nederlands, and rejoin your last room after
+a restart.
 
 [![CI](https://github.com/warreth/WhoTook/actions/workflows/ci.yml/badge.svg)](https://github.com/warreth/WhoTook/actions/workflows/ci.yml)
 [![Release](https://github.com/warreth/WhoTook/actions/workflows/release.yml/badge.svg)](https://github.com/warreth/WhoTook/actions/workflows/release.yml)
@@ -33,9 +35,9 @@ QR code, and each round shows a photo while the table races to guess who took it
 ## How it plays
 
 1. **Set the table.** Pick a game mode, the rounds and the pace. Open the room and show the QR code.
-2. **Join and fill the deck.** Everyone joins from their own phone, then approves a handful of photos. Reroll the set if you want different ones.
-3. **Guess who took it.** A photo appears and everyone taps a name. Faster correct guesses score more.
-4. **Crown a winner.** The podium hands out awards. Play five more rounds, or head back to the lobby to change the game or add players.
+2. **Join and fill the deck.** Everyone joins from their own phone, picks a name and avatar, then approves a handful of photos. A selfie, a gallery photo or an icon all work as an avatar.
+3. **Guess who took it.** A photo appears and everyone taps a name. Faster correct guesses score more. If a connection drops, the phone reconnects to the same room and picks up the round.
+4. **Crown a winner.** The podium hands out awards. Play five more rounds, head back to the lobby to change the game or add players, or skip a stuck round from the host menu.
 
 Two to twelve players. No accounts, no ads, no analytics.
 

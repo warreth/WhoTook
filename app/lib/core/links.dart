@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'constants.dart';
+import '../l10n/l10n.dart';
 
 /// Opens a public WhoTook page or mail client outside the app.
 Future<void> openExternal(BuildContext context, String url) async {
   final messenger = ScaffoldMessenger.of(context);
+  final l10n = context.l10n;
   final uri = Uri.parse(url);
   var opened = false;
   try {
@@ -15,7 +17,7 @@ Future<void> openExternal(BuildContext context, String url) async {
     opened = false;
   }
   if (!opened) {
-    messenger.showSnackBar(SnackBar(content: Text('Could not open $url')));
+    messenger.showSnackBar(SnackBar(content: Text(l10n.couldNotOpenLink)));
   }
 }
 

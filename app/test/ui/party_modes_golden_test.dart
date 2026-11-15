@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:whotook/l10n/l10n.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:whotook/core/models/models.dart';
@@ -101,6 +102,30 @@ void main() {
     );
   });
 
+  testWidgets('Dutch caption voting fits', (tester) async {
+    final photo = _photo('party-cat');
+    await _precache(tester, photo);
+    await _pump(
+      tester,
+      const CaptionScreen(),
+      _captionVoting(photo),
+      locale: const Locale('nl'),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Dutch timeline reveal fits', (tester) async {
+    final photo = _photo('party-hamster');
+    await _precache(tester, photo);
+    await _pump(
+      tester,
+      const TimelineScreen(),
+      _timelineReveal(photo),
+      locale: const Locale('nl'),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('mode selector', (tester) async {
     await _pump(tester, const ModeSetupScreen(), _lobbyModes());
     await expectLater(
@@ -113,8 +138,9 @@ void main() {
 Future<void> _pump(
   WidgetTester tester,
   Widget screen,
-  MatchUiState state,
-) async {
+  MatchUiState state, {
+  Locale locale = const Locale('en'),
+}) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -129,6 +155,9 @@ Future<void> _pump(
         ),
       ],
       child: MaterialApp(
+        locale: locale,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         debugShowCheckedModeBanner: false,
         theme: buildWhoTookTheme(Brightness.light),
         home: screen,
