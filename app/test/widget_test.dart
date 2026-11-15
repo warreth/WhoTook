@@ -8,6 +8,8 @@ import 'package:whotook/core/models/models.dart';
 import 'package:whotook/core/storage/settings_repository.dart';
 import 'package:whotook/state/providers.dart';
 
+import 'support/test_photo_library.dart';
+
 class _MemorySettings extends SettingsRepository {
   _MemorySettings(this.initial);
 
@@ -40,7 +42,52 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Guess whose photo it is'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Continue'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Continue'), findsOneWidget);
+    expect(
+      find.text('I agree to the Terms of use and Community rules.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('onboarding requires terms before continuing', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsRepositoryProvider.overrideWithValue(
+            _MemorySettings(const AppSettings()),
+          ),
+          photoLibraryProvider.overrideWithValue(TestPhotoLibrary()),
+        ],
+        child: const WhoTookApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).first, 'Bram');
+    await tester.scrollUntilVisible(
+      find.text('I agree to the Terms of use and Community rules.'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(
+      find.text('I agree to the Terms of use and Community rules.'),
+    );
+    await tester.pump();
+
+    await tester.scrollUntilVisible(
+      find.text('Continue'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Host a game'), findsOneWidget);
   });
 
   testWidgets('host and join are the only two actions on home', (tester) async {

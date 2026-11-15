@@ -7,6 +7,7 @@ import 'package:crypto/crypto.dart';
 abstract final class WireType {
   static const String joinReq = 'join_req';
   static const String joinAck = 'join_ack';
+  static const String kick = 'kick';
   static const String lobbyState = 'lobby_state';
   static const String startPrepare = 'start_prepare';
   static const String submitPhotoMeta = 'submit_photos';
@@ -37,6 +38,7 @@ abstract final class WireType {
   static const Set<String> all = <String>{
     joinReq,
     joinAck,
+    kick,
     lobbyState,
     startPrepare,
     submitPhotoMeta,

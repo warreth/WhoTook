@@ -63,106 +63,116 @@ class PrepareScreen extends ConsumerWidget {
         ),
       ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.s20,
-            AppSpacing.s16,
-            AppSpacing.s20,
-            AppSpacing.s24,
-          ),
-          children: <Widget>[
-            Row(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 840),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.s20,
+                AppSpacing.s16,
+                AppSpacing.s20,
+                AppSpacing.s24,
+              ),
               children: <Widget>[
-                Expanded(
-                  child: Text(
-                    'Check your photos',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: -0.4,
-                      color: colors.ink,
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        'Check your photos',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: -0.4,
+                          color: colors.ink,
+                        ),
+                      ),
                     ),
+                    FrameCounter(
+                      current: state.candidates.length,
+                      total: state.photosNeeded,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.s4),
+                Text(
+                  state.photosNeeded > 0 &&
+                          state.candidates.length >= state.photosNeeded
+                      ? 'All ${state.candidates.length} photos for this match are here. Reroll all for a different set.'
+                      : state.photosNeeded > 0 && state.candidates.isNotEmpty
+                      ? 'You have ${state.candidates.length} of ${state.photosNeeded}. Reroll all to fill the set.'
+                      : 'Reading the photos for this match.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: colors.ink2,
+                    height: 1.4,
                   ),
                 ),
-                FrameCounter(
-                  current: state.candidates.length,
-                  total: state.photosNeeded,
-                ),
+                const SizedBox(height: AppSpacing.s16),
+                if (state.candidates.isEmpty)
+                  SurfaceCard(
+                    child: EmptyState(
+                      title: state.errorMessage == null
+                          ? 'Reading your photos'
+                          : 'No usable photos',
+                      body: state.errorMessage ?? 'Picking frames from the albums you allowed. This stays on your device.',
+                    ),
+                  )
+                else
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final columns = _photoColumns(
+                        constraints.maxWidth,
+                        state.candidates.length,
+                      );
+                      final tileWidth =
+                          (constraints.maxWidth -
+                              AppSpacing.s12 * (columns - 1)) /
+                          columns;
+                      return Wrap(
+                        spacing: AppSpacing.s12,
+                        runSpacing: AppSpacing.s12,
+                        children: <Widget>[
+                          for (
+                            var index = 0;
+                            index < state.candidates.length;
+                            index++
+                          )
+                            SizedBox(
+                              width: tileWidth,
+                              height: tileWidth,
+                              child: _PhotoTile(
+                                candidate: state.candidates[index],
+                                index: index,
+                              ),
+                            ),
+                        ],
+                      );
+                    },
+                  ),
+                const SizedBox(height: AppSpacing.s16),
+                if (state.plantUnlocked && !state.plantUsed)
+                  _PlantTile(
+                    onTap: () =>
+                        unawaited(_plant(context, coordinator, state, isHost)),
+                  ),
+                if (state.plantUsed) ...<Widget>[
+                  const SizedBox(height: AppSpacing.s8),
+                  StatusRow(
+                    label: 'Secret photo planted',
+                    tone: StatusTone.positive,
+                  ),
+                ],
+                if (state.errorMessage != null) ...<Widget>[
+                  const SizedBox(height: AppSpacing.s12),
+                  NoticeBanner(
+                    message: state.errorMessage!,
+                    tone: StatusTone.warning,
+                    icon: Icons.error_outline,
+                  ),
+                ],
               ],
             ),
-            const SizedBox(height: AppSpacing.s4),
-            Text(
-              state.photosNeeded > 0 &&
-                      state.candidates.length >= state.photosNeeded
-                  ? 'All ${state.candidates.length} photos for this match are here. Reroll all for a different set.'
-                  : state.photosNeeded > 0 && state.candidates.isNotEmpty
-                  ? 'You have ${state.candidates.length} of ${state.photosNeeded}. Reroll all to fill the set.'
-                  : 'Reading the photos for this match.',
-              style: TextStyle(fontSize: 13, color: colors.ink2, height: 1.4),
-            ),
-            const SizedBox(height: AppSpacing.s16),
-            if (state.candidates.isEmpty)
-              SurfaceCard(
-                child: EmptyState(
-                  title: state.errorMessage == null
-                      ? 'Reading your photos'
-                      : 'No usable photos',
-                  body: state.errorMessage ?? 'Picking frames from the albums you allowed. This stays on your device.',
-                ),
-              )
-            else
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final columns = _photoColumns(
-                    constraints.maxWidth,
-                    state.candidates.length,
-                  );
-                  final tileWidth =
-                      (constraints.maxWidth - AppSpacing.s12 * (columns - 1)) /
-                      columns;
-                  return Wrap(
-                    spacing: AppSpacing.s12,
-                    runSpacing: AppSpacing.s12,
-                    children: <Widget>[
-                      for (
-                        var index = 0;
-                        index < state.candidates.length;
-                        index++
-                      )
-                        SizedBox(
-                          width: tileWidth,
-                          height: tileWidth,
-                          child: _PhotoTile(
-                            candidate: state.candidates[index],
-                            index: index,
-                          ),
-                        ),
-                    ],
-                  );
-                },
-              ),
-            const SizedBox(height: AppSpacing.s16),
-            if (state.plantUnlocked && !state.plantUsed)
-              _PlantTile(
-                onTap: () =>
-                    unawaited(_plant(context, coordinator, state, isHost)),
-              ),
-            if (state.plantUsed) ...<Widget>[
-              const SizedBox(height: AppSpacing.s8),
-              StatusRow(
-                label: 'Secret photo planted',
-                tone: StatusTone.positive,
-              ),
-            ],
-            if (state.errorMessage != null) ...<Widget>[
-              const SizedBox(height: AppSpacing.s12),
-              NoticeBanner(
-                message: state.errorMessage!,
-                tone: StatusTone.warning,
-                icon: Icons.error_outline,
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );

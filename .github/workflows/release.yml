@@ -117,7 +117,9 @@ jobs:
       - name: Collect artifacts
         run: |
           mkdir -p dist
-          cp app/build/app/outputs/flutter-apk/app-release.apk "dist/WhoTook-${{ steps.version.outputs.version }}.apk"
+          # Stable names keep the website, Obtainium and SideStore links working.
+          # The release tag identifies the version; only the AAB keeps a versioned
+          # name because Play needs one file per upload.
           cp app/build/app/outputs/flutter-apk/app-release.apk "dist/WhoTook.apk"
           if [ -f app/build/app/outputs/bundle/release/app-release.aab ]; then
             cp app/build/app/outputs/bundle/release/app-release.aab "dist/WhoTook-${{ steps.version.outputs.version }}.aab"
@@ -160,7 +162,6 @@ jobs:
           cd dist
           zip -qry WhoTook-unsigned.ipa Payload
           rm -rf Payload
-          cp WhoTook-unsigned.ipa "WhoTook-${VERSION}-unsigned.ipa"
           sha256sum WhoTook-unsigned.ipa > SHA256SUMS-ios.txt
           ls -lh
 
@@ -191,7 +192,7 @@ jobs:
       - name: Rebuild checksums
         run: |
           rm -f dist/SHA256SUMS-ios.txt
-          (sha256sum dist/WhoTook.apk dist/WhoTook-*.apk dist/WhoTook-*.aab dist/WhoTook-unsigned.ipa 2>/dev/null || true) > dist/SHA256SUMS.txt
+          (sha256sum dist/WhoTook.apk dist/WhoTook-*.aab dist/WhoTook-unsigned.ipa 2>/dev/null || true) > dist/SHA256SUMS.txt
 
       - name: Publish
         env:
@@ -234,7 +235,7 @@ jobs:
           releaseName: ${{ needs.android.outputs.version }}
 
   ios:
-    name: App Store (optional)
+    name: Build and upload a signed IPA (optional)
     needs: gate
     if: needs.gate.outputs.ios == 'true'
     runs-on: macos-latest
@@ -293,7 +294,7 @@ jobs:
             <string>$TEAM_ID</string>
             <key>provisioningProfiles</key>
             <dict>
-              <key>app.whotook.whotook</key>
+              <key>party.whotook.app</key>
               <string>$PROFILE_NAME</string>
             </dict>
             <key>uploadSymbols</key>
@@ -328,3 +329,14 @@ jobs:
             --apiKey "$API_KEY_ID" \
             --apiIssuer "$API_ISSUER" \
             --show-progress
+
+      # The App Store build is signed for Apple's distribution service. Do not
+      # publish it as a public release asset: SideStore and AltStore install the
+      # unsigned IPA and re-sign it on the device.
+      - name: Keep the signed IPA as a private CI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-signed
+          path: app/build/ios/ipa/*.ipa
+          if-no-files-found: error
+          retention-days: 7

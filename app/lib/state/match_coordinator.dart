@@ -1253,6 +1253,25 @@ class MatchCoordinator {
     await _broadcastLobby();
   }
 
+  /// Removes a connected player from the lobby. The host can use this to
+  /// stop harassment without ending the whole room.
+  Future<void> kickPlayer(String playerId) async {
+    final engine = _engine;
+    if (engine == null || playerId == 'host') return;
+    await _hostTransport?.sendToClient(
+      playerId,
+      WireMessage(
+        type: WireType.kick,
+        seq: _nextSeq(),
+        payload: <String, dynamic>{'reason': 'removed'},
+      ),
+    );
+    engine.removePlayer(playerId);
+    _remotePhotos.remove(playerId);
+    _emit(_state.copyWith(players: engine.players));
+    await _broadcastLobby();
+  }
+
   /// Draws the host's photos before the room opens, so the QR code can be the
   /// last step of the setup flow.
   Future<void> drawHostCandidates({int count = 4}) async {
@@ -1900,6 +1919,11 @@ class MatchCoordinator {
     switch (message.type) {
       case WireType.joinAck:
         _emit(_state.copyWith(localPlayerId: payload['playerId'] as String?));
+      case WireType.kick:
+        await leaveMatch();
+        _emit(
+          _state.copyWith(errorMessage: 'The host removed you from the room.'),
+        );
       case WireType.lobbyState:
         final players = <Player>[
           for (final entry

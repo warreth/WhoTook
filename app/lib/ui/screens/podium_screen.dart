@@ -58,146 +58,152 @@ class _PodiumScreenState extends ConsumerState<PodiumScreen>
 
     return Scaffold(
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.s20,
-            AppSpacing.s16,
-            AppSpacing.s20,
-            AppSpacing.s32,
-          ),
-          children: <Widget>[
-            Row(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 840),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.s20,
+                AppSpacing.s16,
+                AppSpacing.s20,
+                AppSpacing.s32,
+              ),
               children: <Widget>[
-                Expanded(
-                  child: Text(
-                    'Podium',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: -0.4,
-                      color: colors.ink,
-                    ),
-                  ),
-                ),
-                Text(
-                  '${state.totalRounds} rounds',
-                  style: tabularFigures(
-                    TextStyle(fontSize: 12, color: colors.ink3),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.s16),
-            SizedBox(
-              height: 304,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: <Widget>[
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: CustomPaint(
-                        painter: _ConfettiPainter(
-                          pieces: _confetti,
-                          progress: _stage,
-                          colors: colors,
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        'Podium',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: -0.4,
+                          color: colors.ink,
                         ),
                       ),
                     ),
-                  ),
-                  if (champion != null)
-                    Align(
-                      alignment: Alignment.topCenter,
-                      child: ScaleTransition(
-                        scale: CurvedAnimation(
-                          parent: _stage,
-                          curve: const Interval(
-                            0,
-                            0.55,
-                            curve: Curves.easeOutBack,
+                    Text(
+                      '${state.totalRounds} rounds',
+                      style: tabularFigures(
+                        TextStyle(fontSize: 12, color: colors.ink3),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.s16),
+                SizedBox(
+                  height: 304,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: <Widget>[
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: CustomPaint(
+                            painter: _ConfettiPainter(
+                              pieces: _confetti,
+                              progress: _stage,
+                              colors: colors,
+                            ),
                           ),
                         ),
-                        child: _ChampionPrint(player: champion),
                       ),
-                    ),
-                  if (runners.isNotEmpty)
-                    Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: <Widget>[
-                          for (var i = 0; i < runners.length; i++)
-                            SizedBox(
-                              width: 140,
-                              child: _RunnerUp(
-                                player: runners[i],
-                                place: i + 2,
-                                topScore: champion?.score ?? 0,
-                                stage: _stage,
-                                delay: i == 0 ? 0.18 : 0.28,
+                      if (champion != null)
+                        Align(
+                          alignment: Alignment.topCenter,
+                          child: ScaleTransition(
+                            scale: CurvedAnimation(
+                              parent: _stage,
+                              curve: const Interval(
+                                0,
+                                0.55,
+                                curve: Curves.easeOutBack,
                               ),
                             ),
-                        ],
-                      ),
+                            child: _ChampionPrint(player: champion),
+                          ),
+                        ),
+                      if (runners.isNotEmpty)
+                        Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: <Widget>[
+                              for (var i = 0; i < runners.length; i++)
+                                SizedBox(
+                                  width: 140,
+                                  child: _RunnerUp(
+                                    player: runners[i],
+                                    place: i + 2,
+                                    topScore: champion?.score ?? 0,
+                                    stage: _stage,
+                                    delay: i == 0 ? 0.18 : 0.28,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.s16),
+                if (state.awards.isNotEmpty)
+                  SurfaceCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        const SectionLabel('Match awards'),
+                        for (final award in state.awards)
+                          _AwardRow(award: award),
+                      ],
                     ),
+                  ),
+                const SizedBox(height: AppSpacing.s16),
+                if (board.length > 3)
+                  SurfaceCard(
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      children: <Widget>[
+                        for (var i = 3; i < board.length; i++)
+                          ScoreRow(
+                            position: i + 1,
+                            player: board[i],
+                            score: board[i].score,
+                          ),
+                      ],
+                    ),
+                  ),
+                const SizedBox(height: AppSpacing.s16),
+                if (state.isHosting) ...<Widget>[
+                  PrimaryButton(
+                    label: 'One more round (5)',
+                    icon: Icons.replay,
+                    onPressed: () => unawaited(coordinator.extendMatch()),
+                  ),
+                  const SizedBox(height: AppSpacing.s12),
+                  SecondaryButton(
+                    label: 'Play again',
+                    onPressed: () => unawaited(coordinator.playAgain()),
+                  ),
+                  const SizedBox(height: AppSpacing.s12),
+                  SecondaryButton(
+                    label: 'Leave',
+                    onPressed: () => unawaited(coordinator.leaveMatch()),
+                  ),
+                ] else
+                  NoticeBanner(
+                    message: 'Waiting for the host',
+                    icon: Icons.hourglass_empty,
+                  ),
+                if (state.screenshotAlerts.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: AppSpacing.s16),
+                  NoticeBanner(
+                    message: 'Screenshots: ${state.screenshotAlerts.length}',
+                    icon: Icons.camera_alt_outlined,
+                  ),
                 ],
-              ),
+              ],
             ),
-            const SizedBox(height: AppSpacing.s16),
-            if (state.awards.isNotEmpty)
-              SurfaceCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    const SectionLabel('Match awards'),
-                    for (final award in state.awards) _AwardRow(award: award),
-                  ],
-                ),
-              ),
-            const SizedBox(height: AppSpacing.s16),
-            if (board.length > 3)
-              SurfaceCard(
-                padding: EdgeInsets.zero,
-                child: Column(
-                  children: <Widget>[
-                    for (var i = 3; i < board.length; i++)
-                      ScoreRow(
-                        position: i + 1,
-                        player: board[i],
-                        score: board[i].score,
-                      ),
-                  ],
-                ),
-              ),
-            const SizedBox(height: AppSpacing.s16),
-            if (state.isHosting) ...<Widget>[
-              PrimaryButton(
-                label: 'One more round (5)',
-                icon: Icons.replay,
-                onPressed: () => unawaited(coordinator.extendMatch()),
-              ),
-              const SizedBox(height: AppSpacing.s12),
-              SecondaryButton(
-                label: 'Play again',
-                onPressed: () => unawaited(coordinator.playAgain()),
-              ),
-              const SizedBox(height: AppSpacing.s12),
-              SecondaryButton(
-                label: 'Leave',
-                onPressed: () => unawaited(coordinator.leaveMatch()),
-              ),
-            ] else
-              NoticeBanner(
-                message: 'Waiting for the host',
-                icon: Icons.hourglass_empty,
-              ),
-            if (state.screenshotAlerts.isNotEmpty) ...<Widget>[
-              const SizedBox(height: AppSpacing.s16),
-              NoticeBanner(
-                message: 'Screenshots: ${state.screenshotAlerts.length}',
-                icon: Icons.camera_alt_outlined,
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );

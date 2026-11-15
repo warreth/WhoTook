@@ -152,6 +152,19 @@ void main() {
     expect(host.state.totalRounds, greaterThan(roundsBefore));
   }, timeout: const Timeout(Duration(seconds: 60)));
 
+  test('host can remove a player from the lobby', () async {
+    final targetId = clientOne.state.localPlayerId;
+    expect(targetId, isNotNull);
+    expect(host.state.players.any((p) => p.id == targetId), isTrue);
+
+    await host.kickPlayer(targetId!);
+    await _waitFor(() => host.state.players.length == 2);
+    await _waitFor(() => clientOne.state.roomId == null);
+
+    expect(host.state.players.any((p) => p.id == targetId), isFalse);
+    expect(clientOne.state.errorMessage, contains('removed'));
+  });
+
   test('client scoreboard matches the host after a reveal', () async {
     await prepareAndStart(rounds: 2);
     await guessEverywhere();

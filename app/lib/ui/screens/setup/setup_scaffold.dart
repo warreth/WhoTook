@@ -35,7 +35,7 @@ class SetupScaffold extends StatelessWidget {
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
+            constraints: const BoxConstraints(maxWidth: 720),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
@@ -140,7 +140,7 @@ class SetupScaffold extends StatelessWidget {
           children: <Widget>[
             Flexible(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 560),
+                constraints: const BoxConstraints(maxWidth: 720),
                 child: SizedBox(
                   width: double.infinity,
                   child: PrimaryButton(
