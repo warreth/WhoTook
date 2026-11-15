@@ -17,9 +17,9 @@ completed in Play Console and App Store Connect.
   review notes and Data safety / App Privacy drafts.
 - `assets/play-icon-512.png`: Google Play store icon.
 - `assets/play-feature-graphic-1024x500.png`: Google Play feature graphic.
-- `assets/screenshots/play/`: 7 phone screenshots at 1170 x 2340.
-- `assets/screenshots/iphone69/`: 7 iPhone 6.9-inch screenshots at 1320 x 2868.
-- `assets/screenshots/ipad13/`: 7 iPad 13-inch screenshots at 2064 x 2752.
+- `assets/screenshots/play/`: 6 phone screenshots at 1170 x 2340.
+- `assets/screenshots/iphone69/`: 6 iPhone 6.9-inch screenshots at 1320 x 2868.
+- `assets/screenshots/ipad13/`: 6 iPad 13-inch screenshots at 2064 x 2752.
 
 ## What only you can do
 

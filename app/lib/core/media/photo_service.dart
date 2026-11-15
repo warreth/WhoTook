@@ -257,23 +257,24 @@ class DevicePhotoLibraryService implements PhotoLibraryService {
     AssetPathEntity path,
     Set<String> excludeAssetIds,
   ) async {
+    final total = await path.assetCountAsync;
+    if (total <= 0) return const <AssetEntity>[];
+    final pages = min(_maxPagesPerAlbum, (total + _pageSize - 1) ~/ _pageSize);
+    final firstPage = pages <= 1 ? 0 : _random.nextInt(pages);
     final assets = <AssetEntity>[];
-    for (var page = 0; page < _maxPagesPerAlbum; page++) {
+    // Read at most two random pages. The old sampler walked five pages from
+    // the top of every album before it read a single photo.
+    for (var offset = 0; offset < 2 && firstPage + offset < pages; offset++) {
       final batch = await path.getAssetListPaged(
-        page: page,
+        page: firstPage + offset,
         size: _pageSize,
         type: RequestType.image,
       );
-      if (batch.isEmpty) {
-        break;
-      }
+      if (batch.isEmpty) break;
       for (final asset in batch) {
         if (!excludeAssetIds.contains(asset.id)) {
           assets.add(asset);
         }
-      }
-      if (batch.length < _pageSize) {
-        break;
       }
     }
     return assets;
@@ -281,11 +282,24 @@ class DevicePhotoLibraryService implements PhotoLibraryService {
 
   Future<PickedPhoto?> _readAsset(AssetEntity asset) async {
     try {
+      final capturedAt = asset.createDateTime;
+      // Ask the photo manager for a compressed frame first. Origin bytes plus
+      // flutter_image_compress make the gallery feel slow on large libraries.
+      final thumb = await asset.thumbnailDataWithSize(
+        const ThumbnailSize.square(maxDimension),
+        quality: jpegQuality,
+      );
+      if (thumb != null && thumb.isNotEmpty) {
+        return PickedPhoto(
+          assetId: asset.id,
+          bytes: thumb,
+          capturedAt: isUsableCaptureDate(capturedAt) ? capturedAt : null,
+        );
+      }
       final raw = await asset.originBytes;
       if (raw == null || raw.isEmpty) {
         return null;
       }
-      final capturedAt = asset.createDateTime;
       return PickedPhoto(
         assetId: asset.id,
         bytes: await compressPhoto(raw),

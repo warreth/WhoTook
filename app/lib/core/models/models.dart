@@ -5,6 +5,7 @@ class Player {
   Player({
     required this.id,
     required this.name,
+    this.avatar = 'pets',
     this.avatarColorIndex = 0,
     this.isHost = false,
     this.ready = false,
@@ -21,6 +22,7 @@ class Player {
 
   final String id;
   String name;
+  String avatar;
   int avatarColorIndex;
   final bool isHost;
   bool ready;
@@ -41,6 +43,7 @@ class Player {
   Map<String, dynamic> toJson() => <String, dynamic>{
     'id': id,
     'name': name,
+    'avatar': avatar,
     'avatarColorIndex': avatarColorIndex,
     'isHost': isHost,
     'ready': ready,
@@ -58,6 +61,7 @@ class Player {
   factory Player.fromJson(Map<String, dynamic> json) => Player(
     id: json['id'] as String,
     name: json['name'] as String,
+    avatar: (json['avatar'] as String?) ?? 'pets',
     avatarColorIndex: (json['avatarColorIndex'] as int?) ?? 0,
     isHost: (json['isHost'] as bool?) ?? false,
     ready: (json['ready'] as bool?) ?? false,
@@ -76,17 +80,55 @@ class Player {
 enum GameMode { classic, captionThis, timeTraveler, mixedParty }
 
 /// Match shape chosen before the room opens.
+enum GamePace {
+  fast,
+  normal,
+  slow;
+
+  String get label => switch (this) {
+    GamePace.fast => 'Fast',
+    GamePace.normal => 'Normal',
+    GamePace.slow => 'Slow',
+  };
+
+  int get classicSeconds => switch (this) {
+    GamePace.fast => 5,
+    GamePace.normal => 8,
+    GamePace.slow => 12,
+  };
+
+  int get captionSeconds => switch (this) {
+    GamePace.fast => 25,
+    GamePace.normal => 40,
+    GamePace.slow => 60,
+  };
+
+  int get timelineSeconds => switch (this) {
+    GamePace.fast => 15,
+    GamePace.normal => 25,
+    GamePace.slow => 40,
+  };
+
+  int mainSeconds(GameMode mode) => switch (mode) {
+    GameMode.classic || GameMode.mixedParty => classicSeconds,
+    GameMode.captionThis => captionSeconds,
+    GameMode.timeTraveler => timelineSeconds,
+  };
+}
+
 class MatchConfig {
   const MatchConfig({
     this.roundsK = 10,
     this.roundSeconds = 8,
     this.mode = GameMode.classic,
+    this.pace = GamePace.normal,
   }) : assert(roundsK > 0),
        assert(roundSeconds > 0);
 
   final int roundsK;
   final int roundSeconds;
   final GameMode mode;
+  final GamePace pace;
 
   int get roundMs => roundSeconds * 1000;
 
@@ -95,17 +137,23 @@ class MatchConfig {
   bool get needsPhotoDates =>
       mode == GameMode.timeTraveler || mode == GameMode.mixedParty;
 
-  MatchConfig copyWith({int? roundsK, int? roundSeconds, GameMode? mode}) =>
-      MatchConfig(
-        roundsK: roundsK ?? this.roundsK,
-        roundSeconds: roundSeconds ?? this.roundSeconds,
-        mode: mode ?? this.mode,
-      );
+  MatchConfig copyWith({
+    int? roundsK,
+    int? roundSeconds,
+    GameMode? mode,
+    GamePace? pace,
+  }) => MatchConfig(
+    roundsK: roundsK ?? this.roundsK,
+    roundSeconds: roundSeconds ?? this.roundSeconds,
+    mode: mode ?? this.mode,
+    pace: pace ?? this.pace,
+  );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
     'roundsK': roundsK,
     'roundSeconds': roundSeconds,
     'mode': mode.name,
+    'pace': pace.name,
   };
 
   factory MatchConfig.fromJson(Map<String, dynamic> json) => MatchConfig(
@@ -114,6 +162,10 @@ class MatchConfig {
     mode: GameMode.values.firstWhere(
       (mode) => mode.name == json['mode'],
       orElse: () => GameMode.classic,
+    ),
+    pace: GamePace.values.firstWhere(
+      (pace) => pace.name == json['pace'],
+      orElse: () => GamePace.normal,
     ),
   );
 }
@@ -603,6 +655,7 @@ enum ConnectionMode { localLan, webrtcP2p, webrtcTurn, offlineLoopback }
 class AppSettings {
   const AppSettings({
     this.nickname = '',
+    this.avatar = 'pets',
     this.avatarColorIndex = 0,
     this.excludedAlbumIds = const <String>{},
     this.themePreference = ThemePreference.system,
@@ -614,6 +667,7 @@ class AppSettings {
   });
 
   final String nickname;
+  final String avatar;
   final int avatarColorIndex;
   final Set<String> excludedAlbumIds;
   final ThemePreference themePreference;
@@ -625,6 +679,7 @@ class AppSettings {
 
   AppSettings copyWith({
     String? nickname,
+    String? avatar,
     int? avatarColorIndex,
     Set<String>? excludedAlbumIds,
     ThemePreference? themePreference,
@@ -637,6 +692,7 @@ class AppSettings {
     bool clearTurn = false,
   }) => AppSettings(
     nickname: nickname ?? this.nickname,
+    avatar: avatar ?? this.avatar,
     avatarColorIndex: avatarColorIndex ?? this.avatarColorIndex,
     excludedAlbumIds: excludedAlbumIds ?? this.excludedAlbumIds,
     themePreference: themePreference ?? this.themePreference,
@@ -655,6 +711,7 @@ class AppSettings {
 
   Map<String, dynamic> toJson() => <String, dynamic>{
     'nickname': nickname,
+    'avatar': avatar,
     'avatarColorIndex': avatarColorIndex,
     'excludedAlbumIds': excludedAlbumIds.toList()..sort(),
     'themePreference': themePreference.name,
@@ -667,6 +724,7 @@ class AppSettings {
 
   factory AppSettings.fromJson(Map<String, dynamic> json) => AppSettings(
     nickname: (json['nickname'] as String?) ?? '',
+    avatar: (json['avatar'] as String?) ?? 'pets',
     avatarColorIndex: (json['avatarColorIndex'] as int?) ?? 0,
     excludedAlbumIds: ((json['excludedAlbumIds'] as List<dynamic>?) ?? const [])
         .cast<String>()
@@ -711,4 +769,22 @@ class TurnLimitNotice {
         usedToday: (json['usedToday'] as int?) ?? 0,
         retryAtUtc: DateTime.parse(json['retryAtUtc'] as String),
       );
+}
+
+/// Raised when someone in the room runs a newer build. The room keeps playing;
+/// the warning only asks the older phone to update.
+class VersionWarning {
+  const VersionWarning({
+    required this.latestVersion,
+    required this.latestBuild,
+    required this.ownVersion,
+    required this.ownBuild,
+  });
+
+  final String latestVersion;
+  final int latestBuild;
+  final String ownVersion;
+  final int ownBuild;
+
+  bool get isNewer => latestBuild > ownBuild;
 }

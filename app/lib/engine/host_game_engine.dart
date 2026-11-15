@@ -40,15 +40,16 @@ class HostGameEngine {
   HostGameEngine({
     MatchConfig config = const MatchConfig(),
     Random? random,
+    this.planterOverride,
     DateTime Function()? clock,
   }) : _roundsK = config.roundsK,
        _roundSeconds = config.roundSeconds,
        _mode = config.mode,
+       _pace = config.pace,
        _random = random ?? Random(),
        _clock = clock ?? DateTime.now;
 
   static const int minPhotosNeeded = 3;
-  static const int ownPhotoParticipationPoints = 300;
   static const int mysteryBonusPerFooledOpponent = 150;
   static const int streakBonusCap = 400;
   static const int streakBonusStep = 100;
@@ -59,6 +60,7 @@ class HostGameEngine {
   static const int defaultExtraPhotos = 3;
 
   final Random _random;
+  final String? planterOverride;
   final DateTime Function() _clock;
   final Map<String, Player> _players = <String, Player>{};
   final List<DeckEntry> _deck = <DeckEntry>[];
@@ -79,6 +81,7 @@ class HostGameEngine {
   int _roundsK;
   int _roundSeconds;
   GameMode _mode;
+  GamePace _pace;
   GameMode _activeMode = GameMode.classic;
   int _captionSerial = 0;
   RoundPhase _phase = RoundPhase.lobby;
@@ -89,13 +92,18 @@ class HostGameEngine {
   bool _plantedThisGame = false;
   int _plantedFooledCount = 0;
   String? _plantedOwnerId;
+  String? _planterId;
   RoundReveal? _lastReveal;
   CaptionReveal? _lastCaptionReveal;
   TimelineReveal? _lastTimelineReveal;
   MicroAward? _lastMicroAward;
 
-  MatchConfig get config =>
-      MatchConfig(roundsK: _roundsK, roundSeconds: _roundSeconds, mode: _mode);
+  MatchConfig get config => MatchConfig(
+    roundsK: _roundsK,
+    roundSeconds: _roundSeconds,
+    mode: _mode,
+    pace: _pace,
+  );
   RoundPhase get phase => _phase;
   GameMode get mode => _mode;
   GameMode get activeMode => _activeMode;
@@ -138,6 +146,7 @@ class HostGameEngine {
   Player addPlayer({
     required String id,
     required String name,
+    String avatar = 'pets',
     int avatarColorIndex = 0,
     bool isHost = false,
   }) {
@@ -150,6 +159,7 @@ class HostGameEngine {
     final player = Player(
       id: id,
       name: name,
+      avatar: avatar,
       avatarColorIndex: avatarColorIndex,
       isHost: isHost,
     );
@@ -209,6 +219,18 @@ class HostGameEngine {
       );
     }
     _mode = mode;
+    _roundSeconds = _pace.mainSeconds(mode);
+  }
+
+  void setPace(GamePace pace) {
+    if (_phase != RoundPhase.lobby) {
+      throw const EngineException(
+        'wrong_phase',
+        'the pace can only change in the lobby',
+      );
+    }
+    _pace = pace;
+    _roundSeconds = pace.mainSeconds(_mode);
   }
 
   void startPrepare() {
@@ -219,6 +241,10 @@ class HostGameEngine {
       throw const EngineException('no_players', 'need at least one player');
     }
     _photosNeeded = computePhotosNeeded(_roundsK, _players.length);
+    _planterId = _players.isEmpty
+        ? null
+        : (planterOverride ??
+              _players.keys.elementAt(_random.nextInt(_players.length)));
     _phase = RoundPhase.preparing;
   }
 
@@ -283,6 +309,10 @@ class HostGameEngine {
     player.ready = false;
   }
 
+  String? get planterId => _planterId;
+
+  bool isPlanter(String playerId) => _planterId == playerId;
+
   bool get _isPlantWindowOpen {
     if (_phase != RoundPhase.preparing) {
       return false;
@@ -299,6 +329,12 @@ class HostGameEngine {
   /// the player is Ready and while another player is still not Ready.
   void plantSecretPhoto(String playerId, PhotoCandidate photo) {
     final player = _requirePlayer(playerId);
+    if (!isPlanter(playerId)) {
+      throw const EngineException(
+        'not_planter',
+        'this player is not the planter this game',
+      );
+    }
     if (photo.ownerId != playerId) {
       throw const EngineException(
         'wrong_owner',
@@ -488,11 +524,7 @@ class HostGameEngine {
     final isCorrect = entry.ownerId == guessedOwnerId;
 
     var points = 0;
-    if (isOwnPhoto) {
-      if (isCorrect) {
-        points = ownPhotoParticipationPoints;
-      }
-    } else if (isCorrect) {
+    if (isCorrect) {
       final remaining = roundMs - clamped;
       points =
           correctBasePoints +
@@ -500,13 +532,7 @@ class HostGameEngine {
           _streakBonus(player.streak);
     }
 
-    if (isOwnPhoto) {
-      if (isCorrect) {
-        player.streak += 1;
-      } else {
-        player.streak = 0;
-      }
-    } else if (isCorrect) {
+    if (isCorrect) {
       player.streak += 1;
       player.correctCount += 1;
       player.totalCorrectMs += clamped;
@@ -765,21 +791,7 @@ class HostGameEngine {
     int? furthestMs;
 
     for (final player in _players.values) {
-      if (player.id == entry.ownerId) {
-        deltas[player.id] = 100;
-        entries.add(
-          TimelineEntry(
-            playerId: player.id,
-            playerName: player.name,
-            points: 100,
-            year: actualYear,
-            month: actualMonth,
-            monthsOff: 0,
-            isOwner: true,
-          ),
-        );
-        continue;
-      }
+      final isOwner = player.id == entry.ownerId;
       final guess = _timelineGuesses[player.id];
       if (guess == null) {
         entries.add(
@@ -788,6 +800,7 @@ class HostGameEngine {
             playerName: player.name,
             points: 0,
             timedOut: true,
+            isOwner: isOwner,
           ),
         );
         continue;
@@ -809,6 +822,7 @@ class HostGameEngine {
           year: guess.year,
           month: guess.month,
           monthsOff: monthsOff,
+          isOwner: isOwner,
         ),
       );
       if (closestOff == null ||

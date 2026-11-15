@@ -3,11 +3,14 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:photo_manager/photo_manager.dart' show PermissionState;
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../core/constants.dart';
 import '../core/media/photo_service.dart';
 import '../core/models/models.dart';
+import '../core/avatars.dart';
+import '../core/storage/last_room_repository.dart';
 import '../core/platform/screenshot_detector.dart';
 import '../core/protocol/wire_message.dart';
 import '../core/qr/invite_codec.dart';
@@ -47,6 +50,7 @@ class MatchUiState {
     this.localReady = false,
     this.plantUsed = false,
     this.plantUnlocked = false,
+    this.plantEligible = false,
     this.currentRound = 0,
     this.totalRounds = 0,
     this.remainingMs = 0,
@@ -77,6 +81,8 @@ class MatchUiState {
     this.lockedTimelineYear,
     this.lockedTimelineMonth,
     this.lastTimelineReveal,
+    this.versionWarning,
+    this.versionWarningDismissed = false,
   });
 
   final bool isHosting;
@@ -92,6 +98,7 @@ class MatchUiState {
   final bool localReady;
   final bool plantUsed;
   final bool plantUnlocked;
+  final bool plantEligible;
   final int currentRound;
   final int totalRounds;
   final int remainingMs;
@@ -121,6 +128,8 @@ class MatchUiState {
   final int? lockedTimelineYear;
   final int? lockedTimelineMonth;
   final TimelineReveal? lastTimelineReveal;
+  final VersionWarning? versionWarning;
+  final bool versionWarningDismissed;
 
   /// True when the host has to choose between the podium and `+5` rounds.
   final bool hostDeciding;
@@ -145,6 +154,7 @@ class MatchUiState {
     bool? localReady,
     bool? plantUsed,
     bool? plantUnlocked,
+    bool? plantEligible,
     int? currentRound,
     int? totalRounds,
     int? remainingMs,
@@ -175,6 +185,9 @@ class MatchUiState {
     int? lockedTimelineYear,
     int? lockedTimelineMonth,
     TimelineReveal? lastTimelineReveal,
+    VersionWarning? versionWarning,
+    bool? versionWarningDismissed,
+    bool clearVersionWarning = false,
     bool clearError = false,
     bool clearLoading = false,
     bool clearGuess = false,
@@ -193,6 +206,7 @@ class MatchUiState {
     localReady: localReady ?? this.localReady,
     plantUsed: plantUsed ?? this.plantUsed,
     plantUnlocked: plantUnlocked ?? this.plantUnlocked,
+    plantEligible: plantEligible ?? this.plantEligible,
     currentRound: currentRound ?? this.currentRound,
     totalRounds: totalRounds ?? this.totalRounds,
     remainingMs: remainingMs ?? this.remainingMs,
@@ -249,6 +263,11 @@ class MatchUiState {
     lastTimelineReveal: clearRoundInput
         ? null
         : (lastTimelineReveal ?? this.lastTimelineReveal),
+    versionWarning: clearVersionWarning
+        ? null
+        : (versionWarning ?? this.versionWarning),
+    versionWarningDismissed:
+        versionWarningDismissed ?? this.versionWarningDismissed,
   );
 }
 
@@ -259,28 +278,31 @@ class MatchCoordinator {
   MatchCoordinator({
     required this._photos,
     SettingsRepository? settings,
+    LastRoomRepository? lastRooms,
     HybridConnector? connector,
     this._hostTransportFactory,
     ScreenshotDetector? screenshots,
     this.random,
     this.includeOnlineTransport = true,
     this.wakeLock,
+    this.planterOverride,
+    this.appVersion = kAppVersion,
+    this.appBuild = kAppBuildNumber,
     Duration? roundDuration,
     this.countdownDuration = const Duration(seconds: 3),
-    this.revealDuration = const Duration(milliseconds: 3500),
-    this.captionWriteDuration = const Duration(seconds: 40),
-    this.captionVoteDuration = const Duration(seconds: 25),
-    this.captionRevealDuration = const Duration(seconds: 8),
-    this.timelineDuration = const Duration(seconds: 30),
-    this.timelineRevealDuration = const Duration(seconds: 8),
+    this.revealDuration = const Duration(seconds: 6),
+    this.captionRevealDuration = const Duration(seconds: 10),
+    this.timelineRevealDuration = const Duration(seconds: 10),
     this.extendWindow = const Duration(seconds: 10),
   }) : _settings = settings ?? SettingsRepository(),
+       _lastRooms = lastRooms ?? LastRoomRepository(),
        _connector = connector ?? HybridConnector(),
        _screenshots = screenshots ?? ScreenshotDetector(),
        _roundDurationOverride = roundDuration;
 
   final PhotoLibraryService _photos;
   final SettingsRepository _settings;
+  final LastRoomRepository _lastRooms;
   final HybridConnector _connector;
   final HostTransport Function(String, String, List<String>)?
   _hostTransportFactory;
@@ -292,13 +314,18 @@ class MatchCoordinator {
 
   /// Injectable in tests so a widget test does not wait on a platform channel.
   final Future<void> Function(bool awake)? wakeLock;
+
+  /// Test seam for the randomly assigned planter.
+  final String? planterOverride;
+
+  /// The build this phone reports to the room. Defaults to the release
+  /// constants; tests override them to rehearse a mixed-version room.
+  final String appVersion;
+  final int appBuild;
   final Duration? _roundDurationOverride;
   final Duration countdownDuration;
   final Duration revealDuration;
-  final Duration captionWriteDuration;
-  final Duration captionVoteDuration;
   final Duration captionRevealDuration;
-  final Duration timelineDuration;
   final Duration timelineRevealDuration;
   final Duration extendWindow;
 
@@ -336,6 +363,13 @@ class MatchCoordinator {
   Timer? _extendTicker;
   Timer? _captionRevealTimer;
   Timer? _timelineRevealTimer;
+  Timer? _clientPhaseTicker;
+  final Map<String, int> _clientBuilds = <String, int>{};
+  final Map<String, String> _clientVersions = <String, String>{};
+  String? _pendingInviteUrl;
+  String? _pendingRoomId;
+  bool _endingOnHostLeave = false;
+  bool _leaving = false;
   int _roundStartMs = 0;
   int _seq = 0;
   bool _disposed = false;
@@ -360,6 +394,12 @@ class MatchCoordinator {
     _emit(_state.copyWith(config: _state.config));
   }
 
+  /// Keeps the coordinator in sync with the settings screen and onboarding.
+  /// Without this, names and excluded albums only reached the repository.
+  void updateSettings(AppSettings settings) {
+    _settingsValue = settings;
+  }
+
   Future<void> hostMatch({MatchConfig config = const MatchConfig()}) async {
     _emit(_state.copyWith(loadingMessage: 'Starting match', clearError: true));
     final roomId = _randomToken(8);
@@ -367,6 +407,7 @@ class MatchCoordinator {
     final engine = HostGameEngine(
       config: config,
       random: random == null ? null : Random(random!.nextInt(1 << 32)),
+      planterOverride: planterOverride,
     );
     _engine = engine;
 
@@ -436,6 +477,7 @@ class MatchCoordinator {
     final player = engine.addPlayer(
       id: 'host',
       name: _displayName,
+      avatar: _settingsValue.avatar,
       isHost: true,
     );
     await _startScreenshots();
@@ -459,6 +501,52 @@ class MatchCoordinator {
 
   final List<String> _lanAddresses = const <String>[];
 
+  /// Compares every phone's build with the newest one in the room. The host
+  /// warns older clients, and shows the same warning when the host is behind.
+  Future<void> _sendVersionWarnings() async {
+    final builds = <int>[appBuild, ..._clientBuilds.values];
+    final latestBuild = builds.reduce(max);
+    var latestVersion = appVersion;
+    for (final entry in _clientBuilds.entries) {
+      if (entry.value != latestBuild) continue;
+      final version = _clientVersions[entry.key];
+      if (version != null && version.isNotEmpty) {
+        latestVersion = version;
+        break;
+      }
+    }
+    if (appBuild < latestBuild &&
+        _state.versionWarning?.latestBuild != latestBuild) {
+      _emit(
+        _state.copyWith(
+          versionWarning: VersionWarning(
+            latestVersion: latestVersion,
+            latestBuild: latestBuild,
+            ownVersion: appVersion,
+            ownBuild: appBuild,
+          ),
+          versionWarningDismissed: false,
+        ),
+      );
+    }
+    final transport = _hostTransport;
+    if (transport == null) return;
+    for (final entry in _clientBuilds.entries) {
+      if (entry.value >= latestBuild) continue;
+      await transport.sendToClient(
+        entry.key,
+        WireMessage(
+          type: WireType.versionWarning,
+          seq: _nextSeq(),
+          payload: <String, dynamic>{
+            'latestVersion': latestVersion,
+            'latestBuild': latestBuild,
+          },
+        ),
+      );
+    }
+  }
+
   void _bindHostTransport(HostTransport transport) {
     _subscriptions.add(
       transport.clientConnected.listen((clientId) async {
@@ -468,8 +556,19 @@ class MatchCoordinator {
     _subscriptions.add(
       transport.clientDisconnected.listen((clientId) async {
         _remotePhotos.remove(clientId);
+        _clientBuilds.remove(clientId);
+        _clientVersions.remove(clientId);
         _engine?.removePlayer(clientId);
-        _emit(_state.copyWith(players: _engine?.players ?? _state.players));
+        final latestBuild = <int>[
+          appBuild,
+          ..._clientBuilds.values,
+        ].reduce(max);
+        _emit(
+          _state.copyWith(
+            players: _engine?.players ?? _state.players,
+            clearVersionWarning: latestBuild <= appBuild,
+          ),
+        );
         await _broadcastLobby();
       }),
     );
@@ -487,14 +586,31 @@ class MatchCoordinator {
       case WireType.joinReq:
         final name = (payload['name'] as String?)?.trim();
         if (name == null || name.isEmpty) return;
+        if (engine.phase != RoundPhase.lobby) {
+          await _hostTransport?.sendToClient(
+            clientId,
+            WireMessage(
+              type: WireType.kick,
+              seq: _nextSeq(),
+              payload: <String, dynamic>{'reason': 'started'},
+            ),
+          );
+          return;
+        }
         try {
           engine.addPlayer(
             id: clientId,
             name: name,
+            avatar: normalizeAvatar(payload['avatar'] as String?),
             avatarColorIndex: payload['avatarColorIndex'] as int? ?? 0,
           );
         } on EngineException {
           // A reconnect keeps the existing player object.
+        }
+        final build = payload['appBuild'];
+        if (build is int) {
+          _clientBuilds[clientId] = build;
+          _clientVersions[clientId] = payload['appVersion'] as String? ?? '';
         }
         _emit(_state.copyWith(players: engine.players));
         await _hostTransport?.sendToClient(
@@ -506,6 +622,7 @@ class MatchCoordinator {
           ),
         );
         await _broadcastLobby();
+        await _sendVersionWarnings();
       case WireType.submitPhotoMeta:
         final photos = <PhotoCandidate>[];
         for (final entry in (payload['photos'] as List<dynamic>? ?? const [])) {
@@ -843,10 +960,11 @@ class MatchCoordinator {
     }
 
     final mode = entry.mode;
+    final pace = engine.config.pace;
     final duration = switch (mode) {
       GameMode.classic || GameMode.mixedParty => effectiveRoundDuration,
-      GameMode.captionThis => captionWriteDuration,
-      GameMode.timeTraveler => timelineDuration,
+      GameMode.captionThis => Duration(seconds: pace.captionSeconds),
+      GameMode.timeTraveler => Duration(seconds: pace.timelineSeconds),
     };
     await transport.broadcast(
       WireMessage(
@@ -953,15 +1071,14 @@ class MatchCoordinator {
       return;
     }
     final options = engine.captionOptions;
-    final duration = captionVoteDuration;
     _emit(
       _state.copyWith(
         phase: RoundPhase.captionVoting,
         captionOptions: options,
         ownCaptionId: engine.captionIdFor('host'),
         votedCaptionId: null,
-        remainingMs: duration.inMilliseconds,
-        phaseDurationMs: duration.inMilliseconds,
+        remainingMs: 0,
+        phaseDurationMs: 0,
         captionsSubmitted: engine.captionCount,
         clearError: true,
       ),
@@ -976,13 +1093,11 @@ class MatchCoordinator {
           payload: <String, dynamic>{
             'captions': options.map((option) => option.toJson()).toList(),
             'ownId': engine.captionIdFor(player.id),
-            'durationMs': duration.inMilliseconds,
+            'durationMs': 0,
           },
         ),
       );
     }
-    _roundTimer = Timer(duration, () => unawaited(_finishCaptionRound()));
-    _tickPhaseProgress(duration, RoundPhase.captionVoting);
   }
 
   Future<void> _finishCaptionRound() async {
@@ -1025,7 +1140,10 @@ class MatchCoordinator {
     _roundTimer?.cancel();
     _countdownTicker?.cancel();
     final reveal = engine.finishTimelineRound(
-      durationMs: timelineDuration.inMilliseconds,
+      durationMs: _state.phaseDurationMs > 0
+          ? _state.phaseDurationMs
+          : Duration(seconds: engine.config.pace.timelineSeconds)
+                .inMilliseconds,
     );
     unawaited(HapticFeedback.mediumImpact());
     await _hostTransport?.broadcast(
@@ -1199,7 +1317,10 @@ class MatchCoordinator {
       if (mode == _state.config.mode) return;
       _emit(
         _state.copyWith(
-          config: _state.config.copyWith(mode: mode),
+          config: _state.config.copyWith(
+            mode: mode,
+            roundSeconds: _state.config.pace.mainSeconds(mode),
+          ),
           candidates: const <PhotoCandidate>[],
         ),
       );
@@ -1272,96 +1393,41 @@ class MatchCoordinator {
     await _broadcastLobby();
   }
 
-  /// Draws the host's photos before the room opens, so the QR code can be the
-  /// last step of the setup flow.
-  Future<void> drawHostCandidates({int count = 4}) async {
-    final picked = await _photos.sampleCandidates(
-      excludedAlbumIds: _settingsValue.excludedAlbumIds,
-      count: count,
-      requireDate: _state.config.needsPhotoDates,
-    );
-    final candidates = <PhotoCandidate>[
-      for (var i = 0; i < picked.length; i++)
-        PhotoCandidate(
-          photoId: 'host-$i-${picked[i].assetId}',
-          localAssetId: picked[i].assetId,
-          ownerId: 'host',
-          bytes: picked[i].bytes,
-          capturedYear: picked[i].capturedAt?.year,
-          capturedMonth: picked[i].capturedAt?.month,
+  Future<void> setPace(GamePace pace) async {
+    final engine = _engine;
+    if (engine == null) {
+      _emit(
+        _state.copyWith(
+          config: _state.config.copyWith(
+            pace: pace,
+            roundSeconds: pace.mainSeconds(_state.config.mode),
+          ),
         ),
-    ];
-    final missingDates = candidates.isEmpty && _state.config.needsPhotoDates;
-    _emit(
-      _state.copyWith(
-        candidates: candidates,
-        clearError: !missingDates,
-        errorMessage: missingDates ? _noDatedPhotosMessage : null,
-      ),
-    );
-  }
-
-  Future<void> rerollHostCandidates() async {
-    final current = _state.candidates;
-    final picked = await _photos.sampleCandidates(
-      excludedAlbumIds: _settingsValue.excludedAlbumIds,
-      count: current.isEmpty ? 4 : current.length,
-      excludeAssetIds: current
-          .map((candidate) => candidate.localAssetId)
-          .toSet(),
-      requireDate: _state.config.needsPhotoDates,
-    );
-    // A small gallery may have no fresh frames left. Keep the ones on screen.
-    if (picked.isEmpty && current.isNotEmpty) return;
-    final candidates = <PhotoCandidate>[
-      for (var i = 0; i < picked.length; i++)
-        PhotoCandidate(
-          photoId: 'host-$i-${picked[i].assetId}',
-          localAssetId: picked[i].assetId,
-          ownerId: 'host',
-          bytes: picked[i].bytes,
-          capturedYear: picked[i].capturedAt?.year,
-          capturedMonth: picked[i].capturedAt?.month,
-        ),
-    ];
-    final missingDates = candidates.isEmpty && _state.config.needsPhotoDates;
-    _emit(
-      _state.copyWith(
-        candidates: candidates,
-        clearError: !missingDates,
-        errorMessage: missingDates ? _noDatedPhotosMessage : null,
-      ),
-    );
-  }
-
-  Future<void> swapHostCandidate(int index) async {
-    final current = _state.candidates;
-    if (index < 0 || index >= current.length) return;
-    final picked = await _photos.sampleCandidates(
-      excludedAlbumIds: _settingsValue.excludedAlbumIds,
-      count: 1,
-      excludeAssetIds: current
-          .map((candidate) => candidate.localAssetId)
-          .toSet(),
-      requireDate: _state.config.needsPhotoDates,
-    );
-    if (picked.isEmpty) return;
-    final replacement = PhotoCandidate(
-      photoId: 'host-$index-${picked.first.assetId}',
-      localAssetId: picked.first.assetId,
-      ownerId: 'host',
-      bytes: picked.first.bytes,
-      capturedYear: picked.first.capturedAt?.year,
-      capturedMonth: picked.first.capturedAt?.month,
-    );
-    final next = List<PhotoCandidate>.of(current)..[index] = replacement;
-    _emit(_state.copyWith(candidates: next));
+      );
+      return;
+    }
+    try {
+      engine.setPace(pace);
+    } on EngineException {
+      return;
+    }
+    _emit(_state.copyWith(config: engine.config, clearError: true));
+    await _broadcastLobby();
   }
 
   /// Host opens the prepare phase and draws its own candidates.
   Future<void> startPrepare() async {
     final engine = _engine;
     if (engine == null) return;
+    final permission = await _photos.requestPermission();
+    if (permission == PermissionState.denied) {
+      _emit(
+        _state.copyWith(
+          errorMessage: 'Photo access is off. Allow photos in Settings, then start the photo check.',
+        ),
+      );
+      return;
+    }
     try {
       engine.startPrepare();
     } on EngineException catch (error) {
@@ -1372,6 +1438,7 @@ class MatchCoordinator {
       _state.copyWith(
         phase: RoundPhase.preparing,
         photosNeeded: engine.photosNeeded,
+        plantEligible: engine.isPlanter('host'),
         loadingMessage: 'Reading your photos',
         clearError: true,
       ),
@@ -1383,6 +1450,17 @@ class MatchCoordinator {
         payload: <String, dynamic>{'photosNeeded': engine.photosNeeded},
       ),
     );
+    for (final player in engine.players) {
+      if (player.id == 'host' || !player.connected) continue;
+      await _hostTransport?.sendToClient(
+        player.id,
+        WireMessage(
+          type: WireType.plantAssignment,
+          seq: _nextSeq(),
+          payload: <String, dynamic>{'eligible': engine.isPlanter(player.id)},
+        ),
+      );
+    }
     if (_state.candidates.isEmpty) {
       await rerollCandidates();
     } else if (_state.candidates.length > engine.photosNeeded) {
@@ -1778,13 +1856,22 @@ class MatchCoordinator {
     );
   }
 
+  void dismissVersionWarning() {
+    if (_state.versionWarning == null) return;
+    _emit(_state.copyWith(versionWarningDismissed: true));
+  }
+
   /// Returns to the lobby keeping the players that are still connected.
   Future<void> playAgain() async {
     final engine = _engine;
     if (engine == null) return;
     final players = engine.players;
     final config = _state.config;
-    final fresh = HostGameEngine(config: config, random: random);
+    final fresh = HostGameEngine(
+      config: config,
+      random: random,
+      planterOverride: planterOverride,
+    );
     _engine = fresh;
     for (final player in players) {
       if (!player.connected) continue;
@@ -1792,6 +1879,7 @@ class MatchCoordinator {
         fresh.addPlayer(
           id: player.id,
           name: player.name,
+          avatar: player.avatar,
           avatarColorIndex: player.avatarColorIndex,
           isHost: player.isHost,
         );
@@ -1835,6 +1923,8 @@ class MatchCoordinator {
   }
 
   Future<void> joinMatch(String rawInvite) async {
+    _pendingInviteUrl = null;
+    _pendingRoomId = null;
     _emit(_state.copyWith(loadingMessage: 'Joining match', clearError: true));
     final InvitePayload invite;
     try {
@@ -1849,6 +1939,8 @@ class MatchCoordinator {
       return;
     }
 
+    _pendingInviteUrl = encodeInviteUrl(invite, baseUrl: kInviteBaseUrl);
+    _pendingRoomId = invite.roomId;
     final ClientTransport transport;
     try {
       transport = await _connector.connect(
@@ -1876,18 +1968,8 @@ class MatchCoordinator {
 
     _clientTransport = transport;
     _bindClient(transport);
-    await transport.send(
-      WireMessage(
-        type: WireType.joinReq,
-        seq: _nextSeq(),
-        payload: <String, dynamic>{
-          'name': _displayName,
-          'avatarColorIndex': _settingsValue.avatarColorIndex,
-        },
-      ),
-    );
-    await _startScreenshots();
-    await _setAwake(true);
+    // Enter the room before the handshake so a refusal can reset this state
+    // instead of being overwritten by a late emit.
     _emit(
       _state.copyWith(
         isHosting: false,
@@ -1898,19 +1980,70 @@ class MatchCoordinator {
         clearLoading: true,
       ),
     );
+    await transport.send(
+      WireMessage(
+        type: WireType.joinReq,
+        seq: _nextSeq(),
+        payload: <String, dynamic>{
+          'name': _displayName,
+          'avatar': _settingsValue.avatar,
+          'avatarColorIndex': _settingsValue.avatarColorIndex,
+          'appVersion': appVersion,
+          'appBuild': appBuild,
+        },
+      ),
+    );
+    if (_state.roomId == null) return;
+    await _startScreenshots();
+    await _setAwake(true);
+  }
+
+  void _startClientPhaseTicker(int durationMs) {
+    _clientPhaseTicker?.cancel();
+    if (durationMs <= 0 || _state.isHosting) return;
+    final startedAt = DateTime.now().millisecondsSinceEpoch;
+    _clientPhaseTicker = Timer.periodic(const Duration(milliseconds: 100), (
+      timer,
+    ) {
+      if (_disposed) {
+        timer.cancel();
+        return;
+      }
+      final elapsed = DateTime.now().millisecondsSinceEpoch - startedAt;
+      final remaining = (durationMs - elapsed).clamp(0, durationMs);
+      _emit(_state.copyWith(remainingMs: remaining));
+      if (remaining <= 0) {
+        timer.cancel();
+        _clientPhaseTicker = null;
+      }
+    });
+  }
+
+  void _stopClientPhaseTicker() {
+    _clientPhaseTicker?.cancel();
+    _clientPhaseTicker = null;
   }
 
   void _bindClient(ClientTransport transport) {
     _subscriptions.add(transport.messages.listen(_handleClientMessage));
     _subscriptions.add(
-      transport.disconnected.listen((_) {
-        _emit(
-          _state.copyWith(
-            errorMessage: 'Lost the connection to the host',
-            connectionMode: null,
-          ),
-        );
-      }),
+      transport.disconnected.listen(
+        (_) => unawaited(_endOnHostLeave()),
+        onDone: () => unawaited(_endOnHostLeave()),
+      ),
+    );
+  }
+
+  Future<void> _endOnHostLeave() async {
+    if (_leaving || _endingOnHostLeave) return;
+    _endingOnHostLeave = true;
+    await leaveMatch();
+    _endingOnHostLeave = false;
+    _emit(
+      _state.copyWith(
+        errorMessage:
+            'The host ended the room. Scan a new QR or host your own game.',
+      ),
     );
   }
 
@@ -1918,11 +2051,45 @@ class MatchCoordinator {
     final payload = message.payload;
     switch (message.type) {
       case WireType.joinAck:
+        final inviteUrl = _pendingInviteUrl;
+        final roomId = _pendingRoomId;
+        if (inviteUrl != null && roomId != null) {
+          unawaited(
+            _lastRooms.remember(
+              LastRoom(
+                inviteUrl: inviteUrl,
+                roomId: roomId,
+                joinedAtUtc: DateTime.now().toUtc(),
+              ),
+            ),
+          );
+        }
         _emit(_state.copyWith(localPlayerId: payload['playerId'] as String?));
+      case WireType.versionWarning:
+        final latestBuild = payload['latestBuild'] as int? ?? appBuild;
+        if (latestBuild > appBuild) {
+          _emit(
+            _state.copyWith(
+              versionWarning: VersionWarning(
+                latestVersion:
+                    payload['latestVersion'] as String? ?? appVersion,
+                latestBuild: latestBuild,
+                ownVersion: appVersion,
+                ownBuild: appBuild,
+              ),
+              versionWarningDismissed: false,
+            ),
+          );
+        }
       case WireType.kick:
+        final reason = payload['reason'] as String?;
         await leaveMatch();
         _emit(
-          _state.copyWith(errorMessage: 'The host removed you from the room.'),
+          _state.copyWith(
+            errorMessage: reason == 'started'
+                ? 'That room already started. Ask the host to open the lobby again.'
+                : 'The host removed you from the room.',
+          ),
         );
       case WireType.lobbyState:
         final players = <Player>[
@@ -1965,6 +2132,15 @@ class MatchCoordinator {
             localReady: false,
           ),
         );
+        final permission = await _photos.requestPermission();
+        if (permission == PermissionState.denied) {
+          _emit(
+            _state.copyWith(
+              errorMessage: 'Photo access is off. Allow photos in Settings, then tap Reroll all.',
+            ),
+          );
+          return;
+        }
         final drawn = await _drawClientCandidates(needed);
         _emit(
           _state.copyWith(
@@ -1974,6 +2150,10 @@ class MatchCoordinator {
                 : null,
             clearError: drawn.isNotEmpty || !_state.config.needsPhotoDates,
           ),
+        );
+      case WireType.plantAssignment:
+        _emit(
+          _state.copyWith(plantEligible: payload['eligible'] as bool? ?? false),
         );
       case WireType.photoChunk:
         final chunk = PhotoChunk.fromJson(payload);
@@ -1998,6 +2178,7 @@ class MatchCoordinator {
             lockedGuessOwnerId: null,
           ),
         );
+        _startClientPhaseTicker(payload['durationMs'] as int? ?? 0);
       case WireType.roundShow:
         final options = <Player>[
           for (final entry
@@ -2032,7 +2213,9 @@ class MatchCoordinator {
             lockedGuessOwnerId: null,
           ),
         );
+        _startClientPhaseTicker(payload['durationMs'] as int? ?? 0);
       case WireType.roundReveal:
+        _stopClientPhaseTicker();
         unawaited(HapticFeedback.mediumImpact());
         final reveal = RoundReveal.fromJson(payload);
         final updated = <Player>[
@@ -2075,7 +2258,9 @@ class MatchCoordinator {
             clearError: true,
           ),
         );
+        _startClientPhaseTicker(payload['durationMs'] as int? ?? 0);
       case WireType.captionReveal:
+        _stopClientPhaseTicker();
         unawaited(HapticFeedback.mediumImpact());
         final reveal = CaptionReveal.fromJson(payload);
         _emit(
@@ -2088,6 +2273,7 @@ class MatchCoordinator {
           ),
         );
       case WireType.timelineReveal:
+        _stopClientPhaseTicker();
         unawaited(HapticFeedback.mediumImpact());
         final reveal = TimelineReveal.fromJson(payload);
         _emit(
@@ -2125,6 +2311,7 @@ class MatchCoordinator {
         );
         _emit(_state.copyWith(extensionCandidates: drawn));
       case WireType.gamePodium:
+        _stopClientPhaseTicker();
         unawaited(HapticFeedback.heavyImpact());
         final awards = <MatchAward>[
           for (final entry in (payload['awards'] as List<dynamic>? ?? const []))
@@ -2506,6 +2693,11 @@ class MatchCoordinator {
   }
 
   Future<void> leaveMatch() async {
+    if (_leaving) return;
+    _leaving = true;
+    final forgetRoom = !_state.isHosting && _state.roomId != null;
+    _pendingInviteUrl = null;
+    _pendingRoomId = null;
     await _stopScreenshots();
     await _setAwake(false);
     for (final timer in _timers) {
@@ -2514,10 +2706,12 @@ class MatchCoordinator {
     _timers.clear();
     _roundTimer?.cancel();
     _countdownTicker?.cancel();
+    _clientPhaseTicker?.cancel();
     _extendTicker?.cancel();
     _captionRevealTimer?.cancel();
     _timelineRevealTimer?.cancel();
     _roundTimer = null;
+    _clientPhaseTicker = null;
     _countdownTicker = null;
     _extendTicker = null;
     _captionRevealTimer = null;
@@ -2535,7 +2729,13 @@ class MatchCoordinator {
     _assemblers.clear();
     _assembledHostBytes.clear();
     _clientRoundPhotos.clear();
+    _clientBuilds.clear();
+    _clientVersions.clear();
+    if (forgetRoom) {
+      await _lastRooms.forget();
+    }
     _emit(const MatchUiState());
+    _leaving = false;
   }
 
   Future<void> dispose() async {

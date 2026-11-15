@@ -148,10 +148,17 @@ class _FixedSettings extends AppSettingsController {
 }
 
 List<Player> _players() => <Player>[
-  Player(id: 'host', name: 'Bram', isHost: true, score: 2410),
-  Player(id: 'c1', name: 'Lotte', score: 3410, streak: 3, ready: true),
-  Player(id: 'c2', name: 'Sam', score: 2740),
-  Player(id: 'c3', name: 'Noor', score: 3180),
+  Player(id: 'host', name: 'Bram', avatar: 'rocket', isHost: true, score: 2410),
+  Player(
+    id: 'c1',
+    name: 'Lotte',
+    avatar: 'star',
+    score: 3410,
+    streak: 3,
+    ready: true,
+  ),
+  Player(id: 'c2', name: 'Sam', avatar: 'music', score: 2740),
+  Player(id: 'c3', name: 'Noor', avatar: 'plant', score: 3180),
 ];
 
 MatchUiState _captionWriting(Uint8List photo) => MatchUiState(
@@ -187,11 +194,10 @@ MatchUiState _captionVoting(Uint8List photo) => MatchUiState(
   ),
   currentRound: 2,
   totalRounds: 6,
-  remainingMs: 18000,
-  phaseDurationMs: 25000,
   activePhotoBytes: photo,
   ownCaptionId: 'cap-0',
   captionsSubmitted: 4,
+  votesSubmitted: 2,
   captionOptions: const <CaptionOption>[
     CaptionOption(id: 'cap-0', text: 'This is the last photo before...'),
     CaptionOption(id: 'cap-1', text: 'When the cake hits the floor.'),
@@ -322,7 +328,7 @@ MatchUiState _timelineReveal(Uint8List photo) => MatchUiState(
         year: 2019,
         month: 8,
         monthsOff: 0,
-        points: 100,
+        points: 1120,
         isOwner: true,
       ),
       TimelineEntry(
@@ -332,7 +338,7 @@ MatchUiState _timelineReveal(Uint8List photo) => MatchUiState(
         timedOut: true,
       ),
     ],
-    scoreDeltas: const <String, int>{'c1': 1000, 'c2': 300, 'c3': 100},
+    scoreDeltas: const <String, int>{'c1': 1000, 'c2': 300, 'c3': 1120},
     closestId: 'c1',
     furthestId: 'c2',
   ),

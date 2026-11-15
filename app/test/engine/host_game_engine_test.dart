@@ -43,6 +43,7 @@ HostGameEngine readyEngine({
       mode: mode,
     ),
     random: Random(seed),
+    planterOverride: 'p0',
   );
   for (var i = 0; i < players; i++) {
     engine.addPlayer(id: 'p$i', name: 'Player $i', isHost: i == 0);
@@ -318,6 +319,12 @@ void main() {
         month: farDate.month,
         elapsedMs: 9000,
       );
+      engine.submitTimelineGuess(
+        playerId: entry.ownerId,
+        year: actualYear,
+        month: actualMonth,
+        elapsedMs: 2000,
+      );
       expect(engine.allTimelineGuessed, isTrue);
 
       final reveal = engine.finishTimelineRound(durationMs: 30000);
@@ -339,7 +346,11 @@ void main() {
       expect(exactEntry.points, greaterThan(farEntry.points));
       expect(farEntry.monthsOff, 36);
       expect(ownerEntry.isOwner, isTrue);
-      expect(ownerEntry.points, 100);
+      // The owner guesses their own photo and scores like everyone else:
+      // 1000 accuracy + 200 speed - round(200 * 2000 / 30000) = 1187.
+      expect(ownerEntry.monthsOff, 0);
+      expect(ownerEntry.points, 1187);
+      expect(reveal.scoreDeltas[entry.ownerId], 1187);
     });
   });
 
@@ -415,37 +426,26 @@ void main() {
         final entry = engine.startRound();
         final scoreBefore = engine.player(guesser)!.score;
         final streakBefore = engine.player(guesser)!.streak;
-        if (entry.ownerId == guesser) {
-          engine.submitGuess(guesser, guesser, 2000);
-          engine.finishRound();
-          expect(engine.player(guesser)!.score - scoreBefore, 300);
-          expect(engine.player(guesser)!.streak, streakBefore + 1);
-          bonuses.add(-1);
-        } else {
-          engine.submitGuess(guesser, entry.ownerId, 2000);
-          engine.finishRound();
-          final gained = engine.player(guesser)!.score - scoreBefore;
-          final expectedBonus = streakBefore < 2
-              ? 0
-              : min(400, 100 * (streakBefore - 1));
-          // 2000 ms of 8000 elapsed leaves 6000 ms -> floor(500 * 6 / 8) = 375.
-          expect(gained, 875 + expectedBonus);
-          bonuses.add(expectedBonus);
-        }
+        engine.submitGuess(guesser, entry.ownerId, 2000);
+        engine.finishRound();
+        final gained = engine.player(guesser)!.score - scoreBefore;
+        expect(engine.player(guesser)!.streak, streakBefore + 1);
+        final expectedBonus = streakBefore < 2
+            ? 0
+            : min(400, 100 * (streakBefore - 1));
+        // 2000 ms of 8000 elapsed leaves 6000 ms -> floor(500 * 6 / 8) = 375.
+        expect(gained, 875 + expectedBonus);
+        bonuses.add(expectedBonus);
         engine.advanceAfterReveal();
       }
-      // Own-photo rounds are marked -1 and never break the streak, so the
-      // bonus sequence only ever climbs.
-      final opponentBonuses = bonuses.where((b) => b >= 0).toList();
-      expect(opponentBonuses, isNotEmpty);
-      for (var i = 1; i < opponentBonuses.length; i++) {
-        expect(
-          opponentBonuses[i],
-          greaterThanOrEqualTo(opponentBonuses[i - 1]),
-        );
+      // Every round is a correct guess now, own photo or not, so the bonus
+      // sequence only climbs until it hits the cap.
+      expect(bonuses, isNotEmpty);
+      for (var i = 1; i < bonuses.length; i++) {
+        expect(bonuses[i], greaterThanOrEqualTo(bonuses[i - 1]));
       }
-      expect(opponentBonuses.first, 0);
-      expect(opponentBonuses.last, 400);
+      expect(bonuses.first, 0);
+      expect(bonuses.last, 400);
       expect(engine.player(guesser)!.longestStreak, 8);
     });
 
@@ -497,20 +497,18 @@ void main() {
       );
     });
 
-    test(
-      'own photo: tapping your own name gives +300 and keeps the streak',
-      () {
-        final engine = readyEngine(players: 2, roundsK: 2);
-        engine.startGame();
-        final entry = engine.startRound();
-        final owner = engine.player(entry.ownerId)!;
-        owner.streak = 3;
-        engine.submitGuess(owner.id, owner.id, 100);
-        final reveal = engine.finishRound();
-        expect(reveal.scoreDeltas[owner.id], 300);
-        expect(owner.streak, 4);
-      },
-    );
+    test('own photo: tapping your own name pays like any correct guess', () {
+      final engine = readyEngine(players: 2, roundsK: 2);
+      engine.startGame();
+      final entry = engine.startRound();
+      final owner = engine.player(entry.ownerId)!;
+      owner.streak = 3;
+      engine.submitGuess(owner.id, owner.id, 100);
+      final reveal = engine.finishRound();
+      // 500 + floor(500 * 7900 / 8000) + streak bonus 200 = 1193.
+      expect(reveal.scoreDeltas[owner.id], 1193);
+      expect(owner.streak, 4);
+    });
 
     test('own photo: tapping someone else gives 0 and resets the streak', () {
       final engine = readyEngine(players: 3, roundsK: 3);
@@ -534,16 +532,17 @@ void main() {
           .map((p) => p.id)
           .where((id) => id != ownerId)
           .toList();
-      // Two opponents fooled, one right.
+      // Two opponents fooled, one right. The owner also nailed their own
+      // photo: 500 + floor(500 * 7900 / 8000) = 993, plus 2 * 150 mystery.
       engine.submitGuess(ownerId, ownerId, 100);
       engine.submitGuess(others[0], others[1], 500);
       engine.submitGuess(others[1], others[0], 500);
       engine.submitGuess(others[2], others[0], 500);
       final reveal = engine.finishRound();
       final owner = engine.player(ownerId)!;
-      expect(reveal.scoreDeltas[ownerId], 300 + 450);
+      expect(reveal.scoreDeltas[ownerId], 993 + 450);
       expect(owner.mysteryPointsEarned, 450);
-      expect(owner.score, 750);
+      expect(owner.score, 1443);
     });
 
     test(
@@ -631,7 +630,7 @@ void main() {
 
   group('plant a photo', () {
     HostGameEngine preparingEngine({int players = 3}) {
-      final engine = HostGameEngine(random: Random(1));
+      final engine = HostGameEngine(random: Random(1), planterOverride: 'p0');
       for (var i = 0; i < players; i++) {
         engine.addPlayer(id: 'p$i', name: 'P$i');
       }
@@ -650,13 +649,23 @@ void main() {
 
     test('blocked before the player is Ready', () {
       final engine = preparingEngine();
-      engine.markReady('p0');
       engine.markReady('p1');
-      expect(engine.player('p2')!.ready, isFalse);
+      expect(engine.player('p0')!.ready, isFalse);
       expect(
-        () => engine.plantSecretPhoto('p2', planted('p2')),
+        () => engine.plantSecretPhoto('p0', planted('p0')),
         throwsA(
           isA<EngineException>().having((e) => e.code, 'code', 'not_ready'),
+        ),
+      );
+    });
+
+    test('blocked for a player who is not the planter', () {
+      final engine = preparingEngine();
+      engine.markReady('p1');
+      expect(
+        () => engine.plantSecretPhoto('p1', planted('p1')),
+        throwsA(
+          isA<EngineException>().having((e) => e.code, 'code', 'not_planter'),
         ),
       );
     });

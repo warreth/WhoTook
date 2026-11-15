@@ -20,31 +20,11 @@ class CaptionScreen extends ConsumerStatefulWidget {
 
 class _CaptionScreenState extends ConsumerState<CaptionScreen> {
   final TextEditingController _caption = TextEditingController();
-  int _template = 0;
-
-  static const List<String> _templates = <String>[
-    'Nobody: ... Me:',
-    'POV: you said "one more round".',
-    'This is the last photo before...',
-    'When the Wi-Fi drops mid-game...',
-    'Tell me you lost without telling me you lost.',
-    'The face you make when someone guesses your photo.',
-  ];
 
   @override
   void dispose() {
     _caption.dispose();
     super.dispose();
-  }
-
-  void _inspire() {
-    final template = _templates[_template % _templates.length];
-    _template += 1;
-    _caption.value = TextEditingValue(
-      text: template,
-      selection: TextSelection.collapsed(offset: template.length),
-    );
-    unawaited(HapticFeedback.selectionClick());
   }
 
   @override
@@ -67,7 +47,6 @@ class _CaptionScreenState extends ConsumerState<CaptionScreen> {
           _ => _CaptionWriting(
             state: state,
             controller: _caption,
-            onInspire: _inspire,
             onSubmit: (text) => unawaited(
               state.isHosting
                   ? coordinator.submitCaption(text)
@@ -84,18 +63,15 @@ class _CaptionWriting extends StatelessWidget {
   const _CaptionWriting({
     required this.state,
     required this.controller,
-    required this.onInspire,
     required this.onSubmit,
   });
 
   final MatchUiState state;
   final TextEditingController controller;
-  final VoidCallback onInspire;
   final ValueChanged<String> onSubmit;
 
   @override
   Widget build(BuildContext context) {
-    final colors = WhoTookColors.of(context);
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.s20,
@@ -135,26 +111,6 @@ class _CaptionWriting extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppRadii.rControl),
             ),
           ),
-        ),
-        const SizedBox(height: AppSpacing.s8),
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: state.captionSubmitted ? null : onInspire,
-                icon: const Icon(Icons.casino_outlined, size: 18),
-                label: const Text('Inspire me'),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
-                  foregroundColor: colors.ink2,
-                  side: BorderSide(color: colors.hairline),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadii.rControl),
-                  ),
-                ),
-              ),
-            ),
-          ],
         ),
         const SizedBox(height: AppSpacing.s16),
         if (state.captionSubmitted)
@@ -206,10 +162,29 @@ class _CaptionVoting extends StatelessWidget {
         const SizedBox(height: AppSpacing.s12),
         PhotoPanel(bytes: state.activePhotoBytes, aspectRatio: 1.8),
         const SizedBox(height: AppSpacing.s12),
-        CountdownBar(
-          remainingMs: state.remainingMs,
-          totalMs: state.phaseDurationMs,
-          label: 'Vote for the funniest',
+        Container(
+          padding: const EdgeInsets.all(AppSpacing.s12),
+          decoration: BoxDecoration(
+            color: colors.raised,
+            borderRadius: BorderRadius.circular(AppRadii.rControl),
+          ),
+          child: Row(
+            children: <Widget>[
+              Icon(Icons.how_to_vote_outlined, size: 18, color: colors.ink2),
+              const SizedBox(width: AppSpacing.s8),
+              Expanded(
+                child: Text(
+                  '${state.votesSubmitted} of ${state.players.where((p) => p.connected).length} votes in. '
+                  'The reveal starts when everyone has voted.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: 1.35,
+                    color: colors.ink2,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: AppSpacing.s12),
         Text(

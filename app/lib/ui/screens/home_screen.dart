@@ -1,22 +1,58 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/storage/last_room_repository.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../state/match_coordinator.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
 import 'join_screen.dart';
 import 'settings_screen.dart';
-import 'setup/rounds_setup_screen.dart';
+import 'setup/mode_setup_screen.dart';
 
 /// The front door: one clear decision, host or join, and nothing else.
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  LastRoom? _lastRoom;
+  bool _rejoining = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadLastRoom());
+  }
+
+  Future<void> _loadLastRoom() async {
+    final room = await ref.read(lastRoomRepositoryProvider).load();
+    if (!mounted) return;
+    setState(() => _lastRoom = room);
+  }
+
+  Future<void> _rejoin(LastRoom room) async {
+    if (_rejoining) return;
+    setState(() => _rejoining = true);
+    await ref.read(matchCoordinatorProvider).joinMatch(room.inviteUrl);
+    if (!mounted) return;
+    setState(() => _rejoining = false);
+  }
+
+  Future<void> _forgetRoom() async {
+    await ref.read(lastRoomRepositoryProvider).forget();
+    if (!mounted) return;
+    setState(() => _lastRoom = null);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
     final coordinator = ref.read(matchCoordinatorProvider);
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
@@ -24,9 +60,13 @@ class HomeScreen extends ConsumerWidget {
     final actions = _HomeActions(
       state: state,
       showGuide: wide,
-      onHost: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => const RoundsSetupScreen()),
-      ),
+      lastRoom: _lastRoom,
+      rejoining: _rejoining,
+      onRejoin: _rejoin,
+      onForgetRoom: () => unawaited(_forgetRoom()),
+      onHost: () => Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => const ModeSetupScreen())),
       onJoin: () => Navigator.of(context)
           .push(MaterialPageRoute<void>(builder: (_) => const JoinScreen())),
     );
@@ -73,8 +113,10 @@ class HomeScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: AppSpacing.s8),
                   Expanded(
-                    child: wide
-                        ? Row(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        if (wide) {
+                          return Row(
                             children: <Widget>[
                               const Expanded(flex: 3, child: _Hero()),
                               const SizedBox(width: AppSpacing.s24),
@@ -83,13 +125,28 @@ class HomeScreen extends ConsumerWidget {
                                 child: Center(child: actions),
                               ),
                             ],
-                          )
-                        : Column(
+                          );
+                        }
+                        if (constraints.maxHeight >= 700) {
+                          return Column(
                             children: <Widget>[
                               const Expanded(child: _Hero()),
                               actions,
                             ],
+                          );
+                        }
+                        // Short windows scroll instead of squeezing the hero
+                        // behind the action buttons.
+                        return SingleChildScrollView(
+                          child: Column(
+                            children: <Widget>[
+                              const SizedBox(height: 380, child: _Hero()),
+                              actions,
+                            ],
                           ),
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),
@@ -105,12 +162,20 @@ class _HomeActions extends StatelessWidget {
   const _HomeActions({
     required this.state,
     required this.showGuide,
+    required this.lastRoom,
+    required this.rejoining,
+    required this.onRejoin,
+    required this.onForgetRoom,
     required this.onHost,
     required this.onJoin,
   });
 
   final MatchUiState state;
   final bool showGuide;
+  final LastRoom? lastRoom;
+  final bool rejoining;
+  final ValueChanged<LastRoom> onRejoin;
+  final VoidCallback onForgetRoom;
   final VoidCallback onHost;
   final VoidCallback onJoin;
 
@@ -140,7 +205,7 @@ class _HomeActions extends StatelessWidget {
         const SizedBox(height: AppSpacing.s16),
         _BigAction(
           title: 'Host a game',
-          subtitle: 'You set the rounds and pick the photos',
+          subtitle: 'Pick the mode, rounds and pace',
           icon: Icons.groups_outlined,
           filled: true,
           onTap: onHost,
@@ -152,6 +217,15 @@ class _HomeActions extends StatelessWidget {
           icon: Icons.qr_code_scanner,
           onTap: onJoin,
         ),
+        if (lastRoom != null) ...<Widget>[
+          const SizedBox(height: AppSpacing.s12),
+          _RejoinCard(
+            room: lastRoom!,
+            busy: rejoining,
+            onRejoin: () => onRejoin(lastRoom!),
+            onForget: onForgetRoom,
+          ),
+        ],
         const SizedBox(height: AppSpacing.s12),
         Text(
           'Same room, same Wi-Fi. Photos stay between players.',
@@ -163,6 +237,71 @@ class _HomeActions extends StatelessWidget {
           const _HowItPlaysCard(),
         ],
       ],
+    );
+  }
+}
+
+class _RejoinCard extends StatelessWidget {
+  const _RejoinCard({
+    required this.room,
+    required this.busy,
+    required this.onRejoin,
+    required this.onForget,
+  });
+
+  final LastRoom room;
+  final bool busy;
+  final VoidCallback onRejoin;
+  final VoidCallback onForget;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    return SurfaceCard(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.s12,
+        AppSpacing.s8,
+        AppSpacing.s8,
+        AppSpacing.s8,
+      ),
+      child: Row(
+        children: <Widget>[
+          Icon(Icons.meeting_room_outlined, size: 20, color: colors.accent),
+          const SizedBox(width: AppSpacing.s8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const Text(
+                  'Last room',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+                Text(
+                  'Room ${room.roomId}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 11, color: colors.ink2),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: busy ? null : onRejoin,
+            child: busy
+                ? const SizedBox.square(
+                    dimension: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Rejoin'),
+          ),
+          IconButton(
+            tooltip: 'Forget this room',
+            onPressed: busy ? null : onForget,
+            icon: const Icon(Icons.close, size: 18),
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -193,7 +332,7 @@ class _HowItPlaysCard extends StatelessWidget {
           const _GuideRow(
             number: '01',
             title: 'Set the table',
-            body: 'Rounds, pace and photos.',
+            body: 'Mode, rounds and pace.',
           ),
           const _GuideRow(
             number: '02',

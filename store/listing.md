@@ -46,13 +46,13 @@ Ways to play:
 - Time Traveler: guess the year and month on a timeline.
 - Mixed Party: all three, shuffled.
 
-Play on the same Wi-Fi or online. No accounts, no ads and no photo server. Photos are resized and stripped of location data before they leave the phone, and they stay in that match.
+Choose a name and avatar once, then rejoin your last room from the home screen after a restart. Play on the same Wi-Fi or online. No accounts, no ads and no photo server. Photos are resized and stripped of location data before they leave the phone, and they stay in that match.
 
-Start a room, pick the rounds, pace and mode, choose your photos and show the QR code. Friends join from any camera app and the game begins.
+Start a room, pick the mode, rounds and pace, then show the QR code. Friends join from any camera app, everyone approves their own photos and the game begins.
 
 ### Promotional text, 170 characters
 
-New: a four-step host setup, a whole-set photo check and a cleaner lobby.
+New: a three-step host setup, icon avatars, a whole-set photo check and a cleaner lobby.
 
 ### Assets
 
@@ -117,13 +117,13 @@ Ways to play:
 - Time Traveler: guess the year and month on a timeline.
 - Mixed Party: all three, shuffled.
 
-Play on the same Wi-Fi or online. No accounts, no ads and no photo server. Photos are resized and stripped of location data before they leave the phone, and they stay in that match.
+Choose a name and avatar once, then rejoin your last room from the home screen after a restart. Play on the same Wi-Fi or online. No accounts, no ads and no photo server. Photos are resized and stripped of location data before they leave the phone, and they stay in that match.
 
-Start a room, pick the rounds, pace and mode, choose your photos and show the QR code. Friends join from any camera app and the game begins.
+Start a room, pick the mode, rounds and pace, then show the QR code. Friends join from any camera app, everyone approves their own photos and the game begins.
 
 ### Promotional text, 170 characters
 
-New: a four-step host setup, a whole-set photo check and a cleaner lobby.
+New: a three-step host setup, icon avatars, a whole-set photo check and a cleaner lobby.
 
 ### Review notes
 
@@ -132,10 +132,10 @@ WhoTook is a local party game. No account is needed.
 To test the full flow, install the build on two iPhones or iPads on the same Wi-Fi:
 
 1. On device A, tap Host a game.
-2. Pick rounds, pace and a mode, then approve photos.
-3. Tap Open the room, then Start photo check on the lobby.
-4. On device B, tap Join a game and scan the QR code.
-5. Approve photos on both devices, then tap Ready on both.
+2. Pick a mode, the rounds and the pace, then open the room.
+3. On device B, tap Join a game and scan the QR code.
+4. When everyone is in, tap Start photo check on device A.
+5. Approve photos and tap Ready on every phone. The first round starts.
 
 A hidden review demo with fake players and bundled photos is available at
 Settings > About. Tap the small WhoTook trademark line seven times. It runs

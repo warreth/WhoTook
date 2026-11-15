@@ -172,7 +172,15 @@ class LoopbackHub {
 
   void _attachHost(_LoopbackPeer peer) => _hosts.add(peer);
 
-  void _detachHost(_LoopbackPeer peer) => _hosts.remove(peer);
+  void _detachHost(_LoopbackPeer peer) {
+    _hosts.remove(peer);
+    // A real room dies with its host socket. The loopback double does the same
+    // so client disconnect behaviour is exercised in integration tests.
+    for (final client in _clients.values) {
+      unawaited(client._close());
+    }
+    _clients.clear();
+  }
 
   String _attachClient(_LoopbackPeer peer) {
     final id = 'c_loop${_nextClient++}';
@@ -230,6 +238,7 @@ class _LoopbackPeer {
   Future<void> _close() async {
     if (_isClosed) return;
     _isClosed = true;
+    if (_closed.hasListener) _closed.add(null);
     await _incoming.close();
     await _closed.close();
   }

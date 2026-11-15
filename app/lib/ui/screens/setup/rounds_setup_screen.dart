@@ -18,7 +18,7 @@ class RoundsSetupScreen extends ConsumerWidget {
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
     final rounds = state.config.roundsK;
     return SetupScaffold(
-      step: 1,
+      step: 2,
       title: 'How many rounds?',
       subtitle: 'Short and sharp. You can always add five more at the podium.',
       primaryLabel: 'Next: pick the pace',

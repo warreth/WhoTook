@@ -5,7 +5,9 @@ import 'package:shared_preferences_platform_interface/in_memory_shared_preferenc
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:whotook/app.dart';
 import 'package:whotook/core/models/models.dart';
+import 'package:whotook/core/storage/last_room_repository.dart';
 import 'package:whotook/core/storage/settings_repository.dart';
+import 'package:whotook/state/match_coordinator.dart';
 import 'package:whotook/state/providers.dart';
 
 import 'support/test_photo_library.dart';
@@ -27,6 +29,15 @@ void main() {
     SharedPreferencesAsyncPlatform.instance =
         InMemorySharedPreferencesAsync.empty();
   });
+
+  Future<void> usePhone(WidgetTester tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+  }
 
   testWidgets('shows onboarding on first run', (tester) async {
     await tester.pumpWidget(
@@ -88,6 +99,68 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Host a game'), findsOneWidget);
+  });
+
+  testWidgets('home offers the last joined room again', (tester) async {
+    await usePhone(tester);
+    await LastRoomRepository().remember(
+      LastRoom(
+        inviteUrl: 'https://whotook.party/j#abc',
+        roomId: 'k8m2p9x4',
+        joinedAtUtc: DateTime.now().toUtc(),
+      ),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsRepositoryProvider.overrideWithValue(
+            _MemorySettings(const AppSettings(onboardingCompleted: true)),
+          ),
+        ],
+        child: const WhoTookApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Last room'), findsOneWidget);
+    expect(find.textContaining('k8m2p9x4'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Forget this room'));
+    await tester.pumpAndSettle();
+    expect(find.text('Last room'), findsNothing);
+    expect(await LastRoomRepository().load(), isNull);
+  });
+
+  testWidgets('a version mismatch can be skipped', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsRepositoryProvider.overrideWithValue(
+            _MemorySettings(const AppSettings(onboardingCompleted: true)),
+          ),
+          matchStateProvider.overrideWith(
+            (ref) => Stream<MatchUiState>.value(
+              const MatchUiState(
+                versionWarning: VersionWarning(
+                  latestVersion: '1.7.0',
+                  latestBuild: 11,
+                  ownVersion: '1.6.0',
+                  ownBuild: 10,
+                ),
+              ),
+            ),
+          ),
+        ],
+        child: const WhoTookApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Different app versions'), findsOneWidget);
+    expect(find.textContaining('1.7.0'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, 'Keep playing'));
+    await tester.pumpAndSettle();
+    expect(find.text('Different app versions'), findsNothing);
   });
 
   testWidgets('host and join are the only two actions on home', (tester) async {

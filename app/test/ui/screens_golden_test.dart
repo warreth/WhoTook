@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:whotook/core/models/models.dart';
+import 'package:whotook/core/storage/last_room_repository.dart';
 import 'package:whotook/core/theme/whotook_theme.dart';
 import 'package:whotook/state/match_coordinator.dart';
 import 'package:whotook/state/providers.dart';
@@ -18,10 +19,10 @@ import 'package:whotook/ui/screens/podium_screen.dart';
 import 'package:whotook/ui/screens/prepare_screen.dart';
 import 'package:whotook/ui/screens/round_screen.dart';
 import 'package:whotook/ui/screens/settings_screen.dart';
-import 'package:whotook/ui/screens/setup/host_photos_screen.dart';
 import 'package:whotook/ui/screens/setup/mode_setup_screen.dart';
 import 'package:whotook/ui/screens/setup/rounds_setup_screen.dart';
 import 'package:whotook/ui/screens/setup/speed_setup_screen.dart';
+import 'package:whotook/ui/widgets/version_warning_card.dart';
 
 import '../support/test_photo_library.dart';
 
@@ -59,11 +60,39 @@ void main() {
     );
   });
 
+  testWidgets('home last room', (tester) async {
+    await _precacheHomePhotos(tester);
+    await LastRoomRepository().remember(
+      LastRoom(
+        inviteUrl: 'https://whotook.party/j#abc',
+        roomId: 'k8m2p9x4',
+        joinedAtUtc: DateTime.now().toUtc(),
+      ),
+    );
+    await _pump(tester, const HomeScreen(), _settings());
+    expect(find.text('Last room'), findsOneWidget);
+    await expectLater(
+      find.byType(HomeScreen),
+      matchesGoldenFile('goldens/home-last-room.png'),
+    );
+    await LastRoomRepository().forget();
+  });
+
   testWidgets('onboarding', (tester) async {
     await _pump(tester, const OnboardingScreen(), _settings());
     await expectLater(
       find.byType(OnboardingScreen),
       matchesGoldenFile('goldens/onboarding.png'),
+    );
+  });
+
+  testWidgets('version warning', (tester) async {
+    await _precacheHomePhotos(tester);
+    await _pump(tester, const _VersionWarningPreview(), _settings());
+    expect(find.text('Different app versions'), findsOneWidget);
+    await expectLater(
+      find.byType(_VersionWarningPreview),
+      matchesGoldenFile('goldens/version-warning.png'),
     );
   });
 
@@ -89,6 +118,24 @@ void main() {
     await expectLater(
       find.byType(PrepareScreen),
       matchesGoldenFile('goldens/prepare.png'),
+    );
+  });
+
+  testWidgets('prepare short set', (tester) async {
+    final photos = _fixturePhotos();
+    for (final photo in photos) {
+      await _precachePhoto(tester, photo);
+    }
+    await _pump(
+      tester,
+      const PrepareScreen(),
+      _settings(),
+      state: _prepareState(photos, count: 2, needed: 4),
+    );
+    expect(find.textContaining('Only 2 usable photos'), findsOneWidget);
+    await expectLater(
+      find.byType(PrepareScreen),
+      matchesGoldenFile('goldens/prepare-short.png'),
     );
   });
 
@@ -160,23 +207,6 @@ void main() {
     await expectLater(
       find.byType(ModeSetupScreen),
       matchesGoldenFile('goldens/mode-setup.png'),
-    );
-  });
-
-  testWidgets('host photos', (tester) async {
-    final photos = _fixturePhotos();
-    for (final photo in photos) {
-      await _precachePhoto(tester, photo);
-    }
-    await _pump(
-      tester,
-      const HostPhotosScreen(),
-      _settings(),
-      state: _hostPhotosState(photos),
-    );
-    await expectLater(
-      find.byType(HostPhotosScreen),
-      matchesGoldenFile('goldens/host-photos.png'),
     );
   });
 
@@ -284,6 +314,42 @@ void main() {
   });
 }
 
+class _VersionWarningPreview extends StatelessWidget {
+  const _VersionWarningPreview();
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: <Widget>[
+        const HomeScreen(),
+        SafeArea(
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.s12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  VersionWarningCard(
+                    warning: const VersionWarning(
+                      latestVersion: '1.7.0',
+                      latestBuild: 11,
+                      ownVersion: '1.6.0',
+                      ownBuild: 10,
+                    ),
+                    onDismiss: () {},
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 void _retina(WidgetTester tester) {
   final view =
       TestWidgetsFlutterBinding.instance.platformDispatcher.implicitView!;
@@ -341,37 +407,21 @@ AppSettings _settings() => const AppSettings(
 );
 
 List<Player> _players() => <Player>[
-  Player(id: 'host', name: 'Bram', isHost: true, score: 2410),
-  Player(id: 'c1', name: 'Lotte', score: 3410, streak: 3, ready: true),
-  Player(id: 'c2', name: 'Sam', score: 2740),
-  Player(id: 'c3', name: 'Noor', score: 3180),
+  Player(id: 'host', name: 'Bram', avatar: 'rocket', isHost: true, score: 2410),
+  Player(
+    id: 'c1',
+    name: 'Lotte',
+    avatar: 'star',
+    score: 3410,
+    streak: 3,
+    ready: true,
+  ),
+  Player(id: 'c2', name: 'Sam', avatar: 'music', score: 2740),
+  Player(id: 'c3', name: 'Noor', avatar: 'plant', score: 3180),
 ];
 
 MatchUiState _setupState({GameMode mode = GameMode.classic}) =>
     MatchUiState(config: MatchConfig(roundsK: 10, roundSeconds: 8, mode: mode));
-
-MatchUiState _hostPhotosState(List<Uint8List> photos) => MatchUiState(
-  isHosting: true,
-  roomId: 'k8m2p9x4',
-  localPlayerId: 'host',
-  players: _players(),
-  config: const MatchConfig(
-    roundsK: 15,
-    roundSeconds: 6,
-    mode: GameMode.timeTraveler,
-  ),
-  candidates: <PhotoCandidate>[
-    for (var i = 0; i < 4; i++)
-      PhotoCandidate(
-        photoId: 'p$i',
-        localAssetId: 'a$i',
-        ownerId: 'host',
-        bytes: photos[i % photos.length],
-        capturedYear: 2014 + i,
-        capturedMonth: 1 + i * 2,
-      ),
-  ],
-);
 
 MatchUiState _lobbyState() => MatchUiState(
   isHosting: true,

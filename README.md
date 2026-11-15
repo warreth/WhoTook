@@ -32,10 +32,10 @@ QR code, and each round shows a photo while the table races to guess who took it
 
 ## How it plays
 
-1. **Set the table.** Pick the rounds, the pace, a game mode and your first photos. The QR code is the last step.
-2. **Fill the deck.** Everyone approves a handful of photos from their own phone. Reroll the whole set if you want different ones.
+1. **Set the table.** Pick a game mode, the rounds and the pace. Open the room and show the QR code.
+2. **Join and fill the deck.** Everyone joins from their own phone, then approves a handful of photos. Reroll the set if you want different ones.
 3. **Guess who took it.** A photo appears and everyone taps a name. Faster correct guesses score more.
-4. **Crown a winner.** The podium hands out awards. Play five more rounds if nobody wants to stop.
+4. **Crown a winner.** The podium hands out awards. Play five more rounds, or head back to the lobby to change the game or add players.
 
 Two to twelve players. No accounts, no ads, no analytics.
 

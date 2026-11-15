@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -20,3 +21,14 @@ Future<void> openExternal(BuildContext context, String url) async {
 
 Future<void> openSupport(BuildContext context) =>
     openExternal(context, 'mailto:$kSupportEmail?subject=WhoTook%20support');
+
+/// The right store for this phone. iOS is not in the App Store yet, so the
+/// website explains the SideStore route until the listing is live.
+String appStoreUrl() {
+  if (kIsWeb) return kSiteUrl;
+  return switch (defaultTargetPlatform) {
+    TargetPlatform.android => kAndroidStoreUrl,
+    TargetPlatform.iOS => kIosStoreUrl,
+    _ => kSiteUrl,
+  };
+}

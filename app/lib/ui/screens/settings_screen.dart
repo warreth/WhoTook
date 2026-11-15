@@ -3,12 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/avatars.dart';
 import '../../core/constants.dart';
 import '../../core/links.dart';
 import '../../core/media/photo_service.dart';
 import '../../core/models/models.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../state/providers.dart';
+import '../widgets/avatar_picker.dart';
 import '../widgets/common.dart';
 import 'demo_screen.dart';
 
@@ -222,6 +224,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onSubmitted: (value) => unawaited(_saveName(value)),
             ),
             const SizedBox(height: AppSpacing.s24),
+            const SectionLabel('Avatar'),
+            AvatarPicker(
+              selected: normalizeAvatar(settings?.avatar),
+              onSelect: (avatar) => unawaited(
+                _settings.apply((current) => current.copyWith(avatar: avatar)),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.s24),
             SectionLabel('Theme'),
             SurfaceCard(
               padding: EdgeInsets.zero,
@@ -255,7 +265,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             const SizedBox(height: AppSpacing.s24),
             SectionLabel(
-              'Albums left out',
+              'Private albums',
               trailing: Text(
                 '${settings?.excludedAlbumIds.length ?? 0} excluded',
                 style: tabularFigures(
@@ -263,6 +273,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
             ),
+            Text(
+              'Optional. Excluded albums are never drawn from in any match.',
+              style: TextStyle(fontSize: 13, color: colors.ink2, height: 1.4),
+            ),
+            const SizedBox(height: AppSpacing.s12),
             if (_albumError)
               SurfaceCard(
                 child: EmptyState(
@@ -286,6 +301,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     const SizedBox(width: AppSpacing.s12),
                     const Text('Reading your albums'),
                   ],
+                ),
+              )
+            else if (_albums!.isEmpty)
+              SurfaceCard(
+                child: EmptyState(
+                  title: 'No albums found',
+                  body: 'Allow photo access to choose private albums. Photos are only read when a match starts.',
+                  actionLabel: 'Allow photo access',
+                  onAction: () => unawaited(_retryAlbums()),
                 ),
               )
             else

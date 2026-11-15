@@ -3,7 +3,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import '../../core/models/models.dart';
+import '../../core/avatars.dart';
 import '../../core/theme/whotook_theme.dart';
+import 'avatar_picker.dart';
 
 /// The one primary action per screen. 52 tall so it clears the 44px target.
 class PrimaryButton extends StatelessWidget {
@@ -228,11 +230,13 @@ class PlayerAvatar extends StatelessWidget {
   const PlayerAvatar({
     super.key,
     required this.initial,
+    this.avatar = '',
     this.isHost = false,
     this.size = 32,
   });
 
   final String initial;
+  final String avatar;
   final bool isHost;
   final double size;
 
@@ -248,14 +252,20 @@ class PlayerAvatar extends StatelessWidget {
         shape: BoxShape.circle,
         border: Border.all(color: colors.hairline),
       ),
-      child: Text(
-        initial.isEmpty ? '?' : initial.characters.first.toUpperCase(),
-        style: TextStyle(
-          fontSize: size * 0.38,
-          fontWeight: FontWeight.w500,
-          color: isHost ? colors.bg : colors.ink2,
-        ),
-      ),
+      child: avatar.isEmpty
+          ? Text(
+              initial.isEmpty ? '?' : initial.characters.first.toUpperCase(),
+              style: TextStyle(
+                fontSize: size * 0.38,
+                fontWeight: FontWeight.w500,
+                color: isHost ? colors.bg : colors.ink2,
+              ),
+            )
+          : Icon(
+              avatarIcon(normalizeAvatar(avatar)),
+              size: size * 0.5,
+              color: isHost ? colors.bg : colors.ink2,
+            ),
     );
   }
 }
@@ -381,7 +391,12 @@ class ScoreRow extends StatelessWidget {
               ),
             ),
           ),
-          PlayerAvatar(initial: player.name, isHost: player.isHost, size: 28),
+          PlayerAvatar(
+            initial: player.name,
+            avatar: player.avatar,
+            isHost: player.isHost,
+            size: 28,
+          ),
           const SizedBox(width: AppSpacing.s12),
           Expanded(
             child: Row(

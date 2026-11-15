@@ -15,6 +15,8 @@ abstract final class WireType {
   static const String photoComplete = 'photo_complete';
   static const String playerReady = 'player_ready';
   static const String plantPhoto = 'plant_photo';
+  static const String plantAssignment = 'plant_assignment';
+  static const String versionWarning = 'version_warning';
   static const String roundCountdown = 'round_countdown';
   static const String roundShow = 'round_show';
   static const String submitGuess = 'submit_guess';
@@ -46,6 +48,8 @@ abstract final class WireType {
     photoComplete,
     playerReady,
     plantPhoto,
+    plantAssignment,
+    versionWarning,
     roundCountdown,
     roundShow,
     submitGuess,

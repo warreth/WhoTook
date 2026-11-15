@@ -10,6 +10,7 @@ import '../../core/theme/whotook_theme.dart';
 import '../../state/match_coordinator.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
+import 'settings_screen.dart';
 
 /// Contact sheet: every player approves their own photos and can reroll as
 /// often as they like before tapping Ready.
@@ -108,13 +109,32 @@ class PrepareScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.s16),
+                if (state.candidates.isNotEmpty &&
+                    state.photosNeeded > 0 &&
+                    state.candidates.length < state.photosNeeded) ...<Widget>[
+                  NoticeBanner(
+                    message:
+                        'Only ${state.candidates.length} usable photo${state.candidates.length == 1 ? '' : 's'} found. Add photos or allow more albums in Settings, then reroll. You can still continue with this set.',
+                    tone: StatusTone.warning,
+                    icon: Icons.photo_library_outlined,
+                  ),
+                  const SizedBox(height: AppSpacing.s12),
+                ],
                 if (state.candidates.isEmpty)
                   SurfaceCard(
                     child: EmptyState(
                       title: state.errorMessage == null
                           ? 'Reading your photos'
-                          : 'No usable photos',
-                      body: state.errorMessage ?? 'Picking frames from the albums you allowed. This stays on your device.',
+                          : 'No usable photos found',
+                      body: state.errorMessage ?? 'Allow photo access, or add a few photos to your gallery. Photos are only read from albums you allow.',
+                      actionLabel: 'Photo settings',
+                      onAction: () => unawaited(
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const SettingsScreen(),
+                          ),
+                        ),
+                      ),
                     ),
                   )
                 else
@@ -150,7 +170,9 @@ class PrepareScreen extends ConsumerWidget {
                     },
                   ),
                 const SizedBox(height: AppSpacing.s16),
-                if (state.plantUnlocked && !state.plantUsed)
+                if (state.plantUnlocked &&
+                    state.plantEligible &&
+                    !state.plantUsed)
                   _PlantTile(
                     onTap: () =>
                         unawaited(_plant(context, coordinator, state, isHost)),

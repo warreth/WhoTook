@@ -424,12 +424,11 @@ class _TimelineResultRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
-    final guess = entry.isOwner
-        ? 'Your photo'
-        : entry.timedOut
+    final guessedDate = entry.year == null
         ? 'No guess'
-        : monthYear(entry.year ?? 0, entry.month ?? 1);
-    final off = entry.isOwner || entry.timedOut
+        : monthYear(entry.year!, entry.month ?? 1);
+    final guess = entry.isOwner ? 'Your photo · $guessedDate' : guessedDate;
+    final off = entry.timedOut || entry.year == null
         ? ''
         : entry.monthsOff == 0
         ? 'exact'
@@ -473,7 +472,7 @@ class _TimelineResultRow extends StatelessWidget {
               TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: entry.isOwner ? colors.ink3 : colors.ink,
+                color: entry.points > 0 ? colors.ink : colors.ink3,
               ),
             ),
           ),
