@@ -65,7 +65,7 @@ class SetupScaffold extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        'Step $step of 4',
+                        'Step $step of 3',
                         style: tabularFigures(
                           TextStyle(
                             fontFamily: 'JetBrainsMono',
@@ -169,11 +169,11 @@ class _StepRail extends StatelessWidget {
     return ExcludeSemantics(
       child: Row(
         children: <Widget>[
-          for (var i = 1; i <= 4; i++)
+          for (var i = 1; i <= 3; i++)
             Expanded(
               child: Container(
                 height: 6,
-                margin: EdgeInsets.only(right: i == 4 ? 0 : 6),
+                margin: EdgeInsets.only(right: i == 3 ? 0 : 6),
                 decoration: BoxDecoration(
                   color: i <= step ? colors.accent : colors.raised,
                   borderRadius: BorderRadius.circular(2),

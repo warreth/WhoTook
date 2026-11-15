@@ -181,7 +181,8 @@ class _PodiumScreenState extends ConsumerState<PodiumScreen>
                   ),
                   const SizedBox(height: AppSpacing.s12),
                   SecondaryButton(
-                    label: 'Play again',
+                    label: 'Back to lobby',
+                    icon: Icons.meeting_room_outlined,
                     onPressed: () => unawaited(coordinator.playAgain()),
                   ),
                   const SizedBox(height: AppSpacing.s12),
@@ -260,6 +261,7 @@ class _ChampionPrint extends StatelessWidget {
                     children: <Widget>[
                       PlayerAvatar(
                         initial: player.name,
+                        avatar: player.avatar,
                         isHost: player.isHost,
                         size: 42,
                       ),

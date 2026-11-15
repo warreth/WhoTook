@@ -126,13 +126,12 @@ class RoundScreen extends ConsumerWidget {
                       ],
                     ),
                   const SizedBox(height: AppSpacing.s8),
-                  Text(
-                    state.lockedGuessOwnerId == null
-                        ? 'Same names on every phone.'
-                        : 'Locked in, waiting for the others.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 13, color: colors.ink2),
-                  ),
+                  if (state.lockedGuessOwnerId != null)
+                    Text(
+                      'Locked in, waiting for the others.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 13, color: colors.ink2),
+                    ),
                 ],
               ],
             ],
@@ -394,6 +393,7 @@ class _GuessGrid extends StatelessWidget {
             children: <Widget>[
               PlayerAvatar(
                 initial: player.name,
+                avatar: player.avatar,
                 isHost: player.isHost,
                 size: 26,
               ),
@@ -478,7 +478,12 @@ class _RevealBlockState extends State<_RevealBlock> {
         .where((p) => p.id == reveal.ownerId)
         .firstOrNull;
     final fooled = reveal.guesses
-        .where((g) => !g.isOwnPhoto && !g.isCorrect)
+        .where(
+          (g) => !g.isOwnPhoto && !g.isCorrect && g.guessedOwnerId.isNotEmpty,
+        )
+        .length;
+    final missed = reveal.guesses
+        .where((g) => !g.isOwnPhoto && g.guessedOwnerId.isEmpty)
         .length;
     final localId = widget.localPlayerId;
     final guess = localId == null
@@ -490,32 +495,26 @@ class _RevealBlockState extends State<_RevealBlock> {
     var tone = colors.ink2;
     var icon = Icons.remove_circle_outline;
     if (localId != null) {
-      if (ownPhoto) {
-        final fooledOnOwn = reveal.guesses
-            .where(
-              (g) =>
-                  !g.isOwnPhoto && !g.isCorrect && g.guessedOwnerId.isNotEmpty,
-            )
-            .length;
-        result = fooledOnOwn == 0
-            ? 'Your photo. Nobody was fooled.'
-            : 'Your photo. $fooledOnOwn fooled.';
-        tone = fooledOnOwn > 0 ? colors.positive : colors.ink2;
-        icon = Icons.local_florist_outlined;
-      } else if (guess == null) {
-        result = 'Out of time.';
+      if (guess == null || guess.guessedOwnerId.isEmpty) {
+        result = 'No answer.';
         tone = colors.negative;
         icon = Icons.timer_off_outlined;
       } else if (guess.isCorrect) {
-        result = 'You got it. +${guess.pointsAwarded}';
+        result = ownPhoto
+            ? 'Your photo. You got it. +${guess.pointsAwarded}'
+            : 'You got it. +${guess.pointsAwarded}';
         tone = colors.positive;
         icon = Icons.check_circle_outline;
       } else {
-        result = 'You were fooled.';
+        result = ownPhoto ? 'Your photo. Wrong guess.' : 'Wrong guess.';
         tone = colors.negative;
         icon = Icons.cancel_outlined;
       }
     }
+    final summary = <String>[
+      if (fooled > 0) '$fooled ${fooled == 1 ? 'player' : 'players'} fooled',
+      if (missed > 0) '$missed did not answer',
+    ].join(' · ');
 
     return Expanded(
       child: Column(
@@ -529,6 +528,7 @@ class _RevealBlockState extends State<_RevealBlock> {
                 children: <Widget>[
                   PlayerAvatar(
                     initial: _shown ? (owner?.name ?? '?') : '?',
+                    avatar: _shown ? (owner?.avatar ?? '') : '',
                     isHost: _shown && (owner?.isHost ?? false),
                     size: 32,
                   ),
@@ -549,11 +549,9 @@ class _RevealBlockState extends State<_RevealBlock> {
                         const SizedBox(height: 2),
                         Text(
                           _shown
-                              ? (fooled == 0
+                              ? (summary.isEmpty
                                     ? 'Everyone got it right'
-                                    : fooled == 1
-                                    ? '1 player was fooled'
-                                    : '$fooled players were fooled')
+                                    : summary)
                               : 'Revealing...',
                           style: TextStyle(fontSize: 12, color: colors.ink2),
                         ),

@@ -2,17 +2,17 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:photo_manager/photo_manager.dart';
 
+import '../../core/avatars.dart';
 import '../../core/constants.dart';
 import '../../core/links.dart';
-import '../../core/media/photo_service.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../state/providers.dart';
+import '../widgets/avatar_picker.dart';
 import '../widgets/common.dart';
 
-/// First run: name plus the album exclusions that keep private folders out of
-/// every match. Nothing leaves the device.
+/// First run: name, terms and a clear path into the game. Private albums and
+/// photo access live in Settings and at the first photo check.
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -22,47 +22,14 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final TextEditingController _name = TextEditingController();
-  List<AlbumSummary> _albums = const <AlbumSummary>[];
-  final Set<String> _excluded = <String>{};
-  PermissionState? _permissionState;
-  bool _loading = false;
-  String? _error;
   bool _acceptedTerms = false;
+  String _avatar = kAvatarIds.first;
+  String? _error;
 
   @override
   void dispose() {
     _name.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadAlbums() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    final photos = ref.read(photoLibraryProvider);
-    try {
-      final permission = await photos.requestPermission();
-      if (permission == PermissionState.denied) {
-        setState(() {
-          _permissionState = permission;
-          _error = 'Photo access is needed to pick match photos.';
-          _loading = false;
-        });
-        return;
-      }
-      final albums = await photos.listAlbums();
-      if (!mounted) return;
-      setState(() {
-        _permissionState = permission;
-        _albums = albums;
-      });
-    } on Object catch (error) {
-      if (!mounted) return;
-      setState(() => _error = 'Could not read albums: $error');
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
   }
 
   Future<void> _finish() async {
@@ -78,11 +45,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     await ref
         .read(appSettingsProvider.notifier)
         .apply(
-          (current) => current.copyWith(
-            nickname: name,
-            excludedAlbumIds: _excluded,
-            onboardingCompleted: true,
-          ),
+          (current) =>
+              current.copyWith(nickname: name, onboardingCompleted: true),
         );
   }
 
@@ -134,94 +98,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: AppSpacing.s24),
-            SectionLabel(
-              'Albums to leave out',
-              trailing: Text(
-                _albums.isEmpty ? 'Not loaded' : '${_excluded.length} excluded',
-                style: tabularFigures(
-                  TextStyle(fontSize: 12, color: colors.ink3),
-                ),
-              ),
+            const SizedBox(height: AppSpacing.s20),
+            const SectionLabel('Pick an avatar'),
+            AvatarPicker(
+              selected: _avatar,
+              onSelect: (avatar) => setState(() => _avatar = avatar),
             ),
-            Text(
-              'Screenshots, work folders and anything else private stay out of every match.',
-              style: TextStyle(fontSize: 13, color: colors.ink2),
-            ),
-            if (_permissionState == PermissionState.limited)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton(
-                  onPressed: _loading ? null : _loadAlbums,
-                  style: TextButton.styleFrom(
-                    minimumSize: const Size(0, 44),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.s8,
-                    ),
-                    foregroundColor: colors.ink,
-                    textStyle: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  child: const Text('Allow more photos'),
-                ),
-              ),
-            const SizedBox(height: AppSpacing.s12),
-            if (_albums.isEmpty)
-              SurfaceCard(
-                child: _loading
-                    ? Row(
-                        children: <Widget>[
-                          SizedBox.square(
-                            dimension: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: colors.ink3,
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.s12),
-                          const Text('Reading your albums'),
-                        ],
-                      )
-                    : EmptyState(
-                        title: 'Albums are not loaded',
-                        body: 'Photos are only read after you allow access.',
-                        actionLabel: 'Allow photo access',
-                        onAction: _loadAlbums,
-                      ),
-              )
-            else
-              SurfaceCard(
-                padding: EdgeInsets.zero,
-                child: Column(
-                  children: <Widget>[
-                    for (final album in _albums)
-                      CheckboxListTile(
-                        value: _excluded.contains(album.id),
-                        onChanged: (checked) {
-                          setState(() {
-                            if (checked ?? false) {
-                              _excluded.add(album.id);
-                            } else {
-                              _excluded.remove(album.id);
-                            }
-                          });
-                        },
-                        title: Text(
-                          album.name,
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                        subtitle: Text(
-                          '${album.assetCount} photos',
-                          style: TextStyle(fontSize: 12, color: colors.ink3),
-                        ),
-                        controlAffinity: ListTileControlAffinity.trailing,
-                        dense: true,
-                      ),
-                  ],
-                ),
-              ),
             const SizedBox(height: AppSpacing.s16),
             SurfaceCard(
               child: Column(
@@ -289,15 +171,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ),
               const SizedBox(height: AppSpacing.s12),
             ],
-            if (_albums.isEmpty)
-              SecondaryButton(label: 'Continue', onPressed: _finish)
-            else
-              PrimaryButton(label: 'Continue', onPressed: _finish),
+            PrimaryButton(label: 'Continue', onPressed: _finish),
             const SizedBox(height: AppSpacing.s12),
             Text(
-              'Photos stay on your phone until the match.',
+              'Photos are only read when a match starts. You can keep private albums out of every game in Settings.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: colors.ink2),
+              style: TextStyle(fontSize: 12, color: colors.ink3, height: 1.4),
             ),
           ],
         ),

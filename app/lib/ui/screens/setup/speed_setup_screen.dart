@@ -4,38 +4,66 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/models/models.dart';
 import '../../../core/theme/whotook_theme.dart';
 import '../../../state/providers.dart';
-import 'mode_setup_screen.dart';
 import 'setup_scaffold.dart';
 
-class SpeedSetupScreen extends ConsumerWidget {
+class SpeedSetupScreen extends ConsumerStatefulWidget {
   const SpeedSetupScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SpeedSetupScreen> createState() => _SpeedSetupScreenState();
+}
+
+class _SpeedSetupScreenState extends ConsumerState<SpeedSetupScreen> {
+  bool _opening = false;
+
+  Future<void> _openRoom() async {
+    if (_opening) return;
+    final coordinator = ref.read(matchCoordinatorProvider);
+    final current = ref.read(matchStateProvider).value ?? coordinator.state;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _opening = true);
+    await coordinator.hostMatch(config: current.config);
+    if (!mounted) return;
+    final next = coordinator.state;
+    if (next.roomId == null || next.errorMessage != null) {
+      setState(() => _opening = false);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(next.errorMessage ?? 'Could not open the room.'),
+        ),
+      );
+      return;
+    }
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final coordinator = ref.read(matchCoordinatorProvider);
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
-    final seconds = state.config.roundSeconds;
+    final mode = state.config.mode;
     return SetupScaffold(
-      step: 2,
+      step: 3,
       title: 'Pick the pace',
-      subtitle: 'How long does everyone get to guess each photo?',
-      primaryLabel: 'Next: pick a mode',
-      onPrimary: () => Navigator.of(
-        context,
-      ).push(MaterialPageRoute<void>(builder: (_) => const ModeSetupScreen())),
+      subtitle: _subtitle(mode),
+      primaryLabel: 'Open the room',
+      primaryEnabled: !_opening,
+      busy: _opening,
+      onPrimary: () => unawaited(_openRoom()),
       child: Column(
         children: <Widget>[
-          for (final option in _SpeedOptions.values)
+          for (final option in _paceOptions(mode))
             Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.s12),
-              child: _SpeedOption(
+              child: _PaceCard(
                 option: option,
-                selected: option.seconds == seconds,
+                selected: option.pace == state.config.pace,
                 onTap: () {
                   unawaited(HapticFeedback.selectionClick());
-                  unawaited(coordinator.setRoundSeconds(option.seconds));
+                  unawaited(coordinator.setPace(option.pace));
                 },
               ),
             ),
@@ -45,49 +73,118 @@ class SpeedSetupScreen extends ConsumerWidget {
   }
 }
 
-class _SpeedOptions {
-  const _SpeedOptions({
-    required this.seconds,
-    required this.label,
+String _subtitle(GameMode mode) => switch (mode) {
+  GameMode.classic => 'How long does everyone get to guess each photo?',
+  GameMode.captionThis => 'How long does everyone get to write a caption?',
+  GameMode.timeTraveler => 'How long does everyone get to choose a date?',
+  GameMode.mixedParty => 'Each of the three modes keeps its own clock.',
+};
+
+class _PaceOption {
+  const _PaceOption({
+    required this.pace,
     required this.blurb,
+    required this.seconds,
     required this.icon,
   });
 
-  final int seconds;
-  final String label;
+  final GamePace pace;
   final String blurb;
+  final int? seconds;
   final IconData icon;
-
-  static const List<_SpeedOptions> values = <_SpeedOptions>[
-    _SpeedOptions(
-      seconds: 6,
-      label: 'Fast',
-      blurb: 'Snap decisions. Six seconds.',
-      icon: Icons.bolt_outlined,
-    ),
-    _SpeedOptions(
-      seconds: 8,
-      label: 'Normal',
-      blurb: 'The party standard. Eight seconds.',
-      icon: Icons.timer_outlined,
-    ),
-    _SpeedOptions(
-      seconds: 12,
-      label: 'Slow',
-      blurb: 'For the big table. Twelve seconds.',
-      icon: Icons.hourglass_empty,
-    ),
-  ];
 }
 
-class _SpeedOption extends StatelessWidget {
-  const _SpeedOption({
+List<_PaceOption> _paceOptions(GameMode mode) => switch (mode) {
+  GameMode.classic => <_PaceOption>[
+    _PaceOption(
+      pace: GamePace.fast,
+      blurb: 'Snap decisions.',
+      seconds: GamePace.fast.classicSeconds,
+      icon: Icons.bolt_outlined,
+    ),
+    _PaceOption(
+      pace: GamePace.normal,
+      blurb: 'The party standard.',
+      seconds: GamePace.normal.classicSeconds,
+      icon: Icons.timer_outlined,
+    ),
+    _PaceOption(
+      pace: GamePace.slow,
+      blurb: 'For the big table.',
+      seconds: GamePace.slow.classicSeconds,
+      icon: Icons.hourglass_empty,
+    ),
+  ],
+  GameMode.captionThis => <_PaceOption>[
+    _PaceOption(
+      pace: GamePace.fast,
+      blurb: 'A quick caption.',
+      seconds: GamePace.fast.captionSeconds,
+      icon: Icons.bolt_outlined,
+    ),
+    _PaceOption(
+      pace: GamePace.normal,
+      blurb: 'Time to be funny.',
+      seconds: GamePace.normal.captionSeconds,
+      icon: Icons.timer_outlined,
+    ),
+    _PaceOption(
+      pace: GamePace.slow,
+      blurb: 'No rush, make it good.',
+      seconds: GamePace.slow.captionSeconds,
+      icon: Icons.hourglass_empty,
+    ),
+  ],
+  GameMode.timeTraveler => <_PaceOption>[
+    _PaceOption(
+      pace: GamePace.fast,
+      blurb: 'A quick date.',
+      seconds: GamePace.fast.timelineSeconds,
+      icon: Icons.bolt_outlined,
+    ),
+    _PaceOption(
+      pace: GamePace.normal,
+      blurb: 'Think it through.',
+      seconds: GamePace.normal.timelineSeconds,
+      icon: Icons.timer_outlined,
+    ),
+    _PaceOption(
+      pace: GamePace.slow,
+      blurb: 'For the history buffs.',
+      seconds: GamePace.slow.timelineSeconds,
+      icon: Icons.hourglass_empty,
+    ),
+  ],
+  GameMode.mixedParty => <_PaceOption>[
+    _PaceOption(
+      pace: GamePace.fast,
+      blurb: 'Every mode at its fast clock.',
+      seconds: null,
+      icon: Icons.bolt_outlined,
+    ),
+    _PaceOption(
+      pace: GamePace.normal,
+      blurb: 'Every mode at its normal clock.',
+      seconds: null,
+      icon: Icons.timer_outlined,
+    ),
+    _PaceOption(
+      pace: GamePace.slow,
+      blurb: 'Every mode at its slow clock.',
+      seconds: null,
+      icon: Icons.hourglass_empty,
+    ),
+  ],
+};
+
+class _PaceCard extends StatelessWidget {
+  const _PaceCard({
     required this.option,
     required this.selected,
     required this.onTap,
   });
 
-  final _SpeedOptions option;
+  final _PaceOption option;
   final bool selected;
   final VoidCallback onTap;
 
@@ -97,7 +194,8 @@ class _SpeedOption extends StatelessWidget {
     return Semantics(
       selected: selected,
       button: true,
-      label: '${option.label}, ${option.seconds} seconds. ${option.blurb}',
+      label:
+          '${option.pace.label}, ${option.seconds == null ? option.blurb : '${option.seconds} seconds'}. ${option.blurb}',
       child: Material(
         color: selected ? colors.raised : colors.card,
         borderRadius: BorderRadius.circular(AppRadii.rCard),
@@ -127,7 +225,7 @@ class _SpeedOption extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        option.label,
+                        option.pace.label,
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
@@ -142,7 +240,7 @@ class _SpeedOption extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '${option.seconds}s',
+                  option.seconds == null ? 'Mixed' : '${option.seconds}s',
                   style: tabularFigures(
                     TextStyle(
                       fontFamily: 'JetBrainsMono',

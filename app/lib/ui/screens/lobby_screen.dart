@@ -200,37 +200,54 @@ class LobbyScreen extends ConsumerWidget {
                 SurfaceCard(
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.s16,
+                    AppSpacing.s12,
                     AppSpacing.s8,
-                    AppSpacing.s16,
-                    AppSpacing.s8,
+                    AppSpacing.s12,
                   ),
-                  child: Column(
+                  child: Row(
                     children: <Widget>[
-                      SectionLabel(
-                        "Tonight's game",
-                        trailing: Text(
-                          isHost ? 'Locked in' : 'Chosen by host',
-                          style: TextStyle(fontSize: 11, color: colors.ink3),
+                      Expanded(
+                        child: Wrap(
+                          spacing: AppSpacing.s12,
+                          runSpacing: AppSpacing.s8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: <Widget>[
+                            _SetupChip(
+                              icon: Icons.casino_outlined,
+                              label: '${state.config.roundsK} rounds',
+                            ),
+                            _SetupChip(
+                              icon: Icons.timer_outlined,
+                              label:
+                                  '${_paceLabel(state.config.roundSeconds)} · ${state.config.roundSeconds}s',
+                            ),
+                            _SetupChip(
+                              icon: modeInfo(state.config.mode).icon,
+                              label: modeInfo(state.config.mode).label,
+                            ),
+                          ],
                         ),
                       ),
-                      _SetupRow(
-                        icon: Icons.casino_outlined,
-                        label: 'Rounds',
-                        value: '${state.config.roundsK}',
-                      ),
-                      Divider(height: 1, color: colors.hairline),
-                      _SetupRow(
-                        icon: Icons.timer_outlined,
-                        label: 'Pace',
-                        value:
-                            '${_paceLabel(state.config.roundSeconds)} · ${state.config.roundSeconds}s',
-                      ),
-                      Divider(height: 1, color: colors.hairline),
-                      _SetupRow(
-                        icon: modeInfo(state.config.mode).icon,
-                        label: 'Mode',
-                        value: modeInfo(state.config.mode).label,
-                      ),
+                      if (isHost)
+                        TextButton(
+                          onPressed: () => unawaited(_openSetupEditor(context)),
+                          style: TextButton.styleFrom(
+                            minimumSize: const Size(0, 36),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.s8,
+                            ),
+                            foregroundColor: colors.accent,
+                          ),
+                          child: const Text('Edit'),
+                        )
+                      else
+                        Padding(
+                          padding: const EdgeInsets.only(right: AppSpacing.s8),
+                          child: Text(
+                            'Chosen by host',
+                            style: TextStyle(fontSize: 11, color: colors.ink3),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -308,6 +325,15 @@ class LobbyScreen extends ConsumerWidget {
     );
   }
 
+  Future<void> _openSetupEditor(BuildContext context) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => const _LobbySetupSheet(),
+    );
+  }
+
   Future<void> _confirmKick(
     BuildContext context,
     MatchCoordinator coordinator,
@@ -357,38 +383,25 @@ String _paceLabel(int seconds) => switch (seconds) {
   _ => 'Normal',
 };
 
-class _SetupRow extends StatelessWidget {
-  const _SetupRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
+class _SetupChip extends StatelessWidget {
+  const _SetupChip({required this.icon, required this.label});
 
   final IconData icon;
   final String label;
-  final String value;
 
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
-    return SizedBox(
-      height: 48,
-      child: Row(
-        children: <Widget>[
-          Icon(icon, size: 18, color: colors.ink2),
-          const SizedBox(width: AppSpacing.s12),
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(fontSize: 13, color: colors.ink2),
-            ),
-          ),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-          ),
-        ],
-      ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Icon(icon, size: 16, color: colors.ink2),
+        const SizedBox(width: AppSpacing.s4),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+        ),
+      ],
     );
   }
 }
@@ -467,7 +480,12 @@ class _PlayerRow extends StatelessWidget {
       ),
       child: Row(
         children: <Widget>[
-          PlayerAvatar(initial: player.name, isHost: player.isHost, size: 28),
+          PlayerAvatar(
+            initial: player.name,
+            avatar: player.avatar,
+            isHost: player.isHost,
+            size: 28,
+          ),
           const SizedBox(width: AppSpacing.s12),
           Expanded(
             child: Text(
@@ -496,6 +514,161 @@ class _PlayerRow extends StatelessWidget {
               ],
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _LobbySetupSheet extends ConsumerWidget {
+  const _LobbySetupSheet();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = WhoTookColors.of(context);
+    final coordinator = ref.read(matchCoordinatorProvider);
+    final state = ref.watch(matchStateProvider).value ?? coordinator.state;
+    final config = state.config;
+    return SafeArea(
+      top: false,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.86,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.s20,
+            0,
+            AppSpacing.s20,
+            AppSpacing.s24,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Text(
+                "Tonight's game",
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.6,
+                  color: colors.ink,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.s4),
+              Text(
+                'Changes reach everyone in the room. You can edit again until the photo check starts.',
+                style: TextStyle(fontSize: 13, height: 1.4, color: colors.ink2),
+              ),
+              const SizedBox(height: AppSpacing.s16),
+              const SectionLabel('Mode'),
+              ModePicker(
+                mode: config.mode,
+                onSelect: (mode) => unawaited(coordinator.setMode(mode)),
+              ),
+              const SizedBox(height: AppSpacing.s16),
+              const SectionLabel('Rounds'),
+              Wrap(
+                spacing: AppSpacing.s8,
+                runSpacing: AppSpacing.s8,
+                children: <Widget>[
+                  for (final rounds in const <int>[5, 10, 15, 20])
+                    _SheetChoice(
+                      label: '$rounds',
+                      selected: config.roundsK == rounds,
+                      onTap: () => unawaited(coordinator.setRounds(rounds)),
+                    ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.s16),
+              const SectionLabel('Pace'),
+              Row(
+                children: <Widget>[
+                  for (final pace in GamePace.values)
+                    Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          right: pace == GamePace.slow ? 0 : AppSpacing.s8,
+                        ),
+                        child: _SheetChoice(
+                          label: pace.label,
+                          detail: config.mode == GameMode.mixedParty
+                              ? 'Mixed'
+                              : '${pace.mainSeconds(config.mode)}s',
+                          selected: config.pace == pace,
+                          onTap: () => unawaited(coordinator.setPace(pace)),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.s24),
+              PrimaryButton(
+                label: 'Done',
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SheetChoice extends StatelessWidget {
+  const _SheetChoice({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.detail,
+  });
+
+  final String label;
+  final String? detail;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    return Semantics(
+      selected: selected,
+      button: true,
+      label: detail == null ? label : '$label, $detail',
+      child: Material(
+        color: selected ? colors.raised : colors.card,
+        borderRadius: BorderRadius.circular(AppRadii.rControl),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadii.rControl),
+          child: Container(
+            height: detail == null ? 44 : 58,
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadii.rControl),
+              border: Border.all(
+                color: selected ? colors.accent : colors.hairline,
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: selected ? colors.accent : colors.ink,
+                  ),
+                ),
+                if (detail != null)
+                  Text(
+                    detail!,
+                    style: TextStyle(fontSize: 10, color: colors.ink3),
+                  ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/media/photo_service.dart';
 import '../core/models/models.dart';
+import '../core/storage/last_room_repository.dart';
 import '../core/storage/settings_repository.dart';
 import '../state/match_coordinator.dart';
 
@@ -11,6 +12,10 @@ final settingsRepositoryProvider = Provider<SettingsRepository>(
 
 final photoLibraryProvider = Provider<PhotoLibraryService>(
   (ref) => DevicePhotoLibraryService(),
+);
+
+final lastRoomRepositoryProvider = Provider<LastRoomRepository>(
+  (ref) => LastRoomRepository(),
 );
 
 /// Persisted preferences, loaded once at startup.

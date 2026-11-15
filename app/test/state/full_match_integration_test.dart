@@ -5,6 +5,7 @@ import 'package:shared_preferences_platform_interface/in_memory_shared_preferenc
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:whotook/core/media/photo_service.dart';
 import 'package:whotook/core/models/models.dart';
+import 'package:whotook/core/storage/last_room_repository.dart';
 import 'package:whotook/core/storage/settings_repository.dart';
 import 'package:whotook/state/match_coordinator.dart';
 import 'package:whotook/transport/game_transport.dart';
@@ -29,6 +30,7 @@ void main() {
       photos: TestPhotoLibrary(seed: 1),
       settings: SettingsRepository(),
       hostTransportFactory: (roomId, secret, lan) => LoopbackHostTransport(hub),
+      planterOverride: 'host',
       roundDuration: const Duration(milliseconds: 900),
       countdownDuration: Duration.zero,
       revealDuration: const Duration(milliseconds: 40),
@@ -165,6 +167,14 @@ void main() {
     expect(clientOne.state.errorMessage, contains('removed'));
   });
 
+  test('client timers follow the host clock', () async {
+    await prepareAndStart(rounds: 2);
+    final before = clientOne.state.remainingMs;
+    expect(before, greaterThan(0));
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    expect(clientOne.state.remainingMs, lessThan(before));
+  });
+
   test('client scoreboard matches the host after a reveal', () async {
     await prepareAndStart(rounds: 2);
     await guessEverywhere();
@@ -223,7 +233,7 @@ void main() {
     timeout: const Timeout(Duration(seconds: 45)),
   );
 
-  test('own photo guess pays the fixed bonus and keeps the streak', () async {
+  test('own photo guess scores like a normal correct guess', () async {
     await prepareAndStart(rounds: 3);
 
     RoundReveal? hostOwned;
@@ -258,7 +268,8 @@ void main() {
     expect(hostOwned, isNotNull, reason: 'the host photo should come up');
     final own = hostOwned!.guesses.firstWhere((g) => g.playerId == 'host');
     expect(own.isOwnPhoto, isTrue);
-    expect(own.pointsAwarded, 300);
+    expect(own.isCorrect, isTrue);
+    expect(own.pointsAwarded, greaterThanOrEqualTo(500));
     expect(
       host.state.players.firstWhere((p) => p.id == 'host').streak,
       greaterThan(0),
@@ -329,6 +340,7 @@ void main() {
       settings: SettingsRepository(),
       hostTransportFactory: (roomId, secret, lan) =>
           LoopbackHostTransport(plantHub),
+      planterOverride: 'c_loop0',
       roundDuration: const Duration(milliseconds: 900),
       countdownDuration: Duration.zero,
       revealDuration: const Duration(milliseconds: 40),
@@ -460,6 +472,77 @@ void main() {
     expect(reveal.closestId, isNotNull);
     expect(clientOne.state.lastTimelineReveal?.actualYear, reveal.actualYear);
   }, timeout: const Timeout(Duration(seconds: 60)));
+
+  test('the last joined room survives a restart', () async {
+    final store = LastRoomRepository();
+    LastRoom? room;
+    final deadline = DateTime.now().add(const Duration(seconds: 3));
+    while (room == null && DateTime.now().isBefore(deadline)) {
+      room = await store.load();
+      if (room == null) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+    }
+    expect(room, isNotNull);
+    expect(room!.roomId, clientOne.state.roomId);
+    expect(room.inviteUrl, isNotEmpty);
+
+    await clientOne.leaveMatch();
+    expect(await store.load(), isNull);
+  });
+
+  test('a newer build warns the host and the older clients', () async {
+    final newer = MatchCoordinator(
+      photos: TestPhotoLibrary(seed: 22),
+      settings: SettingsRepository(),
+      connector: HybridConnector(
+        onlineClientFactory: () => LoopbackClientTransport(hub),
+      ),
+      appVersion: '1.7.0',
+      appBuild: 11,
+      roundDuration: const Duration(milliseconds: 900),
+      countdownDuration: Duration.zero,
+      revealDuration: const Duration(milliseconds: 40),
+      extendWindow: const Duration(milliseconds: 300),
+    );
+    addTearDown(newer.dispose);
+    await newer.loadSettings();
+    await newer.joinMatch(inviteUrl);
+    await _waitFor(() => host.state.players.length == 4);
+    await _waitFor(() => host.state.versionWarning != null);
+    await _waitFor(() => clientOne.state.versionWarning != null);
+
+    expect(host.state.versionWarning!.latestBuild, 11);
+    expect(host.state.versionWarning!.ownBuild, 10);
+    expect(clientOne.state.versionWarning!.latestVersion, '1.7.0');
+    expect(newer.state.versionWarning, isNull);
+
+    host.dismissVersionWarning();
+    expect(host.state.versionWarningDismissed, isTrue);
+  });
+
+  test('joining after the lobby started returns a clear message', () async {
+    await prepareAndStart(rounds: 2);
+    final late = _client(hub, seed: 9);
+    addTearDown(late.dispose);
+    await late.loadSettings();
+    await late.joinMatch(inviteUrl);
+    await _waitFor(
+      () => late.state.roomId == null && late.state.errorMessage != null,
+    );
+    expect(late.state.errorMessage, contains('already started'));
+    expect(host.state.players.length, 3);
+  });
+
+  test('host leaving ends the client room', () async {
+    await host.leaveMatch();
+    await _waitFor(
+      () =>
+          clientOne.state.roomId == null &&
+          clientOne.state.errorMessage != null,
+    );
+    expect(clientOne.state.errorMessage, contains('host ended'));
+  });
 
   test('play again returns everyone to a clean lobby', () async {
     await prepareAndStart(rounds: 1);
