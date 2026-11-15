@@ -51,6 +51,7 @@ void main() {
   });
 
   testWidgets('home', (tester) async {
+    await _precacheHomePhotos(tester);
     await _pump(tester, const HomeScreen(), _settings());
     await expectLater(
       find.byType(HomeScreen),
@@ -258,6 +259,7 @@ void main() {
 
   testWidgets('marketing home', (tester) async {
     _retina(tester);
+    await _precacheHomePhotos(tester);
     await _pump(tester, const HomeScreen(), _settings());
     await expectLater(
       find.byType(HomeScreen),
@@ -469,6 +471,34 @@ MatchUiState _podiumState() => MatchUiState(
     ),
   ],
 );
+
+Future<void> _precacheHomePhotos(WidgetTester tester) async {
+  for (final name in <String>[
+    'party-dog',
+    'party-cat',
+    'party-hamster',
+    'party-pizza',
+  ]) {
+    final provider = AssetImage('assets/samples/$name.jpg');
+    await tester.runAsync(() async {
+      final stream = provider.resolve(ImageConfiguration.empty);
+      final done = Completer<void>();
+      late ImageStreamListener listener;
+      listener = ImageStreamListener(
+        (_, _) {
+          if (!done.isCompleted) done.complete();
+          stream.removeListener(listener);
+        },
+        onError: (_, _) {
+          if (!done.isCompleted) done.complete();
+          stream.removeListener(listener);
+        },
+      );
+      stream.addListener(listener);
+      await done.future;
+    });
+  }
+}
 
 Future<void> _loadFonts() async {
   final dmSans = FontLoader('DMSans')

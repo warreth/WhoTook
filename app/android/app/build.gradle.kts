@@ -15,7 +15,7 @@ if (hasReleaseKeystore) {
 }
 
 android {
-    namespace = "app.whotook.whotook"
+    namespace = "party.whotook.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -25,7 +25,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "app.whotook.whotook"
+        applicationId = "party.whotook.app"
         // Android 7.0 is the oldest release with a usable WebRTC and mDNS stack.
         minSdk = maxOf(24, flutter.minSdkVersion)
         targetSdk = flutter.targetSdkVersion
