@@ -105,27 +105,36 @@ jobs:
         working-directory: app
         run: flutter pub get
 
-      - name: Build release APK
+      - name: Build release APK, split APKs and AAB
         working-directory: app
-        run: flutter build apk --release
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          SIGNED: ${{ steps.signing.outputs.present }}
+        run: |
+          set -euo pipefail
+          mkdir -p ../dist
+          flutter build apk --release
+          # Copy the universal APK before the split build replaces the shared
+          # flutter-apk outputs. Keep the stable alias for the website and
+          # Obtainium, plus a versioned name for the release page.
+          cp build/app/outputs/flutter-apk/app-release.apk ../dist/WhoTook.apk
+          cp build/app/outputs/flutter-apk/app-release.apk "../dist/WhoTook-${VERSION}-universal.apk"
 
-      - name: Build release AAB
-        if: steps.signing.outputs.present == 'true'
-        working-directory: app
-        run: flutter build appbundle --release
+          flutter build apk --release --split-per-abi
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "../dist/WhoTook-${VERSION}-arm64-v8a.apk"
+          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk "../dist/WhoTook-${VERSION}-armeabi-v7a.apk"
+          cp build/app/outputs/flutter-apk/app-x86_64-release.apk "../dist/WhoTook-${VERSION}-x86_64.apk"
+
+          if [ "${SIGNED}" = "true" ]; then
+            flutter build appbundle --release
+            cp build/app/outputs/bundle/release/app-release.aab "../dist/WhoTook-${VERSION}.aab"
+          fi
 
       - name: Collect artifacts
         run: |
-          mkdir -p dist
-          # Stable names keep the website, Obtainium and SideStore links working.
-          # The release tag identifies the version; only the AAB keeps a versioned
-          # name because Play needs one file per upload.
-          cp app/build/app/outputs/flutter-apk/app-release.apk "dist/WhoTook.apk"
-          if [ -f app/build/app/outputs/bundle/release/app-release.aab ]; then
-            cp app/build/app/outputs/bundle/release/app-release.aab "dist/WhoTook-${{ steps.version.outputs.version }}.aab"
-          fi
-          sha256sum dist/* > dist/SHA256SUMS.txt
-          ls -lh dist
+          cd dist
+          sha256sum *.apk *.aab 2>/dev/null > SHA256SUMS.txt || true
+          ls -lh
 
       - uses: actions/upload-artifact@v4
         with:
@@ -160,9 +169,10 @@ jobs:
           mkdir -p dist/Payload
           cp -R app/build/ios/iphoneos/Runner.app dist/Payload/
           cd dist
-          zip -qry WhoTook-unsigned.ipa Payload
+          zip -qry "WhoTook-${VERSION}-unsigned.ipa" Payload
+          cp "WhoTook-${VERSION}-unsigned.ipa" WhoTook-unsigned.ipa
           rm -rf Payload
-          sha256sum WhoTook-unsigned.ipa > SHA256SUMS-ios.txt
+          sha256sum *.ipa > SHA256SUMS-ios.txt
           ls -lh
 
       - uses: actions/upload-artifact@v4
@@ -192,7 +202,8 @@ jobs:
       - name: Rebuild checksums
         run: |
           rm -f dist/SHA256SUMS-ios.txt
-          (sha256sum dist/WhoTook.apk dist/WhoTook-*.aab dist/WhoTook-unsigned.ipa 2>/dev/null || true) > dist/SHA256SUMS.txt
+          cd dist
+          sha256sum *.apk *.aab *.ipa > SHA256SUMS.txt
 
       - name: Publish
         env:
@@ -206,6 +217,9 @@ jobs:
           fi
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" dist/* --clobber
+            gh release edit "$TAG" \
+              --title "WhoTook $VERSION" \
+              --notes-file .github/release-notes.md
           else
             gh release create "$TAG" dist/* \
               --title "WhoTook $VERSION" \
