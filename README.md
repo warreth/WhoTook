@@ -28,6 +28,7 @@ QR code, and each round shows a photo while the table races to guess who took it
 - **iPhone:** sideload the unsigned IPA with SideStore or AltStore, or build from source. App Store release is coming.
   Add the source in the app: `https://whotook.party/altstore.json`.
 - **Website:** [whotook.party](https://whotook.party).
+- **Support:** [hello@whotook.party](mailto:hello@whotook.party) or [whotook.party/support](https://whotook.party/support).
 
 ## How it plays
 
