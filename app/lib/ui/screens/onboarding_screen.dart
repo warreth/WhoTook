@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:photo_manager/photo_manager.dart';
 
+import '../../core/constants.dart';
+import '../../core/links.dart';
 import '../../core/media/photo_service.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../state/providers.dart';
@@ -23,6 +27,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   PermissionState? _permissionState;
   bool _loading = false;
   String? _error;
+  bool _acceptedTerms = false;
 
   @override
   void dispose() {
@@ -64,6 +69,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final name = _name.text.trim();
     if (name.isEmpty) {
       setState(() => _error = 'Pick a name your friends will recognise.');
+      return;
+    }
+    if (!_acceptedTerms) {
+      setState(() => _error = 'Agree to the terms before you continue.');
       return;
     }
     await ref
@@ -213,6 +222,64 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   ],
                 ),
               ),
+            const SizedBox(height: AppSpacing.s16),
+            SurfaceCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  CheckboxListTile(
+                    value: _acceptedTerms,
+                    onChanged: (value) =>
+                        setState(() => _acceptedTerms = value ?? false),
+                    title: const Text(
+                      'I agree to the Terms of use and Community rules.',
+                      style: TextStyle(fontSize: 13, height: 1.35),
+                    ),
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                  ),
+                  Wrap(
+                    spacing: AppSpacing.s4,
+                    children: <Widget>[
+                      TextButton(
+                        onPressed: () =>
+                            unawaited(openExternal(context, kTermsUrl)),
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(0, 44),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.s8,
+                          ),
+                          foregroundColor: colors.ink,
+                          textStyle: const TextStyle(
+                            fontFamily: 'DMSans',
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        child: const Text('Terms and community rules'),
+                      ),
+                      TextButton(
+                        onPressed: () =>
+                            unawaited(openExternal(context, kPrivacyUrl)),
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(0, 44),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.s8,
+                          ),
+                          foregroundColor: colors.ink2,
+                          textStyle: const TextStyle(
+                            fontFamily: 'DMSans',
+                            fontSize: 13,
+                          ),
+                        ),
+                        child: const Text('Privacy'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: AppSpacing.s24),
             if (_error != null) ...<Widget>[
               NoticeBanner(

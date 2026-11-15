@@ -36,7 +36,7 @@ class LobbyScreen extends ConsumerWidget {
                 children: <Widget>[
                   Flexible(
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 560),
+                      constraints: const BoxConstraints(maxWidth: 720),
                       child: SizedBox(
                         width: double.infinity,
                         child: PrimaryButton(
@@ -71,7 +71,7 @@ class LobbyScreen extends ConsumerWidget {
         top: false,
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
+            constraints: const BoxConstraints(maxWidth: 720),
             child: ListView(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.s20,
@@ -273,7 +273,14 @@ class LobbyScreen extends ConsumerWidget {
                         ),
                       ),
                       for (final player in state.players)
-                        _PlayerRow(player: player),
+                        _PlayerRow(
+                          player: player,
+                          onKick: isHost && !player.isHost
+                              ? () => unawaited(
+                                  _confirmKick(context, coordinator, player),
+                                )
+                              : null,
+                        ),
                       if (state.players.length == 1)
                         Padding(
                           padding: const EdgeInsets.all(AppSpacing.s16),
@@ -299,6 +306,38 @@ class LobbyScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _confirmKick(
+    BuildContext context,
+    MatchCoordinator coordinator,
+    Player player,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Remove ${player.name}?'),
+        content: const Text(
+          'They leave this room. They can join again with the QR code.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: WhoTookColors.of(context).negative,
+            ),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await coordinator.kickPlayer(player.id);
+    }
   }
 
   Future<void> _shareInvite(BuildContext context, MatchUiState state) async {
@@ -412,9 +451,10 @@ class _InviteSheetState extends State<_InviteSheet> {
 }
 
 class _PlayerRow extends StatelessWidget {
-  const _PlayerRow({required this.player});
+  const _PlayerRow({required this.player, this.onKick});
 
   final Player player;
+  final VoidCallback? onKick;
 
   @override
   Widget build(BuildContext context) {
@@ -443,6 +483,18 @@ class _PlayerRow extends StatelessWidget {
               color: player.ready || player.isHost ? colors.ink2 : colors.ink3,
             ),
           ),
+          if (onKick != null)
+            PopupMenuButton<String>(
+              tooltip: 'Player options',
+              icon: const Icon(Icons.more_horiz, size: 20),
+              onSelected: (_) => onKick!(),
+              itemBuilder: (context) => const <PopupMenuEntry<String>>[
+                PopupMenuItem<String>(
+                  value: 'remove',
+                  child: Text('Remove from room'),
+                ),
+              ],
+            ),
         ],
       ),
     );

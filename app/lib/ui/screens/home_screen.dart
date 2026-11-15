@@ -22,7 +22,7 @@ class HomeScreen extends ConsumerWidget {
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
+            constraints: const BoxConstraints(maxWidth: 720),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.s20,
@@ -60,6 +60,14 @@ class HomeScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: AppSpacing.s8),
                   const Expanded(child: _Hero()),
+                  if (state.errorMessage != null) ...<Widget>[
+                    const SizedBox(height: AppSpacing.s8),
+                    NoticeBanner(
+                      message: state.errorMessage!,
+                      tone: StatusTone.warning,
+                      icon: Icons.error_outline,
+                    ),
+                  ],
                   if (state.turnLimitNotice != null) ...<Widget>[
                     const SizedBox(height: AppSpacing.s8),
                     const NoticeBanner(

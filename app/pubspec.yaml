@@ -22,6 +22,7 @@ dependencies:
   shared_preferences: ^2.5.6
   wakelock_plus: ^1.8.2
   web_socket_channel: ^3.0.3
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_test:
@@ -31,6 +32,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/samples/
 
   fonts:
     - family: DMSans

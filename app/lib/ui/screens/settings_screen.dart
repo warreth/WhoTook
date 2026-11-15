@@ -3,11 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/constants.dart';
+import '../../core/links.dart';
 import '../../core/media/photo_service.dart';
 import '../../core/models/models.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
+import 'demo_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -31,6 +34,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _relayStatusWarning = false;
   List<AlbumSummary>? _albums;
   bool _albumError = false;
+  int _demoTaps = 0;
 
   @override
   void initState() {
@@ -89,6 +93,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _turnUsername.dispose();
     _turnCredential.dispose();
     super.dispose();
+  }
+
+  void _onAboutTap() {
+    _demoTaps += 1;
+    if (_demoTaps < 7) return;
+    _demoTaps = 0;
+    Navigator.of(context)
+        .push(MaterialPageRoute<void>(builder: (_) => const DemoScreen()));
   }
 
   Future<void> _loadAlbums({bool reset = false}) async {
@@ -434,6 +446,79 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ),
             const SizedBox(height: AppSpacing.s24),
+            const SectionLabel('Help and legal'),
+            SurfaceCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: <Widget>[
+                  ListTile(
+                    minTileHeight: 56,
+                    leading: const Icon(Icons.outlined_flag, size: 20),
+                    title: const Text(
+                      'Report content or a player',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Send the room code and what happened to $kSupportEmail',
+                      style: TextStyle(fontSize: 12, color: colors.ink2),
+                    ),
+                    onTap: () => unawaited(
+                      openExternal(
+                        context,
+                        'mailto:$kSupportEmail?subject=WhoTook%20report',
+                      ),
+                    ),
+                  ),
+                  Divider(height: 1, color: colors.hairline),
+                  ListTile(
+                    minTileHeight: 56,
+                    leading: const Icon(Icons.mail_outline, size: 20),
+                    title: const Text(
+                      'Support',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    subtitle: Text(
+                      kSupportEmail,
+                      style: TextStyle(fontSize: 12, color: colors.ink2),
+                    ),
+                    onTap: () => unawaited(openSupport(context)),
+                  ),
+                  Divider(height: 1, color: colors.hairline),
+                  ListTile(
+                    minTileHeight: 56,
+                    leading: const Icon(Icons.gavel_outlined, size: 20),
+                    title: const Text(
+                      'Terms and community rules',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    onTap: () => unawaited(openExternal(context, kTermsUrl)),
+                  ),
+                  Divider(height: 1, color: colors.hairline),
+                  ListTile(
+                    minTileHeight: 56,
+                    leading: const Icon(Icons.privacy_tip_outlined, size: 20),
+                    title: const Text(
+                      'Privacy',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    onTap: () => unawaited(openExternal(context, kPrivacyUrl)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.s24),
             const SectionLabel('About'),
             Divider(color: colors.hairline, height: 1),
             const SizedBox(height: AppSpacing.s12),
@@ -442,9 +527,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               style: TextStyle(fontSize: 13, color: colors.ink2, height: 1.45),
             ),
             const SizedBox(height: AppSpacing.s8),
-            Text(
-              'WhoTook™ is a trademark of the project owner.',
-              style: TextStyle(fontSize: 12, color: colors.ink3, height: 1.4),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _onAboutTap,
+              child: Text(
+                'WhoTook™ is a trademark of the project owner.',
+                style: TextStyle(fontSize: 12, color: colors.ink3, height: 1.4),
+              ),
             ),
           ],
         ),
