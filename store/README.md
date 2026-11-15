@@ -38,11 +38,14 @@ completed in Play Console and App Store Connect.
 
 For future GitHub releases, keep the stable download names:
 
-- `WhoTook.apk` for the website and Obtainium.
-- `WhoTook-unsigned.ipa` for SideStore and AltStore.
+- `WhoTook.apk` for the website and Obtainium, as the universal APK.
+- `WhoTook-<version>-universal.apk` for a versioned universal APK.
+- `WhoTook-<version>-arm64-v8a.apk`, `WhoTook-<version>-armeabi-v7a.apk` and
+  `WhoTook-<version>-x86_64.apk` for smaller per-architecture downloads.
+- `WhoTook-unsigned.ipa` for SideStore and AltStore, plus a versioned
+  `WhoTook-<version>-unsigned.ipa` copy.
 - `WhoTook-<version>.aab` for the Play upload.
 
-The versioned APK and IPA duplicates are not needed; the release tag identifies
-the version. The signed App Store IPA is uploaded to App Store Connect and kept
-as a private CI artifact. Do not publish it as a public release asset. It is an
-App Store distribution build, not a build that SideStore can install.
+The signed App Store IPA is uploaded to App Store Connect and kept as a private
+CI artifact. Do not publish it as a public release asset. It is an App Store
+distribution build, not a build that SideStore can install.

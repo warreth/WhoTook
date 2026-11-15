@@ -25,9 +25,9 @@ a restart.
 
 ## Download
 
-- **Android:** [WhoTook.apk](https://github.com/warreth/WhoTook/releases/latest/download/WhoTook.apk), Android 7.0 and newer.
+- **Android:** [WhoTook.apk](https://github.com/warreth/WhoTook/releases/latest/download/WhoTook.apk) is the universal build, Android 7.0 and newer. Most phones can use the smaller `WhoTook-<version>-arm64-v8a.apk` from the release page.
 - **Automatic updates:** [Add to Obtainium](https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fadd%2Fhttps%3A%2F%2Fgithub.com%2Farreth%2FWhoTook), or paste the repository URL in Obtainium.
-- **iPhone:** sideload the unsigned IPA with SideStore or AltStore, or build from source. App Store release is coming.
+- **iPhone:** sideload `WhoTook-<version>-unsigned.ipa` (or the stable `WhoTook-unsigned.ipa`) with SideStore or AltStore, or build from source. App Store release is coming.
   Add the source in the app: `https://whotook.party/altstore.json`.
 - **Website:** [whotook.party](https://whotook.party).
 - **Support:** [hello@whotook.party](mailto:hello@whotook.party) or [whotook.party/support](https://whotook.party/support).
