@@ -6,8 +6,7 @@ completed in Play Console and App Store Connect.
 
 ## Permanent IDs
 
-- Android application ID: `app.whotook.whotook`. Keep it; changing it would
-  break updates for existing APK installs.
+- Android application ID: `party.whotook.app`.
 - iOS bundle ID: `party.whotook.app`. This is the reverse-DNS form of
   `whotook.party`. Create the App ID, App Store provisioning profile and App
   Store Connect record with this value. No new Apple ID is needed.

@@ -1,7 +1,10 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/whotook_theme.dart';
+import '../../state/match_coordinator.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
 import 'join_screen.dart';
@@ -17,12 +20,22 @@ class HomeScreen extends ConsumerWidget {
     final colors = WhoTookColors.of(context);
     final coordinator = ref.read(matchCoordinatorProvider);
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
+    final wide = MediaQuery.sizeOf(context).width >= 900;
+    final actions = _HomeActions(
+      state: state,
+      showGuide: wide,
+      onHost: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const RoundsSetupScreen()),
+      ),
+      onJoin: () => Navigator.of(context)
+          .push(MaterialPageRoute<void>(builder: (_) => const JoinScreen())),
+    );
 
     return Scaffold(
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 720),
+            constraints: BoxConstraints(maxWidth: wide ? 1120 : 720),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.s20,
@@ -59,51 +72,24 @@ class HomeScreen extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: AppSpacing.s8),
-                  const Expanded(child: _Hero()),
-                  if (state.errorMessage != null) ...<Widget>[
-                    const SizedBox(height: AppSpacing.s8),
-                    NoticeBanner(
-                      message: state.errorMessage!,
-                      tone: StatusTone.warning,
-                      icon: Icons.error_outline,
-                    ),
-                  ],
-                  if (state.turnLimitNotice != null) ...<Widget>[
-                    const SizedBox(height: AppSpacing.s8),
-                    const NoticeBanner(
-                      message: 'Online relay is used up today. Use the same Wi-Fi to keep playing.',
-                      tone: StatusTone.warning,
-                      icon: Icons.wifi_tethering,
-                    ),
-                  ],
-                  const SizedBox(height: AppSpacing.s16),
-                  _BigAction(
-                    title: 'Host a game',
-                    subtitle: 'You set the rounds and pick the photos',
-                    icon: Icons.groups_outlined,
-                    filled: true,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const RoundsSetupScreen(),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.s12),
-                  _BigAction(
-                    title: 'Join a game',
-                    subtitle: "Scan the host's QR code",
-                    icon: Icons.qr_code_scanner,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const JoinScreen(),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.s12),
-                  Text(
-                    'Same room, same Wi-Fi. Photos stay between players.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, color: colors.ink3),
+                  Expanded(
+                    child: wide
+                        ? Row(
+                            children: <Widget>[
+                              const Expanded(flex: 3, child: _Hero()),
+                              const SizedBox(width: AppSpacing.s24),
+                              SizedBox(
+                                width: 360,
+                                child: Center(child: actions),
+                              ),
+                            ],
+                          )
+                        : Column(
+                            children: <Widget>[
+                              const Expanded(child: _Hero()),
+                              actions,
+                            ],
+                          ),
                   ),
                 ],
               ),
@@ -115,57 +101,254 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-class _Hero extends StatelessWidget {
-  const _Hero();
+class _HomeActions extends StatelessWidget {
+  const _HomeActions({
+    required this.state,
+    required this.showGuide,
+    required this.onHost,
+    required this.onJoin,
+  });
+
+  final MatchUiState state;
+  final bool showGuide;
+  final VoidCallback onHost;
+  final VoidCallback onJoin;
 
   @override
   Widget build(BuildContext context) {
-    const panel = Color(0xFF1B1713);
-    const paper = Color(0xFFF7F4EE);
-    const muted = Color(0xFFC7BFB3);
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadii.rModal),
-      child: ColoredBox(
-        color: panel,
-        child: Stack(
-          children: <Widget>[
-            Positioned(
-              right: AppSpacing.s20,
-              top: AppSpacing.s20,
-              child: ExcludeSemantics(
-                child: WhoTookMark(size: 132, color: const Color(0x24F7F4EE)),
+    final colors = WhoTookColors.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        if (state.errorMessage != null) ...<Widget>[
+          const SizedBox(height: AppSpacing.s8),
+          NoticeBanner(
+            message: state.errorMessage!,
+            tone: StatusTone.warning,
+            icon: Icons.error_outline,
+          ),
+        ],
+        if (state.turnLimitNotice != null) ...<Widget>[
+          const SizedBox(height: AppSpacing.s8),
+          const NoticeBanner(
+            message: 'Online relay is used up today. Use the same Wi-Fi to keep playing.',
+            tone: StatusTone.warning,
+            icon: Icons.wifi_tethering,
+          ),
+        ],
+        const SizedBox(height: AppSpacing.s16),
+        _BigAction(
+          title: 'Host a game',
+          subtitle: 'You set the rounds and pick the photos',
+          icon: Icons.groups_outlined,
+          filled: true,
+          onTap: onHost,
+        ),
+        const SizedBox(height: AppSpacing.s12),
+        _BigAction(
+          title: 'Join a game',
+          subtitle: "Scan the host's QR code",
+          icon: Icons.qr_code_scanner,
+          onTap: onJoin,
+        ),
+        const SizedBox(height: AppSpacing.s12),
+        Text(
+          'Same room, same Wi-Fi. Photos stay between players.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 12, color: colors.ink3),
+        ),
+        if (showGuide) ...<Widget>[
+          const SizedBox(height: AppSpacing.s16),
+          const _HowItPlaysCard(),
+        ],
+      ],
+    );
+  }
+}
+
+class _HowItPlaysCard extends StatelessWidget {
+  const _HowItPlaysCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    return SurfaceCard(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.s16,
+        AppSpacing.s12,
+        AppSpacing.s16,
+        AppSpacing.s8,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          SectionLabel(
+            'How it plays',
+            trailing: Text(
+              '3 steps',
+              style: TextStyle(fontSize: 11, color: colors.ink3),
+            ),
+          ),
+          const _GuideRow(
+            number: '01',
+            title: 'Set the table',
+            body: 'Rounds, pace and photos.',
+          ),
+          const _GuideRow(
+            number: '02',
+            title: 'Scan in',
+            body: 'Friends join from the QR.',
+          ),
+          const _GuideRow(
+            number: '03',
+            title: 'Play',
+            body: 'Guess, caption or time travel.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GuideRow extends StatelessWidget {
+  const _GuideRow({
+    required this.number,
+    required this.title,
+    required this.body,
+  });
+
+  final String number;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          SizedBox(
+            width: 24,
+            child: Text(
+              number,
+              style: tabularFigures(
+                TextStyle(
+                  fontFamily: 'JetBrainsMono',
+                  fontSize: 10,
+                  color: colors.accent,
+                ),
               ),
             ),
-            Positioned.fill(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.s20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    const Spacer(),
-                    const Text(
-                      'Whose camera\nroll is this?',
-                      style: TextStyle(
-                        fontSize: 38,
-                        height: 0.98,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: -1.6,
-                        color: paper,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.s12),
-                    Text(
-                      'One photo at a time. Everyone guesses whose it is.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        height: 1.35,
-                        color: muted,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.s16),
-                    const _ContactStrip(),
-                  ],
+          ),
+          const SizedBox(width: AppSpacing.s8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
+                Text(
+                  body,
+                  style: TextStyle(
+                    fontSize: 11,
+                    height: 1.25,
+                    color: colors.ink2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Hero extends StatelessWidget {
+  const _Hero();
+
+  static const List<String> _photos = <String>[
+    'assets/samples/party-dog.jpg',
+    'assets/samples/party-cat.jpg',
+    'assets/samples/party-hamster.jpg',
+    'assets/samples/party-pizza.jpg',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    const paper = Color(0xFFF7F4EE);
+    const muted = Color(0xFFC7BFB3);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadii.rModal),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color(0x241F1B16),
+            blurRadius: 28,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadii.rModal),
+        child: Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            Transform.scale(
+              scale: 1.08,
+              child: ImageFiltered(
+                imageFilter: ui.ImageFilter.blur(sigmaX: 7, sigmaY: 7),
+                child: Image.asset(
+                  _photos.first,
+                  fit: BoxFit.cover,
+                  alignment: Alignment.topCenter,
+                ),
+              ),
+            ),
+            const ColoredBox(color: Color(0x591B1713)),
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: <Color>[Color(0x001B1713), Color(0xE61B1713)],
+                  stops: <double>[0.35, 0.9],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.s20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const _HeroFact(label: '2–12 players · Same Wi-Fi or online'),
+                  const Spacer(),
+                  const Text(
+                    'Whose camera\nroll is this?',
+                    style: TextStyle(
+                      fontSize: 38,
+                      height: 0.98,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -1.6,
+                      color: paper,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.s12),
+                  Text(
+                    'One photo at a time. Everyone guesses whose it is.',
+                    style: TextStyle(fontSize: 14, height: 1.35, color: muted),
+                  ),
+                  const SizedBox(height: AppSpacing.s12),
+                  const _ContactStrip(),
+                ],
               ),
             ),
           ],
@@ -175,7 +358,36 @@ class _Hero extends StatelessWidget {
   }
 }
 
-/// A tiny contact sheet: four numbered frames, the game's own visual motif.
+class _HeroFact extends StatelessWidget {
+  const _HeroFact({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.s8,
+        vertical: 5,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0x661B1713),
+        borderRadius: BorderRadius.circular(AppRadii.rSm),
+        border: Border.all(color: const Color(0x33F7F4EE)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+          color: Color(0xFFF7F4EE),
+        ),
+      ),
+    );
+  }
+}
+
+/// A tiny contact sheet with real sample frames, the game's visual motif.
 class _ContactStrip extends StatelessWidget {
   const _ContactStrip();
 
@@ -184,39 +396,52 @@ class _ContactStrip extends StatelessWidget {
     return ExcludeSemantics(
       child: Row(
         children: <Widget>[
-          for (var i = 0; i < 4; i++) ...<Widget>[
+          for (var i = 0; i < _Hero._photos.length; i++) ...<Widget>[
             if (i > 0) const SizedBox(width: AppSpacing.s8),
             Expanded(
-              child: AspectRatio(
-                aspectRatio: 1.28,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF27221D),
-                    borderRadius: BorderRadius.circular(AppRadii.rSm),
-                    border: Border.all(
-                      color: i == 0
-                          ? const Color(0xFFE59437)
-                          : const Color(0x33F7F4EE),
+              child: Transform.rotate(
+                angle: <double>[-0.02, 0.015, -0.01, 0.02][i],
+                child: AspectRatio(
+                  aspectRatio: 1.32,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppRadii.rSm),
+                      border: Border.all(
+                        color: i == 0
+                            ? const Color(0xFFE59437)
+                            : const Color(0x55F7F4EE),
+                        width: i == 0 ? 1.5 : 1,
+                      ),
+                      boxShadow: const <BoxShadow>[
+                        BoxShadow(
+                          color: Color(0x331B1713),
+                          blurRadius: 10,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
                     ),
-                  ),
-                  child: Stack(
-                    children: <Widget>[
-                      const Positioned.fill(
-                        child: CropFrameOverlay(
-                          color: Color(0x55F7F4EE),
-                          armLength: 7,
-                          strokeWidth: 1,
-                          inset: 5,
-                        ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(AppRadii.rSm - 1),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: <Widget>[
+                          Image.asset(_Hero._photos[i], fit: BoxFit.cover),
+                          const CropFrameOverlay(
+                            color: Color(0x88F7F4EE),
+                            armLength: 7,
+                            strokeWidth: 1,
+                            inset: 5,
+                          ),
+                          Positioned(
+                            left: 5,
+                            top: 5,
+                            child: NumberTag(
+                              label: (i + 1).toString().padLeft(2, '0'),
+                            ),
+                          ),
+                        ],
                       ),
-                      Positioned(
-                        left: 5,
-                        top: 5,
-                        child: NumberTag(
-                          label: (i + 1).toString().padLeft(2, '0'),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),

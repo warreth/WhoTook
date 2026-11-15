@@ -56,7 +56,10 @@ class RoundScreen extends ConsumerWidget {
               ),
               if (state.totalRounds > 0) ...<Widget>[
                 const SizedBox(height: AppSpacing.s8),
-                ProgressSegments(current: roundNumber, total: state.totalRounds),
+                ProgressSegments(
+                  current: roundNumber,
+                  total: state.totalRounds,
+                ),
               ],
               const SizedBox(height: AppSpacing.s12),
               if (showingCountdown)
@@ -93,11 +96,14 @@ class RoundScreen extends ConsumerWidget {
                   _GuessGrid(
                     options: state.activeRoundOptions,
                     lockedOwnerId: state.lockedGuessOwnerId,
-                    onGuess: (ownerId) => unawaited(
-                      state.isHosting
-                          ? coordinator.submitGuess(ownerId)
-                          : coordinator.clientSubmitGuess(ownerId),
-                    ),
+                    onGuess: (ownerId) {
+                      unawaited(HapticFeedback.selectionClick());
+                      unawaited(
+                        state.isHosting
+                            ? coordinator.submitGuess(ownerId)
+                            : coordinator.clientSubmitGuess(ownerId),
+                      );
+                    },
                   ),
                   const SizedBox(height: AppSpacing.s8),
                   if (state.screenshotAlerts.isNotEmpty)
@@ -214,6 +220,13 @@ class _PhotoFrame extends StatelessWidget {
         color: colors.card,
         borderRadius: BorderRadius.circular(AppRadii.rCard),
         border: Border.all(color: colors.hairline),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color(0x241F1B16),
+            blurRadius: 22,
+            offset: Offset(0, 9),
+          ),
+        ],
       ),
       padding: const EdgeInsets.all(AppSpacing.s8),
       child: Stack(

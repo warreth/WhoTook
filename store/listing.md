@@ -5,8 +5,7 @@ forms decide the final rating and data labels.
 
 ## Permanent IDs
 
-- Android application ID: **app.whotook.whotook**. Keep this for update
-  continuity with the APK builds that are already installed.
+- Android application ID: **party.whotook.app**.
 - iOS bundle ID: **party.whotook.app**. Create the App ID, provisioning profile
   and App Store Connect app record with this exact value.
 - No separate Apple ID is needed for a bundle ID.

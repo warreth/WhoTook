@@ -1,4 +1,4 @@
-package app.whotook.whotook
+package party.whotook.app
 
 import android.Manifest
 import android.content.pm.PackageManager
