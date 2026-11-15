@@ -1,10 +1,12 @@
-## Install WhoTook
+## Install WhoTook 1.7.0
 
-**Android:** download `WhoTook.apk` below and open it. Android will ask you to allow installs from this source once.
+**Android:** pick the APK for your phone. Most modern phones use `WhoTook-1.7.0-arm64-v8a.apk`; older 32-bit phones use `WhoTook-1.7.0-armeabi-v7a.apk`. If you are unsure, use `WhoTook-1.7.0-universal.apk`, or the stable `WhoTook.apk` alias used by the website and Obtainium. Android will ask you to allow installs from this source once.
 
-**Automatic updates:** add `https://github.com/warreth/WhoTook` in Obtainium, or use the Add to Obtainium button on [whotook.party](https://whotook.party).
+**Automatic updates:** add `https://github.com/warreth/WhoTook` in Obtainium, or use the Add to Obtainium button on [whotook.party](https://whotook.party). The stable `WhoTook.apk` stays the universal build.
 
-**iOS:** the App Store build is not available yet. The source builds with Flutter 3.47 and Xcode 16 or newer.
+**iOS:** download `WhoTook-1.7.0-unsigned.ipa` (or the stable `WhoTook-unsigned.ipa` alias) and install it with SideStore or AltStore. The App Store build is not available yet. The source builds with Flutter 3.47 and Xcode 16 or newer.
+
+**Play upload:** `WhoTook-1.7.0.aab`.
 
 ## What is in this release
 
@@ -14,9 +16,5 @@
 - Host controls to skip a stuck round or remove a player, and a caption reveal for a stuck vote.
 - A faster, more random photo check.
 - Year, month and distance labels follow the chosen language.
-- Local play over Wi-Fi or a hotspot, with no server and no internet needed.
-- Online play over WebRTC for friends in other places.
-- Android 7.0+ and iOS 15+.
-- AGPLv3, no accounts, no analytics.
 
 `SHA256SUMS.txt` contains the checksum of every attached file.
