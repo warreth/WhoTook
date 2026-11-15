@@ -6,11 +6,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/format/date_label.dart';
+import '../../l10n/l10n.dart';
 import '../../core/models/models.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../state/match_coordinator.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
+import '../widgets/host_controls.dart';
 
 /// Time Traveler: drag the year, tap the month, then watch the pins drop.
 class TimelineScreen extends ConsumerStatefulWidget {
@@ -36,6 +38,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final coordinator = ref.read(matchCoordinatorProvider);
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
     final maxYear = DateTime.now().year;
@@ -59,16 +62,20 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
           children: <Widget>[
             _TimelineHeader(state: state),
             const SizedBox(height: AppSpacing.s12),
-            PhotoPanel(bytes: state.activePhotoBytes, aspectRatio: 1.4),
+            PhotoPanel(
+              bytes: state.activePhotoBytes,
+              aspectRatio: 1.4,
+              isPanorama: state.activePhotoIsPanorama,
+            ),
             const SizedBox(height: AppSpacing.s16),
             Text(
-              submitted ? 'Locked in' : 'When was this taken?',
+              submitted ? l10n.lockedIn : l10n.whenWasThisTaken,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: colorsOf(context).ink2),
             ),
             const SizedBox(height: AppSpacing.s4),
             Text(
-              monthYear(year, month),
+              monthYear(l10n, year, month),
               textAlign: TextAlign.center,
               style: tabularFigures(
                 TextStyle(
@@ -84,7 +91,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             CountdownBar(
               remainingMs: state.remainingMs,
               totalMs: state.phaseDurationMs,
-              label: 'Guess the year and month',
+              label: l10n.guessYearMonth,
             ),
             const SizedBox(height: AppSpacing.s8),
             SliderTheme(
@@ -127,7 +134,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                   ),
                   const Spacer(),
                   Text(
-                    'now',
+                    l10n.now,
                     style: TextStyle(
                       fontSize: 11,
                       color: colorsOf(context).ink3,
@@ -137,7 +144,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               ),
             ),
             const SizedBox(height: AppSpacing.s16),
-            SectionLabel('Month'),
+            SectionLabel(l10n.monthLabel),
             GridView.count(
               crossAxisCount: 6,
               shrinkWrap: true,
@@ -148,7 +155,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
               children: <Widget>[
                 for (var monthIndex = 1; monthIndex <= 12; monthIndex++)
                   _MonthTile(
-                    label: monthShort(monthIndex),
+                    label: monthShort(l10n, monthIndex),
                     selected: month == monthIndex,
                     onTap: submitted ? null : () => _setMonth(monthIndex),
                   ),
@@ -156,18 +163,18 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
             ),
             const SizedBox(height: AppSpacing.s20),
             if (submitted) ...<Widget>[
-              const NoticeBanner(
-                message: 'Locked in. Waiting for the others.',
+              NoticeBanner(
+                message: l10n.lockedInWaiting,
                 icon: Icons.hourglass_empty,
               ),
               const SizedBox(height: AppSpacing.s12),
               SecondaryButton(
-                label: 'Locked: ${monthYear(year, month)}',
+                label: l10n.lockedDate(monthYear(l10n, year, month)),
                 onPressed: null,
               ),
             ] else
               PrimaryButton(
-                label: 'Lock in ${monthYear(year, month)}',
+                label: l10n.lockInDate(monthYear(l10n, year, month)),
                 onPressed: () => unawaited(
                   state.isHosting
                       ? coordinator.submitTimeline(year, month)
@@ -241,6 +248,7 @@ class _TimelineHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -248,7 +256,7 @@ class _TimelineHeader extends StatelessWidget {
           children: <Widget>[
             Expanded(
               child: Text(
-                'Time Traveler',
+                l10n.modeTimeTraveler,
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w500,
@@ -257,6 +265,7 @@ class _TimelineHeader extends StatelessWidget {
                 ),
               ),
             ),
+            const HostControlsButton(),
             FrameCounter(current: state.currentRound, total: state.totalRounds),
           ],
         ),
@@ -275,6 +284,7 @@ class _TimelineRevealView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     final reveal = state.lastTimelineReveal;
     if (reveal == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -297,10 +307,14 @@ class _TimelineRevealView extends StatelessWidget {
           children: <Widget>[
             _TimelineHeader(state: state),
             const SizedBox(height: AppSpacing.s12),
-            PhotoPanel(bytes: state.activePhotoBytes, aspectRatio: 2.1),
+            PhotoPanel(
+              bytes: state.activePhotoBytes,
+              aspectRatio: 2.1,
+              isPanorama: state.activePhotoIsPanorama,
+            ),
             const SizedBox(height: AppSpacing.s12),
             Text(
-              'The timeline',
+              l10n.theTimeline,
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w500,
@@ -316,7 +330,7 @@ class _TimelineRevealView extends StatelessWidget {
                 if (closest != null)
                   Expanded(
                     child: _TitleCard(
-                      label: 'Time Lord',
+                      label: l10n.timeLord,
                       entry: closest,
                       accent: true,
                       icon: Icons.schedule,
@@ -327,7 +341,7 @@ class _TimelineRevealView extends StatelessWidget {
                 if (furthest != null && (furthest.monthsOff ?? 0) > 0)
                   Expanded(
                     child: _TitleCard(
-                      label: 'Most delusional',
+                      label: l10n.mostDelusional,
                       entry: furthest,
                       accent: false,
                       icon: Icons.explore_off_outlined,
@@ -341,13 +355,22 @@ class _TimelineRevealView extends StatelessWidget {
               child: Column(
                 children: <Widget>[
                   for (final entry in reveal.entries)
-                    _TimelineResultRow(entry: entry),
+                    _TimelineResultRow(
+                      entry: entry,
+                      avatar:
+                          state.players
+                              .where((player) => player.id == entry.playerId)
+                              .firstOrNull
+                              ?.avatar ??
+                          '',
+                      photoBase64: state.avatarPhotos[entry.playerId],
+                    ),
                 ],
               ),
             ),
             const SizedBox(height: AppSpacing.s12),
             Text(
-              'Next round in a moment.',
+              l10n.nextRoundInMoment,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 12, color: colors.ink3),
             ),
@@ -374,10 +397,11 @@ class _TitleCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     final off = entry.monthsOff ?? 0;
     final guess = entry.year == null
-        ? 'No guess'
-        : monthYear(entry.year!, entry.month ?? 1);
+        ? l10n.noGuess
+        : monthYear(l10n, entry.year!, entry.month ?? 1);
     return SurfaceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -407,7 +431,7 @@ class _TitleCard extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            '$guess · ${off == 0 ? 'exact' : 'off by ${monthDistance(off)}'}',
+            '$guess · ${off == 0 ? l10n.exact : l10n.offBy(monthDistance(l10n, off))}',
             style: TextStyle(fontSize: 10, color: colors.ink2),
           ),
         ],
@@ -417,22 +441,29 @@ class _TitleCard extends StatelessWidget {
 }
 
 class _TimelineResultRow extends StatelessWidget {
-  const _TimelineResultRow({required this.entry});
+  const _TimelineResultRow({
+    required this.entry,
+    this.avatar = '',
+    this.photoBase64,
+  });
 
   final TimelineEntry entry;
+  final String avatar;
+  final String? photoBase64;
 
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     final guessedDate = entry.year == null
-        ? 'No guess'
-        : monthYear(entry.year!, entry.month ?? 1);
-    final guess = entry.isOwner ? 'Your photo · $guessedDate' : guessedDate;
+        ? l10n.noGuess
+        : monthYear(l10n, entry.year!, entry.month ?? 1);
+    final guess = entry.isOwner ? l10n.yourPhotoDate(guessedDate) : guessedDate;
     final off = entry.timedOut || entry.year == null
         ? ''
         : entry.monthsOff == 0
-        ? 'exact'
-        : 'off by ${monthDistance(entry.monthsOff ?? 0)}';
+        ? l10n.exact
+        : l10n.offBy(monthDistance(l10n, entry.monthsOff ?? 0));
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.s12,
@@ -443,7 +474,12 @@ class _TimelineResultRow extends StatelessWidget {
       ),
       child: Row(
         children: <Widget>[
-          PlayerAvatar(initial: entry.playerName, size: 28),
+          PlayerAvatar(
+            initial: entry.playerName,
+            avatar: avatar,
+            photoBase64: photoBase64,
+            size: 28,
+          ),
           const SizedBox(width: AppSpacing.s12),
           Expanded(
             child: Column(
@@ -648,7 +684,7 @@ class _TimelineChartState extends State<_TimelineChart>
               ),
             ),
             Text(
-              '${monthShort(entry.month ?? 1)} ${entry.year}',
+              '${monthShort(context.l10n, entry.month ?? 1)} ${entry.year}',
               maxLines: 1,
               style: TextStyle(fontSize: 8, color: colors.ink3),
             ),
@@ -701,7 +737,7 @@ class _TimelineChartState extends State<_TimelineChart>
                 borderRadius: BorderRadius.circular(AppRadii.rSm),
               ),
               child: Text(
-                monthYear(reveal.actualYear, reveal.actualMonth),
+                monthYear(context.l10n, reveal.actualYear, reveal.actualMonth),
                 style: tabularFigures(
                   TextStyle(
                     fontFamily: 'JetBrainsMono',

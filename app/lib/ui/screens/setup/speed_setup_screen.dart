@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/models.dart';
 import '../../../core/theme/whotook_theme.dart';
+import '../../../l10n/l10n.dart';
 import '../../../state/providers.dart';
 import 'setup_scaffold.dart';
 
@@ -32,7 +33,7 @@ class _SpeedSetupScreenState extends ConsumerState<SpeedSetupScreen> {
       setState(() => _opening = false);
       messenger.showSnackBar(
         SnackBar(
-          content: Text(next.errorMessage ?? 'Could not open the room.'),
+          content: Text(next.errorMessage ?? context.l10n.couldNotOpenRoom),
         ),
       );
       return;
@@ -47,15 +48,15 @@ class _SpeedSetupScreenState extends ConsumerState<SpeedSetupScreen> {
     final mode = state.config.mode;
     return SetupScaffold(
       step: 3,
-      title: 'Pick the pace',
-      subtitle: _subtitle(mode),
-      primaryLabel: 'Open the room',
+      title: context.l10n.pickPace,
+      subtitle: _subtitle(mode, context.l10n),
+      primaryLabel: context.l10n.openRoom,
       primaryEnabled: !_opening,
       busy: _opening,
       onPrimary: () => unawaited(_openRoom()),
       child: Column(
         children: <Widget>[
-          for (final option in _paceOptions(mode))
+          for (final option in _paceOptions(mode, context.l10n))
             Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.s12),
               child: _PaceCard(
@@ -73,11 +74,17 @@ class _SpeedSetupScreenState extends ConsumerState<SpeedSetupScreen> {
   }
 }
 
-String _subtitle(GameMode mode) => switch (mode) {
-  GameMode.classic => 'How long does everyone get to guess each photo?',
-  GameMode.captionThis => 'How long does everyone get to write a caption?',
-  GameMode.timeTraveler => 'How long does everyone get to choose a date?',
-  GameMode.mixedParty => 'Each of the three modes keeps its own clock.',
+String _subtitle(GameMode mode, AppLocalizations l10n) => switch (mode) {
+  GameMode.classic => l10n.paceClassicSubtitle,
+  GameMode.captionThis => l10n.paceCaptionSubtitle,
+  GameMode.timeTraveler => l10n.paceTimelineSubtitle,
+  GameMode.mixedParty => l10n.paceMixedSubtitle,
+};
+
+String _paceLabel(AppLocalizations l10n, GamePace pace) => switch (pace) {
+  GamePace.fast => l10n.paceFast,
+  GamePace.normal => l10n.paceNormal,
+  GamePace.slow => l10n.paceSlow,
 };
 
 class _PaceOption {
@@ -94,88 +101,89 @@ class _PaceOption {
   final IconData icon;
 }
 
-List<_PaceOption> _paceOptions(GameMode mode) => switch (mode) {
-  GameMode.classic => <_PaceOption>[
-    _PaceOption(
-      pace: GamePace.fast,
-      blurb: 'Snap decisions.',
-      seconds: GamePace.fast.classicSeconds,
-      icon: Icons.bolt_outlined,
-    ),
-    _PaceOption(
-      pace: GamePace.normal,
-      blurb: 'The party standard.',
-      seconds: GamePace.normal.classicSeconds,
-      icon: Icons.timer_outlined,
-    ),
-    _PaceOption(
-      pace: GamePace.slow,
-      blurb: 'For the big table.',
-      seconds: GamePace.slow.classicSeconds,
-      icon: Icons.hourglass_empty,
-    ),
-  ],
-  GameMode.captionThis => <_PaceOption>[
-    _PaceOption(
-      pace: GamePace.fast,
-      blurb: 'A quick caption.',
-      seconds: GamePace.fast.captionSeconds,
-      icon: Icons.bolt_outlined,
-    ),
-    _PaceOption(
-      pace: GamePace.normal,
-      blurb: 'Time to be funny.',
-      seconds: GamePace.normal.captionSeconds,
-      icon: Icons.timer_outlined,
-    ),
-    _PaceOption(
-      pace: GamePace.slow,
-      blurb: 'No rush, make it good.',
-      seconds: GamePace.slow.captionSeconds,
-      icon: Icons.hourglass_empty,
-    ),
-  ],
-  GameMode.timeTraveler => <_PaceOption>[
-    _PaceOption(
-      pace: GamePace.fast,
-      blurb: 'A quick date.',
-      seconds: GamePace.fast.timelineSeconds,
-      icon: Icons.bolt_outlined,
-    ),
-    _PaceOption(
-      pace: GamePace.normal,
-      blurb: 'Think it through.',
-      seconds: GamePace.normal.timelineSeconds,
-      icon: Icons.timer_outlined,
-    ),
-    _PaceOption(
-      pace: GamePace.slow,
-      blurb: 'For the history buffs.',
-      seconds: GamePace.slow.timelineSeconds,
-      icon: Icons.hourglass_empty,
-    ),
-  ],
-  GameMode.mixedParty => <_PaceOption>[
-    _PaceOption(
-      pace: GamePace.fast,
-      blurb: 'Every mode at its fast clock.',
-      seconds: null,
-      icon: Icons.bolt_outlined,
-    ),
-    _PaceOption(
-      pace: GamePace.normal,
-      blurb: 'Every mode at its normal clock.',
-      seconds: null,
-      icon: Icons.timer_outlined,
-    ),
-    _PaceOption(
-      pace: GamePace.slow,
-      blurb: 'Every mode at its slow clock.',
-      seconds: null,
-      icon: Icons.hourglass_empty,
-    ),
-  ],
-};
+List<_PaceOption> _paceOptions(GameMode mode, AppLocalizations l10n) =>
+    switch (mode) {
+      GameMode.classic => <_PaceOption>[
+        _PaceOption(
+          pace: GamePace.fast,
+          blurb: l10n.paceFastClassic,
+          seconds: GamePace.fast.classicSeconds,
+          icon: Icons.bolt_outlined,
+        ),
+        _PaceOption(
+          pace: GamePace.normal,
+          blurb: l10n.paceNormalClassic,
+          seconds: GamePace.normal.classicSeconds,
+          icon: Icons.timer_outlined,
+        ),
+        _PaceOption(
+          pace: GamePace.slow,
+          blurb: l10n.paceSlowClassic,
+          seconds: GamePace.slow.classicSeconds,
+          icon: Icons.hourglass_empty,
+        ),
+      ],
+      GameMode.captionThis => <_PaceOption>[
+        _PaceOption(
+          pace: GamePace.fast,
+          blurb: l10n.paceFastCaption,
+          seconds: GamePace.fast.captionSeconds,
+          icon: Icons.bolt_outlined,
+        ),
+        _PaceOption(
+          pace: GamePace.normal,
+          blurb: l10n.paceNormalCaption,
+          seconds: GamePace.normal.captionSeconds,
+          icon: Icons.timer_outlined,
+        ),
+        _PaceOption(
+          pace: GamePace.slow,
+          blurb: l10n.paceSlowCaption,
+          seconds: GamePace.slow.captionSeconds,
+          icon: Icons.hourglass_empty,
+        ),
+      ],
+      GameMode.timeTraveler => <_PaceOption>[
+        _PaceOption(
+          pace: GamePace.fast,
+          blurb: l10n.paceFastTimeline,
+          seconds: GamePace.fast.timelineSeconds,
+          icon: Icons.bolt_outlined,
+        ),
+        _PaceOption(
+          pace: GamePace.normal,
+          blurb: l10n.paceNormalTimeline,
+          seconds: GamePace.normal.timelineSeconds,
+          icon: Icons.timer_outlined,
+        ),
+        _PaceOption(
+          pace: GamePace.slow,
+          blurb: l10n.paceSlowTimeline,
+          seconds: GamePace.slow.timelineSeconds,
+          icon: Icons.hourglass_empty,
+        ),
+      ],
+      GameMode.mixedParty => <_PaceOption>[
+        _PaceOption(
+          pace: GamePace.fast,
+          blurb: l10n.paceFastMixed,
+          seconds: null,
+          icon: Icons.bolt_outlined,
+        ),
+        _PaceOption(
+          pace: GamePace.normal,
+          blurb: l10n.paceNormalMixed,
+          seconds: null,
+          icon: Icons.timer_outlined,
+        ),
+        _PaceOption(
+          pace: GamePace.slow,
+          blurb: l10n.paceSlowMixed,
+          seconds: null,
+          icon: Icons.hourglass_empty,
+        ),
+      ],
+    };
 
 class _PaceCard extends StatelessWidget {
   const _PaceCard({
@@ -191,11 +199,17 @@ class _PaceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     return Semantics(
       selected: selected,
       button: true,
-      label:
-          '${option.pace.label}, ${option.seconds == null ? option.blurb : '${option.seconds} seconds'}. ${option.blurb}',
+      label: l10n.paceSemantic(
+        _paceLabel(context.l10n, option.pace),
+        option.seconds == null
+            ? l10n.mixed
+            : l10n.secondsShort(option.seconds!),
+        option.blurb,
+      ),
       child: Material(
         color: selected ? colors.raised : colors.card,
         borderRadius: BorderRadius.circular(AppRadii.rCard),
@@ -225,7 +239,7 @@ class _PaceCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        option.pace.label,
+                        _paceLabel(l10n, option.pace),
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
@@ -240,7 +254,9 @@ class _PaceCard extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  option.seconds == null ? 'Mixed' : '${option.seconds}s',
+                  option.seconds == null
+                      ? l10n.mixed
+                      : l10n.secondsShort(option.seconds!),
                   style: tabularFigures(
                     TextStyle(
                       fontFamily: 'JetBrainsMono',

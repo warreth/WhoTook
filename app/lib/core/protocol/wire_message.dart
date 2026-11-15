@@ -33,6 +33,7 @@ abstract final class WireType {
   static const String extendSubmit = 'extend_submit';
   static const String gamePodium = 'game_podium';
   static const String stateSync = 'state_sync';
+  static const String roomClosed = 'room_closed';
   static const String errorNotice = 'error_notice';
   static const String ping = 'ping';
   static const String pong = 'pong';
@@ -66,6 +67,7 @@ abstract final class WireType {
     extendSubmit,
     gamePodium,
     stateSync,
+    roomClosed,
     errorNotice,
     ping,
     pong,

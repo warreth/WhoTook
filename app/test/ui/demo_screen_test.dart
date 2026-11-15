@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:whotook/l10n/l10n.dart';
 import 'package:whotook/core/theme/whotook_theme.dart';
 import 'package:whotook/ui/screens/demo_screen.dart';
 
@@ -17,6 +18,9 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         debugShowCheckedModeBanner: false,
         theme: buildWhoTookTheme(Brightness.light),
         home: const DemoScreen(),
@@ -29,7 +33,7 @@ void main() {
 
     await tester.tap(find.text('Start demo round'));
     await tester.pump(const Duration(milliseconds: 200));
-    expect(find.text('Who took this?'), findsOneWidget);
+    expect(find.text('Who took this'), findsOneWidget);
 
     await tester.tap(find.text('Lotte'));
     await tester.pump(const Duration(milliseconds: 900));

@@ -1,0 +1,3 @@
+"NSCameraUsageDescription" = "WhoTook uses the camera to scan match QR codes and take a selfie avatar.";
+"NSPhotoLibraryUsageDescription" = "WhoTook picks random photos from albums you allow, and can use one photo as your avatar. Photos stay on players' devices during the match.";
+"NSLocalNetworkUsageDescription" = "WhoTook finds nearby players on the same Wi-Fi or hotspot without an external server.";

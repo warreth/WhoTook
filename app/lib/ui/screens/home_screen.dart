@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/storage/last_room_repository.dart';
+import '../../l10n/l10n.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../state/match_coordinator.dart';
 import '../../state/providers.dart';
@@ -54,6 +55,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     final coordinator = ref.read(matchCoordinatorProvider);
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
     final wide = MediaQuery.sizeOf(context).width >= 900;
@@ -107,7 +109,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         ),
                         icon: const Icon(Icons.settings_outlined),
-                        tooltip: 'Settings',
+                        tooltip: l10n.settings,
                       ),
                     ],
                   ),
@@ -182,6 +184,7 @@ class _HomeActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -196,24 +199,24 @@ class _HomeActions extends StatelessWidget {
         ],
         if (state.turnLimitNotice != null) ...<Widget>[
           const SizedBox(height: AppSpacing.s8),
-          const NoticeBanner(
-            message: 'Online relay is used up today. Use the same Wi-Fi to keep playing.',
+          NoticeBanner(
+            message: l10n.onlineRelayUsed,
             tone: StatusTone.warning,
             icon: Icons.wifi_tethering,
           ),
         ],
         const SizedBox(height: AppSpacing.s16),
         _BigAction(
-          title: 'Host a game',
-          subtitle: 'Pick the mode, rounds and pace',
+          title: l10n.hostAGame,
+          subtitle: l10n.hostAGameSubtitle,
           icon: Icons.groups_outlined,
           filled: true,
           onTap: onHost,
         ),
         const SizedBox(height: AppSpacing.s12),
         _BigAction(
-          title: 'Join a game',
-          subtitle: "Scan the host's QR code",
+          title: l10n.joinAGame,
+          subtitle: l10n.joinAGameSubtitle,
           icon: Icons.qr_code_scanner,
           onTap: onJoin,
         ),
@@ -228,7 +231,7 @@ class _HomeActions extends StatelessWidget {
         ],
         const SizedBox(height: AppSpacing.s12),
         Text(
-          'Same room, same Wi-Fi. Photos stay between players.',
+          l10n.homeFooter,
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 12, color: colors.ink3),
         ),
@@ -257,6 +260,7 @@ class _RejoinCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     return SurfaceCard(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.s12,
@@ -272,12 +276,15 @@ class _RejoinCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                const Text(
-                  'Last room',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                Text(
+                  l10n.lastRoom,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
                 Text(
-                  'Room ${room.roomId}',
+                  l10n.roomLabel(room.roomId),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 11, color: colors.ink2),
@@ -292,10 +299,10 @@ class _RejoinCard extends StatelessWidget {
                     dimension: 16,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text('Rejoin'),
+                : Text(l10n.rejoin),
           ),
           IconButton(
-            tooltip: 'Forget this room',
+            tooltip: l10n.forgetRoom,
             onPressed: busy ? null : onForget,
             icon: const Icon(Icons.close, size: 18),
             visualDensity: VisualDensity.compact,
@@ -312,6 +319,7 @@ class _HowItPlaysCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     return SurfaceCard(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.s16,
@@ -323,26 +331,26 @@ class _HowItPlaysCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           SectionLabel(
-            'How it plays',
+            l10n.howItPlays,
             trailing: Text(
-              '3 steps',
+              l10n.threeSteps,
               style: TextStyle(fontSize: 11, color: colors.ink3),
             ),
           ),
-          const _GuideRow(
+          _GuideRow(
             number: '01',
-            title: 'Set the table',
-            body: 'Mode, rounds and pace.',
+            title: l10n.guideSetTable,
+            body: l10n.guideSetTableBody,
           ),
-          const _GuideRow(
+          _GuideRow(
             number: '02',
-            title: 'Scan in',
-            body: 'Friends join from the QR.',
+            title: l10n.guideScanIn,
+            body: l10n.guideScanInBody,
           ),
-          const _GuideRow(
+          _GuideRow(
             number: '03',
-            title: 'Play',
-            body: 'Guess, caption or time travel.',
+            title: l10n.guidePlay,
+            body: l10n.guidePlayBody,
           ),
         ],
       ),
@@ -425,6 +433,7 @@ class _Hero extends StatelessWidget {
   Widget build(BuildContext context) {
     const paper = Color(0xFFF7F4EE);
     const muted = Color(0xFFC7BFB3);
+    final l10n = context.l10n;
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppRadii.rModal),
@@ -468,11 +477,11 @@ class _Hero extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  const _HeroFact(label: '2–12 players · Same Wi-Fi or online'),
+                  _HeroFact(label: l10n.heroFact),
                   const Spacer(),
-                  const Text(
-                    'Whose camera\nroll is this?',
-                    style: TextStyle(
+                  Text(
+                    l10n.heroTitle,
+                    style: const TextStyle(
                       fontSize: 38,
                       height: 0.98,
                       fontWeight: FontWeight.w600,
@@ -482,7 +491,7 @@ class _Hero extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.s12),
                   Text(
-                    'One photo at a time. Everyone guesses whose it is.',
+                    l10n.heroSubtitle,
                     style: TextStyle(fontSize: 14, height: 1.35, color: muted),
                   ),
                   const SizedBox(height: AppSpacing.s12),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/whotook_theme.dart';
+import '../../../l10n/l10n.dart';
 import '../../widgets/common.dart';
 
 /// Shared header, step rail and bottom action for the four host setup screens.
@@ -49,14 +50,14 @@ class SetupScaffold extends StatelessWidget {
                   child: Row(
                     children: <Widget>[
                       IconButton(
-                        tooltip: 'Back',
+                        tooltip: context.l10n.back,
                         onPressed: () => Navigator.of(context).maybePop(),
                         icon: const Icon(Icons.arrow_back),
                       ),
                       const SizedBox(width: AppSpacing.s4),
                       Expanded(
                         child: Text(
-                          'Host a game',
+                          context.l10n.hostAGameTitle,
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
@@ -65,7 +66,7 @@ class SetupScaffold extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        'Step $step of 3',
+                        context.l10n.stepOf(step),
                         style: tabularFigures(
                           TextStyle(
                             fontFamily: 'JetBrainsMono',

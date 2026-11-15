@@ -1,0 +1,774 @@
+{
+  "@@locale": "en",
+  "language": "Language",
+  "languageSystem": "Follow the device",
+  "languageEnglish": "English",
+  "languageDutch": "Nederlands",
+  "cancel": "Cancel",
+  "continueLabel": "Continue",
+  "close": "Close",
+  "remove": "Remove",
+  "done": "Done",
+  "retry": "Retry",
+  "back": "Back",
+  "leave": "Leave",
+  "stay": "Stay",
+  "settings": "Settings",
+  "player": "Player",
+  "ready": "Ready",
+  "waitingForHost": "Waiting for the host",
+  "nextRoundInMoment": "Next round in a moment.",
+  "hostAGame": "Host a game",
+  "hostAGameSubtitle": "Pick the mode, rounds and pace",
+  "joinAGame": "Join a game",
+  "joinAGameSubtitle": "Scan the host's QR code",
+  "homeFooter": "Same room, same Wi-Fi. Photos stay between players.",
+  "lastRoom": "Last room",
+  "roomLabel": "Room {roomId}",
+  "@roomLabel": {
+    "placeholders": {
+      "roomId": {
+        "type": "String"
+      }
+    }
+  },
+  "forgetRoom": "Forget this room",
+  "howItPlays": "How it plays",
+  "threeSteps": "3 steps",
+  "guideSetTable": "Set the table",
+  "guideSetTableBody": "Mode, rounds and pace.",
+  "guideScanIn": "Scan in",
+  "guideScanInBody": "Friends join from the QR.",
+  "guidePlay": "Play",
+  "guidePlayBody": "Guess, caption or time travel.",
+  "heroFact": "2–12 players · Same Wi-Fi or online",
+  "heroTitle": "Whose camera\nroll is this?",
+  "heroSubtitle": "One photo at a time. Everyone guesses whose it is.",
+  "onlineRelayUsed": "Online relay is used up today. Use the same Wi-Fi to keep playing.",
+  "guessWhosePhoto": "Guess whose photo it is",
+  "onboardingTagline": "One photo. One guess. Tap who you think took it.",
+  "yourName": "Your name",
+  "acceptTerms": "I agree to the Terms of use and Community rules.",
+  "termsLink": "Terms and community rules",
+  "privacy": "Privacy",
+  "onboardingPhotoNote": "Photos are only read when a match starts. You can keep private albums out of every game in Settings.",
+  "pickNameError": "Pick a name your friends will recognise.",
+  "acceptTermsError": "Agree to the terms before you continue.",
+  "joinAMatch": "Join a match",
+  "connectingToHost": "Connecting to the host",
+  "pasteInvite": "Or paste an invite link",
+  "useThisLink": "Use this link",
+  "cameraUnavailable": "Camera unavailable. Allow access or paste a link below.",
+  "joiningAs": "Joining as",
+  "nameShownAtTable": "Shown to everyone at the table",
+  "joinTheRoom": "Join the room",
+  "joining": "Joining",
+  "joinRoomTitle": "Join {roomId}",
+  "@joinRoomTitle": {
+    "placeholders": {
+      "roomId": {
+        "type": "String"
+      }
+    }
+  },
+  "invalidInvite": "That invite is not valid. Scan the QR code again.",
+  "chooseGame": "Choose the game",
+  "chooseGameSubtitle": "Classic, Caption This, Time Traveler or a bit of everything.",
+  "nextRounds": "Next: rounds",
+  "howManyRounds": "How many rounds?",
+  "roundsSubtitle": "Short and sharp. You can always add five more at the podium.",
+  "nextPace": "Next: pick the pace",
+  "quickGame": "Quick game",
+  "partySize": "Party size",
+  "longTable": "Long table",
+  "allNighter": "All nighter",
+  "pickPace": "Pick the pace",
+  "openRoom": "Open the room",
+  "couldNotOpenRoom": "Could not open the room.",
+  "stepOf": "Step {step} of 3",
+  "@stepOf": {
+    "placeholders": {
+      "step": {
+        "type": "int"
+      }
+    }
+  },
+  "hostAGameTitle": "Host a game",
+  "roundsCount": "{count, plural, =1{1 round} other{{count} rounds}}",
+  "@roundsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "paceClassicSubtitle": "How long does everyone get to guess each photo?",
+  "paceCaptionSubtitle": "How long does everyone get to write a caption?",
+  "paceTimelineSubtitle": "How long does everyone get to choose a date?",
+  "paceMixedSubtitle": "Each of the three modes keeps its own clock.",
+  "paceFastClassic": "Snap decisions.",
+  "paceNormalClassic": "The party standard.",
+  "paceSlowClassic": "For the big table.",
+  "paceFastCaption": "A quick caption.",
+  "paceNormalCaption": "Time to be funny.",
+  "paceSlowCaption": "No rush, make it good.",
+  "paceFastTimeline": "A quick date.",
+  "paceNormalTimeline": "Think it through.",
+  "paceSlowTimeline": "For the history buffs.",
+  "paceFastMixed": "Every mode at its fast clock.",
+  "paceNormalMixed": "Every mode at its normal clock.",
+  "paceSlowMixed": "Every mode at its slow clock.",
+  "mixed": "Mixed",
+  "secondsShort": "{seconds}s",
+  "@secondsShort": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "paceSemantic": "{pace}, {detail}. {blurb}",
+  "@paceSemantic": {
+    "placeholders": {
+      "pace": {
+        "type": "String"
+      },
+      "detail": {
+        "type": "String"
+      },
+      "blurb": {
+        "type": "String"
+      }
+    }
+  },
+  "paceFast": "Fast",
+  "paceNormal": "Normal",
+  "paceSlow": "Slow",
+  "rejoin": "Rejoin",
+  "yourRoom": "Your room",
+  "lobby": "Lobby",
+  "leaveMatch": "Leave match",
+  "scanToJoin": "Scan to join",
+  "scanToJoinBody": "Point any camera at the code. No app download needed to join.",
+  "roomCode": "ROOM {roomId}",
+  "@roomCode": {
+    "placeholders": {
+      "roomId": {
+        "type": "String"
+      }
+    }
+  },
+  "sameWifi": "Same Wi-Fi",
+  "online": "Online",
+  "shareInviteLink": "Share invite link",
+  "hostStartsPhotoCheck": "The host starts the photo check when everyone is here.",
+  "waitingForHostToStart": "Waiting for the host to start",
+  "playersJoined": "{count, plural, =1{1 player joined} other{{count} players joined}}",
+  "@playersJoined": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "waitingFirstFriend": "Waiting for the first friend",
+  "waitingFirstFriendBody": "The QR code above is the only thing they need.",
+  "editAction": "Edit",
+  "editGameBody": "Changes reach everyone in the room. You can edit again until the photo check starts.",
+  "tonightsGame": "Tonight's game",
+  "modeLabel": "Mode",
+  "roundsLabel": "Rounds",
+  "paceLabel": "Pace",
+  "removePlayerTitle": "Remove {name}?",
+  "@removePlayerTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "removePlayerLobbyBody": "They leave this room. They can join again with the QR code.",
+  "inviteLink": "Invite link",
+  "copied": "Copied",
+  "copyLink": "Copy link",
+  "playerOptions": "Player options",
+  "removeFromRoom": "Remove from room",
+  "startPhotoCheck": "Start photo check",
+  "hostLabel": "Host",
+  "choosing": "Choosing",
+  "modeClassic": "Classic",
+  "modeCaptionThis": "Caption This",
+  "modeTimeTraveler": "Time Traveler",
+  "modeMixedParty": "Mixed Party",
+  "rerollAll": "Reroll all",
+  "waitingForPlayersButton": "Waiting for players",
+  "checkYourPhotos": "Check your photos",
+  "photosAllHere": "All {count} photos for this match are here. Reroll all for a different set.",
+  "@photosAllHere": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photosPartial": "You have {count} of {needed}. Reroll all to fill the set.",
+  "@photosPartial": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "needed": {
+        "type": "int"
+      }
+    }
+  },
+  "photosReading": "Reading the photos for this match.",
+  "photosTooFew": "{count, plural, =1{Only 1 usable photo found. Add photos or allow more albums in Settings, then reroll. You can still continue with this set.} other{Only {count} usable photos found. Add photos or allow more albums in Settings, then reroll. You can still continue with this set.}}",
+  "@photosTooFew": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noUsablePhotos": "No usable photos found",
+  "noUsablePhotosBody": "Allow photo access, or add a few photos to your gallery. Photos are only read from albums you allow.",
+  "photoSettings": "Photo settings",
+  "secretPhotoPlanted": "Secret photo planted",
+  "plantSecretPhoto": "Plant one secret photo",
+  "plantSecretPhotoBody": "One per match. It quietly replaces one of your approved photos.",
+  "couldNotReadAlbums": "Could not read your albums.",
+  "couldNotReadAlbum": "Could not read this album.",
+  "couldNotReadPhoto": "That photo could not be read. Try another.",
+  "couldNotSharePhoto": "That photo could not be shared. Try another.",
+  "pickPhotoToPlant": "Pick the photo to plant",
+  "pickPhotoToPlantBody": "Any photo from your albums. One per match, and nobody learns which one it was until the podium.",
+  "readingAlbums": "Reading your albums",
+  "albumsUnavailable": "Albums are not available",
+  "albumsUnavailableBody": "Photo access may be off. Allow it and try again.",
+  "noPhotosToPlant": "No photos to plant",
+  "noPhotosToPlantBody": "No approved photos are available on this device yet.",
+  "fromApprovedPhotos": "From your approved photos",
+  "roundOf": "Round {round} of {total}",
+  "@roundOf": {
+    "placeholders": {
+      "round": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "whoTookThis": "Who took this",
+  "screenshotBy": "{name} took a screenshot",
+  "@screenshotBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "lockedInWaiting": "Locked in, waiting for the others.",
+  "getReady": "Get ready",
+  "tapWhoTook": "Tap who took the photo as soon as it appears",
+  "tapNameToLock": "Tap a name to lock in",
+  "secondsLeftToGuess": "Seconds left to guess",
+  "noAnswer": "No answer.",
+  "yourPhotoYouGotIt": "Your photo. You got it. +{points}",
+  "@yourPhotoYouGotIt": {
+    "placeholders": {
+      "points": {
+        "type": "int"
+      }
+    }
+  },
+  "youGotIt": "You got it. +{points}",
+  "@youGotIt": {
+    "placeholders": {
+      "points": {
+        "type": "int"
+      }
+    }
+  },
+  "yourPhotoWrongGuess": "Your photo. Wrong guess.",
+  "wrongGuess": "Wrong guess.",
+  "playersFooled": "{count, plural, =1{1 player fooled} other{{count} players fooled}}",
+  "@playersFooled": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "playersDidNotAnswer": "{count, plural, =1{1 did not answer} other{{count} did not answer}}",
+  "@playersDidNotAnswer": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "everyoneGotItRight": "Everyone got it right",
+  "shotBy": "Shot by {name}",
+  "@shotBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "whoTookIt": "Who took it?",
+  "fastestAward": "Fastest: {name} {seconds}s",
+  "@fastestAward": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "nobodyGuessed": "Nobody guessed it",
+  "everyoneNailedIt": "Everyone nailed it",
+  "writeFunniestCaption": "Write the funniest caption",
+  "captionSentWaiting": "Caption sent. Waiting for the others.",
+  "yourCaption": "Your caption",
+  "makeItWeird": "Make it weird.",
+  "waitingForOthers": "Waiting for the others",
+  "sendCaption": "Send caption",
+  "votesIn": "{votes} of {total} votes in. The reveal starts when everyone has voted.",
+  "@votesIn": {
+    "placeholders": {
+      "votes": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "tapOneCaption": "Tap one caption. You cannot pick your own.",
+  "voteLockedWaiting": "Vote locked. Waiting for the table.",
+  "revealNow": "Reveal now",
+  "noCaptions": "No captions",
+  "thisRoundMovesOn": "This round will move on.",
+  "tableHasSpoken": "The table has spoken",
+  "photoBy": "Photo by {name}",
+  "@photoBy": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "yourCaptionZero": "Your caption got zero votes. Brutal.",
+  "yourCaptionVotes": "{count, plural, =1{Your caption got 1 vote.} other{Your caption got {count} votes.}}",
+  "@yourCaptionVotes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "zeroVotes": "Zero votes",
+  "groupMenace": "Group menace",
+  "topCaption": "Top caption",
+  "voteCount": "{count, plural, =1{1 vote} other{{count} votes}}",
+  "@voteCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "captionAuthorBadge": "{author} · {badge}",
+  "@captionAuthorBadge": {
+    "placeholders": {
+      "author": {
+        "type": "String"
+      },
+      "badge": {
+        "type": "String"
+      }
+    }
+  },
+  "whenWasThisTaken": "When was this taken?",
+  "guessYearMonth": "Guess the year and month",
+  "lockedDate": "Locked: {date}",
+  "@lockedDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "lockInDate": "Lock in {date}",
+  "@lockInDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "theTimeline": "The timeline",
+  "timeLord": "Time Lord",
+  "mostDelusional": "Most delusional",
+  "noGuess": "No guess",
+  "yourPhotoDate": "Your photo · {date}",
+  "@yourPhotoDate": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "exact": "exact",
+  "offBy": "off by {distance}",
+  "@offBy": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "monthCount": "{count, plural, =1{1 month} other{{count} months}}",
+  "@monthCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "yearCount": "{count, plural, =1{1 year} other{{count} years}}",
+  "@yearCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "matchAwards": "Match awards",
+  "oneMoreRound": "One more round (5)",
+  "backToLobby": "Back to lobby",
+  "screenshotsCount": "Screenshots: {count}",
+  "@screenshotsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "championSemantic": "Champion {name}, {score} points",
+  "@championSemantic": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "points": "{score} pts",
+  "@points": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "quickestDraw": "Quickest draw",
+  "longestStreak": "Longest streak",
+  "masterOfMystery": "Master of mystery",
+  "paparazzi": "Paparazzi",
+  "smoothPlanter": "Smooth planter",
+  "awardSeconds": "{seconds}s",
+  "@awardSeconds": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "awardStreak": "{count}x",
+  "@awardStreak": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "awardPoints": "{count} pts",
+  "@awardPoints": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "awardFrames": "{count} screenshots",
+  "@awardFrames": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "awardFooled": "fooled {count}",
+  "@awardFooled": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "moreRounds": "{count, plural, =1{1 more round} other{{count} more rounds}}",
+  "@moreRounds": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "swapBeforeTimer": "Swap anything you like before the timer ends.",
+  "pickingExtraPhotos": "Picking extra photos",
+  "freshFrames": "Fresh frames are coming from your albums. This stays on your device.",
+  "approve": "Approve",
+  "reviewDemo": "Review demo",
+  "closeDemo": "Close demo",
+  "demoFake": "Demo with fake players. No network and no real photos.",
+  "allDemoPhotos": "All 4 demo photos are here. Reroll all for a different set.",
+  "startDemoRound": "Start demo round",
+  "timerRanOut": "The timer ran out.",
+  "youGuessed": "You guessed {name}. Next time.",
+  "@youGuessed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "seePodium": "See the podium",
+  "restartDemo": "Restart demo",
+  "placeFirst": "1st",
+  "placeSecond": "2nd",
+  "placeThird": "3rd",
+  "placeNth": "{place}th",
+  "@placeNth": {
+    "placeholders": {
+      "place": {
+        "type": "int"
+      }
+    }
+  },
+  "lockedIn": "Locked in",
+  "podium": "Podium",
+  "champion": "Champion",
+  "settingsTitle": "Settings",
+  "nameLabel": "Name",
+  "nameHelper": "Shown to other players",
+  "avatar": "Avatar",
+  "theme": "Theme",
+  "themeSystem": "Follow the device",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+  "privateAlbums": "Private albums",
+  "excludedCount": "{count} excluded",
+  "@excludedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "privateAlbumsBody": "Optional. Excluded albums are never drawn from in any match.",
+  "albumListUnavailable": "Album list unavailable",
+  "albumListUnavailableBody": "Photo access was not granted. Allow it and try again.",
+  "noAlbums": "No albums found",
+  "noAlbumsBody": "Allow photo access to choose private albums. Photos are only read when a match starts.",
+  "allowPhotoAccess": "Allow photo access",
+  "photosCount": "{count, plural, =1{1 photo} other{{count} photos}}",
+  "@photosCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "onlineRelay": "Online relay",
+  "onlineRelayBody": "Local play never uses a server. Online play uses a small relay for friends elsewhere.",
+  "selfHostedRelay": "Self-hosted relay",
+  "selfHostedRelayBody": "Point the app at your own signaling and TURN server",
+  "signalingUrl": "Signaling URL",
+  "signalingUrlHelper": "Default: {url}",
+  "@signalingUrlHelper": {
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "customTurnUrl": "Custom TURN URL",
+  "customTurnHelper": "Optional, e.g. turn:turn.example.org:3478",
+  "turnUsername": "TURN username",
+  "turnCredential": "TURN credential",
+  "resetToDefault": "Reset to default",
+  "saveRelay": "Save relay",
+  "helpAndLegal": "Help and legal",
+  "reportContent": "Report content or a player",
+  "reportBody": "Send the room code and what happened to {email}",
+  "@reportBody": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "termsAndRules": "Terms and community rules",
+  "openSource": "Open source under the AGPLv3. Photos stay on your phone.",
+  "trademark": "WhoTook™ is a trademark of the project owner.",
+  "relaySignalingSchemeError": "Signaling URL must start with https://, http://, wss:// or ws://",
+  "relayTurnSchemeError": "TURN URL must start with turn: or turns:",
+  "relaySaved": "Relay saved",
+  "relayDefault": "Back to the default relay",
+  "about": "About",
+  "support": "Support",
+  "avatarOption": "Avatar {number}",
+  "@avatarOption": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "yourPhotoAvatar": "Your photo avatar",
+  "pickAnAvatar": "Pick an avatar",
+  "photoAvatarStored": "Stored on this phone and shared only in the room.",
+  "avatarChoices": "A selfie, a photo from your gallery, or an icon.",
+  "takeSelfie": "Take a selfie",
+  "choosePhoto": "Choose a photo",
+  "useIcon": "Use an icon",
+  "cropTitle": "Your photo",
+  "cropHint": "Pinch to zoom and drag to centre your face.",
+  "savingPhoto": "Saving photo",
+  "useThisPhoto": "Use this photo",
+  "hostControls": "Host controls",
+  "skipRound": "Skip round",
+  "removePlayer": "Remove player",
+  "skipRoundTitle": "Skip this round?",
+  "skipRoundBody": "The current screen ends now and the next round starts.",
+  "skipButton": "Skip",
+  "removeAPlayer": "Remove a player",
+  "removePlayerMatchBody": "They leave this match. Their photo rounds stay in the game.",
+  "differentVersions": "Different app versions",
+  "versionWarningBody": "Someone is on {latestVersion} (build {latestBuild}). You are on {ownVersion} (build {ownBuild}). Update so rounds and photos stay in sync.",
+  "@versionWarningBody": {
+    "placeholders": {
+      "latestVersion": {
+        "type": "String"
+      },
+      "latestBuild": {
+        "type": "int"
+      },
+      "ownVersion": {
+        "type": "String"
+      },
+      "ownBuild": {
+        "type": "int"
+      }
+    }
+  },
+  "getUpdate": "Get the update",
+  "keepPlaying": "Keep playing",
+  "connectionLost": "Connection lost",
+  "reconnectingIn": "Trying to reconnect. {seconds, plural, =1{1 second left.} other{{seconds} seconds left.}}",
+  "@reconnectingIn": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "leaveRoom": "Leave room",
+  "leaveRoomTitle": "Leave this room?",
+  "leaveRoomHostBody": "The room closes for everyone.",
+  "leaveRoomGuestBody": "You leave the room and can rejoin with the QR code.",
+  "streakLabel": "Streak {count}",
+  "@streakLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "modeClassicBlurb": "Guess who took it.",
+  "modeCaptionThisBlurb": "Write the funniest caption.",
+  "modeTimeTravelerBlurb": "Guess the year and month.",
+  "modeMixedPartyBlurb": "All three, shuffled.",
+  "modeSemantic": "{label}. {blurb}",
+  "@modeSemantic": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "blurb": {
+        "type": "String"
+      }
+    }
+  },
+  "errorNoDatedPhotos": "No photos with a date found. Allow another album or pick a different mode.",
+  "errorNeedAnotherPlayer": "One more player has to scan the QR code before the match starts",
+  "errorPlayersNotReady": "Everyone has to tap Ready first",
+  "errorPhotoAccessHost": "Photo access is off. Allow photos in Settings, then start the photo check.",
+  "errorPhotoAccessClient": "Photo access is off. Allow photos in Settings, then tap Reroll all.",
+  "errorOpenRoom": "Could not open the room. Try again.",
+  "errorInvalidInvite": "That invite is not valid. Scan the QR code again.",
+  "errorRelayLimit": "Online relay is used up for today. Join the same Wi-Fi or a hotspot to keep playing.",
+  "errorReachHost": "Could not reach the host. Check that you are on the same Wi-Fi or hotspot.",
+  "errorHostEnded": "The host ended the room. Scan a new QR or host your own game.",
+  "errorRoomStarted": "That room already started. Ask the host to open the lobby again.",
+  "errorRemovedByHost": "The host removed you from the room.",
+  "errorSomethingWentWrong": "Something went wrong. Try again.",
+  "errorNoPhotos": "The host did not receive your photos",
+  "countdown": "Countdown",
+  "countdownSeconds": "{count, plural, =1{1 second} other{{count} seconds}}",
+  "@countdownSeconds": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "loadingStartingMatch": "Starting match",
+  "loadingReadingPhotos": "Reading your photos",
+  "loadingJoining": "Joining match",
+  "errorPlantUsed": "This photo plant is once per game.",
+  "errorNotReady": "Tap Ready before planting a photo.",
+  "errorNotPlanter": "Only the chosen player can plant a photo this game.",
+  "errorWrongOwner": "That photo is not yours.",
+  "errorNoUnplayedPhoto": "Every approved photo has already been shown.",
+  "errorEmptyCaption": "Write something first.",
+  "errorCaptionTooLong": "Keep the caption under 80 characters.",
+  "errorAlreadyGuessed": "Your guess is already locked.",
+  "errorAlreadyVoted": "Your vote is already locked.",
+  "errorAlreadyCaptioned": "Your caption is already locked.",
+  "secondsLeftShort": "{seconds} s left",
+  "@secondsLeftShort": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "roundsUnit": "rounds",
+  "youreIn": "You're in",
+  "swap": "Swap",
+  "revealing": "Revealing...",
+  "now": "now",
+  "monthLabel": "Month",
+  "yours": "Yours",
+  "couldNotOpenLink": "Could not open this link.",
+  "you": "You"
+}

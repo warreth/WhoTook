@@ -197,7 +197,10 @@ void main() {
     expect(host.state.screenshotAlerts.last.playerName, isNotEmpty);
 
     await _waitFor(() => clientTwo.state.screenshotAlerts.isNotEmpty);
-    expect(clientTwo.state.screenshotAlerts.last.playerId, 'c_loop0');
+    expect(
+      clientTwo.state.screenshotAlerts.last.playerId,
+      clientOne.state.localPlayerId,
+    );
   }, timeout: const Timeout(Duration(seconds: 45)));
 
   test(
@@ -349,6 +352,8 @@ void main() {
     final plantClient = MatchCoordinator(
       photos: _TwoPhotoLibrary(),
       settings: SettingsRepository(),
+      playerIdOverride: 'c_loop0',
+      playerTokenOverride: 'plant-token',
       connector: HybridConnector(
         onlineClientFactory: () => LoopbackClientTransport(plantHub),
       ),
@@ -473,8 +478,57 @@ void main() {
     expect(clientOne.state.lastTimelineReveal?.actualYear, reveal.actualYear);
   }, timeout: const Timeout(Duration(seconds: 60)));
 
+  test('the host can skip a stuck round', () async {
+    await prepareAndStart(rounds: 2);
+    await _waitFor(() => host.state.phase == RoundPhase.guessing);
+    await host.skipRound();
+    await _waitFor(
+      () =>
+          host.state.phase == RoundPhase.reveal ||
+          host.state.phase == RoundPhase.countdown ||
+          host.state.phase == RoundPhase.podium,
+    );
+    expect(host.state.phase, isNot(RoundPhase.guessing));
+  });
+
+  test('the host can reveal captions before every vote', () async {
+    await host.setMode(GameMode.captionThis);
+    await _waitFor(() => clientOne.state.config.mode == GameMode.captionThis);
+    await host.startPrepare();
+    await _waitFor(() => host.state.candidates.isNotEmpty);
+    await _waitFor(() => clientOne.state.candidates.isNotEmpty);
+    await _waitFor(() => clientTwo.state.candidates.isNotEmpty);
+    await host.markLocalReady();
+    await clientOne.clientMarkReady();
+    await clientTwo.clientMarkReady();
+    await _waitFor(() => host.state.phase == RoundPhase.captionWriting);
+    await host.submitCaption('host');
+    await clientOne.clientSubmitCaption('one');
+    await clientTwo.clientSubmitCaption('two');
+    await _waitFor(() => host.state.phase == RoundPhase.captionVoting);
+    await host.revealCaptionNow();
+    await _waitFor(() => host.state.phase == RoundPhase.captionReveal);
+    expect(host.state.lastCaptionReveal, isNotNull);
+  });
+
+  test('the host can remove a player during a round', () async {
+    await prepareAndStart(rounds: 2);
+    await _waitFor(() => host.state.phase == RoundPhase.guessing);
+    await host.kickPlayer('p2');
+    await _waitFor(
+      () =>
+          clientOne.state.roomId == null &&
+          clientOne.state.errorMessage != null,
+    );
+    expect(
+      host.state.players.firstWhere((player) => player.id == 'p2').connected,
+      isFalse,
+    );
+    expect(clientOne.state.errorMessage, contains('removed'));
+  });
+
   test('the last joined room survives a restart', () async {
-    final store = LastRoomRepository();
+    final store = LastRoomRepository(storageKey: 'whotook.test.room.2');
     LastRoom? room;
     final deadline = DateTime.now().add(const Duration(seconds: 3));
     while (room == null && DateTime.now().isBefore(deadline)) {
@@ -491,6 +545,38 @@ void main() {
     expect(await store.load(), isNull);
   });
 
+  test('a photo avatar travels with the player into the room', () async {
+    final repo = SettingsRepository();
+    await repo.save(
+      const AppSettings(
+        nickname: 'PhotoSam',
+        avatar: 'photo',
+        avatarPhoto: 'abc',
+        onboardingCompleted: true,
+      ),
+    );
+    final avatarClient = MatchCoordinator(
+      photos: TestPhotoLibrary(seed: 31),
+      settings: repo,
+      lastRooms: LastRoomRepository(storageKey: 'whotook.test.avatar'),
+      playerIdOverride: 'p-photo',
+      playerTokenOverride: 'avatar-token',
+      connector: HybridConnector(
+        onlineClientFactory: () => LoopbackClientTransport(hub),
+      ),
+      roundDuration: const Duration(milliseconds: 900),
+      countdownDuration: Duration.zero,
+      revealDuration: const Duration(milliseconds: 40),
+      extendWindow: const Duration(milliseconds: 300),
+    );
+    addTearDown(avatarClient.dispose);
+    await avatarClient.loadSettings();
+    await avatarClient.joinMatch(inviteUrl);
+    await _waitFor(() => host.state.players.length == 4);
+    await _waitFor(() => host.state.avatarPhotos['p-photo'] == 'abc');
+    expect(host.state.avatarPhotos['p-photo'], 'abc');
+  });
+
   test('a newer build warns the host and the older clients', () async {
     final newer = MatchCoordinator(
       photos: TestPhotoLibrary(seed: 22),
@@ -498,8 +584,8 @@ void main() {
       connector: HybridConnector(
         onlineClientFactory: () => LoopbackClientTransport(hub),
       ),
-      appVersion: '1.7.0',
-      appBuild: 11,
+      appVersion: '1.8.0',
+      appBuild: 12,
       roundDuration: const Duration(milliseconds: 900),
       countdownDuration: Duration.zero,
       revealDuration: const Duration(milliseconds: 40),
@@ -512,9 +598,9 @@ void main() {
     await _waitFor(() => host.state.versionWarning != null);
     await _waitFor(() => clientOne.state.versionWarning != null);
 
-    expect(host.state.versionWarning!.latestBuild, 11);
-    expect(host.state.versionWarning!.ownBuild, 10);
-    expect(clientOne.state.versionWarning!.latestVersion, '1.7.0');
+    expect(host.state.versionWarning!.latestBuild, 12);
+    expect(host.state.versionWarning!.ownBuild, 11);
+    expect(clientOne.state.versionWarning!.latestVersion, '1.8.0');
     expect(newer.state.versionWarning, isNull);
 
     host.dismissVersionWarning();
@@ -533,6 +619,86 @@ void main() {
     expect(late.state.errorMessage, contains('already started'));
     expect(host.state.players.length, 3);
   });
+
+  test('a client can rejoin the current round after a restart', () async {
+    await prepareAndStart(rounds: 3);
+    await _waitFor(() => host.state.phase == RoundPhase.guessing);
+    final scoreBefore = host.state.players
+        .firstWhere((player) => player.id == 'p2')
+        .score;
+    await clientOne.dispose();
+    await _waitFor(
+      () =>
+          host.state.players
+              .firstWhere((player) => player.id == 'p2')
+              .connected ==
+          false,
+    );
+
+    final restarted = _client(hub, seed: 2);
+    addTearDown(restarted.dispose);
+    await restarted.loadSettings();
+    await restarted.joinMatch(inviteUrl);
+    await _waitFor(
+      () =>
+          restarted.state.phase == RoundPhase.guessing &&
+          restarted.state.activePhotoBytes != null,
+    );
+    expect(restarted.state.localPlayerId, 'p2');
+    expect(restarted.state.players.length, 3);
+    expect(
+      restarted.state.players.firstWhere((player) => player.id == 'p2').score,
+      scoreBefore,
+    );
+    expect(restarted.state.remainingMs, greaterThan(0));
+  }, timeout: const Timeout(Duration(seconds: 45)));
+
+  test('a client reconnect restores the photo check set', () async {
+    await host.setRounds(3);
+    await host.startPrepare();
+    await _waitFor(() => clientOne.state.candidates.isNotEmpty);
+    await clientOne.clientMarkReady();
+    await _waitFor(
+      () => host.state.players.firstWhere((p) => p.id == 'p2').ready,
+    );
+    await clientOne.debugDropClientConnection();
+    await _waitFor(() => clientOne.state.reconnecting);
+    await _waitFor(
+      () =>
+          !clientOne.state.reconnecting &&
+          clientOne.state.phase == RoundPhase.preparing &&
+          clientOne.state.localReady,
+    );
+    expect(clientOne.state.candidates, isNotEmpty);
+    expect(clientOne.state.localPlayerId, 'p2');
+  }, timeout: const Timeout(Duration(seconds: 45)));
+
+  test('a client reconnect restores the caption vote screen', () async {
+    await host.setMode(GameMode.captionThis);
+    await _waitFor(() => clientOne.state.config.mode == GameMode.captionThis);
+    await host.startPrepare();
+    await _waitFor(() => host.state.candidates.isNotEmpty);
+    await _waitFor(() => clientOne.state.candidates.isNotEmpty);
+    await _waitFor(() => clientTwo.state.candidates.isNotEmpty);
+    await host.markLocalReady();
+    await clientOne.clientMarkReady();
+    await clientTwo.clientMarkReady();
+    await _waitFor(() => host.state.phase == RoundPhase.captionWriting);
+    await host.submitCaption('Host caption');
+    await clientOne.clientSubmitCaption('One caption');
+    await clientTwo.clientSubmitCaption('Two caption');
+    await _waitFor(() => host.state.phase == RoundPhase.captionVoting);
+    await clientOne.debugDropClientConnection();
+    await _waitFor(() => clientOne.state.reconnecting);
+    await _waitFor(
+      () =>
+          !clientOne.state.reconnecting &&
+          clientOne.state.phase == RoundPhase.captionVoting,
+    );
+    expect(clientOne.state.captionOptions, isNotEmpty);
+    expect(clientOne.state.ownCaptionId, isNotNull);
+    expect(clientOne.state.votedCaptionId, isNull);
+  }, timeout: const Timeout(Duration(seconds: 45)));
 
   test('host leaving ends the client room', () async {
     await host.leaveMatch();
@@ -561,6 +727,10 @@ MatchCoordinator _client(LoopbackHub hub, {required int seed}) =>
     MatchCoordinator(
       photos: TestPhotoLibrary(seed: seed),
       settings: SettingsRepository(),
+      lastRooms: LastRoomRepository(storageKey: 'whotook.test.room.$seed'),
+      playerIdOverride: 'p$seed',
+      playerTokenOverride: 'token-$seed',
+      reconnectAttemptDelay: const Duration(milliseconds: 400),
       connector: HybridConnector(
         onlineClientFactory: () => LoopbackClientTransport(hub),
       ),

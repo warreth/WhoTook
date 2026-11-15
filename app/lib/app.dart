@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/models/models.dart';
+import '../core/navigation.dart';
+import '../l10n/l10n.dart';
 import '../core/theme/whotook_theme.dart';
 import '../state/match_coordinator.dart';
 import '../state/providers.dart';
@@ -27,9 +29,19 @@ class WhoTookApp extends ConsumerWidget {
     final settings = ref.watch(appSettingsProvider);
     final preference =
         settings.value?.themePreference ?? ThemePreference.system;
+    final language = settings.value?.language ?? AppLanguage.system;
+    final locale = switch (language) {
+      AppLanguage.system => null,
+      AppLanguage.english => const Locale('en'),
+      AppLanguage.dutch => const Locale('nl'),
+    };
     return MaterialApp(
       title: 'WhoTook',
+      navigatorKey: appNavigatorKey,
       debugShowCheckedModeBanner: false,
+      locale: locale,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
       theme: buildWhoTookTheme(Brightness.light),
       darkTheme: buildWhoTookTheme(Brightness.dark),
       themeMode: switch (preference) {
@@ -97,6 +109,7 @@ class _MatchRootState extends ConsumerState<_MatchRoot> {
     if (settings != null) {
       coordinator.updateSettings(settings);
     }
+    coordinator.updateLocale(Localizations.localeOf(context));
 
     if (state.turnLimitNotice != null && state.connectionMode == null) {
       return HomeScreen(key: const ValueKey<String>('home'));
@@ -139,6 +152,7 @@ class _MatchRootState extends ConsumerState<_MatchRoot> {
           screen,
           if (warning != null &&
               warning.isNewer &&
+              !state.reconnecting &&
               !state.versionWarningDismissed &&
               warning.latestBuild != _dismissedBuild)
             SafeArea(
@@ -158,6 +172,13 @@ class _MatchRootState extends ConsumerState<_MatchRoot> {
                 ),
               ),
             ),
+          if (state.reconnecting)
+            Positioned.fill(
+              child: _ReconnectOverlay(
+                secondsLeft: state.reconnectSecondsLeft,
+                onLeave: () => unawaited(coordinator.leaveMatch()),
+              ),
+            ),
         ],
       ),
     );
@@ -168,26 +189,25 @@ class _MatchRootState extends ConsumerState<_MatchRoot> {
     MatchCoordinator coordinator,
     MatchUiState state,
   ) async {
+    final l10n = context.l10n;
     final leave = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Leave this room?'),
+        title: Text(l10n.leaveRoomTitle),
         content: Text(
-          state.isHosting
-              ? 'The room closes for everyone.'
-              : 'You leave the room and can rejoin with the QR code.',
+          state.isHosting ? l10n.leaveRoomHostBody : l10n.leaveRoomGuestBody,
         ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Stay'),
+            child: Text(l10n.stay),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: TextButton.styleFrom(
               foregroundColor: WhoTookColors.of(context).negative,
             ),
-            child: const Text('Leave'),
+            child: Text(l10n.leave),
           ),
         ],
       ),
@@ -195,5 +215,72 @@ class _MatchRootState extends ConsumerState<_MatchRoot> {
     if (leave == true) {
       await coordinator.leaveMatch();
     }
+  }
+}
+
+class _ReconnectOverlay extends StatelessWidget {
+  const _ReconnectOverlay({required this.secondsLeft, required this.onLeave});
+
+  final int secondsLeft;
+  final VoidCallback onLeave;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
+    return ColoredBox(
+      color: colors.bg.withValues(alpha: 0.94),
+      child: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 360),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.s24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  SizedBox.square(
+                    dimension: 28,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: colors.accent,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.s20),
+                  Text(
+                    l10n.connectionLost,
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.4,
+                      color: colors.ink,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.s8),
+                  Text(
+                    l10n.reconnectingIn(secondsLeft),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.45,
+                      color: colors.ink2,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.s20),
+                  TextButton(
+                    onPressed: onLeave,
+                    style: TextButton.styleFrom(
+                      foregroundColor: colors.ink2,
+                      minimumSize: const Size(0, 44),
+                    ),
+                    child: Text(l10n.leaveRoom),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -112,6 +112,14 @@ class HostGameEngine {
   int get captionCount => _captions.length;
   int get captionVoteCount => _captionVotes.length;
   int get timelineGuessCount => _timelineGuesses.length;
+
+  bool hasCaption(String playerId) => _captions.containsKey(playerId);
+  String? captionVoteFor(String playerId) => _captionVotes[playerId];
+  bool hasTimelineGuess(String playerId) =>
+      _timelineGuesses.containsKey(playerId);
+  TimelineGuess? timelineGuessFor(String playerId) =>
+      _timelineGuesses[playerId];
+  GuessRecord? guessFor(String playerId) => _guesses[playerId];
   int get roundsK => _roundsK;
   int get roundSeconds => _roundSeconds;
   int get roundMs => _roundSeconds * 1000;
@@ -120,8 +128,8 @@ class HostGameEngine {
   int get totalRounds => _deck.length;
   int get playerCount => _players.length;
   bool get plantAvailable => _isPlantWindowOpen;
-  RoundReveal? get lastReveal => _lastReveal;
   MicroAward? get lastMicroAward => _lastMicroAward;
+  RoundReveal? get lastReveal => _lastReveal;
   int get extendDeadlineMs => _extendDeadlineMs;
   DeckEntry? get currentEntry =>
       _currentRound >= 1 && _currentRound <= _deck.length
@@ -177,7 +185,6 @@ class HostGameEngine {
       return;
     }
     player.connected = false;
-    player.ready = false;
   }
 
   void setConnected(String playerId, bool connected) {

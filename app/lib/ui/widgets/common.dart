@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../core/models/models.dart';
 import '../../core/avatars.dart';
 import '../../core/theme/whotook_theme.dart';
+import '../../l10n/l10n.dart';
 import 'avatar_picker.dart';
 
 /// The one primary action per screen. 52 tall so it clears the 44px target.
@@ -231,28 +232,42 @@ class PlayerAvatar extends StatelessWidget {
     super.key,
     required this.initial,
     this.avatar = '',
+    this.photoBase64,
     this.isHost = false,
     this.size = 32,
   });
 
   final String initial;
   final String avatar;
+  final String? photoBase64;
   final bool isHost;
   final double size;
 
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final photo = avatar == kPhotoAvatar
+        ? decodeAvatarPhoto(photoBase64)
+        : null;
     return Container(
       width: size,
       height: size,
       alignment: Alignment.center,
+      clipBehavior: photo == null ? Clip.none : Clip.antiAlias,
       decoration: BoxDecoration(
         color: isHost ? colors.ink : colors.raised,
         shape: BoxShape.circle,
         border: Border.all(color: colors.hairline),
       ),
-      child: avatar.isEmpty
+      child: photo != null
+          ? Image.memory(
+              photo,
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              gaplessPlayback: true,
+            )
+          : avatar.isEmpty || avatar == kPhotoAvatar
           ? Text(
               initial.isEmpty ? '?' : initial.characters.first.toUpperCase(),
               style: TextStyle(
@@ -361,6 +376,7 @@ class ScoreRow extends StatelessWidget {
     this.delta,
     this.streak,
     this.highlighted = false,
+    this.photoBase64,
   });
 
   final int position;
@@ -369,6 +385,7 @@ class ScoreRow extends StatelessWidget {
   final int? delta;
   final int? streak;
   final bool highlighted;
+  final String? photoBase64;
 
   @override
   Widget build(BuildContext context) {
@@ -394,6 +411,7 @@ class ScoreRow extends StatelessWidget {
           PlayerAvatar(
             initial: player.name,
             avatar: player.avatar,
+            photoBase64: photoBase64,
             isHost: player.isHost,
             size: 28,
           ),
@@ -446,6 +464,7 @@ class _StreakChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
@@ -454,7 +473,7 @@ class _StreakChip extends StatelessWidget {
         border: Border.all(color: colors.hairline),
       ),
       child: Text(
-        'Streak $streak',
+        l10n.streakLabel(streak),
         style: tabularFigures(TextStyle(fontSize: 11, color: colors.ink2)),
       ),
     );
@@ -552,10 +571,16 @@ class ProgressSegments extends StatelessWidget {
 
 /// Contact-sheet framed photo used by the party modes.
 class PhotoPanel extends StatelessWidget {
-  const PhotoPanel({super.key, required this.bytes, this.aspectRatio = 4 / 3});
+  const PhotoPanel({
+    super.key,
+    required this.bytes,
+    this.aspectRatio = 4 / 3,
+    this.isPanorama = false,
+  });
 
   final Uint8List? bytes;
   final double aspectRatio;
+  final bool isPanorama;
 
   @override
   Widget build(BuildContext context) {
@@ -585,17 +610,20 @@ class PhotoPanel extends StatelessWidget {
                         color: colors.ink3,
                       ),
                     )
-                  : Image.memory(
-                      data,
-                      fit: BoxFit.cover,
-                      gaplessPlayback: true,
-                      errorBuilder: (context, error, stack) => Container(
-                        color: colors.raised,
-                        alignment: Alignment.center,
-                        child: Icon(
-                          Icons.image_not_supported_outlined,
-                          size: 28,
-                          color: colors.ink3,
+                  : ColoredBox(
+                      color: isPanorama ? colors.ink : Colors.transparent,
+                      child: Image.memory(
+                        data,
+                        fit: isPanorama ? BoxFit.contain : BoxFit.cover,
+                        gaplessPlayback: true,
+                        errorBuilder: (context, error, stack) => Container(
+                          color: colors.raised,
+                          alignment: Alignment.center,
+                          child: Icon(
+                            Icons.image_not_supported_outlined,
+                            size: 28,
+                            color: colors.ink3,
+                          ),
                         ),
                       ),
                     ),
@@ -632,6 +660,7 @@ class CountdownBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     final total = totalMs <= 0 ? 1 : totalMs;
     final fraction = (remainingMs / total).clamp(0.0, 1.0);
     final seconds = (remainingMs / 1000).toStringAsFixed(1);
@@ -641,7 +670,7 @@ class CountdownBar extends StatelessWidget {
         Row(
           children: <Widget>[
             Text(
-              '$seconds s left',
+              l10n.secondsLeftShort(seconds),
               style: tabularFigures(
                 TextStyle(
                   fontFamily: 'JetBrainsMono',

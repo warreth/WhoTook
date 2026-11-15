@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/models.dart';
 import '../../core/theme/whotook_theme.dart';
+import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
 
@@ -49,6 +50,7 @@ class _PodiumScreenState extends ConsumerState<PodiumScreen>
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     final coordinator = ref.read(matchCoordinatorProvider);
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
     final board = state.leaderboard;
@@ -73,7 +75,7 @@ class _PodiumScreenState extends ConsumerState<PodiumScreen>
                   children: <Widget>[
                     Expanded(
                       child: Text(
-                        'Podium',
+                        l10n.podium,
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w500,
@@ -83,7 +85,7 @@ class _PodiumScreenState extends ConsumerState<PodiumScreen>
                       ),
                     ),
                     Text(
-                      '${state.totalRounds} rounds',
+                      l10n.roundsCount(state.totalRounds),
                       style: tabularFigures(
                         TextStyle(fontSize: 12, color: colors.ink3),
                       ),
@@ -119,7 +121,10 @@ class _PodiumScreenState extends ConsumerState<PodiumScreen>
                                 curve: Curves.easeOutBack,
                               ),
                             ),
-                            child: _ChampionPrint(player: champion),
+                            child: _ChampionPrint(
+                              player: champion,
+                              photoBase64: state.avatarPhotos[champion.id],
+                            ),
                           ),
                         ),
                       if (runners.isNotEmpty)
@@ -151,7 +156,7 @@ class _PodiumScreenState extends ConsumerState<PodiumScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        const SectionLabel('Match awards'),
+                        SectionLabel(l10n.matchAwards),
                         for (final award in state.awards)
                           _AwardRow(award: award),
                       ],
@@ -167,6 +172,7 @@ class _PodiumScreenState extends ConsumerState<PodiumScreen>
                           ScoreRow(
                             position: i + 1,
                             player: board[i],
+                            photoBase64: state.avatarPhotos[board[i].id],
                             score: board[i].score,
                           ),
                       ],
@@ -175,30 +181,32 @@ class _PodiumScreenState extends ConsumerState<PodiumScreen>
                 const SizedBox(height: AppSpacing.s16),
                 if (state.isHosting) ...<Widget>[
                   PrimaryButton(
-                    label: 'One more round (5)',
+                    label: l10n.oneMoreRound,
                     icon: Icons.replay,
                     onPressed: () => unawaited(coordinator.extendMatch()),
                   ),
                   const SizedBox(height: AppSpacing.s12),
                   SecondaryButton(
-                    label: 'Back to lobby',
+                    label: l10n.backToLobby,
                     icon: Icons.meeting_room_outlined,
                     onPressed: () => unawaited(coordinator.playAgain()),
                   ),
                   const SizedBox(height: AppSpacing.s12),
                   SecondaryButton(
-                    label: 'Leave',
+                    label: l10n.leaveMatch,
                     onPressed: () => unawaited(coordinator.leaveMatch()),
                   ),
                 ] else
                   NoticeBanner(
-                    message: 'Waiting for the host',
+                    message: l10n.waitingForHost,
                     icon: Icons.hourglass_empty,
                   ),
                 if (state.screenshotAlerts.isNotEmpty) ...<Widget>[
                   const SizedBox(height: AppSpacing.s16),
                   NoticeBanner(
-                    message: 'Screenshots: ${state.screenshotAlerts.length}',
+                    message: l10n.screenshotsCount(
+                      state.screenshotAlerts.length,
+                    ),
                     icon: Icons.camera_alt_outlined,
                   ),
                 ],
@@ -212,15 +220,17 @@ class _PodiumScreenState extends ConsumerState<PodiumScreen>
 }
 
 class _ChampionPrint extends StatelessWidget {
-  const _ChampionPrint({required this.player});
+  const _ChampionPrint({required this.player, this.photoBase64});
 
   final Player player;
+  final String? photoBase64;
 
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     return Semantics(
-      label: 'Champion ${player.name}, ${player.score} points',
+      label: l10n.championSemantic(player.name, player.score),
       child: Transform.rotate(
         angle: -0.022,
         child: Container(
@@ -262,6 +272,7 @@ class _ChampionPrint extends StatelessWidget {
                       PlayerAvatar(
                         initial: player.name,
                         avatar: player.avatar,
+                        photoBase64: photoBase64,
                         isHost: player.isHost,
                         size: 42,
                       ),
@@ -278,7 +289,7 @@ class _ChampionPrint extends StatelessWidget {
                             borderRadius: BorderRadius.circular(AppRadii.rSm),
                           ),
                           child: Text(
-                            'CHAMPION',
+                            l10n.champion.toUpperCase(),
                             style: TextStyle(
                               fontFamily: 'JetBrainsMono',
                               fontSize: 9,
@@ -302,7 +313,7 @@ class _ChampionPrint extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${player.score} pts',
+                    l10n.points(player.score),
                     style: tabularFigures(
                       TextStyle(
                         fontFamily: 'JetBrainsMono',
@@ -349,6 +360,13 @@ class _RunnerUp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
+    final placeLabel = switch (place) {
+      1 => l10n.placeFirst,
+      2 => l10n.placeSecond,
+      3 => l10n.placeThird,
+      _ => l10n.placeNth(place),
+    };
     final share = topScore <= 0 ? 0.0 : player.score / topScore;
     final height = (44 + 58 * share).clamp(44.0, 102.0);
     return Column(
@@ -397,7 +415,7 @@ class _RunnerUp extends StatelessWidget {
                     left: 0,
                     right: 0,
                     child: Text(
-                      '$place',
+                      placeLabel,
                       textAlign: TextAlign.center,
                       style: tabularFigures(
                         TextStyle(
@@ -443,27 +461,29 @@ class _AwardRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     final (label, icon) = switch (award.kind) {
-      MatchAwardKind.champion => ('Champion', Icons.emoji_events_outlined),
-      MatchAwardKind.quickestDraw => ('Quickest draw', Icons.bolt_outlined),
-      MatchAwardKind.unstoppable => ('Longest streak', Icons.trending_up),
+      MatchAwardKind.champion => (l10n.champion, Icons.emoji_events_outlined),
+      MatchAwardKind.quickestDraw => (l10n.quickestDraw, Icons.bolt_outlined),
+      MatchAwardKind.unstoppable => (l10n.longestStreak, Icons.trending_up),
       MatchAwardKind.masterOfMystery => (
-        'Master of mystery',
+        l10n.masterOfMystery,
         Icons.visibility_off_outlined,
       ),
-      MatchAwardKind.paparazzi => ('Paparazzi', Icons.camera_alt_outlined),
+      MatchAwardKind.paparazzi => (l10n.paparazzi, Icons.camera_alt_outlined),
       MatchAwardKind.smoothPlanter => (
-        'Secret planter',
+        l10n.smoothPlanter,
         Icons.local_florist_outlined,
       ),
     };
     final suffix = switch (award.kind) {
       MatchAwardKind.quickestDraw =>
-        ' ${((award.value ?? 0) / 1000).toStringAsFixed(1)}s',
-      MatchAwardKind.unstoppable => ' ${award.value}x',
-      MatchAwardKind.masterOfMystery => ' ${award.value} pts',
-      MatchAwardKind.paparazzi => ' ${award.value} frames',
-      MatchAwardKind.smoothPlanter => ' fooled ${award.value}',
+        ' ${l10n.awardSeconds(((award.value ?? 0) / 1000).toStringAsFixed(1))}',
+      MatchAwardKind.unstoppable => ' ${l10n.awardStreak(award.value ?? 0)}',
+      MatchAwardKind.masterOfMystery =>
+        ' ${l10n.awardPoints(award.value ?? 0)}',
+      MatchAwardKind.paparazzi => ' ${l10n.awardFrames(award.value ?? 0)}',
+      MatchAwardKind.smoothPlanter => ' ${l10n.awardFooled(award.value ?? 0)}',
       MatchAwardKind.champion => '',
     };
     return SizedBox(

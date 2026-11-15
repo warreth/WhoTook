@@ -85,12 +85,6 @@ enum GamePace {
   normal,
   slow;
 
-  String get label => switch (this) {
-    GamePace.fast => 'Fast',
-    GamePace.normal => 'Normal',
-    GamePace.slow => 'Slow',
-  };
-
   int get classicSeconds => switch (this) {
     GamePace.fast => 5,
     GamePace.normal => 8,
@@ -179,6 +173,7 @@ class PhotoCandidate {
     required this.ownerId,
     this.bytes,
     this.isPlanted = false,
+    this.isPanorama = false,
     this.capturedYear,
     this.capturedMonth,
   });
@@ -188,6 +183,7 @@ class PhotoCandidate {
   final String ownerId;
   final Uint8List? bytes;
   final bool isPlanted;
+  final bool isPanorama;
 
   /// Capture month from the gallery. Only the year and month are ever sent
   /// over the wire, so a Time Traveler round cannot leak the full timestamp.
@@ -202,6 +198,7 @@ class PhotoCandidate {
     String? ownerId,
     Uint8List? bytes,
     bool? isPlanted,
+    bool? isPanorama,
     int? capturedYear,
     int? capturedMonth,
   }) => PhotoCandidate(
@@ -210,6 +207,7 @@ class PhotoCandidate {
     ownerId: ownerId ?? this.ownerId,
     bytes: bytes ?? this.bytes,
     isPlanted: isPlanted ?? this.isPlanted,
+    isPanorama: isPanorama ?? this.isPanorama,
     capturedYear: capturedYear ?? this.capturedYear,
     capturedMonth: capturedMonth ?? this.capturedMonth,
   );
@@ -219,6 +217,7 @@ class PhotoCandidate {
     'localAssetId': localAssetId,
     'ownerId': ownerId,
     'isPlanted': isPlanted,
+    'isPanorama': isPanorama,
     'capturedYear': capturedYear,
     'capturedMonth': capturedMonth,
   };
@@ -237,6 +236,7 @@ class PhotoCandidate {
       localAssetId: (json['localAssetId'] as String?) ?? '',
       ownerId: json['ownerId'] as String,
       isPlanted: (json['isPlanted'] as bool?) ?? false,
+      isPanorama: (json['isPanorama'] as bool?) ?? false,
       capturedYear: year,
       capturedMonth: month,
     );
@@ -649,6 +649,8 @@ class TimelineReveal {
 
 enum ThemePreference { system, light, dark }
 
+enum AppLanguage { system, english, dutch }
+
 enum ConnectionMode { localLan, webrtcP2p, webrtcTurn, offlineLoopback }
 
 /// Locally persisted preferences. No account, no server-side profile.
@@ -659,6 +661,8 @@ class AppSettings {
     this.avatarColorIndex = 0,
     this.excludedAlbumIds = const <String>{},
     this.themePreference = ThemePreference.system,
+    this.language = AppLanguage.system,
+    this.avatarPhoto,
     this.onboardingCompleted = false,
     this.customSignalingUrl,
     this.customTurnUrl,
@@ -671,6 +675,11 @@ class AppSettings {
   final int avatarColorIndex;
   final Set<String> excludedAlbumIds;
   final ThemePreference themePreference;
+  final AppLanguage language;
+
+  /// A 192 px JPEG data URL for the optional photo avatar. It is stored on
+  /// this phone and sent only inside a match.
+  final String? avatarPhoto;
   final bool onboardingCompleted;
   final String? customSignalingUrl;
   final String? customTurnUrl;
@@ -683,7 +692,10 @@ class AppSettings {
     int? avatarColorIndex,
     Set<String>? excludedAlbumIds,
     ThemePreference? themePreference,
+    AppLanguage? language,
+    String? avatarPhoto,
     bool? onboardingCompleted,
+    bool clearAvatarPhoto = false,
     String? customSignalingUrl,
     String? customTurnUrl,
     String? customTurnUsername,
@@ -696,6 +708,8 @@ class AppSettings {
     avatarColorIndex: avatarColorIndex ?? this.avatarColorIndex,
     excludedAlbumIds: excludedAlbumIds ?? this.excludedAlbumIds,
     themePreference: themePreference ?? this.themePreference,
+    language: language ?? this.language,
+    avatarPhoto: clearAvatarPhoto ? null : (avatarPhoto ?? this.avatarPhoto),
     onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
     customSignalingUrl: clearCustomSignalingUrl
         ? null
@@ -715,6 +729,8 @@ class AppSettings {
     'avatarColorIndex': avatarColorIndex,
     'excludedAlbumIds': excludedAlbumIds.toList()..sort(),
     'themePreference': themePreference.name,
+    'language': language.name,
+    'avatarPhoto': avatarPhoto,
     'onboardingCompleted': onboardingCompleted,
     'customSignalingUrl': customSignalingUrl,
     'customTurnUrl': customTurnUrl,
@@ -733,6 +749,11 @@ class AppSettings {
       (t) => t.name == json['themePreference'],
       orElse: () => ThemePreference.system,
     ),
+    language: AppLanguage.values.firstWhere(
+      (value) => value.name == json['language'],
+      orElse: () => AppLanguage.system,
+    ),
+    avatarPhoto: json['avatarPhoto'] as String?,
     onboardingCompleted: (json['onboardingCompleted'] as bool?) ?? false,
     customSignalingUrl: json['customSignalingUrl'] as String?,
     customTurnUrl: json['customTurnUrl'] as String?,

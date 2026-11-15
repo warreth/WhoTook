@@ -7,9 +7,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/media/photo_service.dart';
 import '../../core/models/models.dart';
 import '../../core/theme/whotook_theme.dart';
+import '../../l10n/l10n.dart';
 import '../../state/match_coordinator.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
+import '../widgets/host_controls.dart';
 import 'settings_screen.dart';
 
 /// Contact sheet: every player approves their own photos and can reroll as
@@ -23,6 +25,7 @@ class PrepareScreen extends ConsumerWidget {
     final coordinator = ref.read(matchCoordinatorProvider);
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
     final isHost = state.isHosting;
+    final l10n = context.l10n;
 
     return Scaffold(
       bottomNavigationBar: SafeArea(
@@ -36,7 +39,7 @@ class PrepareScreen extends ConsumerWidget {
           children: <Widget>[
             Expanded(
               child: SecondaryButton(
-                label: 'Reroll all',
+                label: l10n.rerollAll,
                 icon: Icons.refresh,
                 onPressed: () => unawaited(
                   isHost
@@ -49,8 +52,10 @@ class PrepareScreen extends ConsumerWidget {
             Expanded(
               child: PrimaryButton(
                 label: state.localReady
-                    ? (state.isHosting ? 'Waiting for players' : 'Ready')
-                    : 'Ready',
+                    ? (state.isHosting
+                          ? l10n.waitingForPlayersButton
+                          : l10n.ready)
+                    : l10n.ready,
                 onPressed: state.localReady || state.candidates.isEmpty
                     ? null
                     : () => unawaited(
@@ -79,7 +84,7 @@ class PrepareScreen extends ConsumerWidget {
                   children: <Widget>[
                     Expanded(
                       child: Text(
-                        'Check your photos',
+                        l10n.checkYourPhotos,
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w500,
@@ -88,6 +93,7 @@ class PrepareScreen extends ConsumerWidget {
                         ),
                       ),
                     ),
+                    const HostControlsButton(),
                     FrameCounter(
                       current: state.candidates.length,
                       total: state.photosNeeded,
@@ -98,10 +104,13 @@ class PrepareScreen extends ConsumerWidget {
                 Text(
                   state.photosNeeded > 0 &&
                           state.candidates.length >= state.photosNeeded
-                      ? 'All ${state.candidates.length} photos for this match are here. Reroll all for a different set.'
+                      ? l10n.photosAllHere(state.candidates.length)
                       : state.photosNeeded > 0 && state.candidates.isNotEmpty
-                      ? 'You have ${state.candidates.length} of ${state.photosNeeded}. Reroll all to fill the set.'
-                      : 'Reading the photos for this match.',
+                      ? l10n.photosPartial(
+                          state.candidates.length,
+                          state.photosNeeded,
+                        )
+                      : l10n.photosReading,
                   style: TextStyle(
                     fontSize: 13,
                     color: colors.ink2,
@@ -113,8 +122,7 @@ class PrepareScreen extends ConsumerWidget {
                     state.photosNeeded > 0 &&
                     state.candidates.length < state.photosNeeded) ...<Widget>[
                   NoticeBanner(
-                    message:
-                        'Only ${state.candidates.length} usable photo${state.candidates.length == 1 ? '' : 's'} found. Add photos or allow more albums in Settings, then reroll. You can still continue with this set.',
+                    message: l10n.photosTooFew(state.candidates.length),
                     tone: StatusTone.warning,
                     icon: Icons.photo_library_outlined,
                   ),
@@ -124,10 +132,10 @@ class PrepareScreen extends ConsumerWidget {
                   SurfaceCard(
                     child: EmptyState(
                       title: state.errorMessage == null
-                          ? 'Reading your photos'
-                          : 'No usable photos found',
-                      body: state.errorMessage ?? 'Allow photo access, or add a few photos to your gallery. Photos are only read from albums you allow.',
-                      actionLabel: 'Photo settings',
+                          ? l10n.readingAlbums
+                          : l10n.noUsablePhotos,
+                      body: state.errorMessage ?? l10n.noUsablePhotosBody,
+                      actionLabel: l10n.photoSettings,
                       onAction: () => unawaited(
                         Navigator.of(context).push(
                           MaterialPageRoute<void>(
@@ -180,7 +188,7 @@ class PrepareScreen extends ConsumerWidget {
                 if (state.plantUsed) ...<Widget>[
                   const SizedBox(height: AppSpacing.s8),
                   StatusRow(
-                    label: 'Secret photo planted',
+                    label: l10n.secretPhotoPlanted,
                     tone: StatusTone.positive,
                   ),
                 ],
@@ -269,6 +277,7 @@ class _PlantTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     return Material(
       color: colors.card,
       borderRadius: BorderRadius.circular(AppRadii.rCard),
@@ -298,21 +307,21 @@ class _PlantTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpacing.s12),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      'Plant one secret photo',
-                      style: TextStyle(
+                      l10n.plantSecretPhoto,
+                      style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
-                      'One per match. It quietly replaces one of your approved photos.',
-                      style: TextStyle(fontSize: 12),
+                      l10n.plantSecretPhotoBody,
+                      style: const TextStyle(fontSize: 12),
                     ),
                   ],
                 ),
@@ -397,6 +406,7 @@ class _PlantPickerSheetState extends ConsumerState<_PlantPickerSheet> {
   }
 
   Future<void> _loadAlbums({bool reset = false}) async {
+    final l10n = context.l10n;
     if (reset) {
       setState(() {
         _loading = true;
@@ -420,12 +430,13 @@ class _PlantPickerSheetState extends ConsumerState<_PlantPickerSheet> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Could not read your albums.';
+        _error = l10n.couldNotReadAlbums;
       });
     }
   }
 
   Future<void> _selectAlbum(AlbumSummary album) async {
+    final l10n = context.l10n;
     setState(() {
       _album = album;
       _thumbs = null;
@@ -446,13 +457,14 @@ class _PlantPickerSheetState extends ConsumerState<_PlantPickerSheet> {
       setState(() {
         _thumbs = const <AlbumPhotoThumb>[];
         _thumbsLoading = false;
-        _error = 'Could not read this album.';
+        _error = l10n.couldNotReadAlbum;
       });
     }
   }
 
   Future<void> _pickThumb(AlbumPhotoThumb thumb) async {
     if (_pickingId != null) return;
+    final l10n = context.l10n;
     setState(() {
       _pickingId = thumb.assetId;
       _error = null;
@@ -465,7 +477,7 @@ class _PlantPickerSheetState extends ConsumerState<_PlantPickerSheet> {
       if (picked == null) {
         setState(() {
           _pickingId = null;
-          _error = 'That photo could not be read. Try another.';
+          _error = l10n.couldNotReadPhoto;
         });
         return;
       }
@@ -474,12 +486,13 @@ class _PlantPickerSheetState extends ConsumerState<_PlantPickerSheet> {
       if (!mounted) return;
       setState(() {
         _pickingId = null;
-        _error = 'That photo could not be read. Try another.';
+        _error = l10n.couldNotReadPhoto;
       });
     }
   }
 
   Future<void> _pickCandidate(PhotoCandidate candidate) async {
+    final l10n = context.l10n;
     final bytes = candidate.bytes;
     if (bytes == null || bytes.isEmpty || _pickingId != null) return;
     setState(() {
@@ -500,7 +513,7 @@ class _PlantPickerSheetState extends ConsumerState<_PlantPickerSheet> {
       if (!mounted) return;
       setState(() {
         _pickingId = null;
-        _error = 'That photo could not be shared. Try another.';
+        _error = l10n.couldNotSharePhoto;
       });
     }
   }
@@ -533,6 +546,7 @@ class _PlantPickerSheetState extends ConsumerState<_PlantPickerSheet> {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     final albums = _albums;
     return SafeArea(
       top: false,
@@ -548,13 +562,16 @@ class _PlantPickerSheetState extends ConsumerState<_PlantPickerSheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              const Text(
-                'Pick the photo to plant',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              Text(
+                l10n.pickPhotoToPlant,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
               const SizedBox(height: AppSpacing.s4),
               Text(
-                'Any photo from your albums. One per match, and nobody learns which one it was until the podium.',
+                l10n.pickPhotoToPlantBody,
                 style: TextStyle(fontSize: 13, color: colors.ink2, height: 1.4),
               ),
               if (albums != null && albums.isNotEmpty) ...<Widget>[
@@ -595,6 +612,7 @@ class _PlantPickerSheetState extends ConsumerState<_PlantPickerSheet> {
 
   Widget _body(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     if (_loading) {
       return Center(
         child: Row(
@@ -608,7 +626,7 @@ class _PlantPickerSheetState extends ConsumerState<_PlantPickerSheet> {
               ),
             ),
             const SizedBox(width: AppSpacing.s12),
-            const Text('Reading your albums'),
+            Text(l10n.readingAlbums),
           ],
         ),
       );
@@ -618,9 +636,9 @@ class _PlantPickerSheetState extends ConsumerState<_PlantPickerSheet> {
       return SingleChildScrollView(
         child: SurfaceCard(
           child: EmptyState(
-            title: 'Albums are not available',
-            body: 'Photo access may be off. Allow it and try again.',
-            actionLabel: 'Retry',
+            title: l10n.albumsUnavailable,
+            body: l10n.albumsUnavailableBody,
+            actionLabel: l10n.retry,
             onAction: () => unawaited(_loadAlbums(reset: true)),
           ),
         ),
@@ -691,13 +709,14 @@ class _PlantPickerSheetState extends ConsumerState<_PlantPickerSheet> {
 
   Widget _fallback(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     if (widget.candidates.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(AppSpacing.s16),
+          padding: const EdgeInsets.all(AppSpacing.s16),
           child: EmptyState(
-            title: 'No photos to plant',
-            body: 'No approved photos are available on this device yet.',
+            title: l10n.noPhotosToPlant,
+            body: l10n.noPhotosToPlantBody,
           ),
         ),
       );
@@ -706,7 +725,7 @@ class _PlantPickerSheetState extends ConsumerState<_PlantPickerSheet> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Text(
-          'From your approved photos',
+          l10n.fromApprovedPhotos,
           style: TextStyle(fontSize: 12, color: colors.ink2),
         ),
         const SizedBox(height: AppSpacing.s8),

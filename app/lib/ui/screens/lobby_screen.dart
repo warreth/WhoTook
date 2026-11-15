@@ -7,6 +7,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../core/models/models.dart';
 import '../../core/theme/whotook_theme.dart';
+import '../../l10n/l10n.dart';
 import '../../state/match_coordinator.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
@@ -21,6 +22,7 @@ class LobbyScreen extends ConsumerWidget {
     final coordinator = ref.read(matchCoordinatorProvider);
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
     final isHost = state.isHosting;
+    final l10n = context.l10n;
 
     return Scaffold(
       bottomNavigationBar: isHost
@@ -40,7 +42,7 @@ class LobbyScreen extends ConsumerWidget {
                       child: SizedBox(
                         width: double.infinity,
                         child: PrimaryButton(
-                          label: 'Start photo check',
+                          label: l10n.startPhotoCheck,
                           icon: Icons.photo_camera_outlined,
                           onPressed: () =>
                               unawaited(coordinator.startPrepare()),
@@ -56,12 +58,12 @@ class LobbyScreen extends ConsumerWidget {
         backgroundColor: colors.bg,
         surfaceTintColor: Colors.transparent,
         title: Text(
-          isHost ? 'Your room' : 'Lobby',
+          isHost ? l10n.yourRoom : l10n.lobby,
           style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
         ),
         actions: <Widget>[
           IconButton(
-            tooltip: 'Leave match',
+            tooltip: l10n.leaveMatch,
             onPressed: () => unawaited(coordinator.leaveMatch()),
             icon: const Icon(Icons.close),
           ),
@@ -82,7 +84,7 @@ class LobbyScreen extends ConsumerWidget {
               children: <Widget>[
                 if (isHost && state.inviteUrl != null) ...<Widget>[
                   Text(
-                    'Scan to join',
+                    l10n.scanToJoin,
                     style: TextStyle(
                       fontSize: 30,
                       height: 1.05,
@@ -93,7 +95,7 @@ class LobbyScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: AppSpacing.s4),
                   Text(
-                    'Point any camera at the code. No app download needed to join.',
+                    l10n.scanToJoinBody,
                     style: TextStyle(
                       fontSize: 14,
                       height: 1.4,
@@ -118,7 +120,7 @@ class LobbyScreen extends ConsumerWidget {
                                 ),
                               ),
                               child: Text(
-                                'ROOM ${state.roomId ?? ''}',
+                                l10n.roomCode(state.roomId ?? ''),
                                 style: tabularFigures(
                                   const TextStyle(
                                     fontFamily: 'JetBrainsMono',
@@ -133,8 +135,8 @@ class LobbyScreen extends ConsumerWidget {
                               label:
                                   state.connectionMode ==
                                       ConnectionMode.localLan
-                                  ? 'Same Wi-Fi'
-                                  : 'Online',
+                                  ? l10n.sameWifi
+                                  : l10n.online,
                               tone: StatusTone.positive,
                             ),
                           ],
@@ -163,7 +165,7 @@ class LobbyScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: AppSpacing.s16),
                         SecondaryButton(
-                          label: 'Share invite link',
+                          label: l10n.shareInviteLink,
                           icon: Icons.ios_share,
                           onPressed: () => _shareInvite(context, state),
                         ),
@@ -172,7 +174,7 @@ class LobbyScreen extends ConsumerWidget {
                   ),
                 ] else ...<Widget>[
                   Text(
-                    "You're in",
+                    l10n.youreIn,
                     style: TextStyle(
                       fontSize: 30,
                       height: 1.05,
@@ -183,7 +185,7 @@ class LobbyScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: AppSpacing.s4),
                   Text(
-                    'The host starts the photo check when everyone is here.',
+                    l10n.hostStartsPhotoCheck,
                     style: TextStyle(
                       fontSize: 14,
                       height: 1.4,
@@ -191,8 +193,8 @@ class LobbyScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.s16),
-                  const NoticeBanner(
-                    message: 'Waiting for the host to start',
+                  NoticeBanner(
+                    message: l10n.waitingForHostToStart,
                     icon: Icons.hourglass_empty,
                   ),
                 ],
@@ -214,16 +216,16 @@ class LobbyScreen extends ConsumerWidget {
                           children: <Widget>[
                             _SetupChip(
                               icon: Icons.casino_outlined,
-                              label: '${state.config.roundsK} rounds',
+                              label: l10n.roundsCount(state.config.roundsK),
                             ),
                             _SetupChip(
                               icon: Icons.timer_outlined,
                               label:
-                                  '${_paceLabel(state.config.roundSeconds)} · ${state.config.roundSeconds}s',
+                                  '${_paceName(l10n, state.config.roundSeconds)} · ${l10n.secondsShort(state.config.roundSeconds)}',
                             ),
                             _SetupChip(
                               icon: modeInfo(state.config.mode).icon,
-                              label: modeInfo(state.config.mode).label,
+                              label: _modeName(l10n, state.config.mode),
                             ),
                           ],
                         ),
@@ -238,15 +240,7 @@ class LobbyScreen extends ConsumerWidget {
                             ),
                             foregroundColor: colors.accent,
                           ),
-                          child: const Text('Edit'),
-                        )
-                      else
-                        Padding(
-                          padding: const EdgeInsets.only(right: AppSpacing.s8),
-                          child: Text(
-                            'Chosen by host',
-                            style: TextStyle(fontSize: 11, color: colors.ink3),
-                          ),
+                          child: Text(l10n.editAction),
                         ),
                     ],
                   ),
@@ -267,9 +261,7 @@ class LobbyScreen extends ConsumerWidget {
                           children: <Widget>[
                             Expanded(
                               child: Text(
-                                state.players.length == 1
-                                    ? '1 player joined'
-                                    : '${state.players.length} players joined',
+                                l10n.playersJoined(state.players.length),
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
@@ -277,7 +269,7 @@ class LobbyScreen extends ConsumerWidget {
                               ),
                             ),
                             Text(
-                              'Room ${state.roomId ?? ''}',
+                              l10n.roomLabel(state.roomId ?? ''),
                               style: tabularFigures(
                                 TextStyle(
                                   fontFamily: 'JetBrainsMono',
@@ -292,6 +284,7 @@ class LobbyScreen extends ConsumerWidget {
                       for (final player in state.players)
                         _PlayerRow(
                           player: player,
+                          photoBase64: state.avatarPhotos[player.id],
                           onKick: isHost && !player.isHost
                               ? () => unawaited(
                                   _confirmKick(context, coordinator, player),
@@ -302,8 +295,8 @@ class LobbyScreen extends ConsumerWidget {
                         Padding(
                           padding: const EdgeInsets.all(AppSpacing.s16),
                           child: EmptyState(
-                            title: 'Waiting for the first friend',
-                            body: 'The QR code above is the only thing they need.',
+                            title: l10n.waitingFirstFriend,
+                            body: l10n.waitingFirstFriendBody,
                           ),
                         ),
                     ],
@@ -339,24 +332,23 @@ class LobbyScreen extends ConsumerWidget {
     MatchCoordinator coordinator,
     Player player,
   ) async {
+    final l10n = context.l10n;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Remove ${player.name}?'),
-        content: const Text(
-          'They leave this room. They can join again with the QR code.',
-        ),
+        title: Text(l10n.removePlayerTitle(player.name)),
+        content: Text(l10n.removePlayerLobbyBody),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: TextButton.styleFrom(
               foregroundColor: WhoTookColors.of(context).negative,
             ),
-            child: const Text('Remove'),
+            child: Text(l10n.remove),
           ),
         ],
       ),
@@ -377,10 +369,23 @@ class LobbyScreen extends ConsumerWidget {
   }
 }
 
-String _paceLabel(int seconds) => switch (seconds) {
-  6 => 'Fast',
-  12 => 'Slow',
-  _ => 'Normal',
+String _paceName(AppLocalizations l10n, int seconds) => switch (seconds) {
+  6 => l10n.paceFast,
+  12 => l10n.paceSlow,
+  _ => l10n.paceNormal,
+};
+
+String _paceOptionName(AppLocalizations l10n, GamePace pace) => switch (pace) {
+  GamePace.fast => l10n.paceFast,
+  GamePace.normal => l10n.paceNormal,
+  GamePace.slow => l10n.paceSlow,
+};
+
+String _modeName(AppLocalizations l10n, GameMode mode) => switch (mode) {
+  GameMode.classic => l10n.modeClassic,
+  GameMode.captionThis => l10n.modeCaptionThis,
+  GameMode.timeTraveler => l10n.modeTimeTraveler,
+  GameMode.mixedParty => l10n.modeMixedParty,
 };
 
 class _SetupChip extends StatelessWidget {
@@ -397,9 +402,13 @@ class _SetupChip extends StatelessWidget {
       children: <Widget>[
         Icon(icon, size: 16, color: colors.ink2),
         const SizedBox(width: AppSpacing.s4),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+          ),
         ),
       ],
     );
@@ -426,6 +435,7 @@ class _InviteSheetState extends State<_InviteSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.s24,
@@ -437,9 +447,9 @@ class _InviteSheetState extends State<_InviteSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          const Text(
-            'Invite link',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+          Text(
+            l10n.inviteLink,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: AppSpacing.s8),
           SelectableText(
@@ -448,13 +458,13 @@ class _InviteSheetState extends State<_InviteSheet> {
           ),
           const SizedBox(height: AppSpacing.s16),
           PrimaryButton(
-            label: _copied ? 'Copied' : 'Copy link',
+            label: _copied ? l10n.copied : l10n.copyLink,
             icon: _copied ? Icons.check : Icons.copy,
             onPressed: () => unawaited(_copy()),
           ),
           const SizedBox(height: AppSpacing.s12),
           SecondaryButton(
-            label: 'Close',
+            label: l10n.close,
             onPressed: () => Navigator.of(context).pop(),
           ),
         ],
@@ -464,14 +474,20 @@ class _InviteSheetState extends State<_InviteSheet> {
 }
 
 class _PlayerRow extends StatelessWidget {
-  const _PlayerRow({required this.player, this.onKick});
+  const _PlayerRow({
+    required this.player,
+    required this.photoBase64,
+    this.onKick,
+  });
 
   final Player player;
+  final String? photoBase64;
   final VoidCallback? onKick;
 
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     return Container(
       height: 48,
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s16),
@@ -483,6 +499,7 @@ class _PlayerRow extends StatelessWidget {
           PlayerAvatar(
             initial: player.name,
             avatar: player.avatar,
+            photoBase64: photoBase64,
             isHost: player.isHost,
             size: 28,
           ),
@@ -495,7 +512,9 @@ class _PlayerRow extends StatelessWidget {
             ),
           ),
           Text(
-            player.isHost ? 'Host' : (player.ready ? 'Ready' : 'Choosing'),
+            player.isHost
+                ? l10n.hostLabel
+                : (player.ready ? l10n.ready : l10n.choosing),
             style: TextStyle(
               fontSize: 12,
               color: player.ready || player.isHost ? colors.ink2 : colors.ink3,
@@ -503,13 +522,13 @@ class _PlayerRow extends StatelessWidget {
           ),
           if (onKick != null)
             PopupMenuButton<String>(
-              tooltip: 'Player options',
+              tooltip: l10n.playerOptions,
               icon: const Icon(Icons.more_horiz, size: 20),
               onSelected: (_) => onKick!(),
-              itemBuilder: (context) => const <PopupMenuEntry<String>>[
+              itemBuilder: (context) => <PopupMenuEntry<String>>[
                 PopupMenuItem<String>(
                   value: 'remove',
-                  child: Text('Remove from room'),
+                  child: Text(l10n.removeFromRoom),
                 ),
               ],
             ),
@@ -528,6 +547,7 @@ class _LobbySetupSheet extends ConsumerWidget {
     final coordinator = ref.read(matchCoordinatorProvider);
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
     final config = state.config;
+    final l10n = context.l10n;
     return SafeArea(
       top: false,
       child: ConstrainedBox(
@@ -545,7 +565,7 @@ class _LobbySetupSheet extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               Text(
-                "Tonight's game",
+                l10n.tonightsGame,
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w600,
@@ -555,17 +575,17 @@ class _LobbySetupSheet extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.s4),
               Text(
-                'Changes reach everyone in the room. You can edit again until the photo check starts.',
+                l10n.editGameBody,
                 style: TextStyle(fontSize: 13, height: 1.4, color: colors.ink2),
               ),
               const SizedBox(height: AppSpacing.s16),
-              const SectionLabel('Mode'),
+              SectionLabel(l10n.modeLabel),
               ModePicker(
                 mode: config.mode,
                 onSelect: (mode) => unawaited(coordinator.setMode(mode)),
               ),
               const SizedBox(height: AppSpacing.s16),
-              const SectionLabel('Rounds'),
+              SectionLabel(l10n.roundsLabel),
               Wrap(
                 spacing: AppSpacing.s8,
                 runSpacing: AppSpacing.s8,
@@ -579,7 +599,7 @@ class _LobbySetupSheet extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.s16),
-              const SectionLabel('Pace'),
+              SectionLabel(l10n.paceLabel),
               Row(
                 children: <Widget>[
                   for (final pace in GamePace.values)
@@ -589,10 +609,12 @@ class _LobbySetupSheet extends ConsumerWidget {
                           right: pace == GamePace.slow ? 0 : AppSpacing.s8,
                         ),
                         child: _SheetChoice(
-                          label: pace.label,
+                          label: _paceOptionName(l10n, pace),
                           detail: config.mode == GameMode.mixedParty
-                              ? 'Mixed'
-                              : '${pace.mainSeconds(config.mode)}s',
+                              ? l10n.mixed
+                              : l10n.secondsShort(
+                                  pace.mainSeconds(config.mode),
+                                ),
                           selected: config.pace == pace,
                           onTap: () => unawaited(coordinator.setPace(pace)),
                         ),
@@ -602,7 +624,7 @@ class _LobbySetupSheet extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpacing.s24),
               PrimaryButton(
-                label: 'Done',
+                label: l10n.done,
                 onPressed: () => Navigator.of(context).pop(),
               ),
             ],

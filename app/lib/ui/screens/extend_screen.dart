@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/models.dart';
 import '../../core/theme/whotook_theme.dart';
+import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
 
@@ -17,6 +18,7 @@ class ExtendScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     final coordinator = ref.read(matchCoordinatorProvider);
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
     final isHost = state.isHosting;
@@ -36,7 +38,7 @@ class ExtendScreen extends ConsumerWidget {
               children: <Widget>[
                 Expanded(
                   child: Text(
-                    '5 more rounds',
+                    l10n.moreRounds(5),
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w500,
@@ -50,15 +52,15 @@ class ExtendScreen extends ConsumerWidget {
             ),
             const SizedBox(height: AppSpacing.s4),
             Text(
-              'Swap anything you like before the timer ends.',
+              l10n.swapBeforeTimer,
               style: TextStyle(fontSize: 13, color: colors.ink2, height: 1.4),
             ),
             const SizedBox(height: AppSpacing.s16),
             if (state.extensionCandidates.isEmpty)
               SurfaceCard(
                 child: EmptyState(
-                  title: 'Picking extra photos',
-                  body: 'Fresh frames are coming from your albums. This stays on your device.',
+                  title: l10n.pickingExtraPhotos,
+                  body: l10n.freshFrames,
                 ),
               )
             else
@@ -89,7 +91,7 @@ class ExtendScreen extends ConsumerWidget {
               children: <Widget>[
                 Expanded(
                   child: SecondaryButton(
-                    label: 'Reroll all',
+                    label: l10n.rerollAll,
                     icon: Icons.refresh,
                     onPressed: approved
                         ? null
@@ -103,7 +105,9 @@ class ExtendScreen extends ConsumerWidget {
                 const SizedBox(width: AppSpacing.s12),
                 Expanded(
                   child: PrimaryButton(
-                    label: approved ? 'Waiting for players' : 'Approve',
+                    label: approved
+                        ? l10n.waitingForPlayersButton
+                        : l10n.approve,
                     onPressed: approved || state.extensionCandidates.isEmpty
                         ? null
                         : () => unawaited(
@@ -149,7 +153,7 @@ class _CountdownPill extends StatelessWidget {
         border: Border.all(color: colors.hairline),
       ),
       child: Text(
-        '${seconds}s',
+        context.l10n.secondsShort(seconds),
         style: tabularFigures(
           TextStyle(
             fontFamily: 'JetBrainsMono',
@@ -177,6 +181,7 @@ class _ExtensionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     return Container(
       decoration: BoxDecoration(
         color: colors.card,
@@ -211,7 +216,7 @@ class _ExtensionTile extends StatelessWidget {
             child: TextButton.icon(
               onPressed: onSwap,
               icon: const Icon(Icons.swap_horiz, size: 16),
-              label: const Text('Swap', style: TextStyle(fontSize: 13)),
+              label: Text(l10n.swap, style: const TextStyle(fontSize: 13)),
               style: TextButton.styleFrom(
                 foregroundColor: colors.ink2,
                 disabledForegroundColor: colors.ink3,

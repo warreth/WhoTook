@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/whotook_theme.dart';
+import '../../l10n/l10n.dart';
 import '../widgets/common.dart';
 
 /// A hidden, fully offline walkthrough for store reviewers. It uses bundle
@@ -110,14 +111,15 @@ class _DemoScreenState extends State<DemoScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     return Scaffold(
       appBar: AppBar(
         backgroundColor: colors.bg,
         surfaceTintColor: Colors.transparent,
-        title: const Text('Review demo'),
+        title: Text(l10n.reviewDemo),
         actions: <Widget>[
           IconButton(
-            tooltip: 'Close demo',
+            tooltip: l10n.closeDemo,
             onPressed: () => Navigator.of(context).maybePop(),
             icon: const Icon(Icons.close),
           ),
@@ -167,6 +169,7 @@ class _DemoBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.s12,
@@ -182,7 +185,7 @@ class _DemoBanner extends StatelessWidget {
           const SizedBox(width: AppSpacing.s8),
           Expanded(
             child: Text(
-              'Demo with fake players. No network and no real photos.',
+              l10n.demoFake,
               style: TextStyle(fontSize: 12, color: colors.ink2, height: 1.35),
             ),
           ),
@@ -208,6 +211,7 @@ class _PhotosStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.s20,
@@ -222,7 +226,7 @@ class _PhotosStep extends StatelessWidget {
           children: <Widget>[
             Expanded(
               child: Text(
-                'Check your photos',
+                l10n.checkYourPhotos,
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w500,
@@ -236,7 +240,7 @@ class _PhotosStep extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.s4),
         Text(
-          'All 4 demo photos are here. Reroll all for a different set.',
+          l10n.allDemoPhotos,
           style: TextStyle(fontSize: 13, color: colors.ink2, height: 1.4),
         ),
         const SizedBox(height: AppSpacing.s16),
@@ -257,12 +261,12 @@ class _PhotosStep extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.s16),
         SecondaryButton(
-          label: 'Reroll all',
+          label: l10n.rerollAll,
           icon: Icons.refresh,
           onPressed: onReroll,
         ),
         const SizedBox(height: AppSpacing.s12),
-        PrimaryButton(label: 'Start demo round', onPressed: onStart),
+        PrimaryButton(label: l10n.startDemoRound, onPressed: onStart),
       ],
     );
   }
@@ -320,6 +324,7 @@ class _GuessStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.s20,
@@ -334,7 +339,7 @@ class _GuessStep extends StatelessWidget {
           children: <Widget>[
             Expanded(
               child: Text(
-                'Who took this?',
+                l10n.whoTookThis,
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w600,
@@ -475,6 +480,7 @@ class _RevealStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.s20,
@@ -501,7 +507,7 @@ class _RevealStep extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.s16),
         Text(
-          'Shot by Lotte',
+          l10n.shotBy('Lotte'),
           style: TextStyle(
             fontSize: 26,
             fontWeight: FontWeight.w600,
@@ -512,10 +518,10 @@ class _RevealStep extends StatelessWidget {
         const SizedBox(height: AppSpacing.s4),
         Text(
           guessed == null
-              ? 'The timer ran out.'
+              ? l10n.timerRanOut
               : isCorrect
-              ? 'You got it. +820'
-              : 'You guessed $guessed. Next time.',
+              ? l10n.youGotIt(820)
+              : l10n.youGuessed(guessed ?? ''),
           style: TextStyle(
             fontSize: 14,
             color: isCorrect ? colors.positive : colors.ink2,
@@ -555,7 +561,7 @@ class _RevealStep extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.s16),
-        PrimaryButton(label: 'See the podium', onPressed: onNext),
+        PrimaryButton(label: l10n.seePodium, onPressed: onNext),
       ],
     );
   }
@@ -575,6 +581,7 @@ class _PodiumStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.s20,
@@ -586,7 +593,7 @@ class _PodiumStep extends StatelessWidget {
         const _DemoBanner(),
         const SizedBox(height: AppSpacing.s24),
         Text(
-          'CHAMPION',
+          l10n.champion.toUpperCase(),
           textAlign: TextAlign.center,
           style: TextStyle(
             fontFamily: 'JetBrainsMono',
@@ -608,7 +615,7 @@ class _PodiumStep extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.s4),
         Text(
-          '3410 pts',
+          l10n.points(3410),
           textAlign: TextAlign.center,
           style: tabularFigures(
             TextStyle(
@@ -651,9 +658,9 @@ class _PodiumStep extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.s16),
-        PrimaryButton(label: 'Restart demo', onPressed: onRestart),
+        PrimaryButton(label: l10n.restartDemo, onPressed: onRestart),
         const SizedBox(height: AppSpacing.s12),
-        SecondaryButton(label: 'Close demo', onPressed: onClose),
+        SecondaryButton(label: l10n.closeDemo, onPressed: onClose),
       ],
     );
   }

@@ -39,6 +39,8 @@ WhoTook is a party game for friends at one table or spread across the internet.
 
 Everyone picks a few photos from their own phone. A photo appears, and the table races to guess whose camera roll it came from. Faster correct guesses score more.
 
+The app is available in English and Nederlands. Pick a name and a selfie, gallery photo or icon avatar, and keep your last room ready to rejoin.
+
 Ways to play:
 
 - Classic: guess who took the photo.
@@ -46,13 +48,13 @@ Ways to play:
 - Time Traveler: guess the year and month on a timeline.
 - Mixed Party: all three, shuffled.
 
-Choose a name and avatar once, then rejoin your last room from the home screen after a restart. Play on the same Wi-Fi or online. No accounts, no ads and no photo server. Photos are resized and stripped of location data before they leave the phone, and they stay in that match.
+Choose a name and a selfie, gallery photo or icon avatar, then rejoin your last room from the home screen after a restart. A dropped connection reconnects to the same round. The app speaks English and Nederlands. Play on the same Wi-Fi or online. No accounts, no ads and no photo server. Photos are resized and stripped of location data before they leave the phone, and they stay in that match. A photo avatar is stored only on your phone and sent only to the players in the active room.
 
-Start a room, pick the mode, rounds and pace, then show the QR code. Friends join from any camera app, everyone approves their own photos and the game begins.
+Start a room, pick the mode, rounds and pace, then show the QR code. Friends join from any camera app, check their name and avatar, and everyone approves their own photos. The game begins when the table is ready.
 
 ### Promotional text, 170 characters
 
-New: a three-step host setup, icon avatars, a whole-set photo check and a cleaner lobby.
+New: selfie avatars, mid-game rejoin, host controls, Nederlands and a faster photo check.
 
 ### Assets
 
@@ -77,10 +79,11 @@ New: a three-step host setup, icon avatars, a whole-set photo check and a cleane
 
 ### Data safety draft
 
-The app has no accounts, analytics, ads or developer-run photo server. Photos
+The app has no accounts, analytics, ads or developer-run photo server. Photos and photo avatars
 are sent directly between the players in a room.
 
 - Photos: collected and shared for app functionality, required, ephemeral.
+- Photo avatars: collected and shared for app functionality, optional, ephemeral.
 - Encryption in transit: answer **No** for all collected data. The internet
   path uses WebRTC and an encrypted relay, but the same-Wi-Fi path uses a local
   WebSocket without TLS. Do not claim encryption for all data until that path is
@@ -117,13 +120,13 @@ Ways to play:
 - Time Traveler: guess the year and month on a timeline.
 - Mixed Party: all three, shuffled.
 
-Choose a name and avatar once, then rejoin your last room from the home screen after a restart. Play on the same Wi-Fi or online. No accounts, no ads and no photo server. Photos are resized and stripped of location data before they leave the phone, and they stay in that match.
+Choose a name and a selfie, gallery photo or icon avatar, then rejoin your last room from the home screen after a restart. A dropped connection reconnects to the same round. The app speaks English and Nederlands. Play on the same Wi-Fi or online. No accounts, no ads and no photo server. Photos are resized and stripped of location data before they leave the phone, and they stay in that match. A photo avatar is stored only on your phone and sent only to the players in the active room.
 
-Start a room, pick the mode, rounds and pace, then show the QR code. Friends join from any camera app, everyone approves their own photos and the game begins.
+Start a room, pick the mode, rounds and pace, then show the QR code. Friends join from any camera app, check their name and avatar, and everyone approves their own photos. The game begins when the table is ready.
 
 ### Promotional text, 170 characters
 
-New: a three-step host setup, icon avatars, a whole-set photo check and a cleaner lobby.
+New: selfie avatars, mid-game rejoin, host controls, Nederlands and a faster photo check.
 
 ### Review notes
 
@@ -133,9 +136,9 @@ To test the full flow, install the build on two iPhones or iPads on the same Wi-
 
 1. On device A, tap Host a game.
 2. Pick a mode, the rounds and the pace, then open the room.
-3. On device B, tap Join a game and scan the QR code.
+3. On device B, tap Join a game and scan the QR code. Check the name and avatar, then join.
 4. When everyone is in, tap Start photo check on device A.
-5. Approve photos and tap Ready on every phone. The first round starts.
+5. Approve photos and tap Ready on every phone. The first round starts. Close the app on a phone and use Rejoin on the home screen to return to the same match.
 
 A hidden review demo with fake players and bundled photos is available at
 Settings > About. Tap the small WhoTook trademark line seven times. It runs

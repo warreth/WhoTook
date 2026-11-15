@@ -5,8 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../core/theme/whotook_theme.dart';
-import '../../state/providers.dart';
+import '../../l10n/l10n.dart';
 import '../widgets/common.dart';
+import 'join_confirm_screen.dart';
 
 /// Join is one action: open the scanner. A pasted or shared link also works,
 /// which is how remote friends get in from a chat app.
@@ -42,16 +43,19 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
       _error = null;
     });
     await _controller.stop();
-    await ref.read(matchCoordinatorProvider).joinMatch(trimmed);
+    if (!mounted) return;
+    final joined = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => JoinConfirmScreen(invite: trimmed),
+      ),
+    );
     if (!mounted) return;
     setState(() => _busy = false);
-    final state = ref.read(matchCoordinatorProvider).state;
-    if (state.errorMessage != null) {
-      setState(() => _error = state.errorMessage);
-      await _controller.start();
+    if (joined == true) {
+      Navigator.of(context).pop();
       return;
     }
-    Navigator.of(context).pop();
+    await _controller.start();
   }
 
   @override
@@ -59,7 +63,7 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
     final colors = WhoTookColors.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Join a match'),
+        title: Text(context.l10n.joinAMatch),
         backgroundColor: colors.bg,
         surfaceTintColor: Colors.transparent,
       ),
@@ -104,7 +108,7 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                         CircularProgressIndicator(color: colors.accent),
                         const SizedBox(height: AppSpacing.s16),
                         Text(
-                          'Connecting to the host',
+                          context.l10n.connectingToHost,
                           style: TextStyle(fontSize: 14, color: colors.ink2),
                         ),
                       ],
@@ -132,7 +136,7 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                     controller: _paste,
                     style: const TextStyle(fontSize: 14),
                     decoration: InputDecoration(
-                      labelText: 'Or paste an invite link',
+                      labelText: context.l10n.pasteInvite,
                       isDense: true,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppRadii.rControl),
@@ -142,7 +146,7 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
                   ),
                   const SizedBox(height: AppSpacing.s12),
                   SecondaryButton(
-                    label: 'Use this link',
+                    label: context.l10n.useThisLink,
                     icon: Icons.link,
                     onPressed: () => unawaited(_join(_paste.text)),
                   ),
@@ -168,8 +172,8 @@ class _CameraUnavailable extends StatelessWidget {
       color: colors.raised,
       alignment: Alignment.center,
       padding: const EdgeInsets.all(AppSpacing.s24),
-      child: const NoticeBanner(
-        message: 'Camera unavailable. Allow access or paste a link below.',
+      child: NoticeBanner(
+        message: context.l10n.cameraUnavailable,
         tone: StatusTone.warning,
         icon: Icons.no_photography_outlined,
       ),

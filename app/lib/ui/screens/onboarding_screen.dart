@@ -7,8 +7,9 @@ import '../../core/avatars.dart';
 import '../../core/constants.dart';
 import '../../core/links.dart';
 import '../../core/theme/whotook_theme.dart';
+import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
-import '../widgets/avatar_picker.dart';
+import '../widgets/avatar_editor.dart';
 import '../widgets/common.dart';
 
 /// First run: name, terms and a clear path into the game. Private albums and
@@ -24,6 +25,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final TextEditingController _name = TextEditingController();
   bool _acceptedTerms = false;
   String _avatar = kAvatarIds.first;
+  String? _avatarPhoto;
   String? _error;
 
   @override
@@ -35,11 +37,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Future<void> _finish() async {
     final name = _name.text.trim();
     if (name.isEmpty) {
-      setState(() => _error = 'Pick a name your friends will recognise.');
+      setState(() => _error = context.l10n.pickNameError);
       return;
     }
     if (!_acceptedTerms) {
-      setState(() => _error = 'Agree to the terms before you continue.');
+      setState(() => _error = context.l10n.acceptTermsError);
       return;
     }
     await ref
@@ -73,9 +75,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ],
             ),
             const SizedBox(height: AppSpacing.s32),
-            const Text(
-              'Guess whose photo it is',
-              style: TextStyle(
+            Text(
+              context.l10n.guessWhosePhoto,
+              style: const TextStyle(
                 fontSize: 26,
                 fontWeight: FontWeight.w500,
                 height: 1.15,
@@ -84,7 +86,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             ),
             const SizedBox(height: AppSpacing.s8),
             Text(
-              'One photo. One guess. Tap who you think took it.',
+              context.l10n.onboardingTagline,
               style: TextStyle(fontSize: 14, color: colors.ink2, height: 1.45),
             ),
             const SizedBox(height: AppSpacing.s24),
@@ -92,17 +94,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               controller: _name,
               textCapitalization: TextCapitalization.words,
               decoration: InputDecoration(
-                labelText: 'Your name',
+                labelText: context.l10n.yourName,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadii.rControl),
                 ),
               ),
             ),
             const SizedBox(height: AppSpacing.s20),
-            const SectionLabel('Pick an avatar'),
-            AvatarPicker(
-              selected: _avatar,
-              onSelect: (avatar) => setState(() => _avatar = avatar),
+            AvatarEditor(
+              avatar: _avatar,
+              photoBase64: _avatarPhoto,
+              onChanged: (avatar, photo) => setState(() {
+                _avatar = avatar;
+                _avatarPhoto = photo;
+              }),
             ),
             const SizedBox(height: AppSpacing.s16),
             SurfaceCard(
@@ -113,9 +118,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     value: _acceptedTerms,
                     onChanged: (value) =>
                         setState(() => _acceptedTerms = value ?? false),
-                    title: const Text(
-                      'I agree to the Terms of use and Community rules.',
-                      style: TextStyle(fontSize: 13, height: 1.35),
+                    title: Text(
+                      context.l10n.acceptTerms,
+                      style: const TextStyle(fontSize: 13, height: 1.35),
                     ),
                     controlAffinity: ListTileControlAffinity.leading,
                     contentPadding: EdgeInsets.zero,
@@ -139,7 +144,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                             fontWeight: FontWeight.w500,
                           ),
                         ),
-                        child: const Text('Terms and community rules'),
+                        child: Text(context.l10n.termsLink),
                       ),
                       TextButton(
                         onPressed: () =>
@@ -155,7 +160,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                             fontSize: 13,
                           ),
                         ),
-                        child: const Text('Privacy'),
+                        child: Text(context.l10n.privacy),
                       ),
                     ],
                   ),
@@ -171,10 +176,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ),
               const SizedBox(height: AppSpacing.s12),
             ],
-            PrimaryButton(label: 'Continue', onPressed: _finish),
+            PrimaryButton(
+              label: context.l10n.continueLabel,
+              onPressed: _finish,
+            ),
             const SizedBox(height: AppSpacing.s12),
             Text(
-              'Photos are only read when a match starts. You can keep private albums out of every game in Settings.',
+              context.l10n.onboardingPhotoNote,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 12, color: colors.ink3, height: 1.4),
             ),
