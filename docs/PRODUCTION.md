@@ -19,10 +19,8 @@ device.
   dark-mode contrast fixes.
 - Tablet max-width guards for the meme editor, timeline, round and caption
   screens.
-- Refreshed store copy, release notes, feature graphic, app icon, store
-  screenshots, `og.jpg` and website screenshots.
-- Website SEO/PWA files (`sitemap.xml`, `manifest.webmanifest`,
-  `apple-touch-icon.png`), security headers and the current mode copy.
+- Refreshed store copy, release notes, feature graphic, app icon and store
+  screenshots.
 
 ## Blocking items only you can do
 
@@ -30,8 +28,8 @@ device.
    `private/upload-keystore.jks` in the main checkout (alias `upload`), and the
    four GitHub secrets (`ANDROID_KEYSTORE_BASE64`,
    `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`)
-   are already present. Its SHA-256 matches both the fingerprint in
-   `wrangler.jsonc` and the published 1.7.0 APK, so in-place updates keep
+   are already present. Its SHA-256 matches both the private server's
+   deep-link configuration and the published 1.7.0 APK, so in-place updates keep
    working. Do not create a new key for 1.8.0. For a local signed
    build, copy the keystore and `key.properties` into this worktree; both are
    git-ignored.
@@ -47,21 +45,14 @@ device.
    listing sheet. Run the manual **TestFlight** workflow for easy updates; test
    there before submitting the App Store build.
 4. **Deep links.** Put the release Android SHA-256 and the Apple Team ID into
-   the Worker, then deploy:
-   ```bash
-   python3 tool/prepare_app_links.py \
-     --android-sha256 "AA:BB:...:99" \
-     --apple-team "ABCDE12345"
-   cd cloudflare-signaling && npx wrangler deploy
-   ```
-   The Worker serves `/.well-known/assetlinks.json` and
-   `/.well-known/apple-app-site-association`. The Android SHA-256 in
-   `wrangler.jsonc` matches the verified upload key, so only the Apple Team ID
-   is still empty. Set it when the Apple account exists.
+   the private server deployment, then deploy it from there. The private
+   deployment serves `/.well-known/assetlinks.json` and
+   `/.well-known/apple-app-site-association`. Only the Apple Team ID is still
+   empty; set it when the Apple account exists.
 5. **Support inbox.** Create `hello@whotook.party` (the app, store copy and site
    use it) or change the address everywhere.
-6. **Website deployment.** Deploy `cloudflare-signaling` with Wrangler after the
-   store links exist. The Play/App Store buttons are still marked “soon”.
+6. **Website deployment.** Deploy the private site and signaling worker after
+   the store links exist. The Play/App Store buttons are still marked “soon”.
 7. **Store forms.** Complete the Data safety, App Privacy, age rating, content
    declarations and review notes in Play Console and App Store Connect. The
    drafts are in `store/listing.md`.
@@ -74,29 +65,22 @@ device.
 ```bash
 # 1. Verify the code
 cd app && flutter analyze && flutter test
-cd ../cloudflare-signaling && npm ci && npm run typecheck && npm test
+flutter analyze --dart-define=FOSS_BUILD=true
+flutter test --dart-define=FOSS_BUILD=true
 
-# 2. Refresh screenshots if the UI changed
+# 2. Refresh screenshots if the UI changed (the framing tool lives with the
+#    private website deployment)
 cd ../app
 flutter test test/ui/screens_golden_test.dart \
   --dart-define=STORE_SCREENSHOTS=true --plain-name "store"
-cd .. && python3 tool/store_assets.py
 
 # 3. Tag the release (the workflow builds and attaches the artifacts)
-git tag v1.8.0 && git push origin v1.8.0
+git tag v1.9.0 && git push origin v1.9.0
 
-# 4. The release workflow updates altstore.json from the IPA and commits it.
-#    If it has no Cloudflare secrets, deploy the site once more:
-cd cloudflare-signaling && npx wrangler deploy
-cd ..
-
-# 5. Check the deep-link files
+# 4. Check the deep-link files served by the private deployment
 curl https://whotook.party/.well-known/assetlinks.json
 curl https://whotook.party/.well-known/apple-app-site-association
 ```
-
-`tool/update_altstore.py` reads the real IPA size from the GitHub release. Do
-not hand-edit the size.
 
 ## Device QA before submitting
 
@@ -129,9 +113,9 @@ Run the release builds, not the debug builds.
 - **No crash reporting.** This is deliberate for privacy. If you add analytics
   or crash reporting, update both store privacy forms and the website privacy
   page.
-- **AltStore size.** The release workflow updates the source from the real IPA.
-  If that job cannot push to `main`, run `python3 tool/update_altstore.py
-  --tag v1.8.0` and deploy manually.
+- **AltStore size.** The private deployment updates its source from the real
+  IPA. The public release workflow no longer deploys the site or edits the
+  AltStore source.
 - **App icon.** The viewfinder mark is the brand. A new icon needs a new store
   icon, feature graphic and screenshots, so do not swap it casually.
 

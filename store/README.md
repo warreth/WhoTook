@@ -29,8 +29,6 @@ completed in Play Console and App Store Connect.
 - `assets/screenshots/ipad13/`: six iPad 13-inch screenshots at 2064 x 2752.
   They show home, the six-photo vault, the meme editor, a private lobby, the
   evidence timeline and the podium.
-- `cloudflare-signaling/public/og.jpg` and `apple-touch-icon.png`: refreshed
-  social and home-screen graphics.
 
 The screenshots are generated from the real Flutter screens, not mocked in a
 design tool:
@@ -39,12 +37,10 @@ design tool:
 cd app
 flutter test test/ui/screens_golden_test.dart \
   --dart-define=STORE_SCREENSHOTS=true --plain-name "store"
-cd ..
-python3 tool/store_assets.py
 ```
 
 The raw captures are written to `app/test/ui/store_raw/` (git-ignored). The
-script writes the store assets, the feature graphic, `og.jpg` and the web icons.
+framing script and the website assets live in the private deployment repository.
 
 ## What only you can do
 
@@ -55,19 +51,15 @@ script writes the store assets, the feature graphic, `og.jpg` and the web icons.
    App Store Connect API key, then add the GitHub secrets listed in the release
    workflow.
 4. Add the Play service account JSON as `PLAY_SERVICE_ACCOUNT_JSON`.
-5. Run `tool/prepare_app_links.py` with the release Android SHA-256 and the Apple
-   Team ID. It writes both values into `cloudflare-signaling/wrangler.jsonc`;
-   the Worker serves the two `.well-known` files. Deploy the Worker after it.
-   Without this, Android App Links and iOS Universal Links will not open the app.
+5. Set the release Android SHA-256 and the Apple Team ID in the private
+   deployment. It serves the two `.well-known` files. Without this, Android App
+   Links and iOS Universal Links will not open the app.
 6. Complete the store forms in the consoles and submit for review. Use the
    current screenshots and feature graphic in this folder.
 7. Create `hello@whotook.party` in Zoho Mail, or change the address in
    `app/lib/core/constants.dart`, the website pages and the store copy.
-8. The release workflow updates `cloudflare-signaling/public/altstore.json`
-   from the published IPA and commits it to `main`. Add
-   `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as GitHub secrets if you
-   also want the workflow to deploy the site automatically. Without them, run
-   `cd cloudflare-signaling && npx wrangler deploy` once after the release.
+8. The private deployment updates its AltStore source from the published IPA
+   after a release. The public repository no longer contains that source.
 
 ## Release assets
 

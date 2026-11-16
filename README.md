@@ -64,13 +64,16 @@ Android release signing reads `app/android/key.properties` (git-ignored). Copy
 release builds fall back to the debug key, which is fine for local testing and
 wrong for a store.
 
-The signaling Worker and website live in `cloudflare-signaling/`:
+Local play needs no server. To run online play against your own signaling
+server and `coturn` relay, read [SELF_HOSTING.md](SELF_HOSTING.md). The official
+hosted signaling and relay deployment is maintained in a separate private
+repository.
+
+For a tracker-free build with no store billing and no official relay client:
 
 ```bash
-cd cloudflare-signaling
-npm install
-npm test
-npx wrangler dev
+cd app
+flutter run --dart-define=FOSS_BUILD=true
 ```
 
 Shipping, signing and store steps are in [docs/PRODUCTION.md](docs/PRODUCTION.md).
