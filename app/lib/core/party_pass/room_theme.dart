@@ -66,7 +66,7 @@ enum RoomThemeId {
     raised: Color(0xFFEAD9BD),
     ink: Color(0xFF3B2A1A),
     ink2: Color(0xFF6B5236),
-    ink3: Color(0xFF82694E),
+    ink3: Color(0xFF705639),
     accent: Color(0xFFB84A18),
     onAccent: Color(0xFFFFF8F0),
     accent2: Color(0xFF2F6F62),

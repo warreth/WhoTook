@@ -72,7 +72,6 @@ device.
 ```bash
 # 1. Verify the code
 cd app && flutter analyze && flutter test
-flutter analyze --dart-define=FOSS_BUILD=true
 flutter test --dart-define=FOSS_BUILD=true
 
 # 2. Refresh screenshots if the UI changed (the framing tool lives with the

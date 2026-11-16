@@ -59,6 +59,16 @@ void main() {
         greaterThanOrEqualTo(4.5),
         reason: '${theme.wireId} secondary text',
       );
+      expect(
+        _ratio(palette.ink3, palette.raised),
+        greaterThanOrEqualTo(4.5),
+        reason: '${theme.wireId} tertiary text on raised',
+      );
+      expect(
+        _ratio(palette.ink3, palette.bg),
+        greaterThanOrEqualTo(4.5),
+        reason: '${theme.wireId} tertiary text on bg',
+      );
     }
   });
 

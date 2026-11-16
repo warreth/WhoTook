@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
+import 'package:whotook/core/build_flavor.dart';
 import 'package:whotook/core/party_pass/party_pass_controller.dart';
 import 'package:whotook/core/party_pass/party_pass_repository.dart';
 import 'package:whotook/core/party_pass/purchase_service.dart';
@@ -110,6 +111,20 @@ void main() {
   setUp(() {
     SharedPreferencesAsyncPlatform.instance =
         InMemorySharedPreferencesAsync.empty();
+  });
+
+  test('a FOSS build includes cosmetics and has no official relay', () async {
+    if (!BuildFlavor.foss) return;
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    final state = await container.read(partyPassProvider.future);
+    expect(state.active, isTrue);
+    expect(state.fossIncluded, isTrue);
+
+    final attempt = await container.read(partyPassProvider.notifier).relayAttempt();
+    expect(attempt.grant, isNull);
+    expect(attempt.passActive, isFalse);
   });
 
   test('an empty install starts locked and unlocks on purchase', () async {
