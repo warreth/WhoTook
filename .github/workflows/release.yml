@@ -312,7 +312,9 @@ jobs:
           mkdir -p "$PROFILE_DIR"
           PROFILE_PATH="$PROFILE_DIR/whotook.mobileprovision"
           printf '%s' "$PROFILE_BASE64" | tr -d '\r\n' | base64 -d > "$PROFILE_PATH"
-          PROFILE_NAME=$(security cms -D -i "$PROFILE_PATH" | /usr/libexec/PlistBuddy -c "Print :Name" /dev/stdin)
+          PROFILE_PLIST="$RUNNER_TEMP/profile.plist"
+          openssl cms -verify -noverify -inform DER -in "$PROFILE_PATH" -out "$PROFILE_PLIST"
+          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c "Print :Name" "$PROFILE_PLIST")
           echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
           echo "TEAM_ID=$TEAM_ID" >> "$GITHUB_ENV"
 
