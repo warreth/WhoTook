@@ -3282,6 +3282,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Too many relay attempts from this network. Wait a moment and try again.'**
   String get firewallBusyBody;
+
+  /// Retry time after an IP rate limit
+  ///
+  /// In en, this message translates to:
+  /// **'Try again after {time}'**
+  String firewallBusyReset(String time);
 }
 
 class _AppLocalizationsDelegate

@@ -62,12 +62,25 @@ void main() {
       WireMessage(type: WireType.ping, seq: 1),
     );
     await wrapper.broadcast(WireMessage(type: WireType.ping, seq: 2));
+    await wrapper.broadcast(
+      WireMessage(
+        type: WireType.photoChunk,
+        seq: 3,
+        payload: <String, dynamic>{
+          'photoId': 'p1',
+          'index': 0,
+          'total': 1,
+          'data': 'AA==',
+          'sha256': 'x',
+        },
+      ),
+    );
     expect(inner.sends, 0);
 
     gate.complete();
     await Future<void>.delayed(Duration.zero);
     await Future<void>.delayed(Duration.zero);
-    expect(inner.sends, 2);
+    expect(inner.sends, 3);
     expect(inner.closed, isFalse);
 
     await wrapper.close();

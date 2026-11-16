@@ -172,6 +172,11 @@ void main() {
       await transport.close();
     });
 
+    test('close is idempotent', () async {
+      await transport.close();
+      await transport.close();
+    });
+
     test('ignores answers and ice for a peer it does not know', () async {
       await transport.handleSignalingFrame(<String, dynamic>{
         'type': 'answer',

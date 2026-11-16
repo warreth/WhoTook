@@ -50,7 +50,7 @@ class FirewallPromptOverlay extends ConsumerWidget {
         ? l10n.firewallVerificationBody
         : l10n.firewallRelayDownBody;
     final retryAt = pass?.relayRetryAtUtc;
-    final resetTime = quotaReached && retryAt != null
+    final resetTime = (quotaReached || rateLimited) && retryAt != null
         ? MaterialLocalizations.of(context).formatTimeOfDay(
             TimeOfDay.fromDateTime(retryAt.toLocal()),
             alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
@@ -149,7 +149,9 @@ class FirewallPromptOverlay extends ConsumerWidget {
                         if (resetTime != null) ...<Widget>[
                           const SizedBox(height: AppSpacing.s8),
                           Text(
-                            l10n.firewallQuotaReset(resetTime),
+                            quotaReached
+                                ? l10n.firewallQuotaReset(resetTime)
+                                : l10n.firewallBusyReset(resetTime),
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,

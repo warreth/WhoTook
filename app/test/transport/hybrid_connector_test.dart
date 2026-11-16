@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:whotook/core/build_flavor.dart';
 import 'package:whotook/core/models/models.dart';
+import 'package:whotook/core/party_pass/turn_relay_client.dart';
 import 'package:whotook/core/protocol/wire_message.dart';
 import 'package:whotook/core/qr/invite_codec.dart';
 import 'package:whotook/transport/game_transport.dart';
@@ -249,6 +250,32 @@ void main() {
         client.fetch(roomId: 'room1234', token: 'bad'),
         throwsA(isA<TransportException>()),
       );
+    });
+
+    test('fetches relay and ICE config concurrently', () async {
+      final relayStarted = Completer<void>();
+      final httpGate = Completer<void>();
+      final client = SignalingIceClient(
+        signalingUrl: 'https://signal.example',
+        httpClient: MockClient((_) async {
+          await httpGate.future;
+          return http.Response(
+            '{"turnAllowed":false,'
+            '"iceServers":[{"urls":"stun:stun.cloudflare.com:3478"}]}',
+            200,
+          );
+        }),
+        turnRelay: () async {
+          if (!relayStarted.isCompleted) relayStarted.complete();
+          return const TurnRelayAttempt(passActive: true);
+        },
+      );
+
+      final pending = client.fetch(roomId: 'room1234', token: 'secret');
+      await relayStarted.future.timeout(const Duration(seconds: 1));
+      httpGate.complete();
+      final config = await pending;
+      expect(config.iceServers.single.urls.single, startsWith('stun:'));
     });
 
     test('retries /ice-config while the host room is opening', () async {

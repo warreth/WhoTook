@@ -155,6 +155,9 @@ class SignalingIceClient {
         ],
       );
     }
+    final relayFuture = turnRelay?.call().catchError(
+      (Object _) => const TurnRelayAttempt(passActive: true),
+    );
     // A `wss://` custom URL is common, but ICE config is a plain HTTPS call.
     final origin = signalingUrl
         .replaceFirst(RegExp(r'^ws://'), 'http://')
@@ -211,9 +214,8 @@ class SignalingIceClient {
             usedToday: parsed.usedToday,
             retryAtUtc: parsed.retryAtUtc,
           );
-    final relay = turnRelay;
-    if (relay == null) return config;
-    final attempt = await relay();
+    if (relayFuture == null) return config;
+    final attempt = await relayFuture;
     final grant = attempt.grant;
     if (grant == null) {
       return IceConfig(
@@ -455,6 +457,7 @@ class WebRtcHostTransport implements HostTransport {
   WebSocketChannel? _signaling;
   IceConfig? _iceConfig;
   bool _configReady = false;
+  bool _closed = false;
   final List<Map<String, dynamic>> _pendingSignaling = <Map<String, dynamic>>[];
 
   @override
@@ -471,6 +474,7 @@ class WebRtcHostTransport implements HostTransport {
 
   @override
   Future<void> start() async {
+    if (_closed) return;
     final origin = _toWebSocketOrigin(invite.signalingUrl ?? '');
     final uri = Uri.parse(
       '${origin.replaceAll(RegExp(r'/+$'), '')}'
@@ -478,6 +482,10 @@ class WebRtcHostTransport implements HostTransport {
     );
     final channel = WebSocketChannel.connect(uri);
     await channel.ready;
+    if (_closed) {
+      await channel.sink.close();
+      return;
+    }
     _signaling = channel;
     _subscriptions.add(
       channel.stream.listen(
@@ -487,11 +495,18 @@ class WebRtcHostTransport implements HostTransport {
       ),
     );
     try {
-      _iceConfig = await iceClient.fetch(
+      final config = await iceClient.fetch(
         roomId: invite.roomId,
         token: invite.secret,
         settings: settings,
       );
+      if (_closed) {
+        _pendingSignaling.clear();
+        await channel.sink.close();
+        _signaling = null;
+        return;
+      }
+      _iceConfig = config;
       _configReady = true;
       final pending = List<Map<String, dynamic>>.of(_pendingSignaling);
       _pendingSignaling.clear();
@@ -506,6 +521,7 @@ class WebRtcHostTransport implements HostTransport {
   }
 
   Future<void> _onFrame(dynamic data) async {
+    if (_closed) return;
     final raw = data is String ? data : utf8.decode(data as List<int>);
     final Map<String, dynamic> frame;
     try {
@@ -616,6 +632,9 @@ class WebRtcHostTransport implements HostTransport {
 
   @override
   Future<void> close() async {
+    if (_closed) return;
+    _closed = true;
+    _pendingSignaling.clear();
     for (final sub in _subscriptions) {
       await sub.cancel();
     }
@@ -728,7 +747,7 @@ class WebRtcClientTransport extends _WebRtcTransportBase
     required super.invite,
     required this.iceClient,
     this.settings = const AppSettings(),
-    this.iceTimeout = const Duration(seconds: 6),
+    this.iceTimeout = const Duration(seconds: 12),
   }) : super(role: 'client');
 
   final SignalingIceClient iceClient;

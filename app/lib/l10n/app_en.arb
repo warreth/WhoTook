@@ -994,5 +994,14 @@
     }
   },
   "firewallBusyTitle": "Relay is busy",
-  "firewallBusyBody": "Too many relay attempts from this network. Wait a moment and try again."
+  "firewallBusyBody": "Too many relay attempts from this network. Wait a moment and try again.",
+  "firewallBusyReset": "Try again after {time}",
+  "@firewallBusyReset": {
+    "description": "Retry time after an IP rate limit",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  }
 }

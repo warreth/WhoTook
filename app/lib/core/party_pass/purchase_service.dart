@@ -212,25 +212,11 @@ class StorePartyPassPurchaseService implements PartyPassPurchaseService {
         credential: remembered,
       );
     }
+    final pending = Completer<PartyPassPurchaseEvent>();
+    _pending = pending;
+    PartyPassPurchaseEvent result;
     try {
-      final pending = Completer<PartyPassPurchaseEvent>();
-      _pending = pending;
-      await _syncStoreIfNeeded();
-      if (!pending.isCompleted) {
-        final restoredDuringSync = _lastRestored;
-        if (restoredDuringSync != null) {
-          pending.complete(
-            PartyPassPurchaseEvent(
-              status: PartyPassPurchaseStatus.restored,
-              credential: restoredDuringSync,
-            ),
-          );
-        }
-      }
-      if (!pending.isCompleted) {
-        await _iap.restorePurchases();
-      }
-      return await pending.future.timeout(
+      result = await _restoreFlow(pending).timeout(
         restoreTimeout,
         onTimeout: () => const PartyPassPurchaseEvent(
           status: PartyPassPurchaseStatus.error,
@@ -238,12 +224,34 @@ class StorePartyPassPurchaseService implements PartyPassPurchaseService {
         ),
       );
     } on Object {
-      _pending = null;
-      return const PartyPassPurchaseEvent(
+      result = const PartyPassPurchaseEvent(
         status: PartyPassPurchaseStatus.error,
         code: 'restore_failed',
       );
     }
+    if (identical(_pending, pending)) _pending = null;
+    return result;
+  }
+
+  Future<PartyPassPurchaseEvent> _restoreFlow(
+    Completer<PartyPassPurchaseEvent> pending,
+  ) async {
+    await _syncStoreIfNeeded();
+    if (!pending.isCompleted) {
+      final restoredDuringSync = _lastRestored;
+      if (restoredDuringSync != null) {
+        pending.complete(
+          PartyPassPurchaseEvent(
+            status: PartyPassPurchaseStatus.restored,
+            credential: restoredDuringSync,
+          ),
+        );
+      }
+    }
+    if (!pending.isCompleted) {
+      await _iap.restorePurchases();
+    }
+    return pending.future;
   }
 
   /// StoreKit 2 reads `Transaction.currentEntitlements`; a fresh device can be

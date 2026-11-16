@@ -698,9 +698,7 @@ class MatchCoordinator {
       _localSoundGate.clear();
       _remoteSoundGate.clear();
       if (_state.roomThemeId != RoomThemeIds.classicParty && _state.isHosting) {
-        unawaited(
-          _applyRoomTheme(RoomThemeId.classicParty, broadcast: true),
-        );
+        unawaited(_applyRoomTheme(RoomThemeId.classicParty, broadcast: true));
       }
     }
   }
@@ -727,12 +725,7 @@ class MatchCoordinator {
     if (!_state.firewallPrompt && _state.firewallRelayErrorCode == null) {
       return;
     }
-    _emit(
-      _state.copyWith(
-        firewallPrompt: false,
-        clearFirewallError: true,
-      ),
-    );
+    _emit(_state.copyWith(firewallPrompt: false, clearFirewallError: true));
   }
 
   Future<void> retryPendingJoin() async {
@@ -3529,9 +3522,8 @@ class MatchCoordinator {
             extensionSecondsLeft: payload['extensionSecondsLeft'] as int? ?? 0,
             reconnecting: false,
             reconnectSecondsLeft: 0,
-            roomThemeId: RoomThemeId.fromWire(
-              payload['roomThemeId'] as String?,
-            ).wireId,
+            roomThemeId: RoomThemeId.fromWire(payload['roomThemeId'] as String?)
+                .wireId,
             clearError: true,
           ),
         );
@@ -3636,9 +3628,8 @@ class MatchCoordinator {
             phase: parsedPhase,
             plantUnlocked: plantUnlocked,
             avatarPhotos: avatarPhotos,
-            roomThemeId: RoomThemeId.fromWire(
-              payload['roomThemeId'] as String?,
-            ).wireId,
+            roomThemeId: RoomThemeId.fromWire(payload['roomThemeId'] as String?)
+                .wireId,
           ),
         );
       case WireType.startPrepare:
@@ -4439,8 +4430,12 @@ class BestEffortHostTransport implements HostTransport {
   final List<StreamSubscription<dynamic>> _subscriptions =
       <StreamSubscription<dynamic>>[];
   final List<Future<void> Function()> _queued = <Future<void> Function()>[];
+  int _queuedBytes = 0;
   bool _started = false;
   bool _closed = false;
+
+  static const int _maxQueuedBytes = 16 * 1024 * 1024;
+  static const int _maxQueuedItems = 1024;
 
   @override
   Stream<String> get clientConnected => _connected.stream;
@@ -4472,6 +4467,7 @@ class BestEffortHostTransport implements HostTransport {
           _started = true;
           final queued = List<Future<void> Function()>.of(_queued);
           _queued.clear();
+          _queuedBytes = 0;
           for (final send in queued) {
             try {
               await send();
@@ -4483,6 +4479,7 @@ class BestEffortHostTransport implements HostTransport {
         onError: (Object _) {
           _started = false;
           _queued.clear();
+          _queuedBytes = 0;
         },
       ),
     );
@@ -4495,7 +4492,7 @@ class BestEffortHostTransport implements HostTransport {
       await _inner.sendToClient(clientId, message);
       return;
     }
-    _queue(() => _inner.sendToClient(clientId, message));
+    _queue(message, () => _inner.sendToClient(clientId, message));
   }
 
   @override
@@ -4505,13 +4502,16 @@ class BestEffortHostTransport implements HostTransport {
       await _inner.broadcast(message);
       return;
     }
-    // Photo chunks are large and a joining client gets a fresh state sync.
-    if (message.type == WireType.photoChunk) return;
-    _queue(() => _inner.broadcast(message));
+    _queue(message, () => _inner.broadcast(message));
   }
 
-  void _queue(Future<void> Function() send) {
-    if (_queued.length >= 32) return;
+  void _queue(WireMessage message, Future<void> Function() send) {
+    final bytes = message.encode().length;
+    if (_queued.length >= _maxQueuedItems ||
+        _queuedBytes + bytes > _maxQueuedBytes) {
+      return;
+    }
+    _queuedBytes += bytes;
     _queued.add(send);
   }
 
@@ -4519,6 +4519,7 @@ class BestEffortHostTransport implements HostTransport {
   Future<void> close() async {
     _closed = true;
     _queued.clear();
+    _queuedBytes = 0;
     for (final subscription in _subscriptions) {
       await subscription.cancel();
     }

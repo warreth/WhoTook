@@ -583,5 +583,14 @@
     }
   },
   "firewallBusyTitle": "Relay is bezet",
-  "firewallBusyBody": "Te veel relaypogingen vanaf dit netwerk. Wacht even en probeer opnieuw."
+  "firewallBusyBody": "Te veel relaypogingen vanaf dit netwerk. Wacht even en probeer opnieuw.",
+  "firewallBusyReset": "Probeer opnieuw na {time}",
+  "@firewallBusyReset": {
+    "description": "Retry time after an IP rate limit",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  }
 }

@@ -1882,4 +1882,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get firewallBusyBody =>
       'Too many relay attempts from this network. Wait a moment and try again.';
+
+  @override
+  String firewallBusyReset(String time) {
+    return 'Try again after $time';
+  }
 }

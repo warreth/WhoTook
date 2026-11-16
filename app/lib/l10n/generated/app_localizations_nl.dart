@@ -1892,4 +1892,9 @@ class AppLocalizationsNl extends AppLocalizations {
   @override
   String get firewallBusyBody =>
       'Te veel relaypogingen vanaf dit netwerk. Wacht even en probeer opnieuw.';
+
+  @override
+  String firewallBusyReset(String time) {
+    return 'Probeer opnieuw na $time';
+  }
 }
