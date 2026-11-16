@@ -95,7 +95,13 @@ jobs:
           security default-keychain -s "$KEYCHAIN"
 
           printf '%s' "$CERT_BASE64" | tr -d '\r\n' | base64 -d > "$RUNNER_TEMP/cert.p12"
-          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          if ! security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$CERT_PASSWORD" -T /usr/bin/codesign; then
+            echo "Re-encoding the PKCS#12 for the macOS Security framework."
+            openssl pkcs12 -in "$RUNNER_TEMP/cert.p12" -passin env:CERT_PASSWORD -nodes -out "$RUNNER_TEMP/cert.pem"
+            openssl pkcs12 -export -legacy -in "$RUNNER_TEMP/cert.pem" -inkey "$RUNNER_TEMP/cert.pem" -passout env:CERT_PASSWORD -out "$RUNNER_TEMP/cert-mac.p12"
+            security import "$RUNNER_TEMP/cert-mac.p12" -k "$KEYCHAIN" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+            rm -f "$RUNNER_TEMP/cert.pem" "$RUNNER_TEMP/cert.p12" "$RUNNER_TEMP/cert-mac.p12"
+          fi
           security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASS" "$KEYCHAIN" >/dev/null
           security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
 
