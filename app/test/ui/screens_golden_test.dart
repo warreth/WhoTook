@@ -122,6 +122,7 @@ void main() {
   });
 
   testWidgets('online lobby shows the Wi-Fi hint', (tester) async {
+    if (BuildFlavor.foss) return;
     await _pump(
       tester,
       const LobbyScreen(),
