@@ -155,9 +155,6 @@ class SignalingIceClient {
         ],
       );
     }
-    final relayFuture = turnRelay?.call().catchError(
-      (Object _) => const TurnRelayAttempt(passActive: true),
-    );
     // A `wss://` custom URL is common, but ICE config is a plain HTTPS call.
     final origin = signalingUrl
         .replaceFirst(RegExp(r'^ws://'), 'http://')
@@ -214,8 +211,9 @@ class SignalingIceClient {
             usedToday: parsed.usedToday,
             retryAtUtc: parsed.retryAtUtc,
           );
-    if (relayFuture == null) return config;
-    final attempt = await relayFuture;
+    final relay = turnRelay;
+    if (relay == null) return config;
+    final attempt = await relay();
     final grant = attempt.grant;
     if (grant == null) {
       return IceConfig(
@@ -511,7 +509,13 @@ class WebRtcHostTransport implements HostTransport {
       final pending = List<Map<String, dynamic>>.of(_pendingSignaling);
       _pendingSignaling.clear();
       for (final frame in pending) {
+        if (_closed) break;
         await handleSignalingFrame(frame);
+      }
+      if (_closed) {
+        _pendingSignaling.clear();
+        await channel.sink.close();
+        _signaling = null;
       }
     } on Object {
       await channel.sink.close();
@@ -539,6 +543,7 @@ class WebRtcHostTransport implements HostTransport {
   /// Routes one signaling frame. Public so frame parsing can be unit tested
   /// without a live WebSocket or a native peer connection.
   Future<void> handleSignalingFrame(Map<String, dynamic> frame) async {
+    if (_closed) return;
     switch (frame['type']) {
       case 'peer_joined':
         final peerId = frame['peerId'] as String?;
@@ -548,6 +553,10 @@ class WebRtcHostTransport implements HostTransport {
         final peer = _createPeer(peerId);
         _peers[peerId] = peer;
         await peer.createOffer();
+        if (_closed) {
+          _peers.remove(peerId);
+          await peer.close();
+        }
       case 'answer':
         final from = frame['from'] as String?;
         final payload = frame['payload'] as Map<String, dynamic>?;
@@ -747,11 +756,14 @@ class WebRtcClientTransport extends _WebRtcTransportBase
     required super.invite,
     required this.iceClient,
     this.settings = const AppSettings(),
-    this.iceTimeout = const Duration(seconds: 12),
+    this.iceTimeout = const Duration(seconds: 20),
   }) : super(role: 'client');
 
   final SignalingIceClient iceClient;
   final AppSettings settings;
+
+  /// Covers the host's /ice-config plus relay issuance before its offer. A
+  /// failed free P2P attempt waits this long before the firewall prompt.
   final Duration iceTimeout;
 
   IceConfig? _config;

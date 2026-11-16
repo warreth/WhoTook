@@ -1003,5 +1003,6 @@
         "type": "String"
       }
     }
-  }
+  },
+  "firewallRetryNow": "Retry now"
 }

@@ -252,30 +252,24 @@ void main() {
       );
     });
 
-    test('fetches relay and ICE config concurrently', () async {
-      final relayStarted = Completer<void>();
-      final httpGate = Completer<void>();
+    test('does not spend relay quota when ICE config is rejected', () async {
+      var relayCalls = 0;
       final client = SignalingIceClient(
         signalingUrl: 'https://signal.example',
-        httpClient: MockClient((_) async {
-          await httpGate.future;
-          return http.Response(
-            '{"turnAllowed":false,'
-            '"iceServers":[{"urls":"stun:stun.cloudflare.com:3478"}]}',
-            200,
-          );
-        }),
+        httpClient: MockClient(
+          (_) async => http.Response('{"error":"UNAUTHORIZED"}', 401),
+        ),
         turnRelay: () async {
-          if (!relayStarted.isCompleted) relayStarted.complete();
+          relayCalls += 1;
           return const TurnRelayAttempt(passActive: true);
         },
       );
 
-      final pending = client.fetch(roomId: 'room1234', token: 'secret');
-      await relayStarted.future.timeout(const Duration(seconds: 1));
-      httpGate.complete();
-      final config = await pending;
-      expect(config.iceServers.single.urls.single, startsWith('stun:'));
+      await expectLater(
+        client.fetch(roomId: 'room1234', token: 'bad'),
+        throwsA(isA<TransportException>()),
+      );
+      expect(relayCalls, 0);
     });
 
     test('retries /ice-config while the host room is opening', () async {
@@ -306,7 +300,8 @@ void main() {
       final client = SignalingIceClient(
         signalingUrl: 'https://signal.example',
         httpClient: MockClient(
-          (_) async => throw StateError('custom TURN must not call /ice-config'),
+          (_) async =>
+              throw StateError('custom TURN must not call /ice-config'),
         ),
       );
 

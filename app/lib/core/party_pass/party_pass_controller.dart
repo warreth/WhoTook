@@ -309,6 +309,7 @@ class PartyPassController extends AsyncNotifier<PartyPassState> {
             latest.copyWith(
               relayErrorCode: error.code,
               relayRetryAtUtc: error.retryAtUtc,
+              clearRelayRetry: error.retryAtUtc == null,
               remainingMatchesToday:
                   error.remainingMatchesToday ?? latest.remainingMatchesToday,
             ),

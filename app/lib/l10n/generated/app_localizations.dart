@@ -3288,6 +3288,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Try again after {time}'**
   String firewallBusyReset(String time);
+
+  /// No description provided for @firewallRetryNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry now'**
+  String get firewallRetryNow;
 }
 
 class _AppLocalizationsDelegate

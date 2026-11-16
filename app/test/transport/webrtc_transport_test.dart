@@ -144,7 +144,7 @@ void main() {
         signalingUrl: 'https://signal.whotook.party',
       ),
     );
-    expect(transport.iceTimeout, greaterThanOrEqualTo(const Duration(seconds: 12)));
+    expect(transport.iceTimeout, greaterThanOrEqualTo(const Duration(seconds: 20)));
   });
 
   test('a granted relay timeout maps to the relay prompt', () {
@@ -180,6 +180,14 @@ void main() {
 
     tearDown(() async {
       await transport.close();
+    });
+
+    test('ignores signaling after close', () async {
+      await transport.close();
+      await transport.handleSignalingFrame(<String, dynamic>{
+        'type': 'peer_joined',
+        'peerId': 'late-peer',
+      });
     });
 
     test('close is idempotent', () async {

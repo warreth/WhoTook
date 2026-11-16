@@ -592,5 +592,6 @@
         "type": "String"
       }
     }
-  }
+  },
+  "firewallRetryNow": "Nu opnieuw"
 }

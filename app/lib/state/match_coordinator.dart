@@ -4509,6 +4509,10 @@ class BestEffortHostTransport implements HostTransport {
     final bytes = message.encode().length;
     if (_queued.length >= _maxQueuedItems ||
         _queuedBytes + bytes > _maxQueuedBytes) {
+      assert(() {
+        debugPrint('BestEffortHostTransport queue budget exhausted');
+        return true;
+      }());
       return;
     }
     _queuedBytes += bytes;

@@ -1887,4 +1887,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String firewallBusyReset(String time) {
     return 'Try again after $time';
   }
+
+  @override
+  String get firewallRetryNow => 'Retry now';
 }
