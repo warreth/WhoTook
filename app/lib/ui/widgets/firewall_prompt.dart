@@ -189,7 +189,7 @@ class FirewallPromptOverlay extends ConsumerWidget {
                             GameButton(
                               label: invalidReceipt
                                   ? l10n.partyPassRestore
-                                  : rateLimited
+                                  : rateLimited || quotaReached
                                   ? l10n.firewallRetryNow
                                   : l10n.firewallRetryAction,
                               icon: invalidReceipt

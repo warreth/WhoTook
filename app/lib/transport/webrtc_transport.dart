@@ -552,10 +552,13 @@ class WebRtcHostTransport implements HostTransport {
         if (existing != null) await existing.close();
         final peer = _createPeer(peerId);
         _peers[peerId] = peer;
-        await peer.createOffer();
-        if (_closed) {
-          _peers.remove(peerId);
-          await peer.close();
+        try {
+          await peer.createOffer();
+        } finally {
+          if (_closed) {
+            _peers.remove(peerId);
+            await peer.close();
+          }
         }
       case 'answer':
         final from = frame['from'] as String?;

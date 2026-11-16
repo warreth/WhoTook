@@ -97,6 +97,7 @@ void main() {
       WireMessage(type: WireType.ping, seq: 1),
     );
     await wrapper.close();
+    await wrapper.close();
     gate.complete();
     await Future<void>.delayed(Duration.zero);
     await Future<void>.delayed(Duration.zero);

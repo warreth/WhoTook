@@ -4521,6 +4521,7 @@ class BestEffortHostTransport implements HostTransport {
 
   @override
   Future<void> close() async {
+    if (_closed) return;
     _closed = true;
     _queued.clear();
     _queuedBytes = 0;

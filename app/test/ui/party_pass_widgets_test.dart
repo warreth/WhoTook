@@ -272,6 +272,9 @@ void main() {
 
     expect(find.text('Daily relay limit reached'), findsOneWidget);
     expect(find.textContaining('Next allowance:'), findsOneWidget);
+    if (!BuildFlavor.foss) {
+      expect(find.text('Retry now'), findsOneWidget);
+    }
   });
 
   testWidgets('the FOSS self-host form has URI, username and password', (
