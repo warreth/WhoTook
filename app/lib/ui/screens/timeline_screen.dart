@@ -1,20 +1,21 @@
 import 'dart:async';
-import 'dart:math';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/audio/game_audio_service.dart';
 import '../../core/format/date_label.dart';
-import '../../l10n/l10n.dart';
 import '../../core/models/models.dart';
 import '../../core/theme/whotook_theme.dart';
+import '../../l10n/l10n.dart';
 import '../../state/match_coordinator.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
+import '../widgets/game_widgets.dart';
 import '../widgets/host_controls.dart';
 
-/// Time Traveler: drag the year, tap the month, then watch the pins drop.
+/// Time Traveler: a decade, a year, a month, then the evidence timeline.
 class TimelineScreen extends ConsumerStatefulWidget {
   const TimelineScreen({super.key});
 
@@ -23,219 +24,421 @@ class TimelineScreen extends ConsumerStatefulWidget {
 }
 
 class _TimelineScreenState extends ConsumerState<TimelineScreen> {
-  static const int minYear = 1990;
+  int _eraStart = 2010;
   int _year = 2015;
   int _month = 6;
 
-  void _setYear(double value) {
-    setState(() => _year = value.round());
+  static const List<int> _eraStarts = <int>[1990, 2000, 2010, 2020];
+
+  int get _currentYear => DateTime.now().year;
+
+  int _eraEnd(int start) => start == 2020 ? _currentYear : start + 9;
+
+  void _selectEra(int start) {
+    setState(() {
+      _eraStart = start;
+      _year = _year.clamp(start, _eraEnd(start));
+    });
+    unawaited(GameHaptics.instance.selection());
+    unawaited(GameAudioService.instance.tap());
   }
 
-  void _setMonth(int month) {
+  void _selectYear(int year) {
+    setState(() => _year = year);
+    unawaited(GameHaptics.instance.selection());
+    unawaited(GameAudioService.instance.tap());
+  }
+
+  void _selectMonth(int month) {
     setState(() => _month = month);
-    unawaited(HapticFeedback.selectionClick());
+    unawaited(GameHaptics.instance.selection());
+    unawaited(GameAudioService.instance.tap());
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final colors = WhoTookColors.of(context);
     final coordinator = ref.read(matchCoordinatorProvider);
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
-    final maxYear = DateTime.now().year;
     final submitted = state.timelineSubmitted;
     final year = state.lockedTimelineYear ?? _year;
     final month = state.lockedTimelineMonth ?? _month;
-
     if (state.phase == RoundPhase.timelineReveal) {
       return _TimelineRevealView(state: state);
     }
-
+    final years = <int>[
+      for (var value = _eraStart; value <= _eraEnd(_eraStart); value++) value,
+    ];
     return Scaffold(
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.s20,
-            AppSpacing.s12,
-            AppSpacing.s20,
-            AppSpacing.s24,
-          ),
-          children: <Widget>[
-            _TimelineHeader(state: state),
-            const SizedBox(height: AppSpacing.s12),
-            PhotoPanel(
-              bytes: state.activePhotoBytes,
-              aspectRatio: 1.4,
-              isPanorama: state.activePhotoIsPanorama,
+        child: ScreenBody(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.s20,
+              AppSpacing.s12,
+              AppSpacing.s20,
+              AppSpacing.s24,
             ),
-            const SizedBox(height: AppSpacing.s16),
-            Text(
-              submitted ? l10n.lockedIn : l10n.whenWasThisTaken,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: colorsOf(context).ink2),
-            ),
-            const SizedBox(height: AppSpacing.s4),
-            Text(
-              monthYear(l10n, year, month),
-              textAlign: TextAlign.center,
-              style: tabularFigures(
-                TextStyle(
-                  fontFamily: 'JetBrainsMono',
-                  fontSize: 32,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: -1,
-                  color: colorsOf(context).ink,
+            children: <Widget>[
+              _TimelineHeader(state: state),
+              const SizedBox(height: AppSpacing.s12),
+              PolaroidPhotoCard(
+                bytes: state.activePhotoBytes,
+                caption: l10n.modeTimeTraveler,
+                meta: l10n.ownerIncluded,
+                tilt: -0.018,
+                aspectRatio: 1.35,
+              ),
+              const SizedBox(height: AppSpacing.s12),
+              Text(
+                submitted ? l10n.lockedIn : l10n.whenWasThisTaken,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: colors.ink2),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                monthYear(l10n, year, month),
+                textAlign: TextAlign.center,
+                style: tabularFigures(
+                  TextStyle(
+                    fontFamily: 'JetBrainsMono',
+                    fontSize: 38,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: -1.8,
+                    color: colors.ink,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.s4),
-            CountdownBar(
-              remainingMs: state.remainingMs,
-              totalMs: state.phaseDurationMs,
-              label: l10n.guessYearMonth,
-            ),
-            const SizedBox(height: AppSpacing.s8),
-            SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                trackHeight: 6,
-                activeTrackColor: colorsOf(context).accent,
-                inactiveTrackColor: colorsOf(context).raised,
-                thumbColor: colorsOf(context).accent,
-                overlayColor: colorsOf(context).accent.withValues(alpha: 0.12),
-                showValueIndicator: ShowValueIndicator.onDrag,
-                valueIndicatorColor: colorsOf(context).ink,
-                valueIndicatorTextStyle: TextStyle(
-                  color: colorsOf(context).bg,
-                  fontFamily: 'JetBrainsMono',
-                  fontSize: 12,
-                ),
+              const SizedBox(height: AppSpacing.s8),
+              PanicTimerBar(
+                remainingMs: state.remainingMs,
+                totalMs: state.phaseDurationMs,
+                label: l10n.guessYearMonth,
               ),
-              child: Slider(
-                value: year.toDouble().clamp(
-                  minYear.toDouble(),
-                  maxYear.toDouble(),
-                ),
-                min: minYear.toDouble(),
-                max: maxYear.toDouble(),
-                divisions: maxYear - minYear,
-                label: '$year',
-                onChanged: submitted ? null : _setYear,
-                onChangeEnd: (_) => unawaited(HapticFeedback.selectionClick()),
+              const SizedBox(height: AppSpacing.s12),
+              _StepLabel(number: '01', label: l10n.pickDecade),
+              _EraGrid(
+                starts: _eraStarts,
+                selected: _eraStart,
+                currentYear: _currentYear,
+                onSelected: _selectEra,
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
-              child: Row(
-                children: <Widget>[
-                  Text(
-                    '$minYear',
-                    style: tabularFigures(
-                      TextStyle(fontSize: 11, color: colorsOf(context).ink3),
+              const SizedBox(height: AppSpacing.s12),
+              _StepLabel(number: '02', label: l10n.pickYear),
+              _YearGrid(years: years, selected: year, onSelected: _selectYear),
+              const SizedBox(height: AppSpacing.s12),
+              _StepLabel(number: '03', label: l10n.pickMonth),
+              _MonthGrid(selected: month, onSelected: _selectMonth),
+              const SizedBox(height: AppSpacing.s12),
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.s12),
+                decoration: BoxDecoration(
+                  color: colors.raised,
+                  borderRadius: BorderRadius.circular(AppRadii.rCard),
+                  border: Border.all(color: colors.hairline),
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            l10n.yourGuess.toUpperCase(),
+                            style: TextStyle(
+                              fontFamily: 'JetBrainsMono',
+                              fontSize: 8,
+                              letterSpacing: 0.8,
+                              color: colors.ink3,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            monthYear(l10n, year, month),
+                            style: tabularFigures(
+                              TextStyle(
+                                fontFamily: 'JetBrainsMono',
+                                fontSize: 22,
+                                fontWeight: FontWeight.w500,
+                                letterSpacing: -1,
+                                color: colors.ink,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    l10n.now,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: colorsOf(context).ink3,
+                    Text(
+                      l10n.ownerIncluded,
+                      textAlign: TextAlign.right,
+                      style: TextStyle(fontSize: 11, color: colors.ink2),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.s16),
-            SectionLabel(l10n.monthLabel),
-            GridView.count(
-              crossAxisCount: 6,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 6,
-              crossAxisSpacing: 6,
-              childAspectRatio: 1.18,
-              children: <Widget>[
-                for (var monthIndex = 1; monthIndex <= 12; monthIndex++)
-                  _MonthTile(
-                    label: monthShort(l10n, monthIndex),
-                    selected: month == monthIndex,
-                    onTap: submitted ? null : () => _setMonth(monthIndex),
+              const SizedBox(height: AppSpacing.s12),
+              if (submitted) ...<Widget>[
+                NoticeBanner(
+                  message: l10n.lockedInWaiting,
+                  icon: Icons.hourglass_empty,
+                ),
+                const SizedBox(height: AppSpacing.s12),
+                GameButton(
+                  label: l10n.lockedDate(monthYear(l10n, year, month)),
+                  onPressed: null,
+                  fullWidth: true,
+                  variant: GameButtonVariant.secondary,
+                ),
+              ] else
+                GameButton(
+                  label: l10n.lockInDate(monthYear(l10n, year, month)),
+                  onPressed: () => unawaited(
+                    state.isHosting
+                        ? coordinator.submitTimeline(year, month)
+                        : coordinator.clientSubmitTimeline(year, month),
                   ),
+                  fullWidth: true,
+                  icon: Icons.lock_outline,
+                ),
+              if (state.errorMessage != null) ...<Widget>[
+                const SizedBox(height: AppSpacing.s12),
+                NoticeBanner(
+                  message: state.errorMessage!,
+                  tone: StatusTone.warning,
+                  icon: Icons.error_outline,
+                ),
               ],
-            ),
-            const SizedBox(height: AppSpacing.s20),
-            if (submitted) ...<Widget>[
-              NoticeBanner(
-                message: l10n.lockedInWaiting,
-                icon: Icons.hourglass_empty,
-              ),
-              const SizedBox(height: AppSpacing.s12),
-              SecondaryButton(
-                label: l10n.lockedDate(monthYear(l10n, year, month)),
-                onPressed: null,
-              ),
-            ] else
-              PrimaryButton(
-                label: l10n.lockInDate(monthYear(l10n, year, month)),
-                onPressed: () => unawaited(
-                  state.isHosting
-                      ? coordinator.submitTimeline(year, month)
-                      : coordinator.clientSubmitTimeline(year, month),
-                ),
-              ),
-            if (state.errorMessage != null) ...<Widget>[
-              const SizedBox(height: AppSpacing.s12),
-              NoticeBanner(
-                message: state.errorMessage!,
-                tone: StatusTone.warning,
-                icon: Icons.error_outline,
-              ),
             ],
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-WhoTookColors colorsOf(BuildContext context) => WhoTookColors.of(context);
+class _StepLabel extends StatelessWidget {
+  const _StepLabel({required this.number, required this.label});
 
-class _MonthTile extends StatelessWidget {
-  const _MonthTile({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
+  final String number;
   final String label;
-  final bool selected;
-  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
-    return Material(
-      color: selected ? colors.accent : colors.card,
-      borderRadius: BorderRadius.circular(AppRadii.rSm),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadii.rSm),
-        child: Container(
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadii.rSm),
-            border: Border.all(
-              color: selected ? colors.accent : colors.hairline,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: <Widget>[
+          Text(
+            number,
+            style: TextStyle(
+              fontFamily: 'JetBrainsMono',
+              fontSize: 9,
+              color: colors.accent,
             ),
           ),
-          child: Text(
+          const SizedBox(width: 6),
+          Text(
             label,
             style: TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: selected ? colors.onAccent : colors.ink2,
+              fontWeight: FontWeight.w700,
+              color: colors.ink2,
             ),
           ),
-        ),
+        ],
       ),
+    );
+  }
+}
+
+class _EraGrid extends StatelessWidget {
+  const _EraGrid({
+    required this.starts,
+    required this.selected,
+    required this.currentYear,
+    required this.onSelected,
+  });
+
+  final List<int> starts;
+  final int selected;
+  final int currentYear;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 7,
+      crossAxisSpacing: 7,
+      childAspectRatio: 1.55,
+      children: <Widget>[
+        for (final start in starts)
+          Semantics(
+            button: true,
+            selected: start == selected,
+            child: GestureDetector(
+              onTap: () => onSelected(start),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 110),
+                padding: const EdgeInsets.all(AppSpacing.s12),
+                decoration: BoxDecoration(
+                  color: start == selected ? colors.ink : colors.card,
+                  borderRadius: BorderRadius.circular(AppRadii.rControl),
+                  border: Border.all(
+                    color: start == selected ? colors.ink : colors.hairline,
+                    width: 2,
+                  ),
+                  boxShadow: start == selected
+                      ? const <BoxShadow>[
+                          BoxShadow(
+                            color: GamePalette.gold,
+                            offset: Offset(0, 3),
+                            blurRadius: 0,
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    Text(
+                      '${start}s',
+                      style: TextStyle(
+                        fontFamily: 'JetBrainsMono',
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -1,
+                        color: start == selected ? colors.bg : colors.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$start–${start == 2020 ? currentYear : start + 9}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: start == selected ? colors.ink3 : colors.ink3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _YearGrid extends StatelessWidget {
+  const _YearGrid({
+    required this.years,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final List<int> years;
+  final int selected;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    return Wrap(
+      spacing: 5,
+      runSpacing: 5,
+      children: <Widget>[
+        for (final year in years)
+          SizedBox(
+            width: (MediaQuery.sizeOf(context).width - 40 - 20) / 5,
+            height: 42,
+            child: Semantics(
+              button: true,
+              selected: year == selected,
+              child: GestureDetector(
+                onTap: () => onSelected(year),
+                child: Container(
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: year == selected ? colors.ink : colors.card,
+                    borderRadius: BorderRadius.circular(7),
+                    border: Border.all(
+                      color: year == selected ? colors.ink : colors.hairline,
+                    ),
+                  ),
+                  child: Text(
+                    '$year',
+                    style: TextStyle(
+                      fontFamily: 'JetBrainsMono',
+                      fontSize: 11,
+                      color: year == selected ? colors.bg : colors.ink2,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _MonthGrid extends StatelessWidget {
+  const _MonthGrid({required this.selected, required this.onSelected});
+
+  final int selected;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
+    final width = (MediaQuery.sizeOf(context).width - 40 - 18) / 4;
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: <Widget>[
+        for (var month = 1; month <= 12; month++)
+          SizedBox(
+            width: width,
+            height: 44,
+            child: Semantics(
+              button: true,
+              selected: month == selected,
+              label: monthName(l10n, month),
+              child: GestureDetector(
+                onTap: () => onSelected(month),
+                child: Container(
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: month == selected ? colors.ink : colors.card,
+                    borderRadius: BorderRadius.circular(7),
+                    border: Border.all(
+                      color: month == selected ? colors.ink : colors.hairline,
+                    ),
+                  ),
+                  child: Text(
+                    monthName(l10n, month),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: month == selected
+                          ? FontWeight.w700
+                          : FontWeight.w400,
+                      color: month == selected ? colors.bg : colors.ink2,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -295,68 +498,411 @@ class _TimelineRevealView extends StatelessWidget {
     final furthest = reveal.entries
         .where((entry) => entry.playerId == reveal.furthestId)
         .firstOrNull;
+    final owner = state.players
+        .where((player) => player.id == reveal.ownerId)
+        .firstOrNull;
+    final entries = <TimelineEntry>[...reveal.entries]
+      ..sort((a, b) => (a.monthsOff ?? 9999).compareTo(b.monthsOff ?? 9999));
+    final average = entries.isEmpty
+        ? 0
+        : (entries
+                      .map((entry) => entry.monthsOff ?? 0)
+                      .reduce((a, b) => a + b) /
+                  entries.length)
+              .round();
     return Scaffold(
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.s20,
-            AppSpacing.s12,
-            AppSpacing.s20,
-            AppSpacing.s24,
-          ),
-          children: <Widget>[
-            _TimelineHeader(state: state),
-            const SizedBox(height: AppSpacing.s12),
-            PhotoPanel(
-              bytes: state.activePhotoBytes,
-              aspectRatio: 2.1,
-              isPanorama: state.activePhotoIsPanorama,
+        child: ScreenBody(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.s20,
+              AppSpacing.s12,
+              AppSpacing.s20,
+              AppSpacing.s24,
             ),
-            const SizedBox(height: AppSpacing.s12),
+            children: <Widget>[
+              _TimelineHeader(state: state),
+              const SizedBox(height: AppSpacing.s12),
+              _AwardDuo(closest: closest, furthest: furthest, l10n: l10n),
+              const SizedBox(height: AppSpacing.s12),
+              _EvidenceBoard(
+                state: state,
+                reveal: reveal,
+                entries: entries,
+                ownerName: owner?.name ?? l10n.player,
+              ),
+              const SizedBox(height: AppSpacing.s12),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      l10n.averageMiss(monthDistance(l10n, average)),
+                      style: TextStyle(fontSize: 12, color: colors.ink2),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    l10n.ownerIncluded,
+                    style: TextStyle(fontSize: 10, color: colors.ink3),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.s12),
+              Text(
+                l10n.nextRoundInMoment,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: colors.ink3),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AwardDuo extends StatelessWidget {
+  const _AwardDuo({
+    required this.closest,
+    required this.furthest,
+    required this.l10n,
+  });
+
+  final TimelineEntry? closest;
+  final TimelineEntry? furthest;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: _AwardCard(
+            label: l10n.timeLord,
+            entry: closest,
+            gold: true,
+            l10n: l10n,
+            colors: colors,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _AwardCard(
+            label: l10n.mostDelusional,
+            entry: furthest,
+            gold: false,
+            l10n: l10n,
+            colors: colors,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AwardCard extends StatelessWidget {
+  const _AwardCard({
+    required this.label,
+    required this.entry,
+    required this.gold,
+    required this.l10n,
+    required this.colors,
+  });
+
+  final String label;
+  final TimelineEntry? entry;
+  final bool gold;
+  final AppLocalizations l10n;
+  final WhoTookColors colors;
+
+  @override
+  Widget build(BuildContext context) {
+    final off = entry?.monthsOff;
+    // Gold is a light surface in both themes, so it needs its own ink instead
+    // of the theme's light-on-dark foreground.
+    final ink = gold ? const Color(0xFF2A1B06) : colors.ink;
+    final ink2 = gold ? const Color(0xFF5B3A0E) : colors.ink2;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.s12),
+      decoration: BoxDecoration(
+        color: gold ? GamePalette.gold : colors.card,
+        borderRadius: BorderRadius.circular(AppRadii.rControl),
+        border: Border.all(color: colors.ink, width: 2),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: colors.ink,
+            offset: const Offset(0, 3),
+            blurRadius: 0,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            label.toUpperCase(),
+            style: TextStyle(
+              fontFamily: 'JetBrainsMono',
+              fontSize: 8,
+              letterSpacing: 0.7,
+              color: ink2,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            entry?.playerName ?? '—',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: ink,
+            ),
+          ),
+          if (off != null) ...<Widget>[
+            const SizedBox(height: 2),
             Text(
-              l10n.theTimeline,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w500,
-                letterSpacing: -0.3,
-                color: colors.ink,
+              '${off == 0 ? l10n.exact : l10n.offBy(monthDistance(l10n, off))} · +${entry!.points}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 10, color: ink2),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _EvidenceBoard extends StatefulWidget {
+  const _EvidenceBoard({
+    required this.state,
+    required this.reveal,
+    required this.entries,
+    required this.ownerName,
+  });
+
+  final MatchUiState state;
+  final TimelineReveal reveal;
+  final List<TimelineEntry> entries;
+  final String ownerName;
+
+  @override
+  State<_EvidenceBoard> createState() => _EvidenceBoardState();
+}
+
+class _EvidenceBoardState extends State<_EvidenceBoard> {
+  bool _shown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _shown = true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final cork = dark ? const Color(0xFF2A241D) : const Color(0xFFD9C6A5);
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 420),
+      tween: Tween<double>(begin: 0, end: _shown ? 1 : 0),
+      curve: Curves.easeOut,
+      builder: (context, value, child) => Opacity(
+        opacity: value,
+        child: Transform.scale(scale: 0.98 + value * 0.02, child: child),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: cork,
+          borderRadius: BorderRadius.circular(AppRadii.rCard),
+          border: Border.all(color: colors.ink, width: 2),
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: colors.ink,
+              offset: const Offset(0, 6),
+              blurRadius: 0,
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(AppSpacing.s12),
+        child: Column(
+          children: <Widget>[
+            SizedBox(
+              width: 180,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: <Widget>[
+                  PolaroidPhotoCard(
+                    bytes: widget.state.activePhotoBytes,
+                    caption: widget.ownerName,
+                    meta: monthYear(
+                      l10n,
+                      widget.reveal.actualYear,
+                      widget.reveal.actualMonth,
+                    ),
+                    tilt: -0.035,
+                    aspectRatio: 1.05,
+                  ),
+                  Positioned(
+                    left: -6,
+                    top: -6,
+                    child: Transform.rotate(
+                      angle: -0.06,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colors.accent,
+                          border: Border.all(color: colors.ink, width: 2),
+                        ),
+                        child: Text(
+                          l10n.actualDate.toUpperCase(),
+                          style: TextStyle(
+                            fontFamily: 'JetBrainsMono',
+                            fontSize: 8,
+                            fontWeight: FontWeight.w700,
+                            color: colors.onAccent,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: AppSpacing.s8),
-            _TimelineChart(reveal: reveal),
-            const SizedBox(height: AppSpacing.s12),
-            Row(
-              children: <Widget>[
-                if (closest != null)
-                  Expanded(
-                    child: _TitleCard(
-                      label: l10n.timeLord,
-                      entry: closest,
-                      accent: true,
-                      icon: Icons.schedule,
-                    ),
-                  ),
-                if (closest != null && furthest != null)
-                  const SizedBox(width: AppSpacing.s8),
-                if (furthest != null && (furthest.monthsOff ?? 0) > 0)
-                  Expanded(
-                    child: _TitleCard(
-                      label: l10n.mostDelusional,
-                      entry: furthest,
-                      accent: false,
-                      icon: Icons.explore_off_outlined,
-                    ),
-                  ),
-              ],
+            SizedBox(
+              height: 112,
+              child: _EvidenceTimeline(
+                state: widget.state,
+                entries: widget.entries,
+                actualYear: widget.reveal.actualYear,
+                actualMonth: widget.reveal.actualMonth,
+                l10n: l10n,
+              ),
             ),
-            const SizedBox(height: AppSpacing.s16),
-            SurfaceCard(
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: <Widget>[
-                  for (final entry in reveal.entries)
-                    _TimelineResultRow(
-                      entry: entry,
+            const SizedBox(height: AppSpacing.s8),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final columns = constraints.maxWidth >= 560 ? 4 : 2;
+                return GridView.count(
+                  crossAxisCount: columns,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: 7,
+                  crossAxisSpacing: 7,
+                  childAspectRatio: columns == 4 ? 1.15 : 1.52,
+                  children: <Widget>[
+                    for (final entry in widget.entries)
+                      _EvidenceNote(
+                        entry: entry,
+                        l10n: l10n,
+                        state: widget.state,
+                      ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EvidenceTimeline extends StatelessWidget {
+  const _EvidenceTimeline({
+    required this.state,
+    required this.entries,
+    required this.actualYear,
+    required this.actualMonth,
+    required this.l10n,
+  });
+
+  final MatchUiState state;
+  final List<TimelineEntry> entries;
+  final int actualYear;
+  final int actualMonth;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    final years = <int>[
+      actualYear,
+      for (final entry in entries)
+        if (entry.year != null) entry.year!,
+    ];
+    var minYear = years.reduce(math.min) - 1;
+    var maxYear = years.reduce(math.max) + 1;
+    if (maxYear - minYear < 4) {
+      minYear -= 1;
+      maxYear += 1;
+    }
+    final totalMonths = (maxYear - minYear + 1) * 12;
+    double fraction(int year, int month) =>
+        ((year - minYear) * 12 + (month - 1)) / totalMonths;
+    final actualFraction = fraction(actualYear, actualMonth);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        return Stack(
+          clipBehavior: Clip.none,
+          children: <Widget>[
+            Positioned.fill(
+              child: CustomPaint(
+                painter: _StringPainter(
+                  actualFraction: actualFraction,
+                  fractions: <double>[
+                    for (final entry in entries)
+                      if (entry.year != null)
+                        fraction(entry.year!, entry.month ?? 1),
+                  ],
+                  color: colors.accent,
+                ),
+              ),
+            ),
+            Positioned(
+              left: 4,
+              right: 4,
+              top: 56,
+              child: Container(height: 3, color: colors.ink),
+            ),
+            for (var i = 0; i < 3; i++)
+              Positioned(
+                left: 4 + (width - 8) * (i / 2) - 16,
+                top: 64,
+                child: SizedBox(
+                  width: 32,
+                  child: Text(
+                    '${minYear + ((maxYear - minYear) * i / 2).round()}',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'JetBrainsMono',
+                      fontSize: 8,
+                      color: colors.ink2,
+                    ),
+                  ),
+                ),
+              ),
+            for (final entry in entries)
+              if (entry.year != null)
+                Positioned(
+                  left: fraction(entry.year!, entry.month ?? 1) * width - 20,
+                  top: 36,
+                  child: Tooltip(
+                    message:
+                        '${entry.playerName} · ${monthYear(l10n, entry.year!, entry.month ?? 1)}',
+                    child: PlayerAvatar(
+                      initial: entry.playerName,
                       avatar:
                           state.players
                               .where((player) => player.id == entry.playerId)
@@ -364,390 +910,201 @@ class _TimelineRevealView extends StatelessWidget {
                               ?.avatar ??
                           '',
                       photoBase64: state.avatarPhotos[entry.playerId],
+                      size: 40,
                     ),
+                  ),
+                ),
+            Positioned(
+              left: actualFraction * width - 24,
+              top: 0,
+              child: Column(
+                children: <Widget>[
+                  Tooltip(
+                    message: l10n.actualDate,
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: GamePalette.goldDeep,
+                          width: 3,
+                        ),
+                        color: colors.raised,
+                        boxShadow: const <BoxShadow>[
+                          BoxShadow(
+                            color: Color(0x44B46B12),
+                            blurRadius: 8,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child:
+                          state.activePhotoBytes == null ||
+                              state.activePhotoBytes!.isEmpty
+                          ? const Icon(
+                              Icons.star,
+                              color: GamePalette.goldDeep,
+                              size: 22,
+                            )
+                          : Image.memory(
+                              state.activePhotoBytes!,
+                              fit: BoxFit.cover,
+                            ),
+                    ),
+                  ),
+                  Container(width: 2, height: 8, color: GamePalette.goldDeep),
                 ],
               ),
             ),
-            const SizedBox(height: AppSpacing.s12),
-            Text(
-              l10n.nextRoundInMoment,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: colors.ink3),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _StringPainter extends CustomPainter {
+  const _StringPainter({
+    required this.actualFraction,
+    required this.fractions,
+    required this.color,
+  });
+
+  final double actualFraction;
+  final List<double> fractions;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color.withValues(alpha: 0.65)
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+    final start = Offset(size.width * actualFraction, 0);
+    for (final fraction in fractions) {
+      final end = Offset(size.width * fraction, 56);
+      final delta = end - start;
+      final length = delta.distance;
+      if (length < 1) continue;
+      final direction = delta / length;
+      var distance = 0.0;
+      while (distance < length) {
+        final a = start + direction * distance;
+        final b = start + direction * math.min(distance + 4, length);
+        canvas.drawLine(a, b, paint);
+        distance += 8;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _StringPainter oldDelegate) =>
+      oldDelegate.actualFraction != actualFraction ||
+      oldDelegate.fractions != fractions ||
+      oldDelegate.color != color;
+}
+
+class _EvidenceNote extends StatelessWidget {
+  const _EvidenceNote({
+    required this.entry,
+    required this.l10n,
+    required this.state,
+  });
+
+  final TimelineEntry entry;
+  final AppLocalizations l10n;
+  final MatchUiState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    final player = state.players
+        .where((player) => player.id == entry.playerId)
+        .firstOrNull;
+    return Transform.rotate(
+      angle: entry.isOwner ? 0.012 : -0.01,
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.s8),
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: colors.ink, width: 2),
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: colors.ink.withValues(alpha: 0.16),
+              offset: const Offset(0, 3),
+              blurRadius: 0,
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _TitleCard extends StatelessWidget {
-  const _TitleCard({
-    required this.label,
-    required this.entry,
-    required this.accent,
-    required this.icon,
-  });
-
-  final String label;
-  final TimelineEntry entry;
-  final bool accent;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = WhoTookColors.of(context);
-    final l10n = context.l10n;
-    final off = entry.monthsOff ?? 0;
-    final guess = entry.year == null
-        ? l10n.noGuess
-        : monthYear(l10n, entry.year!, entry.month ?? 1);
-    return SurfaceCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Icon(icon, size: 15, color: accent ? colors.accent : colors.ink3),
-              const SizedBox(width: AppSpacing.s4),
-              Expanded(
-                child: Text(
-                  label,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: accent ? colors.accent : colors.ink2,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.s8),
-          Text(
-            entry.playerName,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            '$guess · ${off == 0 ? l10n.exact : l10n.offBy(monthDistance(l10n, off))}',
-            style: TextStyle(fontSize: 10, color: colors.ink2),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TimelineResultRow extends StatelessWidget {
-  const _TimelineResultRow({
-    required this.entry,
-    this.avatar = '',
-    this.photoBase64,
-  });
-
-  final TimelineEntry entry;
-  final String avatar;
-  final String? photoBase64;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = WhoTookColors.of(context);
-    final l10n = context.l10n;
-    final guessedDate = entry.year == null
-        ? l10n.noGuess
-        : monthYear(l10n, entry.year!, entry.month ?? 1);
-    final guess = entry.isOwner ? l10n.yourPhotoDate(guessedDate) : guessedDate;
-    final off = entry.timedOut || entry.year == null
-        ? ''
-        : entry.monthsOff == 0
-        ? l10n.exact
-        : l10n.offBy(monthDistance(l10n, entry.monthsOff ?? 0));
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.s12,
-        vertical: AppSpacing.s12,
-      ),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: colors.hairline)),
-      ),
-      child: Row(
-        children: <Widget>[
-          PlayerAvatar(
-            initial: entry.playerName,
-            avatar: avatar,
-            photoBase64: photoBase64,
-            size: 28,
-          ),
-          const SizedBox(width: AppSpacing.s12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
               children: <Widget>[
-                Text(
-                  entry.playerName,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
+                PlayerAvatar(
+                  initial: entry.playerName,
+                  avatar: player?.avatar ?? '',
+                  photoBase64: state.avatarPhotos[entry.playerId],
+                  size: 24,
                 ),
-                const SizedBox(height: 1),
-                Text(
-                  '$guess${off.isEmpty ? '' : ' · $off'}',
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 11, color: colors.ink2),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            '+${entry.points}',
-            style: tabularFigures(
-              TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: entry.points > 0 ? colors.ink : colors.ink3,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TimelineChart extends StatefulWidget {
-  const _TimelineChart({required this.reveal});
-
-  final TimelineReveal reveal;
-
-  @override
-  State<_TimelineChart> createState() => _TimelineChartState();
-}
-
-class _TimelineChartState extends State<_TimelineChart>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1300),
-    )..forward();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (MediaQuery.maybeOf(context)?.disableAnimations ?? false) {
-      _controller.value = 1;
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = WhoTookColors.of(context);
-    final reveal = widget.reveal;
-    final years = <int>[
-      reveal.actualYear,
-      for (final entry in reveal.entries)
-        if (entry.year != null) entry.year!,
-    ];
-    var minYear = years.reduce(min) - 1;
-    var maxYear = years.reduce(max) + 1;
-    if (maxYear - minYear < 4) {
-      minYear -= 1;
-      maxYear += 1;
-    }
-    final totalMonths = (maxYear - minYear + 1) * 12;
-
-    double fraction(int year, int month) =>
-        ((year - minYear) * 12 + (month - 1)) / totalMonths;
-
-    final guesses = <TimelineEntry>[
-      for (final entry in reveal.entries)
-        if (entry.year != null && !entry.isOwner) entry,
-    ];
-    return Container(
-      height: 220,
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadii.rCard),
-        border: Border.all(color: colors.hairline),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth - 16;
-          final trackY = 150.0;
-          return Stack(
-            children: <Widget>[
-              Positioned(
-                left: 8,
-                right: 8,
-                top: trackY,
-                child: Container(height: 2, color: colors.hairline),
-              ),
-              for (final year in <int>[
-                minYear,
-                (minYear + maxYear) ~/ 2,
-                maxYear,
-              ])
-                Positioned(
-                  left: 8 + fraction(year, 1) * width,
-                  top: trackY + 8,
+                const SizedBox(width: 5),
+                Expanded(
                   child: Text(
-                    '$year',
-                    style: tabularFigures(
-                      TextStyle(fontSize: 10, color: colors.ink3),
+                    entry.playerName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: colors.ink,
                     ),
                   ),
                 ),
-              for (var i = 0; i < guesses.length; i++)
-                _pin(
-                  context,
-                  entry: guesses[i],
-                  width: width,
-                  trackY: trackY,
-                  fraction: fraction,
-                  index: i,
-                ),
-              _actualPin(
-                context,
-                width: width,
-                trackY: trackY,
-                fraction: fraction,
+                if (entry.isOwner)
+                  Text(
+                    l10n.ownerLabel,
+                    style: TextStyle(
+                      fontFamily: 'JetBrainsMono',
+                      fontSize: 7,
+                      color: colors.ink3,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 3),
+            Text(
+              entry.year == null
+                  ? l10n.noGuess
+                  : monthYear(l10n, entry.year!, entry.month ?? 1),
+              style: TextStyle(
+                fontFamily: 'JetBrainsMono',
+                fontSize: 8,
+                color: colors.ink3,
+              ),
+            ),
+            if (entry.monthsOff != null) ...<Widget>[
+              const SizedBox(height: 2),
+              Text(
+                entry.monthsOff == 0
+                    ? l10n.exact
+                    : l10n.offBy(monthDistance(l10n, entry.monthsOff!)),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 9, color: colors.ink2),
               ),
             ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _pin(
-    BuildContext context, {
-    required TimelineEntry entry,
-    required double width,
-    required double trackY,
-    required double Function(int year, int month) fraction,
-    required int index,
-  }) {
-    final colors = WhoTookColors.of(context);
-    final x = 8 + fraction(entry.year!, entry.month ?? 1) * width;
-    final row = index % 2;
-    final top = 40.0 - row * 34;
-    final start = 0.12 + (index * 0.1);
-    final end = (start + 0.45).clamp(0.0, 0.95);
-    return Positioned(
-      left: x - 24,
-      top: top,
-      width: 48,
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) {
-          final t = CurvedAnimation(
-            parent: _controller,
-            curve: Interval(start, end, curve: Curves.easeOutBack),
-          ).value;
-          return Opacity(
-            opacity: t.clamp(0, 1),
-            child: Transform.translate(
-              offset: Offset(0, -18 * (1 - t)),
-              child: child,
-            ),
-          );
-        },
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            PlayerAvatar(initial: entry.playerName, size: 26),
-            const SizedBox(height: 2),
+            const Spacer(),
             Text(
-              entry.playerName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              '+${entry.points}',
               style: TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.w500,
-                color: colors.ink2,
+                fontFamily: 'JetBrainsMono',
+                fontSize: 10,
+                color: colors.positive,
               ),
             ),
-            Text(
-              '${monthShort(context.l10n, entry.month ?? 1)} ${entry.year}',
-              maxLines: 1,
-              style: TextStyle(fontSize: 8, color: colors.ink3),
-            ),
-            Container(
-              width: 1,
-              height: max(0.0, trackY - top - 46),
-              color: colors.hairline,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _actualPin(
-    BuildContext context, {
-    required double width,
-    required double trackY,
-    required double Function(int year, int month) fraction,
-  }) {
-    final colors = WhoTookColors.of(context);
-    final reveal = widget.reveal;
-    final x = 8 + fraction(reveal.actualYear, reveal.actualMonth) * width;
-    return Positioned(
-      left: x - 34,
-      top: 2,
-      width: 68,
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) {
-          final t = CurvedAnimation(
-            parent: _controller,
-            curve: const Interval(0.72, 1, curve: Curves.easeOut),
-          ).value;
-          return Opacity(
-            opacity: t.clamp(0, 1),
-            child: Transform.translate(
-              offset: Offset(0, -12 * (1 - t)),
-              child: child,
-            ),
-          );
-        },
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-              decoration: BoxDecoration(
-                color: colors.accent,
-                borderRadius: BorderRadius.circular(AppRadii.rSm),
-              ),
-              child: Text(
-                monthYear(context.l10n, reveal.actualYear, reveal.actualMonth),
-                style: tabularFigures(
-                  TextStyle(
-                    fontFamily: 'JetBrainsMono',
-                    fontSize: 9,
-                    color: colors.onAccent,
-                  ),
-                ),
-              ),
-            ),
-            Container(width: 2, height: 14, color: colors.accent),
           ],
         ),
       ),

@@ -46,3 +46,6 @@ Thumbs.db
 
 # Private design prototypes and visual checks
 .private_prototypes/
+
+# Generated store captures; regenerate with STORE_SCREENSHOTS=true
+app/test/ui/store_raw/

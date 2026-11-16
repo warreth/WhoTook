@@ -88,8 +88,8 @@ jobs:
         run: |
           if [ -z "$KEYSTORE_BASE64" ]; then
             echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "No keystore secret. The APK will be unsigned and is not installable." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
+            echo "No keystore secret. A release must be signed; refusing to publish a debug-signed APK." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
           fi
           echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload-keystore.jks"
           umask 077
@@ -226,6 +226,57 @@ jobs:
               --notes-file .github/release-notes.md \
               --latest
           fi
+
+  altstore:
+    name: Update AltStore source
+    needs: [release, android]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Refresh altstore.json from the release
+        env:
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 tool/update_altstore.py --tag "$TAG"
+
+      - name: Commit the updated source
+        env:
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+        run: |
+          if git diff --quiet -- cloudflare-signaling/public/altstore.json; then
+            echo "altstore.json is already current." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add cloudflare-signaling/public/altstore.json
+          git commit -m "Update the SideStore source for ${TAG#v}"
+          git push origin HEAD:main
+
+      - name: Deploy the site when Cloudflare credentials exist
+        working-directory: cloudflare-signaling
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "No Cloudflare API token/account secret. The committed altstore.json will ship with the next site deploy." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          npm ci
+          npx wrangler deploy
 
   play:
     name: Google Play (optional)

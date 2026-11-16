@@ -75,7 +75,7 @@ void main() {
     });
 
     test('every protocol constant is unique and non empty', () {
-      expect(WireType.all.length, 32);
+      expect(WireType.all.length, 38);
       for (final type in WireType.all) {
         expect(type, isNotEmpty);
       }
@@ -106,6 +106,12 @@ void main() {
         'caption_options',
         'caption_vote',
         'caption_reveal',
+        'meme_assignment',
+        'meme_submit',
+        'meme_options',
+        'meme_vote',
+        'meme_reveal',
+        'meme_swap',
         'timeline_submit',
         'timeline_reveal',
         'extend_prepare',

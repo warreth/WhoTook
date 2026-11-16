@@ -77,7 +77,7 @@ class Player {
   );
 }
 
-enum GameMode { classic, captionThis, timeTraveler, mixedParty }
+enum GameMode { classic, captionThis, makeItMeme, timeTraveler, mixedParty }
 
 /// Match shape chosen before the room opens.
 enum GamePace {
@@ -103,9 +103,16 @@ enum GamePace {
     GamePace.slow => 40,
   };
 
+  int get memeSeconds => switch (this) {
+    GamePace.fast => 60,
+    GamePace.normal => 90,
+    GamePace.slow => 120,
+  };
+
   int mainSeconds(GameMode mode) => switch (mode) {
     GameMode.classic || GameMode.mixedParty => classicSeconds,
     GameMode.captionThis => captionSeconds,
+    GameMode.makeItMeme => memeSeconds,
     GameMode.timeTraveler => timelineSeconds,
   };
 }
@@ -130,6 +137,8 @@ class MatchConfig {
   /// same photo pool for its timeline rounds.
   bool get needsPhotoDates =>
       mode == GameMode.timeTraveler || mode == GameMode.mixedParty;
+
+  bool get needsSixPhotoVault => mode == GameMode.makeItMeme;
 
   MatchConfig copyWith({
     int? roundsK,
@@ -523,6 +532,251 @@ class CaptionReveal {
   );
 }
 
+enum MemeTemplate { classic, pov, breaking, live, poster, snap, split }
+
+enum MemeVote { up, meh, down }
+
+/// Host-side assignment of one photo from another player's six-photo vault.
+class MemeAssignment {
+  const MemeAssignment({
+    required this.playerId,
+    required this.photoId,
+    required this.ownerId,
+    required this.ownerName,
+    this.isPanorama = false,
+  });
+
+  final String playerId;
+  final String photoId;
+  final String ownerId;
+  final String ownerName;
+  final bool isPanorama;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'playerId': playerId,
+    'photoId': photoId,
+    'ownerId': ownerId,
+    'ownerName': ownerName,
+    'isPanorama': isPanorama,
+  };
+
+  factory MemeAssignment.fromJson(Map<String, dynamic> json) => MemeAssignment(
+    playerId: json['playerId'] as String? ?? '',
+    photoId: json['photoId'] as String? ?? '',
+    ownerId: json['ownerId'] as String? ?? '',
+    ownerName: json['ownerName'] as String? ?? '',
+    isPanorama: json['isPanorama'] as bool? ?? false,
+  );
+}
+
+/// A completed meme submission. Author is kept on the host until the reveal.
+class MemeSubmission {
+  const MemeSubmission({
+    required this.id,
+    required this.playerId,
+    required this.photoId,
+    required this.photoOwnerId,
+    required this.template,
+    required this.topText,
+    required this.bottomText,
+    required this.snapY,
+  });
+
+  final String id;
+  final String playerId;
+  final String photoId;
+  final String photoOwnerId;
+  final MemeTemplate template;
+  final String topText;
+  final String bottomText;
+  final double snapY;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'id': id,
+    'playerId': playerId,
+    'photoId': photoId,
+    'photoOwnerId': photoOwnerId,
+    'template': template.name,
+    'topText': topText,
+    'bottomText': bottomText,
+    'snapY': snapY,
+  };
+}
+
+/// One anonymous meme shown during voting.
+class MemeOption {
+  const MemeOption({
+    required this.id,
+    required this.photoId,
+    required this.template,
+    required this.topText,
+    required this.bottomText,
+    required this.snapY,
+  });
+
+  final String id;
+  final String photoId;
+  final MemeTemplate template;
+  final String topText;
+  final String bottomText;
+  final double snapY;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'id': id,
+    'photoId': photoId,
+    'template': template.name,
+    'topText': topText,
+    'bottomText': bottomText,
+    'snapY': snapY,
+  };
+
+  factory MemeOption.fromJson(Map<String, dynamic> json) => MemeOption(
+    id: json['id'] as String,
+    photoId: json['photoId'] as String,
+    template: MemeTemplate.values.firstWhere(
+      (value) => value.name == json['template'],
+      orElse: () => MemeTemplate.classic,
+    ),
+    topText: (json['topText'] as String?) ?? '',
+    bottomText: (json['bottomText'] as String?) ?? '',
+    snapY: (json['snapY'] as num?)?.toDouble() ?? 48,
+  );
+}
+
+class MemeVoteRecord {
+  const MemeVoteRecord({
+    required this.voterId,
+    required this.memeId,
+    required this.vote,
+  });
+
+  final String voterId;
+  final String memeId;
+  final MemeVote vote;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'voterId': voterId,
+    'memeId': memeId,
+    'vote': vote.name,
+  };
+
+  factory MemeVoteRecord.fromJson(Map<String, dynamic> json) => MemeVoteRecord(
+    voterId: json['voterId'] as String,
+    memeId: json['memeId'] as String,
+    vote: MemeVote.values.firstWhere(
+      (value) => value.name == json['vote'],
+      orElse: () => MemeVote.meh,
+    ),
+  );
+}
+
+/// A meme after the votes are counted. The author is revealed here.
+class MemeEntry {
+  const MemeEntry({
+    required this.id,
+    required this.authorId,
+    required this.authorName,
+    required this.photoId,
+    required this.photoOwnerId,
+    required this.photoOwnerName,
+    required this.template,
+    required this.topText,
+    required this.bottomText,
+    required this.snapY,
+    required this.upVotes,
+    required this.mehVotes,
+    required this.downVotes,
+    required this.points,
+  });
+
+  final String id;
+  final String authorId;
+  final String authorName;
+  final String photoId;
+  final String photoOwnerId;
+  final String photoOwnerName;
+  final MemeTemplate template;
+  final String topText;
+  final String bottomText;
+  final double snapY;
+  final int upVotes;
+  final int mehVotes;
+  final int downVotes;
+  final int points;
+
+  int get totalVotes => upVotes + mehVotes + downVotes;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'id': id,
+    'authorId': authorId,
+    'authorName': authorName,
+    'photoId': photoId,
+    'photoOwnerId': photoOwnerId,
+    'photoOwnerName': photoOwnerName,
+    'template': template.name,
+    'topText': topText,
+    'bottomText': bottomText,
+    'snapY': snapY,
+    'upVotes': upVotes,
+    'mehVotes': mehVotes,
+    'downVotes': downVotes,
+    'points': points,
+  };
+
+  factory MemeEntry.fromJson(Map<String, dynamic> json) => MemeEntry(
+    id: json['id'] as String,
+    authorId: json['authorId'] as String,
+    authorName: json['authorName'] as String,
+    photoId: json['photoId'] as String,
+    photoOwnerId: json['photoOwnerId'] as String,
+    photoOwnerName: json['photoOwnerName'] as String,
+    template: MemeTemplate.values.firstWhere(
+      (value) => value.name == json['template'],
+      orElse: () => MemeTemplate.classic,
+    ),
+    topText: (json['topText'] as String?) ?? '',
+    bottomText: (json['bottomText'] as String?) ?? '',
+    snapY: (json['snapY'] as num?)?.toDouble() ?? 48,
+    upVotes: (json['upVotes'] as int?) ?? 0,
+    mehVotes: (json['mehVotes'] as int?) ?? 0,
+    downVotes: (json['downVotes'] as int?) ?? 0,
+    points: (json['points'] as int?) ?? 0,
+  );
+}
+
+class MemeReveal {
+  const MemeReveal({
+    required this.roundNumber,
+    required this.entries,
+    required this.winnerIds,
+    required this.scoreDeltas,
+  });
+
+  final int roundNumber;
+  final List<MemeEntry> entries;
+  final List<String> winnerIds;
+  final Map<String, int> scoreDeltas;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'roundNumber': roundNumber,
+    'entries': entries.map((entry) => entry.toJson()).toList(),
+    'winnerIds': winnerIds,
+    'scoreDeltas': scoreDeltas,
+  };
+
+  factory MemeReveal.fromJson(Map<String, dynamic> json) => MemeReveal(
+    roundNumber: json['roundNumber'] as int,
+    entries: (json['entries'] as List<dynamic>? ?? const [])
+        .map((entry) => MemeEntry.fromJson(entry as Map<String, dynamic>))
+        .toList(),
+    winnerIds: ((json['winnerIds'] as List<dynamic>?) ?? const [])
+        .cast<String>(),
+    scoreDeltas: (json['scoreDeltas'] as Map<String, dynamic>? ?? const {}).map(
+      (key, value) => MapEntry(key, value as int),
+    ),
+  );
+}
+
 class TimelineGuess {
   const TimelineGuess({
     required this.playerId,
@@ -664,6 +918,8 @@ class AppSettings {
     this.language = AppLanguage.system,
     this.avatarPhoto,
     this.onboardingCompleted = false,
+    this.soundEnabled = true,
+    this.hapticsEnabled = true,
     this.customSignalingUrl,
     this.customTurnUrl,
     this.customTurnUsername,
@@ -681,6 +937,8 @@ class AppSettings {
   /// this phone and sent only inside a match.
   final String? avatarPhoto;
   final bool onboardingCompleted;
+  final bool soundEnabled;
+  final bool hapticsEnabled;
   final String? customSignalingUrl;
   final String? customTurnUrl;
   final String? customTurnUsername;
@@ -695,6 +953,8 @@ class AppSettings {
     AppLanguage? language,
     String? avatarPhoto,
     bool? onboardingCompleted,
+    bool? soundEnabled,
+    bool? hapticsEnabled,
     bool clearAvatarPhoto = false,
     String? customSignalingUrl,
     String? customTurnUrl,
@@ -711,6 +971,8 @@ class AppSettings {
     language: language ?? this.language,
     avatarPhoto: clearAvatarPhoto ? null : (avatarPhoto ?? this.avatarPhoto),
     onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
+    soundEnabled: soundEnabled ?? this.soundEnabled,
+    hapticsEnabled: hapticsEnabled ?? this.hapticsEnabled,
     customSignalingUrl: clearCustomSignalingUrl
         ? null
         : (customSignalingUrl ?? this.customSignalingUrl),
@@ -732,6 +994,8 @@ class AppSettings {
     'language': language.name,
     'avatarPhoto': avatarPhoto,
     'onboardingCompleted': onboardingCompleted,
+    'soundEnabled': soundEnabled,
+    'hapticsEnabled': hapticsEnabled,
     'customSignalingUrl': customSignalingUrl,
     'customTurnUrl': customTurnUrl,
     'customTurnUsername': customTurnUsername,
@@ -755,6 +1019,8 @@ class AppSettings {
     ),
     avatarPhoto: json['avatarPhoto'] as String?,
     onboardingCompleted: (json['onboardingCompleted'] as bool?) ?? false,
+    soundEnabled: (json['soundEnabled'] as bool?) ?? true,
+    hapticsEnabled: (json['hapticsEnabled'] as bool?) ?? true,
     customSignalingUrl: json['customSignalingUrl'] as String?,
     customTurnUrl: json['customTurnUrl'] as String?,
     customTurnUsername: json['customTurnUsername'] as String?,

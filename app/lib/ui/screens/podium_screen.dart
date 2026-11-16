@@ -1,54 +1,27 @@
 import 'dart:async';
-import 'dart:math';
+import 'dart:convert';
+import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/audio/game_audio_service.dart';
 import '../../core/models/models.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../l10n/l10n.dart';
+import '../../state/match_coordinator.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
+import '../widgets/game_widgets.dart';
 
-/// The finish line: a champion print, a two-step podium and one burst of
-/// paper confetti. The animation runs once and stops, so nothing loops.
-class PodiumScreen extends ConsumerStatefulWidget {
+/// The finish line: a champion frame, centered steps, a burst of paper and the
+/// Top 3 memes from a Make It Meme match.
+class PodiumScreen extends ConsumerWidget {
   const PodiumScreen({super.key});
 
   @override
-  ConsumerState<PodiumScreen> createState() => _PodiumScreenState();
-}
-
-class _PodiumScreenState extends ConsumerState<PodiumScreen>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _stage;
-  late final List<_ConfettiPiece> _confetti = _buildConfetti();
-
-  @override
-  void initState() {
-    super.initState();
-    _stage = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    )..forward();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (MediaQuery.maybeOf(context)?.disableAnimations ?? false) {
-      _stage.value = 1;
-    }
-  }
-
-  @override
-  void dispose() {
-    _stage.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = WhoTookColors.of(context);
     final l10n = context.l10n;
     final coordinator = ref.read(matchCoordinatorProvider);
@@ -57,12 +30,12 @@ class _PodiumScreenState extends ConsumerState<PodiumScreen>
     final top = board.take(3).toList();
     final champion = top.isEmpty ? null : top.first;
     final runners = top.skip(1).toList();
-
+    final rest = board.skip(3).toList();
     return Scaffold(
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 840),
+            constraints: const BoxConstraints(maxWidth: 720),
             child: ListView(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.s20,
@@ -92,66 +65,23 @@ class _PodiumScreenState extends ConsumerState<PodiumScreen>
                     ),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.s16),
-                SizedBox(
-                  height: 304,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: <Widget>[
-                      Positioned.fill(
-                        child: IgnorePointer(
-                          child: CustomPaint(
-                            painter: _ConfettiPainter(
-                              pieces: _confetti,
-                              progress: _stage,
-                              colors: colors,
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (champion != null)
-                        Align(
-                          alignment: Alignment.topCenter,
-                          child: ScaleTransition(
-                            scale: CurvedAnimation(
-                              parent: _stage,
-                              curve: const Interval(
-                                0,
-                                0.55,
-                                curve: Curves.easeOutBack,
-                              ),
-                            ),
-                            child: _ChampionPrint(
-                              player: champion,
-                              photoBase64: state.avatarPhotos[champion.id],
-                            ),
-                          ),
-                        ),
-                      if (runners.isNotEmpty)
-                        Align(
-                          alignment: Alignment.bottomCenter,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: <Widget>[
-                              for (var i = 0; i < runners.length; i++)
-                                SizedBox(
-                                  width: 140,
-                                  child: _RunnerUp(
-                                    player: runners[i],
-                                    place: i + 2,
-                                    topScore: champion?.score ?? 0,
-                                    stage: _stage,
-                                    delay: i == 0 ? 0.18 : 0.28,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                    ],
+                const SizedBox(height: AppSpacing.s12),
+                _PodiumFanfare(
+                  child: _PodiumStage(
+                    champion: champion,
+                    runners: runners,
+                    rest: rest,
+                    state: state,
+                    l10n: l10n,
+                    colors: colors,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.s16),
-                if (state.awards.isNotEmpty)
+                if (state.topMemes.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: AppSpacing.s12),
+                  _TopMemeShelf(memes: state.topMemes, l10n: l10n),
+                ],
+                if (state.awards.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: AppSpacing.s12),
                   SurfaceCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -162,8 +92,9 @@ class _PodiumScreenState extends ConsumerState<PodiumScreen>
                       ],
                     ),
                   ),
-                const SizedBox(height: AppSpacing.s16),
-                if (board.length > 3)
+                ],
+                if (board.length > 3) ...<Widget>[
+                  const SizedBox(height: AppSpacing.s12),
                   SurfaceCard(
                     padding: EdgeInsets.zero,
                     child: Column(
@@ -178,38 +109,35 @@ class _PodiumScreenState extends ConsumerState<PodiumScreen>
                       ],
                     ),
                   ),
+                ],
                 const SizedBox(height: AppSpacing.s16),
                 if (state.isHosting) ...<Widget>[
-                  PrimaryButton(
+                  GameButton(
                     label: l10n.oneMoreRound,
-                    icon: Icons.replay,
                     onPressed: () => unawaited(coordinator.extendMatch()),
+                    icon: Icons.replay,
+                    fullWidth: true,
                   ),
                   const SizedBox(height: AppSpacing.s12),
-                  SecondaryButton(
+                  GameButton(
                     label: l10n.backToLobby,
-                    icon: Icons.meeting_room_outlined,
                     onPressed: () => unawaited(coordinator.playAgain()),
+                    variant: GameButtonVariant.secondary,
+                    icon: Icons.meeting_room_outlined,
+                    fullWidth: true,
                   ),
                   const SizedBox(height: AppSpacing.s12),
-                  SecondaryButton(
+                  GameButton(
                     label: l10n.leaveMatch,
                     onPressed: () => unawaited(coordinator.leaveMatch()),
+                    variant: GameButtonVariant.ghost,
+                    fullWidth: true,
                   ),
                 ] else
                   NoticeBanner(
                     message: l10n.waitingForHost,
                     icon: Icons.hourglass_empty,
                   ),
-                if (state.screenshotAlerts.isNotEmpty) ...<Widget>[
-                  const SizedBox(height: AppSpacing.s16),
-                  NoticeBanner(
-                    message: l10n.screenshotsCount(
-                      state.screenshotAlerts.length,
-                    ),
-                    icon: Icons.camera_alt_outlined,
-                  ),
-                ],
               ],
             ),
           ),
@@ -219,237 +147,563 @@ class _PodiumScreenState extends ConsumerState<PodiumScreen>
   }
 }
 
-class _ChampionPrint extends StatelessWidget {
-  const _ChampionPrint({required this.player, this.photoBase64});
+class _PodiumFanfare extends StatefulWidget {
+  const _PodiumFanfare({required this.child});
 
-  final Player player;
-  final String? photoBase64;
+  final Widget child;
+
+  @override
+  State<_PodiumFanfare> createState() => _PodiumFanfareState();
+}
+
+class _PodiumFanfareState extends State<_PodiumFanfare> {
+  @override
+  void initState() {
+    super.initState();
+    unawaited(GameAudioService.instance.fanfare());
+    unawaited(GameHaptics.instance.heavy());
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
+}
+
+class _PodiumStage extends StatelessWidget {
+  const _PodiumStage({
+    required this.champion,
+    required this.runners,
+    required this.rest,
+    required this.state,
+    required this.l10n,
+    required this.colors,
+  });
+
+  final Player? champion;
+  final List<Player> runners;
+  final List<Player> rest;
+  final MatchUiState state;
+  final AppLocalizations l10n;
+  final WhoTookColors colors;
 
   @override
   Widget build(BuildContext context) {
-    final colors = WhoTookColors.of(context);
-    final l10n = context.l10n;
-    return Semantics(
-      label: l10n.championSemantic(player.name, player.score),
-      child: Transform.rotate(
-        angle: -0.022,
-        child: Container(
-          width: 244,
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.s16,
-            AppSpacing.s12,
-            AppSpacing.s16,
-            AppSpacing.s12,
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadii.rModal),
+        border: Border.all(color: colors.ink, width: 2),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: dark ? Colors.black : colors.ink,
+            offset: const Offset(0, 7),
+            blurRadius: 0,
           ),
-          decoration: BoxDecoration(
-            color: colors.card,
-            borderRadius: BorderRadius.circular(AppRadii.rCard),
-            border: Border.all(color: colors.hairline),
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: colors.ink.withValues(alpha: 0.10),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Stack(
-            children: <Widget>[
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: CropFrameOverlay(
-                    color: colors.ink3,
-                    inset: 2,
-                    armLength: 10,
-                  ),
+        ],
+        gradient: RadialGradient(
+          center: const Alignment(0, -0.9),
+          radius: 1.2,
+          colors: <Color>[
+            Color.alphaBlend(
+              GamePalette.gold.withValues(alpha: dark ? 0.12 : 0.2),
+              colors.card,
+            ),
+            colors.card,
+          ],
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        children: <Widget>[
+          const Positioned.fill(child: _ConfettiBurst()),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.s16,
+              AppSpacing.s16,
+              AppSpacing.s16,
+              AppSpacing.s16,
+            ),
+            child: Column(
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Text(
+                      l10n.finalTable.toUpperCase(),
+                      style: TextStyle(
+                        fontFamily: 'JetBrainsMono',
+                        fontSize: 9,
+                        letterSpacing: 1.1,
+                        color: colors.ink2,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      l10n.roundsCount(state.totalRounds),
+                      style: TextStyle(
+                        fontFamily: 'JetBrainsMono',
+                        fontSize: 9,
+                        color: colors.ink3,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
+                const SizedBox(height: AppSpacing.s12),
+                if (champion != null)
+                  _Champion(player: champion!, state: state),
+                const SizedBox(height: AppSpacing.s12),
+                if (runners.isNotEmpty)
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 320),
+                      child: Row(
+                        children: <Widget>[
+                          for (var i = 0; i < runners.length; i++) ...<Widget>[
+                            if (i > 0) const SizedBox(width: AppSpacing.s8),
+                            Expanded(
+                              child: _PodiumStep(
+                                player: runners[i],
+                                place: i + 2,
+                                photoBase64: state.avatarPhotos[runners[i].id],
+                                colors: colors,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                if (rest.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: AppSpacing.s12),
                   Row(
                     children: <Widget>[
-                      PlayerAvatar(
-                        initial: player.name,
-                        avatar: player.avatar,
-                        photoBase64: photoBase64,
-                        isHost: player.isHost,
-                        size: 42,
-                      ),
-                      const Spacer(),
-                      Transform.rotate(
-                        angle: 0.06,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: colors.accent),
-                            borderRadius: BorderRadius.circular(AppRadii.rSm),
-                          ),
-                          child: Text(
-                            l10n.champion.toUpperCase(),
-                            style: TextStyle(
-                              fontFamily: 'JetBrainsMono',
-                              fontSize: 9,
-                              letterSpacing: 0.9,
-                              color: colors.accent,
-                            ),
-                          ),
+                      Text(
+                        l10n.alsoInTheRoom.toUpperCase(),
+                        style: TextStyle(
+                          fontFamily: 'JetBrainsMono',
+                          fontSize: 8,
+                          letterSpacing: 0.8,
+                          color: colors.ink,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: AppSpacing.s8),
-                  Text(
-                    player.name,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 21,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.4,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    l10n.points(player.score),
-                    style: tabularFigures(
-                      TextStyle(
-                        fontFamily: 'JetBrainsMono',
-                        fontSize: 24,
-                        fontWeight: FontWeight.w500,
-                        color: colors.ink,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.s8),
-                  Container(
-                    width: 34,
-                    height: 3,
-                    decoration: BoxDecoration(
-                      color: colors.accent,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
+                  const SizedBox(height: 5),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: <Widget>[
+                      for (final player in rest)
+                        Container(
+                          padding: const EdgeInsets.fromLTRB(4, 4, 9, 4),
+                          decoration: BoxDecoration(
+                            color: colors.raised,
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: colors.hairline),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              PlayerAvatar(
+                                initial: player.name,
+                                avatar: player.avatar,
+                                photoBase64: state.avatarPhotos[player.id],
+                                size: 24,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                '${player.name} · ${player.score}',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: colors.ink2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
                   ),
                 ],
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
 }
 
-class _RunnerUp extends StatelessWidget {
-  const _RunnerUp({
-    required this.player,
-    required this.place,
-    required this.topScore,
-    required this.stage,
-    required this.delay,
-  });
+class _Champion extends StatelessWidget {
+  const _Champion({required this.player, required this.state});
 
   final Player player;
-  final int place;
-  final int topScore;
-  final Animation<double> stage;
-  final double delay;
+  final MatchUiState state;
 
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
     final l10n = context.l10n;
-    final placeLabel = switch (place) {
-      1 => l10n.placeFirst,
+    return Column(
+      children: <Widget>[
+        Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: GamePalette.gold, width: 3),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: GamePalette.gold.withValues(alpha: 0.22),
+                blurRadius: 20,
+                spreadRadius: 4,
+              ),
+            ],
+          ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: <Widget>[
+              PlayerAvatar(
+                initial: player.name,
+                avatar: player.avatar,
+                photoBase64: state.avatarPhotos[player.id],
+                isHost: player.isHost,
+                size: 116,
+              ),
+              Positioned(
+                right: -4,
+                bottom: 2,
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: GamePalette.gold,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: colors.card, width: 3),
+                  ),
+                  child: const Icon(
+                    Icons.emoji_events_outlined,
+                    size: 17,
+                    color: Color(0xFF2A1B06),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.s8),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text(
+              l10n.placeFirst.toUpperCase(),
+              style: TextStyle(
+                fontFamily: 'JetBrainsMono',
+                fontSize: 9,
+                letterSpacing: 1,
+                color: colors.ink2,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: colors.card,
+                border: Border.all(color: GamePalette.goldDeep),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                l10n.champion.toUpperCase(),
+                style: TextStyle(
+                  fontFamily: 'JetBrainsMono',
+                  fontSize: 8,
+                  letterSpacing: 0.8,
+                  color: colors.ink,
+                ),
+              ),
+            ),
+          ],
+        ),
+        Text(
+          player.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 34,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -1.4,
+            height: 0.98,
+            color: colors.ink,
+          ),
+        ),
+        const SizedBox(height: 3),
+        TweenAnimationBuilder<double>(
+          tween: Tween<double>(begin: 0, end: player.score.toDouble()),
+          duration: const Duration(milliseconds: 850),
+          curve: Curves.easeOutCubic,
+          builder: (context, value, _) => Text(
+            l10n.points(value.round()),
+            style: tabularFigures(
+              TextStyle(
+                fontFamily: 'JetBrainsMono',
+                fontSize: 15,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? GamePalette.gold
+                    : GamePalette.goldInk,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PodiumStep extends StatelessWidget {
+  const _PodiumStep({
+    required this.player,
+    required this.place,
+    required this.photoBase64,
+    required this.colors,
+  });
+
+  final Player player;
+  final int place;
+  final String? photoBase64;
+  final WhoTookColors colors;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final label = switch (place) {
       2 => l10n.placeSecond,
       3 => l10n.placeThird,
       _ => l10n.placeNth(place),
     };
-    final share = topScore <= 0 ? 0.0 : player.score / topScore;
-    final height = (44 + 58 * share).clamp(44.0, 102.0);
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        Text(
-          player.name,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          '${player.score}',
-          style: tabularFigures(
-            TextStyle(
+    return Container(
+      padding: const EdgeInsets.fromLTRB(7, 9, 7, 9),
+      decoration: BoxDecoration(
+        color: colors.raised,
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: colors.ink, width: 2),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: colors.ink,
+            offset: const Offset(0, 3),
+            blurRadius: 0,
+          ),
+        ],
+      ),
+      child: Column(
+        children: <Widget>[
+          PlayerAvatar(
+            initial: player.name,
+            avatar: player.avatar,
+            photoBase64: photoBase64,
+            isHost: player.isHost,
+            size: 38,
+          ),
+          const SizedBox(height: 5),
+          Text(
+            label.toUpperCase(),
+            style: TextStyle(
               fontFamily: 'JetBrainsMono',
+              fontSize: 8,
+              color: colors.ink3,
+            ),
+          ),
+          Text(
+            player.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
               fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: colors.ink,
+            ),
+          ),
+          Text(
+            '${player.score}',
+            style: TextStyle(
+              fontFamily: 'JetBrainsMono',
+              fontSize: 10,
               color: colors.ink2,
             ),
           ),
-        ),
-        const SizedBox(height: AppSpacing.s8),
-        AnimatedBuilder(
-          animation: stage,
-          builder: (context, _) {
-            final raw = ((stage.value - delay) / (0.86 - delay)).clamp(
-              0.0,
-              1.0,
-            );
-            final value = Curves.easeOutCubic.transform(raw);
-            return Container(
-              height: height * value,
-              margin: const EdgeInsets.symmetric(horizontal: AppSpacing.s8),
-              clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(
-                color: colors.raised,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(AppRadii.rSm),
+        ],
+      ),
+    );
+  }
+}
+
+class _TopMemeShelf extends StatelessWidget {
+  const _TopMemeShelf({required this.memes, required this.l10n});
+
+  final List<MemeCard> memes;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    return SurfaceCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  l10n.memeTopMemes,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                border: Border.all(color: colors.hairline),
               ),
-              child: Stack(
-                children: <Widget>[
-                  Positioned(
-                    top: 6,
-                    left: 0,
-                    right: 0,
-                    child: Text(
-                      placeLabel,
-                      textAlign: TextAlign.center,
-                      style: tabularFigures(
-                        TextStyle(
-                          fontFamily: 'JetBrainsMono',
-                          fontSize: 11,
-                          color: colors.ink3,
-                        ),
+              Text(
+                '${memes.length}',
+                style: TextStyle(
+                  fontFamily: 'JetBrainsMono',
+                  fontSize: 11,
+                  color: colors.ink3,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.s8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              for (var index = 0; index < memes.length; index++) ...<Widget>[
+                if (index > 0) const SizedBox(width: 6),
+                Expanded(
+                  child: _TopMemeCard(meme: memes[index], rank: index + 1),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TopMemeCard extends StatefulWidget {
+  const _TopMemeCard({required this.meme, required this.rank});
+
+  final MemeCard meme;
+  final int rank;
+
+  @override
+  State<_TopMemeCard> createState() => _TopMemeCardState();
+}
+
+class _TopMemeCardState extends State<_TopMemeCard> {
+  final GlobalKey _key = GlobalKey();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    final bytes = _decode(widget.meme.photoBase64);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Stack(
+          children: <Widget>[
+            RepaintBoundary(
+              key: _key,
+              child: MemeCanvas(
+                bytes: bytes,
+                template: widget.meme.template,
+                topText: widget.meme.topText,
+                bottomText: widget.meme.bottomText,
+                snapY: widget.meme.snapY,
+                showWatermark: true,
+              ),
+            ),
+            Positioned(
+              left: 5,
+              top: 5,
+              child: Container(
+                width: 18,
+                height: 18,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  color: GamePalette.gold,
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  '${widget.rank}',
+                  style: const TextStyle(
+                    fontFamily: 'JetBrainsMono',
+                    fontSize: 8,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF2A1B06),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              right: 5,
+              top: 5,
+              child: GestureDetector(
+                onTap: () async {
+                  final ok = await MemeExporter.save(_key, album: 'WhoTook');
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        ok
+                            ? context.l10n.memeSaved
+                            : context.l10n.memeSaveFailed,
                       ),
                     ),
+                  );
+                },
+                child: Container(
+                  width: 24,
+                  height: 24,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                    color: GamePalette.gold,
+                    shape: BoxShape.circle,
                   ),
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 2,
-                    child: Text(
-                      '$place',
-                      textAlign: TextAlign.center,
-                      style: tabularFigures(
-                        TextStyle(
-                          fontFamily: 'JetBrainsMono',
-                          fontSize: 44,
-                          height: 1,
-                          color: colors.ink3.withValues(alpha: 0.18),
-                        ),
-                      ),
-                    ),
+                  child: const Icon(
+                    Icons.download_outlined,
+                    size: 14,
+                    color: Color(0xFF2A1B06),
                   ),
-                ],
+                ),
               ),
-            );
-          },
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          widget.meme.authorName ?? '',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: colors.ink,
+          ),
+        ),
+        Text(
+          '${widget.meme.points >= 0 ? '+' : ''}${widget.meme.points}',
+          style: TextStyle(
+            fontFamily: 'JetBrainsMono',
+            fontSize: 9,
+            color: colors.positive,
+          ),
         ),
       ],
     );
+  }
+
+  Uint8List? _decode(String? value) {
+    if (value == null || value.isEmpty) return null;
+    try {
+      return base64Decode(value);
+    } on FormatException {
+      return null;
+    }
   }
 }
 
@@ -502,8 +756,8 @@ class _AwardRow extends StatelessWidget {
           Expanded(
             child: Text(
               '${award.playerName}$suffix',
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+              textAlign: TextAlign.right,
+              style: TextStyle(fontSize: 13, color: colors.ink),
             ),
           ),
         ],
@@ -512,91 +766,131 @@ class _AwardRow extends StatelessWidget {
   }
 }
 
+class _ConfettiBurst extends StatefulWidget {
+  const _ConfettiBurst();
+
+  @override
+  State<_ConfettiBurst> createState() => _ConfettiBurstState();
+}
+
+class _ConfettiBurstState extends State<_ConfettiBurst>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final List<_ConfettiPiece> _pieces;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1700),
+    )..forward();
+    _pieces = _buildPieces();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    if (MediaQuery.maybeOf(context)?.disableAnimations ?? false) {
+      return const SizedBox.shrink();
+    }
+    return IgnorePointer(
+      child: CustomPaint(
+        painter: _ConfettiPainter(
+          progress: _controller,
+          pieces: _pieces,
+          colors: <Color>[
+            colors.accent,
+            GamePalette.gold,
+            GamePalette.teal,
+            GamePalette.blue,
+            colors.ink3,
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<_ConfettiPiece> _buildPieces() {
+    final random = math.Random(14);
+    return List<_ConfettiPiece>.generate(54, (index) {
+      return _ConfettiPiece(
+        x: random.nextDouble(),
+        delay: random.nextDouble() * 0.32,
+        speed: 0.3 + random.nextDouble() * 0.5,
+        drift: (random.nextDouble() - 0.5) * 0.24,
+        rotation: random.nextDouble() * math.pi * 2,
+        spin: (random.nextDouble() - 0.5) * 8,
+        size: 4 + random.nextDouble() * 5,
+        round: index % 5 == 0,
+      );
+    });
+  }
+}
+
 class _ConfettiPiece {
   const _ConfettiPiece({
     required this.x,
     required this.delay,
     required this.speed,
-    required this.size,
+    required this.drift,
     required this.rotation,
     required this.spin,
-    required this.phase,
-    required this.tone,
-    required this.circle,
+    required this.size,
+    required this.round,
   });
 
   final double x;
   final double delay;
   final double speed;
-  final double size;
+  final double drift;
   final double rotation;
   final double spin;
-  final double phase;
-  final int tone;
-  final bool circle;
-}
-
-List<_ConfettiPiece> _buildConfetti() {
-  final random = Random(14);
-  return <_ConfettiPiece>[
-    for (var i = 0; i < 34; i++)
-      _ConfettiPiece(
-        x: random.nextDouble(),
-        delay: random.nextDouble() * 0.22,
-        speed: 0.62 + random.nextDouble() * 0.5,
-        size: 4 + random.nextDouble() * 5,
-        rotation: random.nextDouble() * pi,
-        spin: (random.nextDouble() - 0.5) * 5,
-        phase: random.nextDouble() * 6,
-        tone: random.nextInt(4),
-        circle: random.nextInt(5) == 0,
-      ),
-  ];
+  final double size;
+  final bool round;
 }
 
 class _ConfettiPainter extends CustomPainter {
   _ConfettiPainter({
-    required this.pieces,
     required this.progress,
+    required this.pieces,
     required this.colors,
   }) : super(repaint: progress);
 
-  final List<_ConfettiPiece> pieces;
   final Animation<double> progress;
-  final WhoTookColors colors;
+  final List<_ConfettiPiece> pieces;
+  final List<Color> colors;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final t = progress.value;
-    if (t <= 0 || t >= 1) return;
-    final palette = <Color>[
-      colors.accent,
-      colors.ink,
-      colors.ink3,
-      colors.positive,
-    ];
-    for (final piece in pieces) {
-      final local = ((t - piece.delay) / (1 - piece.delay)).clamp(0.0, 1.0);
-      if (local <= 0) continue;
-      final y = -16 + local * (size.height + 28) * piece.speed;
-      final x = piece.x * size.width + sin(local * 9 + piece.phase) * 10;
-      final opacity = (1 - local).clamp(0.0, 1.0);
+    for (var i = 0; i < pieces.length; i++) {
+      final piece = pieces[i];
+      final raw = ((progress.value - piece.delay) / (1 - piece.delay)).clamp(
+        0.0,
+        1.0,
+      );
+      if (raw <= 0) continue;
+      final t = Curves.easeIn.transform(raw);
+      final x = (piece.x + piece.drift * t) * size.width;
+      final y = t * (size.height + 80) - 20;
+      final paint = Paint()..color = colors[i % colors.length];
       canvas.save();
       canvas.translate(x, y);
-      canvas.rotate(piece.rotation + local * piece.spin);
-      final paint = Paint()
-        ..color = palette[piece.tone].withValues(alpha: opacity * 0.9);
-      if (piece.circle) {
-        canvas.drawCircle(Offset.zero, piece.size / 2, paint);
+      canvas.rotate(piece.rotation + piece.spin * t);
+      if (piece.round) {
+        canvas.drawCircle(Offset.zero, piece.size * 0.55, paint);
       } else {
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(
-            Rect.fromCenter(
-              center: Offset.zero,
-              width: piece.size,
-              height: piece.size * 0.55,
-            ),
-            const Radius.circular(1.5),
+        canvas.drawRect(
+          Rect.fromCenter(
+            center: Offset.zero,
+            width: piece.size,
+            height: piece.size * 1.7,
           ),
           paint,
         );
@@ -607,5 +901,7 @@ class _ConfettiPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _ConfettiPainter oldDelegate) =>
-      oldDelegate.colors != colors || oldDelegate.pieces != pieces;
+      oldDelegate.progress != progress ||
+      oldDelegate.pieces != pieces ||
+      oldDelegate.colors != colors;
 }

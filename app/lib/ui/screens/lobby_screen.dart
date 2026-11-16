@@ -11,6 +11,7 @@ import '../../l10n/l10n.dart';
 import '../../state/match_coordinator.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
+import '../widgets/game_widgets.dart';
 import '../widgets/mode_picker.dart';
 
 class LobbyScreen extends ConsumerWidget {
@@ -41,11 +42,12 @@ class LobbyScreen extends ConsumerWidget {
                       constraints: const BoxConstraints(maxWidth: 720),
                       child: SizedBox(
                         width: double.infinity,
-                        child: PrimaryButton(
+                        child: GameButton(
                           label: l10n.startPhotoCheck,
                           icon: Icons.photo_camera_outlined,
                           onPressed: () =>
                               unawaited(coordinator.startPrepare()),
+                          fullWidth: true,
                         ),
                       ),
                     ),
@@ -199,6 +201,14 @@ class LobbyScreen extends ConsumerWidget {
                   ),
                 ],
                 const SizedBox(height: AppSpacing.s16),
+                _ModeBanner(
+                  mode: state.config.mode,
+                  isHost: isHost,
+                  onEdit: isHost
+                      ? () => unawaited(_openSetupEditor(context))
+                      : null,
+                ),
+                const SizedBox(height: AppSpacing.s12),
                 SurfaceCard(
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.s16,
@@ -223,25 +233,9 @@ class LobbyScreen extends ConsumerWidget {
                               label:
                                   '${_paceName(l10n, state.config.roundSeconds)} · ${l10n.secondsShort(state.config.roundSeconds)}',
                             ),
-                            _SetupChip(
-                              icon: modeInfo(state.config.mode).icon,
-                              label: _modeName(l10n, state.config.mode),
-                            ),
                           ],
                         ),
                       ),
-                      if (isHost)
-                        TextButton(
-                          onPressed: () => unawaited(_openSetupEditor(context)),
-                          style: TextButton.styleFrom(
-                            minimumSize: const Size(0, 36),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.s8,
-                            ),
-                            foregroundColor: colors.accent,
-                          ),
-                          child: Text(l10n.editAction),
-                        ),
                     ],
                   ),
                 ),
@@ -381,12 +375,88 @@ String _paceOptionName(AppLocalizations l10n, GamePace pace) => switch (pace) {
   GamePace.slow => l10n.paceSlow,
 };
 
-String _modeName(AppLocalizations l10n, GameMode mode) => switch (mode) {
-  GameMode.classic => l10n.modeClassic,
-  GameMode.captionThis => l10n.modeCaptionThis,
-  GameMode.timeTraveler => l10n.modeTimeTraveler,
-  GameMode.mixedParty => l10n.modeMixedParty,
-};
+class _ModeBanner extends StatelessWidget {
+  const _ModeBanner({
+    required this.mode,
+    required this.isHost,
+    required this.onEdit,
+  });
+
+  final GameMode mode;
+  final bool isHost;
+  final VoidCallback? onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
+    final gold = mode == GameMode.makeItMeme;
+    final ink = gold ? GamePalette.onGold : colors.ink;
+    final ink2 = gold ? GamePalette.onGoldMuted : colors.ink2;
+    final info = modeInfo(mode);
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.s12),
+      decoration: BoxDecoration(
+        color: gold ? GamePalette.gold : colors.card,
+        borderRadius: BorderRadius.circular(AppRadii.rControl),
+        border: Border.all(color: ink, width: 2),
+        boxShadow: <BoxShadow>[
+          BoxShadow(color: ink, blurRadius: 0, offset: const Offset(0, 3)),
+        ],
+      ),
+      child: Row(
+        children: <Widget>[
+          Container(
+            width: 30,
+            height: 30,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: ink,
+              borderRadius: BorderRadius.circular(AppRadii.rSm),
+            ),
+            child: Icon(
+              info.icon,
+              size: 17,
+              color: gold ? GamePalette.gold : colors.bg,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.s12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  modeLabel(l10n, mode),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: ink,
+                  ),
+                ),
+                Text(
+                  modeBlurb(l10n, mode),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 10, color: ink2),
+                ),
+              ],
+            ),
+          ),
+          if (isHost)
+            TextButton(
+              onPressed: onEdit,
+              style: TextButton.styleFrom(
+                minimumSize: const Size(0, 36),
+                foregroundColor: ink,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+              ),
+              child: Text(l10n.editAction),
+            ),
+        ],
+      ),
+    );
+  }
+}
 
 class _SetupChip extends StatelessWidget {
   const _SetupChip({required this.icon, required this.label});

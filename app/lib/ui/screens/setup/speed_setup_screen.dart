@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/audio/game_audio_service.dart';
 import '../../../core/models/models.dart';
 import '../../../core/theme/whotook_theme.dart';
 import '../../../l10n/l10n.dart';
@@ -63,7 +63,7 @@ class _SpeedSetupScreenState extends ConsumerState<SpeedSetupScreen> {
                 option: option,
                 selected: option.pace == state.config.pace,
                 onTap: () {
-                  unawaited(HapticFeedback.selectionClick());
+                  unawaited(GameHaptics.instance.selection());
                   unawaited(coordinator.setPace(option.pace));
                 },
               ),
@@ -77,6 +77,7 @@ class _SpeedSetupScreenState extends ConsumerState<SpeedSetupScreen> {
 String _subtitle(GameMode mode, AppLocalizations l10n) => switch (mode) {
   GameMode.classic => l10n.paceClassicSubtitle,
   GameMode.captionThis => l10n.paceCaptionSubtitle,
+  GameMode.makeItMeme => l10n.paceMemeSubtitle,
   GameMode.timeTraveler => l10n.paceTimelineSubtitle,
   GameMode.mixedParty => l10n.paceMixedSubtitle,
 };
@@ -140,6 +141,26 @@ List<_PaceOption> _paceOptions(GameMode mode, AppLocalizations l10n) =>
           pace: GamePace.slow,
           blurb: l10n.paceSlowCaption,
           seconds: GamePace.slow.captionSeconds,
+          icon: Icons.hourglass_empty,
+        ),
+      ],
+      GameMode.makeItMeme => <_PaceOption>[
+        _PaceOption(
+          pace: GamePace.fast,
+          blurb: l10n.paceFastMeme,
+          seconds: GamePace.fast.memeSeconds,
+          icon: Icons.bolt_outlined,
+        ),
+        _PaceOption(
+          pace: GamePace.normal,
+          blurb: l10n.paceNormalMeme,
+          seconds: GamePace.normal.memeSeconds,
+          icon: Icons.timer_outlined,
+        ),
+        _PaceOption(
+          pace: GamePace.slow,
+          blurb: l10n.paceSlowMeme,
+          seconds: GamePace.slow.memeSeconds,
           icon: Icons.hourglass_empty,
         ),
       ],

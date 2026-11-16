@@ -318,7 +318,6 @@ class _HowItPlaysCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = WhoTookColors.of(context);
     final l10n = context.l10n;
     return SurfaceCard(
       padding: const EdgeInsets.fromLTRB(
@@ -330,25 +329,19 @@ class _HowItPlaysCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          SectionLabel(
-            l10n.howItPlays,
-            trailing: Text(
-              l10n.threeSteps,
-              style: TextStyle(fontSize: 11, color: colors.ink3),
-            ),
-          ),
+          SectionLabel(l10n.howItPlays),
           _GuideRow(
-            number: '01',
+            icon: Icons.casino_outlined,
             title: l10n.guideSetTable,
             body: l10n.guideSetTableBody,
           ),
           _GuideRow(
-            number: '02',
+            icon: Icons.qr_code_scanner,
             title: l10n.guideScanIn,
             body: l10n.guideScanInBody,
           ),
           _GuideRow(
-            number: '03',
+            icon: Icons.photo_library_outlined,
             title: l10n.guidePlay,
             body: l10n.guidePlayBody,
           ),
@@ -360,12 +353,12 @@ class _HowItPlaysCard extends StatelessWidget {
 
 class _GuideRow extends StatelessWidget {
   const _GuideRow({
-    required this.number,
+    required this.icon,
     required this.title,
     required this.body,
   });
 
-  final String number;
+  final IconData icon;
   final String title;
   final String body;
 
@@ -379,16 +372,7 @@ class _GuideRow extends StatelessWidget {
         children: <Widget>[
           SizedBox(
             width: 24,
-            child: Text(
-              number,
-              style: tabularFigures(
-                TextStyle(
-                  fontFamily: 'JetBrainsMono',
-                  fontSize: 10,
-                  color: colors.accent,
-                ),
-              ),
-            ),
+            child: Icon(icon, size: 16, color: colors.accent),
           ),
           const SizedBox(width: AppSpacing.s8),
           Expanded(
@@ -623,55 +607,73 @@ class _BigAction extends StatelessWidget {
     final secondary = filled
         ? colors.onAccent.withValues(alpha: 0.78)
         : colors.ink2;
-    return Material(
-      color: filled ? colors.accent : colors.card,
-      borderRadius: BorderRadius.circular(AppRadii.rCard),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          height: 68,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadii.rCard),
-            border: filled ? null : Border.all(color: colors.hairline),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadii.rCard),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: colors.ink,
+            blurRadius: 0,
+            offset: const Offset(0, 4),
           ),
-          child: Row(
-            children: <Widget>[
-              Icon(icon, size: 24, color: foreground),
-              const SizedBox(width: AppSpacing.s12),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: -0.2,
-                        color: foreground,
+        ],
+      ),
+      child: Material(
+        color: filled ? colors.accent : colors.card,
+        borderRadius: BorderRadius.circular(AppRadii.rCard),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 68),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.s16,
+              vertical: AppSpacing.s8,
+            ),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadii.rCard),
+              border: Border.all(
+                color: filled ? colors.ink : colors.ink,
+                width: 2,
+              ),
+            ),
+            child: Row(
+              children: <Widget>[
+                Icon(icon, size: 24, color: foreground),
+                const SizedBox(width: AppSpacing.s12),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.2,
+                          color: foreground,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 1),
-                    Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: secondary),
-                    ),
-                  ],
+                      const SizedBox(height: 1),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: secondary),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              Icon(
-                Icons.chevron_right,
-                size: 20,
-                color: filled
-                    ? colors.onAccent.withValues(alpha: 0.7)
-                    : colors.ink3,
-              ),
-            ],
+                Icon(
+                  Icons.chevron_right,
+                  size: 20,
+                  color: filled
+                      ? colors.onAccent.withValues(alpha: 0.7)
+                      : colors.ink3,
+                ),
+              ],
+            ),
           ),
         ),
       ),

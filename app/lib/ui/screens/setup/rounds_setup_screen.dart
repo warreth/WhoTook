@@ -1,8 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/audio/game_audio_service.dart';
 
 import '../../../core/theme/whotook_theme.dart';
 import '../../../l10n/l10n.dart';
@@ -41,7 +42,7 @@ class RoundsSetupScreen extends ConsumerWidget {
               blurb: option.blurb(context.l10n),
               selected: option.rounds == rounds,
               onTap: () {
-                unawaited(HapticFeedback.selectionClick());
+                unawaited(GameHaptics.instance.selection());
                 unawaited(coordinator.setRounds(option.rounds));
               },
             ),

@@ -31,43 +31,43 @@ WhoTook
 
 ### Short description, 80 characters
 
-Guess whose camera roll it is. A party game for friends.
+Guess the photo. Make the meme. A party game for friends.
 
 ### Full description, 4000 characters
 
 WhoTook is a party game for friends at one table or spread across the internet.
 
-Everyone picks a few photos from their own phone. A photo appears, and the table races to guess whose camera roll it came from. Faster correct guesses score more.
-
-The app is available in English and Nederlands. Pick a name and a selfie, gallery photo or icon avatar, and keep your last room ready to rejoin.
+Everyone brings photos from their own phone; Make It Meme fills a six-photo vault. Guess whose camera roll a photo came from, turn a friend's photo into a meme, or pin a date on the evidence board. The app is available in English and Nederlands.
 
 Ways to play:
 
-- Classic: guess who took the photo.
-- Caption This: write the funniest caption, then vote anonymously.
-- Time Traveler: guess the year and month on a timeline.
+- Classic: guess who took the photo. Faster correct guesses score more.
+- Make It Meme: get a friend's photo, choose from seven templates, then the room votes anonymously up, meh or down. The photo owner earns a royalty when the meme wins.
+- Time Traveler: pick a decade, year and month, then read the evidence timeline.
 - Mixed Party: all three, shuffled.
 
-Choose a name and a selfie, gallery photo or icon avatar, then rejoin your last room from the home screen after a restart. A dropped connection reconnects to the same round. The app speaks English and Nederlands. Play on the same Wi-Fi or online. No accounts, no ads and no photo server. Photos are resized and stripped of location data before they leave the phone, and they stay in that match. A photo avatar is stored only on your phone and sent only to the players in the active room.
+Choose a name and a selfie, gallery photo or icon avatar, then rejoin your last room from the home screen after a restart. A dropped connection reconnects to the same round. Play on the same Wi-Fi or online. No accounts, no ads and no photo server. Photos are resized and stripped of location data before they leave the phone, and they stay in that match. A photo avatar is stored only on your phone and sent only to the players in the active room.
 
-Start a room, pick the mode, rounds and pace, then show the QR code. Friends join from any camera app, check their name and avatar, and everyone approves their own photos. The game begins when the table is ready.
+Start a room, pick the mode, rounds and pace, then show the QR code. Friends join from any camera app, check their name and avatar, and everyone approves their photos. Make It Meme asks for six; the other modes ask for the set the host needs. The game begins when the table is ready. At the end, the podium hands out awards and can save the top three memes to your gallery.
 
 ### Promotional text, 170 characters
 
-New: selfie avatars, mid-game rejoin, host controls, Nederlands and a faster photo check.
+New: Make It Meme, a six-photo vault, an evidence-board timeline, top memes and a tactile new look.
 
 ### Assets
 
 - Icon: `store/assets/play-icon-512.png` (512 x 512 RGBA)
 - Feature graphic: `store/assets/play-feature-graphic-1024x500.png` (1024 x 500)
 - Phone screenshots: `store/assets/screenshots/play/` (1170 x 2340 each)
+- App Store phone screenshots: `store/assets/screenshots/iphone69/` (1320 x 2868 each)
+- App Store iPad screenshots: `store/assets/screenshots/ipad13/` (2064 x 2752 each)
 
 ### Content declarations
 
 - Ads: No
 - In-app purchases: No
 - Target audience: 13 and older. The game contains user-created photos and
-  captions, and private online interaction.
+  memes, and private online interaction.
 - Content rating: complete the questionnaire as a social party game with
   user-generated content and online interaction. The expected rating is Teen,
   but the rating authority decides.
@@ -105,28 +105,28 @@ The camera roll party game
 
 ### Keywords, 100 characters
 
-party game,photo game,guess who,camera roll,family,friends,quiz,caption,timeline,offline
+party game,photo game,guess who,camera roll,memes,friends,quiz,timeline,offline
 
 ### Description, 4000 characters
 
 WhoTook is a party game for friends at one table or spread across the internet.
 
-Everyone picks a few photos from their own phone. A photo appears, and the table races to guess whose camera roll it came from. Faster correct guesses score more.
+Everyone brings photos from their own phone; Make It Meme fills a six-photo vault. Guess whose camera roll a photo came from, turn a friend's photo into a meme, or pin a date on the evidence board. The app is available in English and Nederlands.
 
 Ways to play:
 
-- Classic: guess who took the photo.
-- Caption This: write the funniest caption, then vote anonymously.
-- Time Traveler: guess the year and month on a timeline.
+- Classic: guess who took the photo. Faster correct guesses score more.
+- Make It Meme: get a friend's photo, choose from seven templates, then the room votes anonymously up, meh or down. The photo owner earns a royalty when the meme wins.
+- Time Traveler: pick a decade, year and month, then read the evidence timeline.
 - Mixed Party: all three, shuffled.
 
-Choose a name and a selfie, gallery photo or icon avatar, then rejoin your last room from the home screen after a restart. A dropped connection reconnects to the same round. The app speaks English and Nederlands. Play on the same Wi-Fi or online. No accounts, no ads and no photo server. Photos are resized and stripped of location data before they leave the phone, and they stay in that match. A photo avatar is stored only on your phone and sent only to the players in the active room.
+Choose a name and a selfie, gallery photo or icon avatar, then rejoin your last room from the home screen after a restart. A dropped connection reconnects to the same round. Play on the same Wi-Fi or online. No accounts, no ads and no photo server. Photos are resized and stripped of location data before they leave the phone, and they stay in that match. A photo avatar is stored only on your phone and sent only to the players in the active room.
 
-Start a room, pick the mode, rounds and pace, then show the QR code. Friends join from any camera app, check their name and avatar, and everyone approves their own photos. The game begins when the table is ready.
+Start a room, pick the mode, rounds and pace, then show the QR code. Friends join from any camera app, check their name and avatar, and everyone approves their photos. Make It Meme asks for six; the other modes ask for the set the host needs. The game begins when the table is ready. At the end, the podium hands out awards and can save the top three memes to your gallery.
 
 ### Promotional text, 170 characters
 
-New: selfie avatars, mid-game rejoin, host controls, Nederlands and a faster photo check.
+New: Make It Meme, a six-photo vault, an evidence-board timeline, top memes and a tactile new look.
 
 ### Review notes
 
@@ -138,7 +138,7 @@ To test the full flow, install the build on two iPhones or iPads on the same Wi-
 2. Pick a mode, the rounds and the pace, then open the room.
 3. On device B, tap Join a game and scan the QR code. Check the name and avatar, then join.
 4. When everyone is in, tap Start photo check on device A.
-5. Approve photos and tap Ready on every phone. The first round starts. Close the app on a phone and use Rejoin on the home screen to return to the same match.
+5. Approve the requested photos (six for Make It Meme) and tap Ready on every phone. The first round starts. Open Make It Meme to test the editor, the anonymous vote and the round result. Close the app on a phone and use Rejoin on the home screen to return to the same match.
 
 A hidden review demo with fake players and bundled photos is available at
 Settings > About. Tap the small WhoTook trademark line seven times. It runs
@@ -158,9 +158,9 @@ definitions before submitting.
 
 ### Export compliance
 
-The app uses standard encryption through WebRTC and HTTPS. Complete the export
-compliance questionnaire in App Store Connect and provide documentation if
-Apple asks for it.
+The app uses standard encryption through WebRTC and HTTPS. `ITSAppUsesNonExemptEncryption`
+is set to `false`, so the export compliance question is answered in the build.
+Keep documentation ready if Apple asks.
 
 ### Assets
 
@@ -169,11 +169,12 @@ Apple asks for it.
 - iPhone 6.9-inch screenshots: `store/assets/screenshots/iphone69/`
   (1320 x 2868 each).
 - iPad 13-inch screenshots: `store/assets/screenshots/ipad13/`
-  (2064 x 2752 each).
+  (2064 x 2752 each). iPad captures show home, the six-photo vault, the meme
+  editor, a private lobby, the evidence timeline and the podium.
 
 ## Age rating notes
 
-The game contains user-created photos and captions, private online interaction
+The game contains user-created photos and memes, private online interaction
 and no public feed. Apple's expected rating is 12+ for user-generated content.
 Google Play's expected rating is Teen. The stores decide the final rating from
 the questionnaires.

@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/audio/game_audio_service.dart';
 import '../../core/models/models.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
+import '../widgets/game_widgets.dart';
 import '../widgets/host_controls.dart';
 
 /// One photo, one timer, and every player in the room as a button, including
@@ -29,123 +31,110 @@ class RoundScreen extends ConsumerWidget {
 
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.s20,
-            AppSpacing.s12,
-            AppSpacing.s20,
-            AppSpacing.s16,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              Row(
-                children: <Widget>[
+        child: ScreenBody(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.s20,
+              AppSpacing.s12,
+              AppSpacing.s20,
+              AppSpacing.s16,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        showingReveal || showingCountdown
+                            ? l10n.roundOf(roundNumber, state.totalRounds)
+                            : l10n.whoTookThis,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: -0.3,
+                          color: colors.ink,
+                        ),
+                      ),
+                    ),
+                    const HostControlsButton(),
+                    FrameCounter(
+                      current: roundNumber,
+                      total: state.totalRounds,
+                    ),
+                  ],
+                ),
+                if (state.totalRounds > 0) ...<Widget>[
+                  const SizedBox(height: AppSpacing.s8),
+                  ProgressSegments(
+                    current: roundNumber,
+                    total: state.totalRounds,
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.s12),
+                if (showingCountdown)
                   Expanded(
-                    child: Text(
-                      showingReveal || showingCountdown
-                          ? l10n.roundOf(roundNumber, state.totalRounds)
-                          : l10n.whoTookThis,
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: -0.3,
-                        color: colors.ink,
+                    child: _CountdownView(
+                      seconds: ((state.remainingMs + 999) ~/ 1000).clamp(1, 9),
+                    ),
+                  )
+                else ...<Widget>[
+                  Expanded(
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      switchInCurve: Curves.easeOut,
+                      child: _PhotoFrame(
+                        key: ValueKey<int>(state.currentRound),
+                        bytes: state.activePhotoBytes,
+                        isPanorama: state.activePhotoIsPanorama,
                       ),
                     ),
                   ),
-                  const HostControlsButton(),
-                  FrameCounter(current: roundNumber, total: state.totalRounds),
-                ],
-              ),
-              if (state.totalRounds > 0) ...<Widget>[
-                const SizedBox(height: AppSpacing.s8),
-                ProgressSegments(
-                  current: roundNumber,
-                  total: state.totalRounds,
-                ),
-              ],
-              const SizedBox(height: AppSpacing.s12),
-              if (showingCountdown)
-                Expanded(
-                  child: _CountdownView(
-                    seconds: ((state.remainingMs + 999) ~/ 1000).clamp(1, 9),
-                  ),
-                )
-              else ...<Widget>[
-                Expanded(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
-                    switchInCurve: Curves.easeOut,
-                    child: _PhotoFrame(
-                      key: ValueKey<int>(state.currentRound),
-                      bytes: state.activePhotoBytes,
-                      isPanorama: state.activePhotoIsPanorama,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.s12),
-                if (showingReveal)
-                  _RevealBlock(
-                    reveal: reveal,
-                    players: state.players,
-                    avatarPhotos: state.avatarPhotos,
-                    localPlayerId: state.localPlayerId,
-                  )
-                else ...<Widget>[
                   const SizedBox(height: AppSpacing.s12),
-                  _TimerBar(
-                    remainingMs: state.remainingMs,
-                    totalMs: (state.config.roundSeconds * 1000).clamp(1, 60000),
-                  ),
-                  const SizedBox(height: AppSpacing.s12),
-                  _GuessGrid(
-                    options: state.activeRoundOptions,
-                    avatarPhotos: state.avatarPhotos,
-                    lockedOwnerId: state.lockedGuessOwnerId,
-                    onGuess: (ownerId) {
-                      unawaited(HapticFeedback.selectionClick());
-                      unawaited(
-                        state.isHosting
-                            ? coordinator.submitGuess(ownerId)
-                            : coordinator.clientSubmitGuess(ownerId),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: AppSpacing.s8),
-                  if (state.screenshotAlerts.isNotEmpty)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: <Widget>[
-                        Icon(
-                          Icons.camera_alt_outlined,
-                          size: 14,
-                          color: colors.ink2,
-                        ),
-                        const SizedBox(width: AppSpacing.s4),
-                        Flexible(
-                          child: Text(
-                            l10n.screenshotBy(
-                              state.screenshotAlerts.last.playerName.isEmpty
-                                  ? l10n.player
-                                  : state.screenshotAlerts.last.playerName,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 13, color: colors.ink2),
-                          ),
-                        ),
-                      ],
+                  if (showingReveal)
+                    _RevealBlock(
+                      reveal: reveal,
+                      players: state.players,
+                      avatarPhotos: state.avatarPhotos,
+                      localPlayerId: state.localPlayerId,
+                    )
+                  else ...<Widget>[
+                    const SizedBox(height: AppSpacing.s12),
+                    PanicTimerBar(
+                      remainingMs: state.remainingMs,
+                      totalMs: (state.config.roundSeconds * 1000).clamp(
+                        1,
+                        60000,
+                      ),
+                      label: l10n.tapNameToLock,
                     ),
-                  const SizedBox(height: AppSpacing.s8),
-                  if (state.lockedGuessOwnerId != null)
-                    Text(
-                      l10n.lockedInWaiting,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 13, color: colors.ink2),
+                    const SizedBox(height: AppSpacing.s12),
+                    _GuessGrid(
+                      options: state.activeRoundOptions,
+                      avatarPhotos: state.avatarPhotos,
+                      lockedOwnerId: state.lockedGuessOwnerId,
+                      onGuess: (ownerId) {
+                        unawaited(GameHaptics.instance.selection());
+                        unawaited(GameAudioService.instance.tap());
+                        unawaited(
+                          state.isHosting
+                              ? coordinator.submitGuess(ownerId)
+                              : coordinator.clientSubmitGuess(ownerId),
+                        );
+                      },
                     ),
+                    const SizedBox(height: AppSpacing.s8),
+                    const SizedBox(height: AppSpacing.s8),
+                    if (state.lockedGuessOwnerId != null)
+                      Text(
+                        l10n.lockedInWaiting,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 13, color: colors.ink2),
+                      ),
+                  ],
                 ],
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -231,12 +220,12 @@ class _PhotoFrame extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.card,
         borderRadius: BorderRadius.circular(AppRadii.rCard),
-        border: Border.all(color: colors.hairline),
-        boxShadow: const <BoxShadow>[
+        border: Border.all(color: colors.ink, width: 2),
+        boxShadow: <BoxShadow>[
           BoxShadow(
-            color: Color(0x241F1B16),
-            blurRadius: 22,
-            offset: Offset(0, 9),
+            color: colors.ink,
+            blurRadius: 0,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -294,66 +283,6 @@ class _Photo extends StatelessWidget {
   }
 }
 
-class _TimerBar extends StatelessWidget {
-  const _TimerBar({required this.remainingMs, required this.totalMs});
-
-  final int remainingMs;
-  final int totalMs;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = WhoTookColors.of(context);
-    final l10n = context.l10n;
-    final fraction = remainingMs <= 0
-        ? 0.0
-        : (remainingMs / totalMs).clamp(0.0, 1.0);
-    final seconds = (remainingMs / 1000).toStringAsFixed(1);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        Row(
-          children: <Widget>[
-            Text(
-              l10n.secondsLeftShort(seconds),
-              style: tabularFigures(
-                TextStyle(
-                  fontFamily: 'JetBrainsMono',
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: colors.ink,
-                ),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.s8),
-            Expanded(
-              child: Text(
-                l10n.tapNameToLock,
-                textAlign: TextAlign.right,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 12, color: colors.ink2),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.s8),
-        Semantics(
-          label: l10n.secondsLeftToGuess,
-          value: seconds,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(3),
-            child: LinearProgressIndicator(
-              value: fraction,
-              minHeight: 6,
-              backgroundColor: colors.raised,
-              valueColor: AlwaysStoppedAnimation<Color>(colors.accent),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _GuessGrid extends StatelessWidget {
   const _GuessGrid({
     required this.options,
@@ -406,8 +335,16 @@ class _GuessGrid extends StatelessWidget {
           height: 52,
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s12),
           decoration: BoxDecoration(
+            color: picked ? colors.ink : (dimmed ? colors.raised : colors.card),
             borderRadius: BorderRadius.circular(AppRadii.rControl),
-            border: Border.all(color: colors.hairline),
+            border: Border.all(color: colors.ink, width: 2),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: colors.ink,
+                blurRadius: 0,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
           child: Row(
             children: <Widget>[
@@ -482,8 +419,8 @@ class _RevealBlockState extends State<_RevealBlock> {
     _timer = Timer(const Duration(milliseconds: 700), () {
       if (!mounted) return;
       setState(() => _shown = true);
-      unawaited(SystemSound.play(SystemSoundType.click));
-      unawaited(HapticFeedback.lightImpact());
+      unawaited(GameAudioService.instance.tap());
+      unawaited(GameHaptics.instance.light());
     });
   }
 

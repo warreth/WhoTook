@@ -1,7 +1,7 @@
 name: whotook
 description: "Open-source hybrid LAN & WebRTC party photo-guessing game."
 publish_to: 'none'
-version: 1.7.0+11
+version: 1.8.0+12
 
 environment:
   sdk: ^3.13.2
@@ -28,6 +28,8 @@ dependencies:
   intl: ^0.20.3
   package_info_plus: ^10.2.2
   image_picker: ^1.2.4
+  audioplayers: ^6.8.1
+  gal: ^3.0.1
 
 dev_dependencies:
   flutter_test:
@@ -41,6 +43,7 @@ flutter:
 
   assets:
     - assets/samples/
+    - assets/audio/
 
   fonts:
     - family: DMSans

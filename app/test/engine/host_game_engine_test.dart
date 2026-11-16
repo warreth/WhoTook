@@ -352,6 +352,37 @@ void main() {
       expect(ownerEntry.points, 1187);
       expect(reveal.scoreDeltas[entry.ownerId], 1187);
     });
+    test('the owner has to answer before the round closes', () {
+      final engine = readyEngine(
+        players: 3,
+        roundsK: 3,
+        photosPerPlayer: 3,
+        mode: GameMode.timeTraveler,
+        datedPhotos: true,
+      );
+      engine.startGame();
+      final entry = engine.startRound();
+      final ownerId = entry.ownerId;
+      final actualYear = entry.photo.capturedYear!;
+      final actualMonth = entry.photo.capturedMonth!;
+      for (final player in engine.players) {
+        if (player.id == ownerId) continue;
+        engine.submitTimelineGuess(
+          playerId: player.id,
+          year: actualYear,
+          month: actualMonth,
+          elapsedMs: 1000,
+        );
+      }
+      expect(engine.allTimelineGuessed, isFalse);
+      engine.submitTimelineGuess(
+        playerId: ownerId,
+        year: actualYear,
+        month: actualMonth,
+        elapsedMs: 1500,
+      );
+      expect(engine.allTimelineGuessed, isTrue);
+    });
   });
 
   group('Mixed Party', () {
@@ -1033,5 +1064,97 @@ void main() {
         expect(engine.player('p1')!.score, 900);
       },
     );
+  });
+  group('Make It Meme', () {
+    test('builds a six-photo vault and assigns another player', () {
+      final engine = readyEngine(
+        players: 3,
+        roundsK: 2,
+        mode: GameMode.makeItMeme,
+        photosPerPlayer: 6,
+      );
+      expect(engine.photosNeeded, 6);
+      engine.startGame();
+      engine.startRound();
+      expect(engine.phase, RoundPhase.captionWriting);
+      for (final player in engine.players) {
+        final assignment = engine.memeAssignmentFor(player.id);
+        expect(assignment, isNotNull);
+        expect(assignment!.ownerId, isNot(player.id));
+        expect(engine.memeSwapsLeft(player.id), 5);
+      }
+    });
+
+    test('swaps a photo five times and then stops', () {
+      final engine = readyEngine(
+        players: 3,
+        roundsK: 2,
+        mode: GameMode.makeItMeme,
+        photosPerPlayer: 6,
+      );
+      engine.startGame();
+      engine.startRound();
+      final player = engine.players.first;
+      for (var left = 4; left >= 0; left--) {
+        engine.swapMemePhoto(player.id);
+        expect(engine.memeSwapsLeft(player.id), left);
+      }
+      expect(
+        () => engine.swapMemePhoto(player.id),
+        throwsA(
+          isA<EngineException>().having((e) => e.code, 'code', 'no_swaps'),
+        ),
+      );
+    });
+
+    test('votes anonymously, reveals authors and pays model royalties', () {
+      final engine = readyEngine(
+        players: 3,
+        roundsK: 2,
+        mode: GameMode.makeItMeme,
+        photosPerPlayer: 6,
+      );
+      engine.startGame();
+      engine.startRound();
+      for (final player in engine.players) {
+        engine.submitMeme(
+          playerId: player.id,
+          template: MemeTemplate.classic,
+          topText: 'top ${player.id}',
+          bottomText: 'bottom',
+          snapY: 48,
+        );
+      }
+      expect(engine.allMemesSubmitted, isTrue);
+      engine.beginMemeVoting();
+      final options = engine.memeOptions;
+      expect(options, hasLength(3));
+      for (final player in engine.players) {
+        for (final option in options) {
+          if (engine.isOwnMeme(player.id, option.id)) continue;
+          engine.submitMemeVote(
+            playerId: player.id,
+            memeId: option.id,
+            vote: MemeVote.up,
+          );
+        }
+      }
+      expect(engine.allMemeVotesSubmitted, isTrue);
+      final reveal = engine.finishMemeRound();
+      expect(reveal.entries, hasLength(3));
+      expect(reveal.winnerIds, hasLength(3));
+      for (final entry in reveal.entries) {
+        expect(entry.authorName, isNotEmpty);
+        expect(entry.photoOwnerName, isNotEmpty);
+        expect(entry.points, 200);
+      }
+      final scoreDeltas = reveal.scoreDeltas;
+      for (final entry in reveal.entries) {
+        expect(scoreDeltas[entry.authorId], greaterThanOrEqualTo(200));
+        expect(scoreDeltas[entry.photoOwnerId], greaterThanOrEqualTo(25));
+      }
+      expect(engine.phase, RoundPhase.captionReveal);
+      expect(engine.topMemes, isNotEmpty);
+    });
   });
 }

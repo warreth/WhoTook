@@ -382,7 +382,7 @@ MatchUiState _lobbyModes() => MatchUiState(
   config: const MatchConfig(
     roundsK: 10,
     roundSeconds: 8,
-    mode: GameMode.captionThis,
+    mode: GameMode.makeItMeme,
   ),
   connectionMode: ConnectionMode.localLan,
 );

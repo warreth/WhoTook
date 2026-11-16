@@ -3,17 +3,18 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/audio/game_audio_service.dart';
 import '../../core/avatars.dart';
 import '../../core/constants.dart';
 import '../../core/links.dart';
 import '../../core/media/photo_service.dart';
 import '../../core/models/models.dart';
-import '../../core/storage/settings_repository.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../widgets/avatar_editor.dart';
 import '../widgets/common.dart';
+import 'advanced_settings_screen.dart';
 import 'demo_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -27,15 +28,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   static const Duration _nameDebounceDelay = Duration(milliseconds: 300);
 
   final TextEditingController _name = TextEditingController();
-  final TextEditingController _signalingUrl = TextEditingController();
-  final TextEditingController _turnUrl = TextEditingController();
-  final TextEditingController _turnUsername = TextEditingController();
-  final TextEditingController _turnCredential = TextEditingController();
   late final AppSettingsController _settings;
   Timer? _nameDebounce;
   String? _pendingName;
-  String? _relayStatus;
-  bool _relayStatusWarning = false;
   List<AlbumSummary>? _albums;
   bool _albumError = false;
   int _demoTaps = 0;
@@ -54,10 +49,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final settings = await ref.read(appSettingsProvider.future);
     if (!mounted) return;
     _name.text = settings.nickname;
-    _signalingUrl.text = settings.customSignalingUrl ?? '';
-    _turnUrl.text = settings.customTurnUrl ?? '';
-    _turnUsername.text = settings.customTurnUsername ?? '';
-    _turnCredential.text = settings.customTurnCredential ?? '';
   }
 
   Future<void> _saveName(String value) async {
@@ -92,10 +83,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
     }
     _name.dispose();
-    _signalingUrl.dispose();
-    _turnUrl.dispose();
-    _turnUsername.dispose();
-    _turnCredential.dispose();
     super.dispose();
   }
 
@@ -129,72 +116,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _retryAlbums() async {
     await ref.read(photoLibraryProvider).requestPermission();
     await _loadAlbums(reset: true);
-  }
-
-  Future<void> _saveRelay() async {
-    final l10n = context.l10n;
-    final signaling = _signalingUrl.text.trim();
-    final turn = _turnUrl.text.trim();
-    final hasSignalingScheme =
-        signaling.startsWith('https://') ||
-        signaling.startsWith('http://') ||
-        signaling.startsWith('wss://') ||
-        signaling.startsWith('ws://');
-    if (!hasSignalingScheme) {
-      setState(() {
-        _relayStatus = l10n.relaySignalingSchemeError;
-        _relayStatusWarning = true;
-      });
-      return;
-    }
-    final lowerTurn = turn.toLowerCase();
-    if (turn.isNotEmpty &&
-        !lowerTurn.startsWith('turn:') &&
-        !lowerTurn.startsWith('turns:')) {
-      setState(() {
-        _relayStatus = l10n.relayTurnSchemeError;
-        _relayStatusWarning = true;
-      });
-      return;
-    }
-    final username = _turnUsername.text.trim();
-    final credential = _turnCredential.text.trim();
-    await _settings.apply((current) {
-      // Clearing first lets empty fields really mean "not set" instead of
-      // keeping the previous value.
-      final cleared = current.copyWith(
-        clearCustomSignalingUrl: true,
-        clearTurn: true,
-      );
-      return cleared.copyWith(
-        customSignalingUrl: signaling,
-        customTurnUrl: turn.isEmpty ? null : turn,
-        customTurnUsername: username.isEmpty ? null : username,
-        customTurnCredential: credential.isEmpty ? null : credential,
-      );
-    });
-    if (!mounted) return;
-    setState(() {
-      _relayStatus = l10n.relaySaved;
-      _relayStatusWarning = false;
-    });
-  }
-
-  Future<void> _resetRelay() async {
-    final l10n = context.l10n;
-    await _settings.apply(
-      (current) =>
-          current.copyWith(clearCustomSignalingUrl: true, clearTurn: true),
-    );
-    if (!mounted) return;
-    setState(() {
-      _signalingUrl.clear();
-      _turnUrl.clear();
-      _turnUsername.clear();
-      _turnCredential.clear();
-      _relayStatus = l10n.relayDefault;
-      _relayStatusWarning = false;
-    });
   }
 
   @override
@@ -271,6 +192,54 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         ),
                       ),
                     ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.s24),
+            SectionLabel(l10n.gameFeel),
+            SurfaceCard(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: <Widget>[
+                  SwitchListTile(
+                    value: settings?.soundEnabled ?? true,
+                    onChanged: (value) {
+                      unawaited(
+                        _settings.apply(
+                          (current) => current.copyWith(soundEnabled: value),
+                        ),
+                      );
+                      if (value) unawaited(GameAudioService.instance.tap());
+                    },
+                    title: Text(
+                      l10n.memeSound,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    subtitle: Text(
+                      l10n.memeSoundBody,
+                      style: TextStyle(fontSize: 12, color: colors.ink2),
+                    ),
+                  ),
+                  Divider(height: 1, color: colors.hairline),
+                  SwitchListTile(
+                    value: settings?.hapticsEnabled ?? true,
+                    onChanged: (value) {
+                      unawaited(
+                        _settings.apply(
+                          (current) => current.copyWith(hapticsEnabled: value),
+                        ),
+                      );
+                      if (value) unawaited(GameHaptics.instance.selection());
+                    },
+                    title: Text(
+                      l10n.memeHaptics,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    subtitle: Text(
+                      l10n.memeHapticsBody,
+                      style: TextStyle(fontSize: 12, color: colors.ink2),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -396,121 +365,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             const SizedBox(height: AppSpacing.s24),
             SectionLabel(l10n.onlineRelay),
-            Text(
-              l10n.onlineRelayBody,
-              style: TextStyle(fontSize: 13, color: colors.ink2, height: 1.45),
-            ),
-            const SizedBox(height: AppSpacing.s12),
             SurfaceCard(
               padding: EdgeInsets.zero,
-              child: ExpansionTile(
-                shape: const Border(),
-                collapsedShape: const Border(),
-                tilePadding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.s16,
-                ),
-                childrenPadding: const EdgeInsets.fromLTRB(
-                  AppSpacing.s16,
-                  0,
-                  AppSpacing.s16,
-                  AppSpacing.s16,
-                ),
-                expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
+              child: ListTile(
+                minTileHeight: 64,
+                leading: const Icon(Icons.tune, size: 20),
                 title: Text(
-                  l10n.selfHostedRelay,
+                  l10n.advancedSettings,
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 subtitle: Text(
-                  l10n.selfHostedRelayBody,
-                  style: TextStyle(fontSize: 12, color: colors.ink3),
+                  l10n.advancedSettingsBody,
+                  style: TextStyle(fontSize: 12, color: colors.ink2),
                 ),
-                children: <Widget>[
-                  TextField(
-                    controller: _signalingUrl,
-                    keyboardType: TextInputType.url,
-                    style: const TextStyle(fontSize: 14),
-                    decoration: InputDecoration(
-                      labelText: l10n.signalingUrl,
-                      helperText: l10n.signalingUrlHelper(kDefaultSignalingUrl),
-                      isDense: true,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppRadii.rControl),
-                      ),
+                trailing: const Icon(Icons.chevron_right, size: 20),
+                onTap: () => unawaited(
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const AdvancedSettingsScreen(),
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.s12),
-                  TextField(
-                    controller: _turnUrl,
-                    keyboardType: TextInputType.url,
-                    style: const TextStyle(fontSize: 14),
-                    decoration: InputDecoration(
-                      labelText: l10n.customTurnUrl,
-                      helperText: l10n.customTurnHelper,
-                      isDense: true,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppRadii.rControl),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.s12),
-                  TextField(
-                    controller: _turnUsername,
-                    style: const TextStyle(fontSize: 14),
-                    decoration: InputDecoration(
-                      labelText: l10n.turnUsername,
-                      isDense: true,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppRadii.rControl),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.s12),
-                  TextField(
-                    controller: _turnCredential,
-                    obscureText: true,
-                    style: const TextStyle(fontSize: 14),
-                    decoration: InputDecoration(
-                      labelText: l10n.turnCredential,
-                      isDense: true,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppRadii.rControl),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.s16),
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: SecondaryButton(
-                          label: l10n.resetToDefault,
-                          onPressed: () => unawaited(_resetRelay()),
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.s12),
-                      Expanded(
-                        child: PrimaryButton(
-                          label: l10n.saveRelay,
-                          onPressed: () => unawaited(_saveRelay()),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (_relayStatus != null) ...<Widget>[
-                    const SizedBox(height: AppSpacing.s8),
-                    Text(
-                      _relayStatus!,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: _relayStatusWarning
-                            ? colors.negative
-                            : colors.positive,
-                      ),
-                    ),
-                  ],
-                ],
+                ),
               ),
             ),
             const SizedBox(height: AppSpacing.s24),

@@ -27,6 +27,12 @@ abstract final class WireType {
   static const String captionOptions = 'caption_options';
   static const String captionVote = 'caption_vote';
   static const String captionReveal = 'caption_reveal';
+  static const String memeAssignment = 'meme_assignment';
+  static const String memeSubmit = 'meme_submit';
+  static const String memeOptions = 'meme_options';
+  static const String memeVote = 'meme_vote';
+  static const String memeReveal = 'meme_reveal';
+  static const String memeSwap = 'meme_swap';
   static const String timelineSubmit = 'timeline_submit';
   static const String timelineReveal = 'timeline_reveal';
   static const String extendPrepare = 'extend_prepare';
@@ -61,6 +67,12 @@ abstract final class WireType {
     captionOptions,
     captionVote,
     captionReveal,
+    memeAssignment,
+    memeSubmit,
+    memeOptions,
+    memeVote,
+    memeReveal,
+    memeSwap,
     timelineSubmit,
     timelineReveal,
     extendPrepare,

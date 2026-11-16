@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/models/models.dart';
 import '../core/navigation.dart';
+import '../core/audio/game_audio_service.dart';
 import '../l10n/l10n.dart';
 import '../core/theme/whotook_theme.dart';
 import '../state/match_coordinator.dart';
@@ -14,11 +15,13 @@ import 'ui/screens/caption_screen.dart';
 import 'ui/screens/extend_screen.dart';
 import 'ui/screens/home_screen.dart';
 import 'ui/screens/lobby_screen.dart';
+import 'ui/screens/meme_screen.dart';
 import 'ui/screens/onboarding_screen.dart';
 import 'ui/screens/podium_screen.dart';
 import 'ui/screens/prepare_screen.dart';
 import 'ui/screens/round_screen.dart';
 import 'ui/screens/timeline_screen.dart';
+import 'ui/widgets/screenshot_alert_toast.dart';
 import 'ui/widgets/version_warning_card.dart';
 
 class WhoTookApp extends ConsumerWidget {
@@ -108,6 +111,8 @@ class _MatchRootState extends ConsumerState<_MatchRoot> {
     final settings = ref.watch(appSettingsProvider).value;
     if (settings != null) {
       coordinator.updateSettings(settings);
+      GameAudioService.instance.enabled = settings.soundEnabled;
+      GameHaptics.instance.enabled = settings.hapticsEnabled;
     }
     coordinator.updateLocale(Localizations.localeOf(context));
 
@@ -129,9 +134,10 @@ class _MatchRootState extends ConsumerState<_MatchRoot> {
       RoundPhase.reveal => const RoundScreen(key: ValueKey<String>('round')),
       RoundPhase.captionWriting ||
       RoundPhase.captionVoting ||
-      RoundPhase.captionReveal => const CaptionScreen(
-        key: ValueKey<String>('caption'),
-      ),
+      RoundPhase.captionReveal =>
+        state.activeMode == GameMode.makeItMeme
+            ? const MemeScreen(key: ValueKey<String>('meme'))
+            : const CaptionScreen(key: ValueKey<String>('caption')),
       RoundPhase.timelineGuessing || RoundPhase.timelineReveal =>
         const TimelineScreen(key: ValueKey<String>('timeline')),
       RoundPhase.extendPrompt => const ExtendScreen(
@@ -172,6 +178,12 @@ class _MatchRootState extends ConsumerState<_MatchRoot> {
                 ),
               ),
             ),
+          const Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: ScreenshotAlertToast(),
+          ),
           if (state.reconnecting)
             Positioned.fill(
               child: _ReconnectOverlay(

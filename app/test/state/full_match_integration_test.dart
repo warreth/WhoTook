@@ -584,8 +584,8 @@ void main() {
       connector: HybridConnector(
         onlineClientFactory: () => LoopbackClientTransport(hub),
       ),
-      appVersion: '1.8.0',
-      appBuild: 12,
+      appVersion: '1.9.0',
+      appBuild: 13,
       roundDuration: const Duration(milliseconds: 900),
       countdownDuration: Duration.zero,
       revealDuration: const Duration(milliseconds: 40),
@@ -598,9 +598,9 @@ void main() {
     await _waitFor(() => host.state.versionWarning != null);
     await _waitFor(() => clientOne.state.versionWarning != null);
 
-    expect(host.state.versionWarning!.latestBuild, 12);
-    expect(host.state.versionWarning!.ownBuild, 11);
-    expect(clientOne.state.versionWarning!.latestVersion, '1.8.0');
+    expect(host.state.versionWarning!.latestBuild, 13);
+    expect(host.state.versionWarning!.ownBuild, 12);
+    expect(clientOne.state.versionWarning!.latestVersion, '1.9.0');
     expect(newer.state.versionWarning, isNull);
 
     host.dismissVersionWarning();
@@ -698,6 +698,79 @@ void main() {
     expect(clientOne.state.captionOptions, isNotEmpty);
     expect(clientOne.state.ownCaptionId, isNotNull);
     expect(clientOne.state.votedCaptionId, isNull);
+  }, timeout: const Timeout(Duration(seconds: 45)));
+
+  test('three players build and vote on anonymous memes', () async {
+    await host.setMode(GameMode.makeItMeme);
+    await _waitFor(() => host.state.config.mode == GameMode.makeItMeme);
+    await host.startPrepare();
+    await _waitFor(() => host.state.candidates.isNotEmpty);
+    await _waitFor(() => clientOne.state.candidates.isNotEmpty);
+    await _waitFor(() => clientTwo.state.candidates.isNotEmpty);
+    await host.markLocalReady();
+    await clientOne.clientMarkReady();
+    await clientTwo.clientMarkReady();
+    await _waitFor(() => host.state.phase == RoundPhase.captionWriting);
+    await _waitFor(() => host.state.memeAssignment != null);
+    await _waitFor(() => clientOne.state.memeAssignment != null);
+    await _waitFor(() => clientTwo.state.memeAssignment != null);
+    expect(host.state.memePhotoBase64, isNotEmpty);
+    expect(clientOne.state.memePhotoBase64, isNotEmpty);
+    expect(host.state.memeSwapsLeft, 5);
+
+    await clientOne.clientSwapMemePhoto();
+    await _waitFor(() => clientOne.state.memeSwapsLeft == 4);
+
+    await host.submitMeme(
+      template: MemeTemplate.classic,
+      topText: 'Host top',
+      bottomText: 'Host bottom',
+      snapY: 48,
+    );
+    await clientOne.clientSubmitMeme(
+      template: MemeTemplate.pov,
+      topText: 'One top',
+      bottomText: 'One bottom',
+      snapY: 48,
+    );
+    await clientTwo.clientSubmitMeme(
+      template: MemeTemplate.breaking,
+      topText: 'Two top',
+      bottomText: '',
+      snapY: 48,
+    );
+    await _waitFor(() => host.state.phase == RoundPhase.captionVoting);
+    await _waitFor(() => clientOne.state.memeCards.isNotEmpty);
+    await _waitFor(() => clientTwo.state.memeCards.isNotEmpty);
+    expect(host.state.memeCards, hasLength(3));
+    expect(clientOne.state.memeCards.where((card) => card.isOwn), hasLength(1));
+    expect(
+      clientOne.state.memeCards.any((card) => card.authorName != null),
+      isFalse,
+    );
+
+    void voteAll(MatchCoordinator coordinator) {
+      for (final card in coordinator.state.memeCards) {
+        if (card.isOwn) continue;
+        final vote = coordinator == host
+            ? coordinator.voteMeme(card.id, MemeVote.up)
+            : coordinator.clientVoteMeme(card.id, MemeVote.up);
+        unawaited(vote);
+      }
+    }
+
+    voteAll(host);
+    voteAll(clientOne);
+    voteAll(clientTwo);
+    await _waitFor(
+      () => host.state.phase == RoundPhase.captionReveal,
+      timeout: const Duration(seconds: 20),
+    );
+    await _waitFor(() => clientOne.state.phase == RoundPhase.captionReveal);
+    expect(host.state.lastMemeReveal, isNotNull);
+    expect(host.state.memeRevealCards, hasLength(3));
+    expect(host.state.memeRevealCards.first.authorName, isNotNull);
+    expect(host.state.topMemes, isNotEmpty);
   }, timeout: const Timeout(Duration(seconds: 45)));
 
   test('host leaving ends the client room', () async {
