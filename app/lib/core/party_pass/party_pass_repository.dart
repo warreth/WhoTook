@@ -82,7 +82,8 @@ class PartyPassRepository {
       final parsed = jsonDecode(raw);
       if (parsed is! Map<String, dynamic>) return null;
       return PartyPassCredential.fromJson(parsed);
-    } on FormatException {
+    } on Object {
+      // A truncated or hand-edited preference must never crash startup.
       return null;
     }
   }

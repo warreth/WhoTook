@@ -8,6 +8,7 @@ import '../core/navigation.dart';
 import '../core/party_pass/party_pass_controller.dart';
 import '../core/party_pass/room_theme.dart';
 import '../core/audio/game_audio_service.dart';
+import '../core/audio/soundboard_service.dart';
 import '../l10n/l10n.dart';
 import '../core/theme/whotook_theme.dart';
 import '../state/match_coordinator.dart';
@@ -135,6 +136,7 @@ class _MatchRootState extends ConsumerState<_MatchRoot> {
     if (settings != null) {
       coordinator.updateSettings(settings);
       GameAudioService.instance.enabled = settings.soundEnabled;
+      SoundboardService.instance.enabled = settings.soundEnabled;
       GameHaptics.instance.enabled = settings.hapticsEnabled;
     }
     final partyPass = ref.watch(partyPassProvider).value;

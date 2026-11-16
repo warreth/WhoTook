@@ -113,8 +113,11 @@ class StorePartyPassPurchaseService implements PartyPassPurchaseService {
     _initialized = true;
     try {
       _available = await _iap.isAvailable();
-      if (!_available) return;
-      _subscription = _iap.purchaseStream.listen(
+      if (!_available) {
+        _initialized = false;
+        return;
+      }
+      _subscription ??= _iap.purchaseStream.listen(
         _onPurchases,
         onError: (Object _) {},
       );
