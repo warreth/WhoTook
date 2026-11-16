@@ -14,6 +14,8 @@ analyzer:
     - build/**
     - android/**
     - ios/**
+    # Copied over lib/core/party_pass/purchase_service.dart by foss/build.sh.
+    - foss/**
 
 linter:
   # The lint rules applied to this project can be customized in the

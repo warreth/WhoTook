@@ -64,8 +64,7 @@ listening-port=3478
 tls-listening-port=5349
 fingerprint
 lt-cred-mech
-use-auth-secret
-static-auth-secret=REPLACE_WITH_A_LONG_RANDOM_SECRET
+user=whotook:REPLACE_WITH_A_LONG_PASSWORD
 realm=turn.example.com
 cert=/etc/letsencrypt/live/turn.example.com/fullchain.pem
 pkey=/etc/letsencrypt/live/turn.example.com/privkey.pem
@@ -77,23 +76,39 @@ Open UDP/TCP 3478 and TCP 5349, and the relay port range you configure
 (`min-port`/`max-port`). Then install a FOSS build of WhoTook and open
 **Settings → Online relay → Self-hosted relay**:
 
-- **TURN URI**: `turn:turn.example.com:3478?transport=udp` (add a
-  `turns:turn.example.com:5349?transport=tcp` entry for TLS if you have it)
-- **Username** and **Password**: static credentials from your `coturn`
-  configuration, or time-limited credentials produced by your own issuer.
+- **TURN URI**: one URL, for example
+  `turn:turn.example.com:3478?transport=udp`. Use
+  `turns:turn.example.com:5349?transport=tcp` instead when your relay has a
+  trusted TLS certificate; the form accepts one URI.
+- **Username** and **Password**: the static `user=` entry from your `coturn`
+  configuration. The official relay uses short-lived HMAC credentials
+  instead; a self-hosted static user does not need to generate them.
 
-The app appends this server to the ICE configuration for every match. It never
-contacts the official WhoTook relay from a FOSS build.
+When a custom TURN URI is configured, the app uses it directly with public
+STUN and does not call `/ice-config` or the official relay. Every phone that
+joins the room must enter the same custom TURN URI and credentials; relay
+settings are not propagated with the room.
 
-Build the FOSS variant with:
+If you run a signaling server without a custom TURN entry, it may receive
+`POST /ice-config` with `{roomId, token}`; answer `200` with
+`{"turnAllowed":false,"iceServers":[{"urls":"stun:stun.cloudflare.com:3478"}]}`
+or `401` for a bad room token. Without a custom TURN URI, a FOSS build with the
+default signaling also calls this endpoint for STUN.
+
+Build the dependency-clean FOSS variant with:
 
 ```bash
-cd app
-flutter run --dart-define=FOSS_BUILD=true
+bash app/foss/build.sh
 ```
 
-FOSS builds contain no store billing code paths and no official relay client.
-They include the local soundboard and all room themes for free.
+The script copies the app, removes the `in_app_purchase` dependencies, overlays
+the no-billing purchase service, runs the FOSS tests and builds the app: the
+Android debug APK on Linux/CI, or an unsigned iOS app on macOS. For a quick
+runtime check without the dependency-clean copy, `flutter run
+--dart-define=FOSS_BUILD=true` still disables billing and the official relay.
+
+FOSS builds never initialize store billing or the official relay client. They
+include the local soundboard and all room themes for free.
 
 ## 4. What the official build does differently
 
@@ -104,4 +119,6 @@ shared room themes. Receipt verification and relay credential issuance happen
 on the private server; they are deliberately absent from this repository.
 
 The app still plays local P2P matches for free without a Party Pass, and the
-FOSS build never includes the purchase flow.
+FOSS build never includes the purchase flow. The relay is server-enforced.
+Soundboard and theme entitlement is a local courtesy check, not a security
+boundary; a modified client could enable those cosmetics without buying.

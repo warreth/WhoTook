@@ -989,16 +989,16 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get customTurnUrl => 'Custom TURN URL';
+  String get customTurnUrl => 'TURN URI';
 
   @override
   String get customTurnHelper => 'Optional, e.g. turn:turn.example.org:3478';
 
   @override
-  String get turnUsername => 'TURN username';
+  String get turnUsername => 'Username';
 
   @override
-  String get turnCredential => 'TURN credential';
+  String get turnCredential => 'Password';
 
   @override
   String get resetToDefault => 'Reset to default';
@@ -1576,4 +1576,318 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get memeNoMemes => 'No memes this round.';
+
+  @override
+  String get partyPassTitle => 'WhoTook Party Pass';
+
+  @override
+  String get partyPassSubtitle => 'One payment. Every party feature, forever.';
+
+  @override
+  String get partyPassPerkRelayTitle => '5G & firewall relay';
+
+  @override
+  String get partyPassPerkRelayBody =>
+      'Play through strict 5G and carrier NATs with our encrypted relay, with a fair-use allowance every day.';
+
+  @override
+  String get partyPassPerkSoundboardTitle => 'Live soundboard';
+
+  @override
+  String get partyPassPerkSoundboardBody =>
+      'Drop Airhorn, Vine Boom and more during rounds. Everyone in the room hears it.';
+
+  @override
+  String get partyPassPerkThemesTitle => 'Shared room themes';
+
+  @override
+  String get partyPassPerkThemesBody =>
+      'Pick a premium theme and every friend\'s phone switches with you for the whole match.';
+
+  @override
+  String partyPassUnlockButton(String price) {
+    return 'Unlock Forever — $price';
+  }
+
+  @override
+  String get partyPassRestore => 'Restore purchases';
+
+  @override
+  String get partyPassRestoreHint =>
+      'Already bought it? Restore it on this device.';
+
+  @override
+  String get partyPassActiveBadge => 'Party Pass Active';
+
+  @override
+  String get partyPassActiveBody =>
+      'Relay, soundboard and shared themes are unlocked on this device.';
+
+  @override
+  String partyPassFairUse(int remaining, int limit) {
+    return '$remaining of $limit relay matches left today';
+  }
+
+  @override
+  String get partyPassFossIncluded => 'Included in this FOSS build';
+
+  @override
+  String get partyPassFossBody =>
+      'No store, no tracking. The soundboard and all themes are free, and you can point the app at your own TURN server.';
+
+  @override
+  String get partyPassCustomTurn => 'Use your own TURN server';
+
+  @override
+  String get partyPassStoreUnavailable =>
+      'The store is not available in this build. Restore purchases after installing from the App Store or Google Play.';
+
+  @override
+  String get partyPassPurchasePending =>
+      'Waiting for the store to confirm your purchase…';
+
+  @override
+  String get partyPassErrorCanceled =>
+      'Purchase canceled. Nothing was charged.';
+
+  @override
+  String get partyPassErrorUnavailable =>
+      'The store is not available right now. Try again in a moment.';
+
+  @override
+  String get partyPassErrorProduct =>
+      'The Party Pass product is not available in this store yet.';
+
+  @override
+  String get partyPassErrorRestoreEmpty =>
+      'No previous Party Pass purchase was found on this account.';
+
+  @override
+  String get partyPassErrorGeneric =>
+      'Something went wrong. Try again, or restore purchases.';
+
+  @override
+  String get partyPassRelayError =>
+      'The relay could not verify this purchase right now. Direct play still works.';
+
+  @override
+  String get partyPassTerms => 'Terms';
+
+  @override
+  String get partyPassPrivacy => 'Privacy';
+
+  @override
+  String partyPassLobbyButton(String price) {
+    return 'Party Pass ($price)';
+  }
+
+  @override
+  String get partyPassLobbyActive => 'Party Pass Active';
+
+  @override
+  String get partyPassLoading => 'Checking your pass…';
+
+  @override
+  String get roomThemePickerTitle => 'Room theme';
+
+  @override
+  String get roomThemePickerBody =>
+      'The theme applies to every phone in this lobby for the whole match.';
+
+  @override
+  String get roomThemeClassicParty => 'Classic Party';
+
+  @override
+  String get roomThemeMidnightArcade => 'Midnight Arcade';
+
+  @override
+  String get roomThemeCyberNeon => 'Cyber Neon';
+
+  @override
+  String get roomThemeRetroPolaroid => 'Retro Polaroid 90s';
+
+  @override
+  String get roomThemePubKroeg => 'Pub / Kroeg Mode';
+
+  @override
+  String get roomThemePremium => 'Party Pass';
+
+  @override
+  String get roomThemeSelected => 'Selected';
+
+  @override
+  String get roomThemeLocked => 'Unlock the Party Pass to share this theme';
+
+  @override
+  String get lobbyThemeLabel => 'Theme';
+
+  @override
+  String get lobbySoundboardLabel => 'Soundboard';
+
+  @override
+  String get lobbyRelayLabel => 'Relay';
+
+  @override
+  String get lobbySoundboardOn => 'Ready';
+
+  @override
+  String get lobbySoundboardOff => 'Pass only';
+
+  @override
+  String get relayStatusLocal => 'Same Wi-Fi';
+
+  @override
+  String get relayStatusDirect => 'Direct P2P';
+
+  @override
+  String get relayStatusRelay => '5G relay';
+
+  @override
+  String get relayStatusCustom => 'Custom TURN';
+
+  @override
+  String get relayStatusOffline => 'Not connected';
+
+  @override
+  String get relayStatusFoss => 'Self-host ready';
+
+  @override
+  String get soundboardTitle => 'Soundboard';
+
+  @override
+  String get soundboardHint => 'Tap a sound. Everyone hears it.';
+
+  @override
+  String get soundboardCollapse => 'Hide soundboard';
+
+  @override
+  String get soundboardExpand => 'Show soundboard';
+
+  @override
+  String soundboardCooldown(int seconds) {
+    return 'Wait ${seconds}s';
+  }
+
+  @override
+  String get soundboardLocked =>
+      'The live soundboard is part of the Party Pass.';
+
+  @override
+  String get soundVineBoom => 'Vine Boom';
+
+  @override
+  String get soundAirhorn => 'Airhorn';
+
+  @override
+  String get soundCrickets => 'Crickets';
+
+  @override
+  String get soundSadTrombone => 'Sad Trombone';
+
+  @override
+  String get soundDrumroll => 'Drumroll';
+
+  @override
+  String get soundLaughTrack => 'Laugh Track';
+
+  @override
+  String soundPlayedToast(String name, String sound) {
+    return '$name played $sound';
+  }
+
+  @override
+  String get firewallTitle => 'Strict 5G firewall detected!';
+
+  @override
+  String get firewallBody =>
+      'Connect to the same Wi-Fi/Hotspot to play 100% free, or unlock the WhoTook Party Pass (€2.99 once) to use our high-speed 5G Relay Server.';
+
+  @override
+  String get firewallWifiAction => 'Play on Wi-Fi/Hotspot';
+
+  @override
+  String get firewallUnlockAction => 'Unlock Party Pass';
+
+  @override
+  String get firewallFossAction => 'Set up custom TURN';
+
+  @override
+  String get firewallRelayDownTitle => 'Relay could not connect';
+
+  @override
+  String get firewallRelayDownBody =>
+      'Your Party Pass is active, but the relay did not answer. Check your connection, then try again.';
+
+  @override
+  String get firewallRetryAction => 'Try again';
+
+  @override
+  String get fossTurnTitle => 'Custom TURN Server (Self-Host)';
+
+  @override
+  String get fossTurnBody =>
+      'FOSS builds never use the official relay. Point the app at your own coturn server for strict networks.';
+
+  @override
+  String get fossTurnSaved => 'Custom TURN saved';
+
+  @override
+  String get fossBuildBadge => 'FOSS build';
+
+  @override
+  String get fossBuildBody => 'No billing, no analytics, no official relay.';
+
+  @override
+  String get settingsPartyPassTitle => 'WhoTook Party Pass';
+
+  @override
+  String get settingsPartyPassActive => 'Active on this device';
+
+  @override
+  String get settingsPartyPassInactive => 'Relay, soundboard and shared themes';
+
+  @override
+  String get errorRelayUnavailable =>
+      'The relay is unavailable right now. Direct play still works.';
+
+  @override
+  String get roomThemeFree => 'Free for everyone';
+
+  @override
+  String get turnCredentialPairError =>
+      'Fill in both the TURN username and password, or leave both empty.';
+
+  @override
+  String get firewallQuotaTitle => 'Daily relay limit reached';
+
+  @override
+  String get firewallQuotaBody =>
+      'Your Party Pass relay allowance is used up. It resets on a rolling 24-hour window. Play on the same Wi-Fi/hotspot, or configure your own TURN server.';
+
+  @override
+  String get firewallVerificationTitle => 'Could not verify this purchase';
+
+  @override
+  String get firewallVerificationBody =>
+      'Restore purchases from the Party Pass sheet, or contact support. Direct play still works.';
+
+  @override
+  String firewallQuotaReset(String time) {
+    return 'Next allowance: $time';
+  }
+
+  @override
+  String get firewallBusyTitle => 'Relay is busy';
+
+  @override
+  String get firewallBusyBody =>
+      'Too many relay attempts from this network. Wait a moment and try again.';
+
+  @override
+  String firewallBusyReset(String time) {
+    return 'Try again after $time';
+  }
+
+  @override
+  String get firewallRetryNow => 'Retry now';
 }

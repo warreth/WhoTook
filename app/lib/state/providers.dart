@@ -5,6 +5,7 @@ import '../core/models/models.dart';
 import '../core/storage/last_room_repository.dart';
 import '../core/storage/settings_repository.dart';
 import '../core/app_info.dart';
+import '../core/party_pass/party_pass_controller.dart';
 import '../state/match_coordinator.dart';
 
 final settingsRepositoryProvider = Provider<SettingsRepository>(
@@ -47,6 +48,8 @@ final matchCoordinatorProvider = Provider<MatchCoordinator>((ref) {
     settings: ref.watch(settingsRepositoryProvider),
     appVersion: info.version,
     appBuild: info.build,
+    turnRelay: () =>
+        ref.read(partyPassProvider.notifier).relayAttempt(),
   );
   ref.onDispose(coordinator.dispose);
   return coordinator;

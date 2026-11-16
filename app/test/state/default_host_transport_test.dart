@@ -48,6 +48,64 @@ void main() {
     timeout: const Timeout(Duration(seconds: 30)),
   );
 
+  test('a slow online transport does not block starting the room', () async {
+    final gate = Completer<void>();
+    final inner = _SlowTransport(gate);
+    final wrapper = BestEffortHostTransport(inner);
+
+    await wrapper.start();
+    expect(inner.started.isCompleted, isTrue);
+    expect(gate.isCompleted, isFalse);
+
+    await wrapper.sendToClient(
+      'p1',
+      WireMessage(type: WireType.ping, seq: 1),
+    );
+    await wrapper.broadcast(WireMessage(type: WireType.ping, seq: 2));
+    await wrapper.broadcast(
+      WireMessage(
+        type: WireType.photoChunk,
+        seq: 3,
+        payload: <String, dynamic>{
+          'photoId': 'p1',
+          'index': 0,
+          'total': 1,
+          'data': 'AA==',
+          'sha256': 'x',
+        },
+      ),
+    );
+    expect(inner.sends, 0);
+
+    gate.complete();
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+    expect(inner.sends, 3);
+    expect(inner.closed, isFalse);
+
+    await wrapper.close();
+  });
+
+  test('closing during a slow start closes the inner transport', () async {
+    final gate = Completer<void>();
+    final inner = _SlowTransport(gate);
+    final wrapper = BestEffortHostTransport(inner);
+
+    await wrapper.start();
+    await wrapper.sendToClient(
+      'p1',
+      WireMessage(type: WireType.ping, seq: 1),
+    );
+    await wrapper.close();
+    await wrapper.close();
+    gate.complete();
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(inner.closed, isTrue);
+    expect(inner.sends, 0);
+  });
+
   test('a failing online transport never blocks the local room', () async {
     final inner = _ExplodingTransport();
     final wrapper = BestEffortHostTransport(inner);
@@ -63,6 +121,49 @@ void main() {
 
     await wrapper.close();
   });
+}
+
+class _SlowTransport implements HostTransport {
+  _SlowTransport(this.gate);
+
+  final Completer<void> gate;
+  final Completer<void> started = Completer<void>();
+  int sends = 0;
+  bool closed = false;
+
+  @override
+  Stream<String> get clientConnected => const Stream<String>.empty();
+
+  @override
+  Stream<String> get clientDisconnected => const Stream<String>.empty();
+
+  @override
+  Stream<HostIncomingMessage> get messages =>
+      const Stream<HostIncomingMessage>.empty();
+
+  @override
+  String? get localLanEndpoint => null;
+
+  @override
+  Future<void> start() async {
+    if (!started.isCompleted) started.complete();
+    await gate.future;
+  }
+
+  @override
+  Future<void> sendToClient(String clientId, WireMessage message) async {
+    sends += 1;
+  }
+
+  @override
+  Future<void> broadcast(WireMessage message) async {
+    sends += 1;
+  }
+
+  @override
+  Future<void> close() async {
+    closed = true;
+  }
 }
 
 class _ExplodingTransport implements HostTransport {

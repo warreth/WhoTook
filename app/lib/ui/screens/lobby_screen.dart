@@ -13,6 +13,7 @@ import '../../state/providers.dart';
 import '../widgets/common.dart';
 import '../widgets/game_widgets.dart';
 import '../widgets/mode_picker.dart';
+import '../widgets/party_pass_bar.dart';
 
 class LobbyScreen extends ConsumerWidget {
   const LobbyScreen({super.key});
@@ -208,6 +209,8 @@ class LobbyScreen extends ConsumerWidget {
                       ? () => unawaited(_openSetupEditor(context))
                       : null,
                 ),
+                const SizedBox(height: AppSpacing.s12),
+                const PartyPassLobbyBar(),
                 const SizedBox(height: AppSpacing.s12),
                 SurfaceCard(
                   padding: const EdgeInsets.fromLTRB(

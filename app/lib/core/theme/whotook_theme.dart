@@ -12,6 +12,8 @@ class WhoTookColors extends ThemeExtension<WhoTookColors> {
     required this.ink3,
     required this.accent,
     required this.onAccent,
+    required this.accent2,
+    required this.onAccent2,
     required this.positive,
     required this.negative,
     required this.hairline,
@@ -25,6 +27,11 @@ class WhoTookColors extends ThemeExtension<WhoTookColors> {
   final Color ink3;
   final Color accent;
   final Color onAccent;
+
+  /// Secondary party accent for premium shared themes. Classic keeps this
+  /// equal to [accent] so the default look does not change.
+  final Color accent2;
+  final Color onAccent2;
   final Color positive;
   final Color negative;
   final Color hairline;
@@ -39,6 +46,8 @@ class WhoTookColors extends ThemeExtension<WhoTookColors> {
     ink3: Color(0xFF6E655A),
     accent: Color(0xFFC63D22),
     onAccent: Color(0xFFFFFFFF),
+    accent2: Color(0xFFC63D22),
+    onAccent2: Color(0xFFFFFFFF),
     positive: Color(0xFF15803D),
     negative: Color(0xFFB91C1C),
     hairline: Color(0x1A1F1B16),
@@ -54,6 +63,8 @@ class WhoTookColors extends ThemeExtension<WhoTookColors> {
     ink3: Color(0xFF989186),
     accent: Color(0xFFE59437),
     onAccent: Color(0xFF161513),
+    accent2: Color(0xFFE59437),
+    onAccent2: Color(0xFF161513),
     positive: Color(0xFF4CC38A),
     negative: Color(0xFFF06A6E),
     hairline: Color(0x1AEFE9DE),
@@ -72,6 +83,8 @@ class WhoTookColors extends ThemeExtension<WhoTookColors> {
     Color? ink3,
     Color? accent,
     Color? onAccent,
+    Color? accent2,
+    Color? onAccent2,
     Color? positive,
     Color? negative,
     Color? hairline,
@@ -84,6 +97,8 @@ class WhoTookColors extends ThemeExtension<WhoTookColors> {
     ink3: ink3 ?? this.ink3,
     accent: accent ?? this.accent,
     onAccent: onAccent ?? this.onAccent,
+    accent2: accent2 ?? this.accent2,
+    onAccent2: onAccent2 ?? this.onAccent2,
     positive: positive ?? this.positive,
     negative: negative ?? this.negative,
     hairline: hairline ?? this.hairline,
@@ -103,6 +118,8 @@ class WhoTookColors extends ThemeExtension<WhoTookColors> {
       ink3: Color.lerp(ink3, other.ink3, t)!,
       accent: Color.lerp(accent, other.accent, t)!,
       onAccent: Color.lerp(onAccent, other.onAccent, t)!,
+      accent2: Color.lerp(accent2, other.accent2, t)!,
+      onAccent2: Color.lerp(onAccent2, other.onAccent2, t)!,
       positive: Color.lerp(positive, other.positive, t)!,
       negative: Color.lerp(negative, other.negative, t)!,
       hairline: Color.lerp(hairline, other.hairline, t)!,
@@ -138,10 +155,15 @@ TextStyle tabularFigures(TextStyle style) => style.copyWith(
   fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
 );
 
-ThemeData buildWhoTookTheme(Brightness brightness) {
-  final colors = brightness == Brightness.dark
-      ? WhoTookColors.dark
-      : WhoTookColors.light;
+ThemeData buildWhoTookTheme(
+  Brightness brightness, {
+  WhoTookColors? palette,
+}) {
+  final colors =
+      palette ??
+      (brightness == Brightness.dark
+          ? WhoTookColors.dark
+          : WhoTookColors.light);
   final base = ThemeData(
     brightness: brightness,
     useMaterial3: true,

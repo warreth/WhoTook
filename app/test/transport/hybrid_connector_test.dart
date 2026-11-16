@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:whotook/core/build_flavor.dart';
 import 'package:whotook/core/models/models.dart';
+import 'package:whotook/core/party_pass/turn_relay_client.dart';
 import 'package:whotook/core/protocol/wire_message.dart';
 import 'package:whotook/core/qr/invite_codec.dart';
 import 'package:whotook/transport/game_transport.dart';
@@ -158,6 +160,7 @@ void main() {
     test('parses a granted TURN response', () async {
       final client = SignalingIceClient(
         signalingUrl: 'https://signal.example',
+        acceptServerTurn: true,
         httpClient: MockClient((request) async {
           expect(request.url.toString(), 'https://signal.example/ice-config');
           return http.Response(
@@ -175,6 +178,45 @@ void main() {
       expect(config.usedToday, 1);
       expect(config.iceServers, hasLength(2));
       expect(config.iceServers.last.username, 'u');
+    });
+
+    test('official default ignores a server-issued TURN relay', () async {
+      if (BuildFlavor.foss) return;
+      final client = SignalingIceClient(
+        signalingUrl: 'https://signal.example',
+        httpClient: MockClient(
+          (_) async => http.Response(
+            '{"turnAllowed":true,'
+            '"iceServers":[{"urls":"stun:stun.cloudflare.com:3478"},'
+            '{"urls":"turn:free.example:3478","username":"u","credential":"c"}]}',
+            200,
+          ),
+        ),
+      );
+
+      final config = await client.fetch(roomId: 'room1234', token: 'secret');
+      expect(config.turnAllowed, isFalse);
+      expect(config.iceServers, hasLength(1));
+    });
+
+    test('a client that rejects server TURN keeps STUN only', () async {
+      final client = SignalingIceClient(
+        signalingUrl: 'https://signal.example',
+        acceptServerTurn: false,
+        httpClient: MockClient(
+          (_) async => http.Response(
+            '{"turnAllowed":true,'
+            '"iceServers":[{"urls":"stun:stun.cloudflare.com:3478"},'
+            '{"urls":"turn:free.example:3478","username":"u","credential":"c"}]}',
+            200,
+          ),
+        ),
+      );
+
+      final config = await client.fetch(roomId: 'room1234', token: 'secret');
+      expect(config.turnAllowed, isFalse);
+      expect(config.iceServers, hasLength(1));
+      expect(config.iceServers.single.urls.single, startsWith('stun:'));
     });
 
     test('parses the daily quota denial with a retry time', () async {
@@ -210,15 +252,56 @@ void main() {
       );
     });
 
-    test('appends the self hosted TURN server from settings', () async {
+    test('does not spend relay quota when ICE config is rejected', () async {
+      var relayCalls = 0;
       final client = SignalingIceClient(
         signalingUrl: 'https://signal.example',
         httpClient: MockClient(
-          (_) async => http.Response(
-            '{"turnAllowed":false,"reason":"TURN_NOT_CONFIGURED",'
+          (_) async => http.Response('{"error":"UNAUTHORIZED"}', 401),
+        ),
+        turnRelay: () async {
+          relayCalls += 1;
+          return const TurnRelayAttempt(passActive: true);
+        },
+      );
+
+      await expectLater(
+        client.fetch(roomId: 'room1234', token: 'bad'),
+        throwsA(isA<TransportException>()),
+      );
+      expect(relayCalls, 0);
+    });
+
+    test('retries /ice-config while the host room is opening', () async {
+      var calls = 0;
+      final client = SignalingIceClient(
+        signalingUrl: 'https://signal.example',
+        noRoomRetryDelay: Duration.zero,
+        noRoomRetryAttempts: 2,
+        httpClient: MockClient((_) async {
+          calls += 1;
+          if (calls == 1) {
+            return http.Response('{"error":"NO_ROOM"}', 401);
+          }
+          return http.Response(
+            '{"turnAllowed":false,'
             '"iceServers":[{"urls":"stun:stun.cloudflare.com:3478"}]}',
             200,
-          ),
+          );
+        }),
+      );
+
+      final config = await client.fetch(roomId: 'room1234', token: 'secret');
+      expect(calls, 2);
+      expect(config.iceServers.single.urls.single, startsWith('stun:'));
+    });
+
+    test('uses a self-hosted TURN server without /ice-config', () async {
+      final client = SignalingIceClient(
+        signalingUrl: 'https://signal.example',
+        httpClient: MockClient(
+          (_) async =>
+              throw StateError('custom TURN must not call /ice-config'),
         ),
       );
 
@@ -233,6 +316,8 @@ void main() {
       );
 
       expect(config.turnAllowed, isTrue);
+      expect(config.iceServers, hasLength(2));
+      expect(config.iceServers.first.urls.single, startsWith('stun:'));
       expect(config.iceServers.last.urls.single, 'turn:my-relay.example:3478');
     });
   });

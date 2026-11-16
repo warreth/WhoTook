@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/audio/game_audio_service.dart';
 import '../../core/avatars.dart';
+import '../../core/build_flavor.dart';
+import '../../core/party_pass/party_pass_controller.dart';
 import '../../core/constants.dart';
 import '../../core/links.dart';
 import '../../core/media/photo_service.dart';
@@ -14,6 +16,8 @@ import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../widgets/avatar_editor.dart';
 import '../widgets/common.dart';
+import '../widgets/custom_turn_section.dart';
+import '../widgets/party_pass_sheet.dart';
 import 'advanced_settings_screen.dart';
 import 'demo_screen.dart';
 
@@ -391,6 +395,48 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: AppSpacing.s24),
+            SectionLabel(l10n.settingsPartyPassTitle),
+            SurfaceCard(
+              padding: EdgeInsets.zero,
+              child: ListTile(
+                minTileHeight: 64,
+                leading: Icon(
+                  Icons.workspace_premium,
+                  size: 20,
+                  color: colors.accent,
+                ),
+                title: Text(
+                  l10n.settingsPartyPassTitle,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                subtitle: Text(
+                  ref.watch(partyPassProvider).value?.active ?? false
+                      ? l10n.settingsPartyPassActive
+                      : l10n.settingsPartyPassInactive,
+                  style: TextStyle(fontSize: 12, color: colors.ink2),
+                ),
+                trailing: const Icon(Icons.chevron_right, size: 20),
+                onTap: () => unawaited(showPartyPassSheet(context)),
+              ),
+            ),
+            if (BuildFlavor.foss) ...<Widget>[
+              const SizedBox(height: AppSpacing.s24),
+              SectionLabel(l10n.fossBuildBadge),
+              Text(
+                l10n.fossBuildBody,
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.4,
+                  color: colors.ink2,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.s12),
+              const CustomTurnSection(),
+            ],
             const SizedBox(height: AppSpacing.s24),
             SectionLabel(l10n.helpAndLegal),
             SurfaceCard(

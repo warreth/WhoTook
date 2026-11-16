@@ -5,7 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/models/models.dart';
 import '../core/navigation.dart';
+import '../core/party_pass/party_pass_controller.dart';
+import '../core/party_pass/room_theme.dart';
 import '../core/audio/game_audio_service.dart';
+import '../core/audio/soundboard_service.dart';
 import '../l10n/l10n.dart';
 import '../core/theme/whotook_theme.dart';
 import '../state/match_coordinator.dart';
@@ -21,7 +24,9 @@ import 'ui/screens/podium_screen.dart';
 import 'ui/screens/prepare_screen.dart';
 import 'ui/screens/round_screen.dart';
 import 'ui/screens/timeline_screen.dart';
+import 'ui/widgets/firewall_prompt.dart';
 import 'ui/widgets/screenshot_alert_toast.dart';
+import 'ui/widgets/soundboard_overlay.dart';
 import 'ui/widgets/version_warning_card.dart';
 
 class WhoTookApp extends ConsumerWidget {
@@ -32,6 +37,15 @@ class WhoTookApp extends ConsumerWidget {
     final settings = ref.watch(appSettingsProvider);
     final preference =
         settings.value?.themePreference ?? ThemePreference.system;
+    final roomThemeId =
+        ref.watch(
+          matchStateProvider.select(
+            (value) => value.value?.roomThemeId,
+          ),
+        ) ??
+        kDefaultRoomThemeId;
+    final roomTheme = RoomThemeId.fromWire(roomThemeId);
+    final hasSharedTheme = !roomTheme.isClassic;
     final language = settings.value?.language ?? AppLanguage.system;
     final locale = switch (language) {
       AppLanguage.system => null,
@@ -45,12 +59,22 @@ class WhoTookApp extends ConsumerWidget {
       locale: locale,
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
-      theme: buildWhoTookTheme(Brightness.light),
-      darkTheme: buildWhoTookTheme(Brightness.dark),
-      themeMode: switch (preference) {
-        ThemePreference.system => ThemeMode.system,
-        ThemePreference.light => ThemeMode.light,
-        ThemePreference.dark => ThemeMode.dark,
+      theme: buildWhoTookTheme(
+        Brightness.light,
+        palette: hasSharedTheme ? roomTheme.palette(Brightness.light) : null,
+      ),
+      darkTheme: buildWhoTookTheme(
+        Brightness.dark,
+        palette: hasSharedTheme ? roomTheme.palette(Brightness.dark) : null,
+      ),
+      themeMode: switch (roomTheme.forcedBrightness) {
+        Brightness.dark => ThemeMode.dark,
+        Brightness.light => ThemeMode.light,
+        null => switch (preference) {
+          ThemePreference.system => ThemeMode.system,
+          ThemePreference.light => ThemeMode.light,
+          ThemePreference.dark => ThemeMode.dark,
+        },
       },
       builder: (context, child) => child == null
           ? const SizedBox.shrink()
@@ -112,8 +136,11 @@ class _MatchRootState extends ConsumerState<_MatchRoot> {
     if (settings != null) {
       coordinator.updateSettings(settings);
       GameAudioService.instance.enabled = settings.soundEnabled;
+      SoundboardService.instance.enabled = settings.soundEnabled;
       GameHaptics.instance.enabled = settings.hapticsEnabled;
     }
+    final partyPass = ref.watch(partyPassProvider).value;
+    coordinator.updatePartyPass(active: partyPass?.active ?? false);
     coordinator.updateLocale(Localizations.localeOf(context));
 
     if (state.turnLimitNotice != null && state.connectionMode == null) {
@@ -184,6 +211,8 @@ class _MatchRootState extends ConsumerState<_MatchRoot> {
             right: 0,
             child: ScreenshotAlertToast(),
           ),
+          const SoundboardToast(),
+          const SoundboardPill(),
           if (state.reconnecting)
             Positioned.fill(
               child: _ReconnectOverlay(
@@ -191,6 +220,7 @@ class _MatchRootState extends ConsumerState<_MatchRoot> {
                 onLeave: () => unawaited(coordinator.leaveMatch()),
               ),
             ),
+          const FirewallPromptOverlay(),
         ],
       ),
     );
