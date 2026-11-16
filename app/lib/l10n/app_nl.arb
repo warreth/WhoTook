@@ -104,6 +104,7 @@
   "roomCode": "RUIMTE {roomId}",
   "sameWifi": "Zelfde wifi",
   "online": "Online",
+  "onlineWifiHint": "Als iedereen op dezelfde wifi zit, is het sneller en blijven je foto's op je netwerk.",
   "shareInviteLink": "Deel de uitnodigingslink",
   "hostStartsPhotoCheck": "De host start de fotocheck zodra iedereen er is.",
   "waitingForHostToStart": "Wachten tot de host start",
@@ -593,5 +594,7 @@
       }
     }
   },
-  "firewallRetryNow": "Nu opnieuw"
+  "firewallRetryNow": "Nu opnieuw",
+  "errorHostStarting": "De host opent de ruimte nog. Probeer het zo meteen opnieuw.",
+  "errorInviteExpired": "Deze uitnodiging is verlopen. Vraag de host om een nieuwe QR-code."
 }

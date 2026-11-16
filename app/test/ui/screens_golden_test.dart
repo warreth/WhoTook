@@ -121,6 +121,42 @@ void main() {
     );
   });
 
+  testWidgets('online lobby shows the Wi-Fi hint', (tester) async {
+    await _pump(
+      tester,
+      const LobbyScreen(),
+      _settings(),
+      state: _onlineLobbyState(),
+    );
+    expect(
+      find.text(
+        'If everyone joins the same Wi-Fi, it is faster and your photos stay on your network.',
+      ),
+      findsOneWidget,
+    );
+    await expectLater(
+      find.byType(LobbyScreen),
+      matchesGoldenFile('goldens/lobby-online.png'),
+    );
+  });
+
+  testWidgets('online lobby dismisses the Wi-Fi hint', (tester) async {
+    await _pump(
+      tester,
+      const LobbyScreen(),
+      _settings(),
+      state: _onlineLobbyState(),
+    );
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'If everyone joins the same Wi-Fi, it is faster and your photos stay on your network.',
+      ),
+      findsNothing,
+    );
+  });
+
   testWidgets('prepare', (tester) async {
     final photos = _fixturePhotos();
     for (final photo in photos) {
@@ -621,6 +657,23 @@ void main() {
       _settings(),
       state: _lobbyState(),
       locale: const Locale('nl'),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Dutch online lobby fits', (tester) async {
+    await _pump(
+      tester,
+      const LobbyScreen(),
+      _settings(),
+      state: _onlineLobbyState(),
+      locale: const Locale('nl'),
+    );
+    expect(
+      find.text(
+        "Als iedereen op dezelfde wifi zit, is het sneller en blijven je foto's op je netwerk.",
+      ),
+      findsOneWidget,
     );
     expect(tester.takeException(), isNull);
   });
@@ -1180,6 +1233,15 @@ MatchUiState _lobbyState() => MatchUiState(
   players: _players(),
   config: const MatchConfig(roundsK: 10, roundSeconds: 8),
   connectionMode: ConnectionMode.localLan,
+);
+
+MatchUiState _onlineLobbyState() => MatchUiState(
+  isHosting: false,
+  roomId: 'k8m2p9x4',
+  localPlayerId: 'c1',
+  players: _players(),
+  config: const MatchConfig(roundsK: 10, roundSeconds: 8),
+  connectionMode: ConnectionMode.webrtcP2p,
 );
 
 List<Uint8List> _fixturePhotos() => <Uint8List>[

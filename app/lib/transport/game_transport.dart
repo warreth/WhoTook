@@ -36,6 +36,12 @@ abstract class HostTransport {
   /// reached from the LAN.
   String? get localLanEndpoint;
 
+  /// Peer ids currently connected on this path.
+  Set<String> get clientIds;
+
+  /// True when this peer's media is relayed through TURN.
+  bool isRelayed(String clientId);
+
   Future<void> start();
 
   Future<void> sendToClient(String clientId, WireMessage message);
@@ -48,6 +54,9 @@ abstract class HostTransport {
 /// Player side of a match.
 abstract class ClientTransport {
   ConnectionMode get mode;
+
+  /// True when this connection is relayed through TURN.
+  bool get usesRelay;
 
   /// Set when the signaling server refused TURN relay for this IP today.
   TurnLimitNotice? get turnLimitNotice;
@@ -96,6 +105,27 @@ class CompositeHostTransport implements HostTransport {
       if (endpoint != null) return endpoint;
     }
     return null;
+  }
+
+  @override
+  Set<String> get clientIds {
+    final ids = <String>{};
+    for (final transport in _transports) {
+      ids.addAll(transport.clientIds);
+    }
+    return ids;
+  }
+
+  @override
+  bool isRelayed(String clientId) {
+    final owner = _owner[clientId];
+    if (owner != null) return owner.isRelayed(clientId);
+    for (final transport in _transports) {
+      if (transport.clientIds.contains(clientId)) {
+        return transport.isRelayed(clientId);
+      }
+    }
+    return false;
   }
 
   @override
@@ -266,6 +296,12 @@ class LoopbackHostTransport implements HostTransport {
   String? get localLanEndpoint => 'loopback';
 
   @override
+  Set<String> get clientIds => _hub._clients.keys.toSet();
+
+  @override
+  bool isRelayed(String clientId) => false;
+
+  @override
   Future<void> start() async {
     if (_started) return;
     _started = true;
@@ -302,6 +338,9 @@ class LoopbackClientTransport implements ClientTransport {
 
   @override
   ConnectionMode get mode => ConnectionMode.offlineLoopback;
+
+  @override
+  bool get usesRelay => false;
 
   @override
   TurnLimitNotice? get turnLimitNotice => null;

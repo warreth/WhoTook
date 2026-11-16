@@ -117,6 +117,12 @@ class LocalWsHostTransport implements HostTransport {
     return '${_addresses.first}:$port';
   }
 
+  @override
+  Set<String> get clientIds => _sockets.keys.toSet();
+
+  @override
+  bool isRelayed(String clientId) => false;
+
   /// Every non loopback IPv4 address the host currently has, so a phone with
   /// both Wi-Fi and a hotspot offers both to the QR payload.
   Future<List<String>> refreshLanAddresses() async {
@@ -260,6 +266,9 @@ class LocalWsClientTransport implements ClientTransport {
 
   @override
   ConnectionMode get mode => ConnectionMode.localLan;
+
+  @override
+  bool get usesRelay => false;
 
   @override
   TurnLimitNotice? get turnLimitNotice => null;

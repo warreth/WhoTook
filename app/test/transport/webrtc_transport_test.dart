@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -5,6 +8,7 @@ import 'package:whotook/core/models/models.dart';
 import 'package:whotook/core/party_pass/party_pass_repository.dart';
 import 'package:whotook/core/party_pass/turn_relay_client.dart';
 import 'package:whotook/core/qr/invite_codec.dart';
+import 'package:whotook/transport/game_transport.dart';
 import 'package:whotook/transport/webrtc_transport.dart';
 
 const InvitePayload _invite = InvitePayload(
@@ -44,6 +48,61 @@ void main() {
       await client.fetch(roomId: 'room1234', token: 'secret');
 
       expect(requested.toString(), 'http://192.168.1.5:8787/ice-config');
+    });
+
+    test('posts the role when given', () async {
+      String? body;
+      final client = SignalingIceClient(
+        signalingUrl: 'https://signal.whotook.party',
+        httpClient: MockClient((request) async {
+          body = request.body;
+          return http.Response('{"turnAllowed":false,"iceServers":[]}', 200);
+        }),
+      );
+
+      await client.fetch(roomId: 'room1234', token: 'secret', role: 'host');
+
+      expect(jsonDecode(body!), containsPair('role', 'host'));
+    });
+  });
+
+  group('SignalingIceClient room errors', () {
+    SignalingIceClient clientReturning(int status, String body) =>
+        SignalingIceClient(
+          signalingUrl: 'https://signal.whotook.party',
+          httpClient: MockClient(
+            (request) async => http.Response(body, status),
+          ),
+        );
+
+    test('maps NO_ROOM to room_not_ready', () async {
+      final client = clientReturning(401, '{"error":"NO_ROOM"}');
+
+      await expectLater(
+        client.fetch(roomId: 'room1234', token: 'secret'),
+        throwsA(
+          isA<TransportException>().having(
+            (error) => error.code,
+            'code',
+            'room_not_ready',
+          ),
+        ),
+      );
+    });
+
+    test('maps a bad token to unauthorized', () async {
+      final client = clientReturning(401, '{"error":"BAD_TOKEN"}');
+
+      await expectLater(
+        client.fetch(roomId: 'room1234', token: 'secret'),
+        throwsA(
+          isA<TransportException>().having(
+            (error) => error.code,
+            'code',
+            'unauthorized',
+          ),
+        ),
+      );
     });
   });
 
@@ -240,6 +299,87 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       expect(gone, contains('c_loop0'));
+    });
+
+    test('fetches ICE on demand and reuses it', () async {
+      var fetches = 0;
+      final lazy = WebRtcHostTransport(
+        invite: _invite,
+        iceClient: SignalingIceClient(
+          signalingUrl: 'https://signal.whotook.party',
+          httpClient: MockClient((request) async {
+            fetches += 1;
+            return http.Response(
+              '{"turnAllowed":false,"iceServers":[{"urls":"stun:stun.cloudflare.com:3478"}]}',
+              200,
+            );
+          }),
+        ),
+      );
+      addTearDown(lazy.close);
+
+      expect(fetches, 0);
+      final first = await lazy.fetchIceForTest();
+      expect(first.iceServers, isNotEmpty);
+      expect(fetches, 1);
+
+      final second = await lazy.fetchIceForTest();
+      expect(identical(first, second), isTrue);
+      expect(fetches, 1);
+    });
+  });
+
+  group('WebRtcHostTransport signaling reconnect', () {
+    test('opens a new socket after the signaling connection drops', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      final sockets = <WebSocket>[];
+      var connections = 0;
+
+      server.listen((request) async {
+        if (!WebSocketTransformer.isUpgradeRequest(request)) {
+          request.response.statusCode = 404;
+          await request.response.close();
+          return;
+        }
+        final socket = await WebSocketTransformer.upgrade(request);
+        sockets.add(socket);
+        connections += 1;
+        socket.add(
+          jsonEncode(<String, dynamic>{
+            'type': 'welcome',
+            'peerId': 'host',
+            'role': 'host',
+          }),
+        );
+        if (connections == 1) {
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          await socket.close();
+        }
+      });
+
+      final transport = WebRtcHostTransport(
+        invite: InvitePayload(
+          roomId: 'room1234',
+          hostId: 'host',
+          secret: 'secret-AbCdEf0123456789',
+          signalingUrl: 'ws://127.0.0.1:${server.port}',
+        ),
+        iceClient: SignalingIceClient(
+          signalingUrl: 'https://signal.whotook.party',
+        ),
+      );
+      addTearDown(() async {
+        await transport.close();
+        for (final socket in sockets) {
+          await socket.close();
+        }
+      });
+
+      await transport.start();
+      await Future<void>.delayed(const Duration(milliseconds: 1800));
+
+      expect(connections, greaterThanOrEqualTo(2));
     });
   });
 }

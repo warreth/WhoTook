@@ -722,6 +722,12 @@ abstract class AppLocalizations {
   /// **'Online'**
   String get online;
 
+  /// No description provided for @onlineWifiHint.
+  ///
+  /// In en, this message translates to:
+  /// **'If everyone joins the same Wi-Fi, it is faster and your photos stay on your network.'**
+  String get onlineWifiHint;
+
   /// No description provided for @shareInviteLink.
   ///
   /// In en, this message translates to:
@@ -3294,6 +3300,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Retry now'**
   String get firewallRetryNow;
+
+  /// No description provided for @errorHostStarting.
+  ///
+  /// In en, this message translates to:
+  /// **'The host is still opening the room. Try again in a moment.'**
+  String get errorHostStarting;
+
+  /// No description provided for @errorInviteExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'This invite has expired. Ask the host for a new QR code.'**
+  String get errorInviteExpired;
 }
 
 class _AppLocalizationsDelegate

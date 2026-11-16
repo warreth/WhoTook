@@ -4,6 +4,41 @@ import 'dart:typed_data';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:photo_manager/photo_manager.dart';
 
+/// Smaller JPEGs for peers whose data path relays through TURN. The upload
+/// profile is milder because the host may re-encode it once more for relayed
+/// receivers.
+const int kRelayPhotoDimension = 720;
+const int kRelayPhotoQuality = 60;
+const int kRelayUploadDimension = 900;
+const int kRelayUploadQuality = 68;
+
+/// Injectable seam so tests can watch the relay path without the native codec.
+typedef PhotoCompressor = Future<Uint8List> Function(
+  Uint8List raw, {
+  int? maxDimension,
+  int? quality,
+});
+
+Future<Uint8List> compressPhotoBytes(
+  Uint8List raw, {
+  int maxDimension = 1080,
+  int quality = 75,
+}) async {
+  try {
+    final compressed = await FlutterImageCompress.compressWithList(
+      raw,
+      minWidth: maxDimension,
+      minHeight: maxDimension,
+      quality: quality,
+      keepExif: false,
+      format: CompressFormat.jpeg,
+    );
+    return compressed.isEmpty ? raw : compressed;
+  } on Object {
+    return raw;
+  }
+}
+
 class PhotoPermissionDeniedException implements Exception {
   const PhotoPermissionDeniedException(this.state);
 
@@ -252,13 +287,10 @@ class DevicePhotoLibraryService implements PhotoLibraryService {
   Future<Uint8List> compressPhoto(Uint8List raw) {
     // keepExif false drops GPS and camera metadata before anything leaves
     // the device.
-    return FlutterImageCompress.compressWithList(
+    return compressPhotoBytes(
       raw,
-      minWidth: maxDimension,
-      minHeight: maxDimension,
+      maxDimension: maxDimension,
       quality: jpegQuality,
-      keepExif: false,
-      format: CompressFormat.jpeg,
     );
   }
 

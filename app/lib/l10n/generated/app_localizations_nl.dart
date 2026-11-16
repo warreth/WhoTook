@@ -356,6 +356,10 @@ class AppLocalizationsNl extends AppLocalizations {
   String get online => 'Online';
 
   @override
+  String get onlineWifiHint =>
+      'Als iedereen op dezelfde wifi zit, is het sneller en blijven je foto\'s op je netwerk.';
+
+  @override
   String get shareInviteLink => 'Deel de uitnodigingslink';
 
   @override
@@ -1900,4 +1904,12 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get firewallRetryNow => 'Nu opnieuw';
+
+  @override
+  String get errorHostStarting =>
+      'De host opent de ruimte nog. Probeer het zo meteen opnieuw.';
+
+  @override
+  String get errorInviteExpired =>
+      'Deze uitnodiging is verlopen. Vraag de host om een nieuwe QR-code.';
 }

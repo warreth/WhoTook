@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:http/http.dart' as http;
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -62,12 +63,14 @@ class IceServerConfig {
   }
 }
 
+const String kDefaultStunServer = 'stun:stun.cloudflare.com:3478';
+
 class IceConfig {
   const IceConfig({
     required this.turnAllowed,
     required this.iceServers,
     this.reason,
-    this.dailyLimit = 5,
+    this.dailyLimit = 15,
     this.usedToday = 0,
     this.retryAtUtc,
     this.remainingMatchesToday = 0,
@@ -102,7 +105,7 @@ class IceConfig {
       turnAllowed: json['turnAllowed'] as bool? ?? false,
       iceServers: servers,
       reason: json['reason'] as String?,
-      dailyLimit: json['dailyLimit'] as int? ?? 5,
+      dailyLimit: json['dailyLimit'] as int? ?? 15,
       usedToday: json['usedToday'] as int? ?? 0,
       retryAtUtc: retry is String ? DateTime.tryParse(retry) : null,
       remainingMatchesToday: json['remainingMatchesToday'] as int? ?? 0,
@@ -117,11 +120,9 @@ class SignalingIceClient {
   SignalingIceClient({
     required this.signalingUrl,
     http.Client? httpClient,
-    this.timeout = const Duration(seconds: 6),
+    this.timeout = const Duration(seconds: 8),
     this.turnRelay,
     this.acceptServerTurn = !BuildFlavor.official,
-    this.noRoomRetryDelay = const Duration(milliseconds: 250),
-    this.noRoomRetryAttempts = 20,
   }) : _http = httpClient ?? http.Client();
 
   final String signalingUrl;
@@ -132,25 +133,20 @@ class SignalingIceClient {
   /// Legacy self-hosted signaling servers may still return TURN to FOSS builds.
   final Future<TurnRelayAttempt> Function()? turnRelay;
   final bool acceptServerTurn;
-  final Duration noRoomRetryDelay;
-  final int noRoomRetryAttempts;
 
   Future<IceConfig> fetch({
     required String roomId,
     required String token,
+    String? role,
     AppSettings settings = const AppSettings(),
   }) async {
     final custom = _customTurn(settings);
     if (custom != null) {
-      // A self-hosted relay does not need our `/ice-config` contract, and a
-      // signaling-only server may not implement it. Use public STUN plus the
-      // operator's TURN entry directly.
+      // A self-hosted relay does not need our `/ice-config` contract.
       return IceConfig(
         turnAllowed: true,
         iceServers: <IceServerConfig>[
-          const IceServerConfig(
-            urls: <String>['stun:stun.cloudflare.com:3478'],
-          ),
+          const IceServerConfig(urls: <String>[kDefaultStunServer]),
           custom,
         ],
       );
@@ -165,27 +161,36 @@ class SignalingIceClient {
       query: null,
       fragment: null,
     );
-    late http.Response response;
-    for (var attempt = 0; ; attempt += 1) {
-      response = await _http
-          .post(
-            endpoint,
-            headers: <String, String>{'Content-Type': 'application/json'},
-            body: jsonEncode(<String, String>{
-              'roomId': roomId,
-              'token': token,
-            }),
-          )
-          .timeout(timeout);
-      if (response.statusCode != 401) break;
-      if (!_isNoRoom(response.body) || attempt >= noRoomRetryAttempts) {
-        throw const TransportException('unauthorized', 'room token rejected');
-      }
-      // The host may still be opening its signaling room. Wait briefly for it
-      // instead of failing the whole join.
-      await Future<void>.delayed(noRoomRetryDelay);
-    }
+    final response = await _http
+        .post(
+          endpoint,
+          headers: <String, String>{'Content-Type': 'application/json'},
+          body: jsonEncode(<String, String>{
+            'roomId': roomId,
+            'token': token,
+            'role': ?role,
+          }),
+        )
+        .timeout(timeout);
 
+    if (response.statusCode == 401) {
+      String? error;
+      try {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic> && decoded['error'] is String) {
+          error = decoded['error'] as String;
+        }
+      } on FormatException {
+        // A plain 401 from an older Worker has no body to inspect.
+      }
+      if (error == 'NO_ROOM') {
+        throw const TransportException(
+          'room_not_ready',
+          'host has not opened the room yet',
+        );
+      }
+      throw const TransportException('unauthorized', 'room token rejected');
+    }
     if (response.statusCode != 200) {
       throw TransportException(
         'ice_config_failed',
@@ -211,6 +216,17 @@ class SignalingIceClient {
             usedToday: parsed.usedToday,
             retryAtUtc: parsed.retryAtUtc,
           );
+    if (custom != null) {
+      return IceConfig(
+        turnAllowed: true,
+        iceServers: <IceServerConfig>[...config.iceServers, custom],
+        reason: config.reason,
+        dailyLimit: config.dailyLimit,
+        usedToday: config.usedToday,
+        retryAtUtc: config.retryAtUtc,
+        remainingMatchesToday: config.remainingMatchesToday,
+      );
+    }
     final relay = turnRelay;
     if (relay == null) return config;
     final attempt = await relay();
@@ -247,15 +263,6 @@ class SignalingIceClient {
     );
   }
 
-  bool _isNoRoom(String body) {
-    try {
-      final parsed = jsonDecode(body);
-      return parsed is Map<String, dynamic> && parsed['error'] == 'NO_ROOM';
-    } on FormatException {
-      return false;
-    }
-  }
-
   IceServerConfig? _customTurn(AppSettings settings) {
     final url = settings.customTurnUrl?.trim();
     if (url == null || url.isEmpty) return null;
@@ -288,12 +295,15 @@ abstract class _WebRtcTransportBase {
   RTCDataChannel? _channel;
   StreamSubscription<dynamic>? _signalingSub;
   TurnLimitNotice? _turnNotice;
+  bool _usesRelay = false;
 
   Stream<WireMessage> get messages => _messages.stream;
 
   Stream<void> get disconnected => _disconnected.stream;
 
   TurnLimitNotice? get turnLimitNotice => _turnNotice;
+
+  bool get usesRelay => _usesRelay;
 
   Uri get signalingUri {
     final base = invite.signalingUrl;
@@ -375,7 +385,7 @@ abstract class _WebRtcTransportBase {
     );
   }
 
-  void attachChannel(RTCDataChannel channel) {
+  void attachChannel(RTCDataChannel channel, {void Function()? onOpen}) {
     _channel = channel;
     channel.onMessage = (message) {
       try {
@@ -386,10 +396,24 @@ abstract class _WebRtcTransportBase {
       }
     };
     channel.onDataChannelState = (state) {
+      if (state == RTCDataChannelState.RTCDataChannelOpen) {
+        onOpen?.call();
+        unawaited(_detectRelay());
+      }
       if (state == RTCDataChannelState.RTCDataChannelClosed) {
         _fireDisconnected();
       }
     };
+    if (channel.state == RTCDataChannelState.RTCDataChannelOpen) {
+      onOpen?.call();
+      unawaited(_detectRelay());
+    }
+  }
+
+  Future<void> _detectRelay() async {
+    final peer = _peer;
+    if (peer == null) return;
+    _usesRelay = await peerConnectionUsesRelay(peer);
   }
 
   Future<void> sendOverChannel(WireMessage message) async {
@@ -429,6 +453,38 @@ String _toWebSocketOrigin(String url) {
   return url;
 }
 
+/// True when the selected ICE candidate pair relays through TURN.
+Future<bool> peerConnectionUsesRelay(RTCPeerConnection peer) async {
+  try {
+    final reports = await peer.getStats();
+    final candidateTypes = <String, String>{};
+    StatsReport? selected;
+    for (final report in reports) {
+      if (report.type == 'local-candidate' ||
+          report.type == 'remote-candidate') {
+        final type = report.values['candidateType'];
+        if (type is String) candidateTypes[report.id] = type;
+      } else if (report.type == 'candidate-pair') {
+        final state = report.values['state'];
+        final nominated = report.values['nominated'];
+        final selectedFlag = report.values['selected'];
+        final isSelected =
+            nominated == true ||
+            nominated == 'true' ||
+            selectedFlag == true ||
+            selectedFlag == 'true';
+        if (state == 'succeeded' && isSelected) selected = report;
+      }
+    }
+    if (selected == null) return false;
+    final local = candidateTypes[selected.values['localCandidateId']];
+    final remote = candidateTypes[selected.values['remoteCandidateId']];
+    return local == 'relay' || remote == 'relay';
+  } on Object {
+    return false;
+  }
+}
+
 /// Host side of the online path. One peer connection per remote player is
 /// created by the host when the signaling server reports a joiner.
 class WebRtcHostTransport implements HostTransport {
@@ -449,14 +505,14 @@ class WebRtcHostTransport implements HostTransport {
   final StreamController<HostIncomingMessage> _messages =
       StreamController<HostIncomingMessage>.broadcast();
   final Map<String, WebRtcHostPeer> _peers = <String, WebRtcHostPeer>{};
-  final List<StreamSubscription<dynamic>> _subscriptions =
-      <StreamSubscription<dynamic>>[];
 
   WebSocketChannel? _signaling;
+  StreamSubscription<dynamic>? _signalingSub;
+  Timer? _signalingRetry;
+  int _signalingAttempts = 0;
   IceConfig? _iceConfig;
-  bool _configReady = false;
+  Future<IceConfig>? _iceFuture;
   bool _closed = false;
-  final List<Map<String, dynamic>> _pendingSignaling = <Map<String, dynamic>>[];
 
   @override
   Stream<String> get clientConnected => _connected.stream;
@@ -471,56 +527,77 @@ class WebRtcHostTransport implements HostTransport {
   String? get localLanEndpoint => null;
 
   @override
+  Set<String> get clientIds => _peers.entries
+      .where((entry) => entry.value.isOpen)
+      .map((entry) => entry.key)
+      .toSet();
+
+  @override
+  bool isRelayed(String clientId) => _peers[clientId]?.usesRelay ?? false;
+
+  @override
   Future<void> start() async {
-    if (_closed) return;
+    if (_closed || _signaling != null) return;
     final origin = _toWebSocketOrigin(invite.signalingUrl ?? '');
     final uri = Uri.parse(
       '${origin.replaceAll(RegExp(r'/+$'), '')}'
       '/room/${invite.roomId}?role=host&token=${invite.secret}',
     );
     final channel = WebSocketChannel.connect(uri);
-    await channel.ready;
+    try {
+      await channel.ready.timeout(
+        const Duration(seconds: 8),
+        onTimeout: () => throw const TransportException(
+          'signaling_timeout',
+          'server unreachable',
+        ),
+      );
+    } on Object {
+      unawaited(channel.sink.close());
+      rethrow;
+    }
     if (_closed) {
       await channel.sink.close();
       return;
     }
+    await _signalingSub?.cancel();
     _signaling = channel;
-    _subscriptions.add(
-      channel.stream.listen(
-        _onFrame,
-        onError: (Object _) {},
-        cancelOnError: true,
-      ),
+    _signalingAttempts = 0;
+    _signalingSub = channel.stream.listen(
+      _onFrame,
+      onDone: () => _onSignalingClosed(channel),
+      onError: (Object _) => _onSignalingClosed(channel),
+      cancelOnError: true,
     );
+  }
+
+  void _onSignalingClosed(WebSocketChannel channel) {
+    if (_closed || !identical(_signaling, channel)) return;
+    _signaling = null;
+    _scheduleSignalingRetry();
+  }
+
+  void _scheduleSignalingRetry() {
+    if (_closed || _signalingRetry != null) return;
+    final delay = switch (_signalingAttempts++) {
+      0 => const Duration(seconds: 1),
+      1 => const Duration(seconds: 2),
+      2 => const Duration(seconds: 4),
+      3 => const Duration(seconds: 8),
+      _ => const Duration(seconds: 15),
+    };
+    _signalingRetry = Timer(delay, () {
+      _signalingRetry = null;
+      if (_closed) return;
+      unawaited(_reconnectSignaling());
+    });
+  }
+
+  Future<void> _reconnectSignaling() async {
     try {
-      final config = await iceClient.fetch(
-        roomId: invite.roomId,
-        token: invite.secret,
-        settings: settings,
-      );
-      if (_closed) {
-        _pendingSignaling.clear();
-        await channel.sink.close();
-        _signaling = null;
-        return;
-      }
-      _iceConfig = config;
-      _configReady = true;
-      final pending = List<Map<String, dynamic>>.of(_pendingSignaling);
-      _pendingSignaling.clear();
-      for (final frame in pending) {
-        if (_closed) break;
-        await handleSignalingFrame(frame);
-      }
-      if (_closed) {
-        _pendingSignaling.clear();
-        await channel.sink.close();
-        _signaling = null;
-      }
+      await start();
     } on Object {
-      await channel.sink.close();
-      _signaling = null;
-      rethrow;
+      _scheduleSignalingRetry();
     }
   }
 
@@ -531,10 +608,6 @@ class WebRtcHostTransport implements HostTransport {
     try {
       frame = jsonDecode(raw) as Map<String, dynamic>;
     } on FormatException {
-      return;
-    }
-    if (!_configReady) {
-      if (_pendingSignaling.length < 64) _pendingSignaling.add(frame);
       return;
     }
     await handleSignalingFrame(frame);
@@ -550,7 +623,9 @@ class WebRtcHostTransport implements HostTransport {
         if (peerId == null) return;
         final existing = _peers.remove(peerId);
         if (existing != null) await existing.close();
-        final peer = _createPeer(peerId);
+        final config = await _ensureIce();
+        if (_closed) return;
+        final peer = _createPeer(peerId, config);
         _peers[peerId] = peer;
         try {
           await peer.createOffer();
@@ -591,15 +666,9 @@ class WebRtcHostTransport implements HostTransport {
     }
   }
 
-  WebRtcHostPeer _createPeer(String peerId) => WebRtcHostPeer(
+  WebRtcHostPeer _createPeer(String peerId, IceConfig config) => WebRtcHostPeer(
     peerId: peerId,
-    configuration:
-        (_iceConfig ??
-                const IceConfig(
-                  turnAllowed: false,
-                  iceServers: <IceServerConfig>[],
-                ))
-            .toRtcConfiguration(),
+    configuration: config.toRtcConfiguration(),
     sendSignal: (type, payload) => _sendSignal(type, peerId, payload),
     onMessage: (message) {
       if (!_messages.isClosed) {
@@ -614,6 +683,46 @@ class WebRtcHostTransport implements HostTransport {
       if (!_disconnected.isClosed) _disconnected.add(peerId);
     },
   );
+
+  /// Fetches ICE once, on the first remote peer, so a LAN-only match never
+  /// asks the signalling server for TURN credentials.
+  Future<IceConfig> _ensureIce() {
+    final existing = _iceConfig;
+    if (existing != null) return Future.value(existing);
+    final pending = _iceFuture;
+    if (pending != null) return pending;
+    final future = _loadIce();
+    _iceFuture = future;
+    return future;
+  }
+
+  Future<IceConfig> _loadIce() async {
+    try {
+      final config = await iceClient.fetch(
+        roomId: invite.roomId,
+        token: invite.secret,
+        role: 'host',
+        settings: settings,
+      );
+      _iceConfig = config;
+      return config;
+    } on Object {
+      // A missing relay must not block a direct connection.
+      const fallback = IceConfig(
+        turnAllowed: false,
+        iceServers: <IceServerConfig>[
+          IceServerConfig(urls: <String>[kDefaultStunServer]),
+        ],
+      );
+      _iceConfig = fallback;
+      return fallback;
+    } finally {
+      _iceFuture = null;
+    }
+  }
+
+  @visibleForTesting
+  Future<IceConfig> fetchIceForTest() => _ensureIce();
 
   void _sendSignal(String type, String to, Map<String, dynamic> payload) {
     _signaling?.sink.add(
@@ -646,11 +755,10 @@ class WebRtcHostTransport implements HostTransport {
   Future<void> close() async {
     if (_closed) return;
     _closed = true;
-    _pendingSignaling.clear();
-    for (final sub in _subscriptions) {
-      await sub.cancel();
-    }
-    _subscriptions.clear();
+    _signalingRetry?.cancel();
+    _signalingRetry = null;
+    await _signalingSub?.cancel();
+    _signalingSub = null;
     for (final peer in _peers.values) {
       await peer.close();
     }
@@ -683,8 +791,11 @@ class WebRtcHostPeer {
 
   RTCPeerConnection? _peer;
   RTCDataChannel? _channel;
+  bool _usesRelay = false;
 
   bool get isOpen => _channel?.state == RTCDataChannelState.RTCDataChannelOpen;
+
+  bool get usesRelay => _usesRelay;
 
   Future<void> createOffer() async {
     final peer = await createPeerConnection(configuration);
@@ -723,7 +834,10 @@ class WebRtcHostPeer {
 
   void _bindChannel(RTCDataChannel channel) {
     channel.onDataChannelState = (state) {
-      if (state == RTCDataChannelState.RTCDataChannelOpen) onOpen();
+      if (state == RTCDataChannelState.RTCDataChannelOpen) {
+        onOpen();
+        unawaited(_detectRelay());
+      }
       if (state == RTCDataChannelState.RTCDataChannelClosed) onClosed();
     };
     channel.onMessage = (message) {
@@ -733,6 +847,12 @@ class WebRtcHostPeer {
         // Ignore malformed frames rather than tearing down a healthy peer.
       }
     };
+  }
+
+  Future<void> _detectRelay() async {
+    final peer = _peer;
+    if (peer == null) return;
+    _usesRelay = await peerConnectionUsesRelay(peer);
   }
 
   Future<void> send(WireMessage message) async {
@@ -764,9 +884,6 @@ class WebRtcClientTransport extends _WebRtcTransportBase
 
   final SignalingIceClient iceClient;
   final AppSettings settings;
-
-  /// Covers the host's /ice-config plus relay issuance before its offer. A
-  /// failed free P2P attempt waits this long before the firewall prompt.
   final Duration iceTimeout;
 
   IceConfig? _config;
@@ -781,14 +898,13 @@ class WebRtcClientTransport extends _WebRtcTransportBase
   @override
   Future<void> connect() async {
     _channelOpen = Completer<void>();
-    _config = await iceClient.fetch(
-      roomId: invite.roomId,
-      token: invite.secret,
-      settings: settings,
-    );
-    if (!_config!.turnAllowed && _config!.reason != null) {
+    _config = await _fetchIce();
+    final reason = _config!.reason;
+    if (!_config!.turnAllowed &&
+        (reason == 'DAILY_TURN_LIMIT_REACHED' ||
+            reason == 'GLOBAL_TURN_LIMIT_REACHED')) {
       _turnNotice = TurnLimitNotice(
-        reason: _config!.reason!,
+        reason: reason!,
         dailyLimit: _config!.dailyLimit,
         usedToday: _config!.usedToday,
         retryAtUtc: _config!.retryAtUtc ?? DateTime.now().toUtc(),
@@ -802,6 +918,13 @@ class WebRtcClientTransport extends _WebRtcTransportBase
         if (relayFailure != null) throw relayFailure;
         final notice = _turnNotice;
         if (notice != null) throw TurnQuotaBlockedException(notice);
+        final reason = _config?.reason;
+        if (reason == 'TURN_NOT_CONFIGURED' || reason == 'TURN_UNAVAILABLE') {
+          throw const TransportException(
+            'relay_unavailable',
+            'the relay is not available',
+          );
+        }
         throw const TransportException('ice_failed', 'peer connection failed');
       },
     );
@@ -821,6 +944,34 @@ class WebRtcClientTransport extends _WebRtcTransportBase
     return null;
   }
 
+  /// The host seeds the room right before it shows the QR code, so a fast
+  /// scanner can arrive a moment early.
+  Future<IceConfig> _fetchIce() async {
+    const delays = <Duration>[
+      Duration.zero,
+      Duration(seconds: 1),
+      Duration(seconds: 2),
+      Duration(seconds: 4),
+    ];
+    Object? lastError;
+    for (final delay in delays) {
+      if (delay > Duration.zero) await Future<void>.delayed(delay);
+      try {
+        return await iceClient.fetch(
+          roomId: invite.roomId,
+          token: invite.secret,
+          role: 'client',
+          settings: settings,
+        );
+      } on TransportException catch (error) {
+        lastError = error;
+        if (error.code != 'room_not_ready') rethrow;
+      }
+    }
+    if (lastError is TransportException) throw lastError;
+    throw const TransportException('room_not_ready', 'room is not open yet');
+  }
+
   @override
   void onWelcome(Map<String, dynamic> frame) {}
 
@@ -831,15 +982,22 @@ class WebRtcClientTransport extends _WebRtcTransportBase
       (_config ??
               const IceConfig(
                 turnAllowed: false,
-                iceServers: <IceServerConfig>[],
+                iceServers: <IceServerConfig>[
+                  IceServerConfig(urls: <String>[kDefaultStunServer]),
+                ],
               ))
           .toRtcConfiguration(),
     );
     _peer = peer;
 
     peer.onDataChannel = (channel) {
-      attachChannel(channel);
-      if (!(_channelOpen?.isCompleted ?? true)) _channelOpen!.complete();
+      attachChannel(
+        channel,
+        onOpen: () {
+          final open = _channelOpen;
+          if (open != null && !open.isCompleted) open.complete();
+        },
+      );
     };
     peer.onIceCandidate = (candidate) {
       if (candidate.candidate == null) return;

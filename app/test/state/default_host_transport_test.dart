@@ -145,6 +145,12 @@ class _SlowTransport implements HostTransport {
   String? get localLanEndpoint => null;
 
   @override
+  Set<String> get clientIds => const <String>{};
+
+  @override
+  bool isRelayed(String clientId) => false;
+
+  @override
   Future<void> start() async {
     if (!started.isCompleted) started.complete();
     await gate.future;
@@ -182,6 +188,12 @@ class _ExplodingTransport implements HostTransport {
 
   @override
   String? get localLanEndpoint => null;
+
+  @override
+  Set<String> get clientIds => const <String>{};
+
+  @override
+  bool isRelayed(String clientId) => false;
 
   @override
   Future<void> start() async {

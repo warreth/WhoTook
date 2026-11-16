@@ -13,6 +13,7 @@ import '../../state/providers.dart';
 import '../widgets/common.dart';
 import '../widgets/game_widgets.dart';
 import '../widgets/mode_picker.dart';
+import '../widgets/online_hint.dart';
 import '../widgets/party_pass_bar.dart';
 
 class LobbyScreen extends ConsumerWidget {
@@ -199,6 +200,10 @@ class LobbyScreen extends ConsumerWidget {
                   NoticeBanner(
                     message: l10n.waitingForHostToStart,
                     icon: Icons.hourglass_empty,
+                  ),
+                  OnlinePlayHint(
+                    key: ValueKey<String>('online-hint-${state.roomId ?? ''}'),
+                    mode: state.connectionMode,
                   ),
                 ],
                 const SizedBox(height: AppSpacing.s16),

@@ -1055,7 +1055,7 @@ class TurnLimitNotice {
   factory TurnLimitNotice.fromJson(Map<String, dynamic> json) =>
       TurnLimitNotice(
         reason: (json['reason'] as String?) ?? 'DAILY_TURN_LIMIT_REACHED',
-        dailyLimit: (json['dailyLimit'] as int?) ?? 5,
+        dailyLimit: (json['dailyLimit'] as int?) ?? 20,
         usedToday: (json['usedToday'] as int?) ?? 0,
         retryAtUtc: DateTime.parse(json['retryAtUtc'] as String),
       );

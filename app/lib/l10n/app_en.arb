@@ -159,6 +159,7 @@
   },
   "sameWifi": "Same Wi-Fi",
   "online": "Online",
+  "onlineWifiHint": "If everyone joins the same Wi-Fi, it is faster and your photos stay on your network.",
   "shareInviteLink": "Share invite link",
   "hostStartsPhotoCheck": "The host starts the photo check when everyone is here.",
   "waitingForHostToStart": "Waiting for the host to start",
@@ -1004,5 +1005,7 @@
       }
     }
   },
-  "firewallRetryNow": "Retry now"
+  "firewallRetryNow": "Retry now",
+  "errorHostStarting": "The host is still opening the room. Try again in a moment.",
+  "errorInviteExpired": "This invite has expired. Ask the host for a new QR code."
 }

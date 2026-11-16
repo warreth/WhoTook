@@ -512,6 +512,7 @@ class MatchCoordinator {
     this.turnRelay,
     this.wakeLock,
     this.planterOverride,
+    this.photoCompressor,
     this.appVersion = kAppVersion,
     this.appBuild = kAppBuildNumber,
     this.playerIdOverride,
@@ -549,6 +550,9 @@ class MatchCoordinator {
 
   /// Test seam for the randomly assigned planter.
   final String? planterOverride;
+
+  /// Test seam for relayed photo compression; production uses the codec.
+  final PhotoCompressor? photoCompressor;
 
   /// The build this phone reports to the room. Defaults to the release
   /// constants; tests override them to rehearse a mixed-version room.
@@ -880,7 +884,15 @@ class MatchCoordinator {
     Uint8List? bytes,
   ) async {
     if (bytes == null || bytes.isEmpty) return;
-    for (final chunk in PhotoChunker.split(photoId, bytes)) {
+    final relayed = _hostTransport?.isRelayed(clientId) ?? false;
+    final payload = relayed
+        ? await _compressPhoto(
+            bytes,
+            maxDimension: kRelayPhotoDimension,
+            quality: kRelayPhotoQuality,
+          )
+        : bytes;
+    for (final chunk in PhotoChunker.split(photoId, payload)) {
       await _hostTransport?.sendToClient(
         clientId,
         WireMessage(
@@ -889,6 +901,67 @@ class MatchCoordinator {
           payload: chunk.toJson(),
         ),
       );
+    }
+  }
+
+  Future<Uint8List> _compressPhoto(
+    Uint8List bytes, {
+    required int maxDimension,
+    required int quality,
+  }) {
+    final compressor = photoCompressor;
+    if (compressor != null) {
+      return compressor(bytes, maxDimension: maxDimension, quality: quality);
+    }
+    return compressPhotoBytes(
+      bytes,
+      maxDimension: maxDimension,
+      quality: quality,
+    );
+  }
+
+  /// Sends one copy of the round photo to direct peers and a smaller copy to
+  /// peers whose path relays through TURN.
+  Future<void> _sendRoundPhoto(
+    HostTransport transport,
+    String photoId,
+    Uint8List bytes,
+  ) async {
+    final relayed = <String>[];
+    final direct = <String>[];
+    for (final clientId in transport.clientIds) {
+      (transport.isRelayed(clientId) ? relayed : direct).add(clientId);
+    }
+
+    if (direct.isNotEmpty) {
+      for (final chunk in PhotoChunker.split(photoId, bytes)) {
+        final message = WireMessage(
+          type: WireType.photoChunk,
+          seq: _nextSeq(),
+          payload: chunk.toJson(),
+        );
+        for (final clientId in direct) {
+          await transport.sendToClient(clientId, message);
+        }
+      }
+    }
+
+    if (relayed.isNotEmpty) {
+      final relayBytes = await _compressPhoto(
+        bytes,
+        maxDimension: kRelayPhotoDimension,
+        quality: kRelayPhotoQuality,
+      );
+      for (final chunk in PhotoChunker.split(photoId, relayBytes)) {
+        final message = WireMessage(
+          type: WireType.photoChunk,
+          seq: _nextSeq(),
+          payload: chunk.toJson(),
+        );
+        for (final clientId in relayed) {
+          await transport.sendToClient(clientId, message);
+        }
+      }
     }
   }
 
@@ -1650,15 +1723,7 @@ class MatchCoordinator {
     final bytes = entry.photo.bytes;
     final isMemeRound = entry.mode == GameMode.makeItMeme;
     if (!isMemeRound && bytes != null) {
-      for (final chunk in PhotoChunker.split(entry.photo.photoId, bytes)) {
-        await transport.broadcast(
-          WireMessage(
-            type: WireType.photoChunk,
-            seq: _nextSeq(),
-            payload: chunk.toJson(),
-          ),
-        );
-      }
+      await _sendRoundPhoto(transport, entry.photo.photoId, bytes);
     }
 
     final mode = entry.mode;
@@ -3154,6 +3219,15 @@ class MatchCoordinator {
         ),
       );
       return;
+    } on TransportException catch (error) {
+      final message = switch (error.code) {
+        'room_not_ready' => _l10n.errorHostStarting,
+        'unauthorized' => _l10n.errorInviteExpired,
+        'relay_unavailable' => _l10n.errorRelayUnavailable,
+        _ => _l10n.errorReachHost,
+      };
+      _emit(_state.copyWith(errorMessage: message, clearLoading: true));
+      return;
     } on Object {
       _emit(
         _state.copyWith(errorMessage: _l10n.errorReachHost, clearLoading: true),
@@ -3259,6 +3333,11 @@ class MatchCoordinator {
       }
       final left = _state.reconnectSecondsLeft - 1;
       if (left <= 0) {
+        // A mobile reconnect can take longer than the countdown; let it finish.
+        if (_reconnectInFlight) {
+          _emit(_state.copyWith(reconnectSecondsLeft: 0));
+          return;
+        }
         timer.cancel();
         _reconnectTimer = null;
         unawaited(_endOnHostLeave());
@@ -4067,7 +4146,14 @@ class MatchCoordinator {
     for (final candidate in _state.candidates) {
       final bytes = candidate.bytes;
       if (bytes == null) continue;
-      for (final chunk in PhotoChunker.split(candidate.photoId, bytes)) {
+      final payload = transport.usesRelay
+          ? await _compressPhoto(
+              bytes,
+              maxDimension: kRelayUploadDimension,
+              quality: kRelayUploadQuality,
+            )
+          : bytes;
+      for (final chunk in PhotoChunker.split(candidate.photoId, payload)) {
         await transport.send(
           WireMessage(
             type: WireType.photoChunk,
@@ -4096,7 +4182,14 @@ class MatchCoordinator {
     final photo = candidate.copyWith(
       ownerId: _state.localPlayerId ?? candidate.ownerId,
     );
-    for (final chunk in PhotoChunker.split(photo.photoId, bytes)) {
+    final payload = transport.usesRelay
+        ? await _compressPhoto(
+            bytes,
+            maxDimension: kRelayUploadDimension,
+            quality: kRelayUploadQuality,
+          )
+        : bytes;
+    for (final chunk in PhotoChunker.split(photo.photoId, payload)) {
       await transport.send(
         WireMessage(
           type: WireType.photoChunk,
@@ -4416,11 +4509,20 @@ class MatchCoordinator {
 }
 
 /// Wraps an optional transport so a failed online path (no relay, no network)
-/// never stops the local room from opening.
+/// never stops the local room from opening. The inner start runs in the
+/// background, so a slow relay cannot delay the lobby or the QR code.
 class BestEffortHostTransport implements HostTransport {
-  BestEffortHostTransport(this._inner);
+  BestEffortHostTransport(
+    this._inner, {
+    this.retryDelays = const <Duration>[
+      Duration.zero,
+      Duration(seconds: 1),
+      Duration(seconds: 3),
+    ],
+  });
 
   final HostTransport _inner;
+  final List<Duration> retryDelays;
   final StreamController<String> _connected =
       StreamController<String>.broadcast();
   final StreamController<String> _disconnected =
@@ -4450,39 +4552,50 @@ class BestEffortHostTransport implements HostTransport {
   String? get localLanEndpoint => null;
 
   @override
+  Set<String> get clientIds => _started ? _inner.clientIds : const <String>{};
+
+  @override
+  bool isRelayed(String clientId) => _started && _inner.isRelayed(clientId);
+
+  @override
   Future<void> start() async {
     if (_closed) return;
     _subscriptions.add(_inner.clientConnected.listen(_connected.add));
     _subscriptions.add(_inner.clientDisconnected.listen(_disconnected.add));
     _subscriptions.add(_inner.messages.listen(_messages.add));
     // The LAN side is already listening; a slow relay fetch must not hold the
-    // lobby behind it. Sends during the wait are replayed once it is ready.
-    unawaited(
-      Future<void>.sync(_inner.start).then(
-        (_) async {
-          if (_closed) {
-            await _inner.close();
-            return;
+    // lobby behind it. Retry in the background and replay sends when ready.
+    unawaited(_startWithRetry());
+  }
+
+  Future<void> _startWithRetry() async {
+    for (final delay in retryDelays) {
+      if (delay > Duration.zero) await Future<void>.delayed(delay);
+      if (_closed) return;
+      try {
+        await _inner.start();
+        if (_closed) {
+          await _inner.close();
+          return;
+        }
+        _started = true;
+        final queued = List<Future<void> Function()>.of(_queued);
+        _queued.clear();
+        _queuedBytes = 0;
+        for (final send in queued) {
+          try {
+            await send();
+          } on Object {
+            // One dropped frame must not stop the rest of the replay.
           }
-          _started = true;
-          final queued = List<Future<void> Function()>.of(_queued);
-          _queued.clear();
-          _queuedBytes = 0;
-          for (final send in queued) {
-            try {
-              await send();
-            } on Object {
-              // One dropped frame must not stop the rest of the replay.
-            }
-          }
-        },
-        onError: (Object _) {
-          _started = false;
-          _queued.clear();
-          _queuedBytes = 0;
-        },
-      ),
-    );
+        }
+        return;
+      } on Object {
+        _started = false;
+      }
+    }
+    _queued.clear();
+    _queuedBytes = 0;
   }
 
   @override
