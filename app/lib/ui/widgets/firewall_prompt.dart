@@ -25,14 +25,16 @@ class FirewallPromptOverlay extends ConsumerWidget {
     final relayAttempted = state.firewallRelayAttempted;
     final pass = ref.watch(partyPassProvider).value;
     final relayCode = state.firewallRelayErrorCode ?? pass?.relayErrorCode;
-    final quotaReached =
-        relayCode == 'fair_use_limit_reached' || relayCode == 'rate_limited';
+    final quotaReached = relayCode == 'fair_use_limit_reached';
+    final rateLimited = relayCode == 'rate_limited';
     final invalidReceipt =
         relayCode == 'invalid_receipt' || relayCode == 'product_mismatch';
     final title = !relayAttempted
         ? l10n.firewallTitle
         : quotaReached
         ? l10n.firewallQuotaTitle
+        : rateLimited
+        ? l10n.firewallBusyTitle
         : invalidReceipt
         ? l10n.firewallVerificationTitle
         : l10n.firewallRelayDownTitle;
@@ -42,6 +44,8 @@ class FirewallPromptOverlay extends ConsumerWidget {
               : l10n.firewallBody
         : quotaReached
         ? l10n.firewallQuotaBody
+        : rateLimited
+        ? l10n.firewallBusyBody
         : invalidReceipt
         ? l10n.firewallVerificationBody
         : l10n.firewallRelayDownBody;
@@ -105,6 +109,8 @@ class FirewallPromptOverlay extends ConsumerWidget {
                               child: Icon(
                                 quotaReached
                                     ? Icons.timer_off_outlined
+                                    : rateLimited
+                                    ? Icons.hourglass_empty
                                     : invalidReceipt
                                     ? Icons.verified_user_outlined
                                     : relayAttempted

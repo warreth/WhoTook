@@ -137,6 +137,25 @@ void main() {
     });
   });
 
+  test('a granted relay timeout maps to the relay prompt', () {
+    final transport = WebRtcClientTransport(
+      invite: _invite,
+      iceClient: SignalingIceClient(
+        signalingUrl: 'https://signal.whotook.party',
+      ),
+    );
+    final failure = transport.relayRequiredForTimeout(
+      const IceConfig(
+        turnAllowed: true,
+        relayPassActive: true,
+        iceServers: <IceServerConfig>[],
+      ),
+    );
+    expect(failure, isNotNull);
+    expect(failure!.passActive, isTrue);
+    expect(failure.relayErrorCode, 'ice_failed');
+  });
+
   group('WebRtcHostTransport signaling frames', () {
     late WebRtcHostTransport transport;
 

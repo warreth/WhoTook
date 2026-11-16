@@ -1875,4 +1875,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String firewallQuotaReset(String time) {
     return 'Next allowance: $time';
   }
+
+  @override
+  String get firewallBusyTitle => 'Relay is busy';
+
+  @override
+  String get firewallBusyBody =>
+      'Too many relay attempts from this network. Wait a moment and try again.';
 }

@@ -992,5 +992,7 @@
         "type": "String"
       }
     }
-  }
+  },
+  "firewallBusyTitle": "Relay is busy",
+  "firewallBusyBody": "Too many relay attempts from this network. Wait a moment and try again."
 }

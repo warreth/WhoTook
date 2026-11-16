@@ -26,10 +26,7 @@ class TurnQuotaBlockedException implements Exception {
 /// Direct P2P failed and no relay credentials were available. This is the
 /// strict 5G / carrier-NAT case the lobby explains to the player.
 class RelayRequiredException implements Exception {
-  const RelayRequiredException({
-    this.passActive = false,
-    this.relayErrorCode,
-  });
+  const RelayRequiredException({this.passActive = false, this.relayErrorCode});
 
   final bool passActive;
   final String? relayErrorCode;
@@ -108,8 +105,7 @@ class IceConfig {
       dailyLimit: json['dailyLimit'] as int? ?? 5,
       usedToday: json['usedToday'] as int? ?? 0,
       retryAtUtc: retry is String ? DateTime.tryParse(retry) : null,
-      remainingMatchesToday:
-          json['remainingMatchesToday'] as int? ?? 0,
+      remainingMatchesToday: json['remainingMatchesToday'] as int? ?? 0,
     );
   }
 }
@@ -124,6 +120,8 @@ class SignalingIceClient {
     this.timeout = const Duration(seconds: 6),
     this.turnRelay,
     this.acceptServerTurn = !BuildFlavor.official,
+    this.noRoomRetryDelay = const Duration(milliseconds: 250),
+    this.noRoomRetryAttempts = 20,
   }) : _http = httpClient ?? http.Client();
 
   final String signalingUrl;
@@ -134,6 +132,8 @@ class SignalingIceClient {
   /// Legacy self-hosted signaling servers may still return TURN to FOSS builds.
   final Future<TurnRelayAttempt> Function()? turnRelay;
   final bool acceptServerTurn;
+  final Duration noRoomRetryDelay;
+  final int noRoomRetryAttempts;
 
   Future<IceConfig> fetch({
     required String roomId,
@@ -165,17 +165,27 @@ class SignalingIceClient {
       query: null,
       fragment: null,
     );
-    final response = await _http
-        .post(
-          endpoint,
-          headers: <String, String>{'Content-Type': 'application/json'},
-          body: jsonEncode(<String, String>{'roomId': roomId, 'token': token}),
-        )
-        .timeout(timeout);
-
-    if (response.statusCode == 401) {
-      throw const TransportException('unauthorized', 'room token rejected');
+    late http.Response response;
+    for (var attempt = 0; ; attempt += 1) {
+      response = await _http
+          .post(
+            endpoint,
+            headers: <String, String>{'Content-Type': 'application/json'},
+            body: jsonEncode(<String, String>{
+              'roomId': roomId,
+              'token': token,
+            }),
+          )
+          .timeout(timeout);
+      if (response.statusCode != 401) break;
+      if (!_isNoRoom(response.body) || attempt >= noRoomRetryAttempts) {
+        throw const TransportException('unauthorized', 'room token rejected');
+      }
+      // The host may still be opening its signaling room. Wait briefly for it
+      // instead of failing the whole join.
+      await Future<void>.delayed(noRoomRetryDelay);
     }
+
     if (response.statusCode != 200) {
       throw TransportException(
         'ice_config_failed',
@@ -235,6 +245,15 @@ class SignalingIceClient {
       remainingMatchesToday: grant.remainingMatchesToday,
       relayPassActive: true,
     );
+  }
+
+  bool _isNoRoom(String body) {
+    try {
+      final parsed = jsonDecode(body);
+      return parsed is Map<String, dynamic> && parsed['error'] == 'NO_ROOM';
+    } on FormatException {
+      return false;
+    }
   }
 
   IceServerConfig? _customTurn(AppSettings settings) {
@@ -435,6 +454,8 @@ class WebRtcHostTransport implements HostTransport {
 
   WebSocketChannel? _signaling;
   IceConfig? _iceConfig;
+  bool _configReady = false;
+  final List<Map<String, dynamic>> _pendingSignaling = <Map<String, dynamic>>[];
 
   @override
   Stream<String> get clientConnected => _connected.stream;
@@ -450,11 +471,6 @@ class WebRtcHostTransport implements HostTransport {
 
   @override
   Future<void> start() async {
-    _iceConfig = await iceClient.fetch(
-      roomId: invite.roomId,
-      token: invite.secret,
-      settings: settings,
-    );
     final origin = _toWebSocketOrigin(invite.signalingUrl ?? '');
     final uri = Uri.parse(
       '${origin.replaceAll(RegExp(r'/+$'), '')}'
@@ -470,6 +486,23 @@ class WebRtcHostTransport implements HostTransport {
         cancelOnError: true,
       ),
     );
+    try {
+      _iceConfig = await iceClient.fetch(
+        roomId: invite.roomId,
+        token: invite.secret,
+        settings: settings,
+      );
+      _configReady = true;
+      final pending = List<Map<String, dynamic>>.of(_pendingSignaling);
+      _pendingSignaling.clear();
+      for (final frame in pending) {
+        await handleSignalingFrame(frame);
+      }
+    } on Object {
+      await channel.sink.close();
+      _signaling = null;
+      rethrow;
+    }
   }
 
   Future<void> _onFrame(dynamic data) async {
@@ -478,6 +511,10 @@ class WebRtcHostTransport implements HostTransport {
     try {
       frame = jsonDecode(raw) as Map<String, dynamic>;
     } on FormatException {
+      return;
+    }
+    if (!_configReady) {
+      if (_pendingSignaling.length < 64) _pendingSignaling.add(frame);
       return;
     }
     await handleSignalingFrame(frame);
@@ -727,18 +764,27 @@ class WebRtcClientTransport extends _WebRtcTransportBase
     await _channelOpen!.future.timeout(
       iceTimeout,
       onTimeout: () {
-        final config = _config;
-        if (config != null && !config.turnAllowed) {
-          throw RelayRequiredException(
-            passActive: config.relayPassActive,
-            relayErrorCode: config.relayErrorCode,
-          );
-        }
+        final relayFailure = relayRequiredForTimeout(_config);
+        if (relayFailure != null) throw relayFailure;
         final notice = _turnNotice;
         if (notice != null) throw TurnQuotaBlockedException(notice);
         throw const TransportException('ice_failed', 'peer connection failed');
       },
     );
+  }
+
+  /// A pass holder whose granted relay still timed out gets the relay prompt,
+  /// not the generic "cannot reach host" error.
+  RelayRequiredException? relayRequiredForTimeout(IceConfig? config) {
+    if (config == null) return null;
+    if (config.relayPassActive || !config.turnAllowed) {
+      return RelayRequiredException(
+        passActive: config.relayPassActive,
+        relayErrorCode:
+            config.relayErrorCode ?? (config.turnAllowed ? 'ice_failed' : null),
+      );
+    }
+    return null;
   }
 
   @override

@@ -213,10 +213,23 @@ class StorePartyPassPurchaseService implements PartyPassPurchaseService {
       );
     }
     try {
-      await _syncStoreIfNeeded();
       final pending = Completer<PartyPassPurchaseEvent>();
       _pending = pending;
-      await _iap.restorePurchases();
+      await _syncStoreIfNeeded();
+      if (!pending.isCompleted) {
+        final restoredDuringSync = _lastRestored;
+        if (restoredDuringSync != null) {
+          pending.complete(
+            PartyPassPurchaseEvent(
+              status: PartyPassPurchaseStatus.restored,
+              credential: restoredDuringSync,
+            ),
+          );
+        }
+      }
+      if (!pending.isCompleted) {
+        await _iap.restorePurchases();
+      }
       return await pending.future.timeout(
         restoreTimeout,
         onTimeout: () => const PartyPassPurchaseEvent(

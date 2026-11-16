@@ -4438,7 +4438,9 @@ class BestEffortHostTransport implements HostTransport {
       StreamController<HostIncomingMessage>.broadcast();
   final List<StreamSubscription<dynamic>> _subscriptions =
       <StreamSubscription<dynamic>>[];
+  final List<Future<void> Function()> _queued = <Future<void> Function()>[];
   bool _started = false;
+  bool _closed = false;
 
   @override
   Stream<String> get clientConnected => _connected.stream;
@@ -4454,33 +4456,69 @@ class BestEffortHostTransport implements HostTransport {
 
   @override
   Future<void> start() async {
+    if (_closed) return;
     _subscriptions.add(_inner.clientConnected.listen(_connected.add));
     _subscriptions.add(_inner.clientDisconnected.listen(_disconnected.add));
     _subscriptions.add(_inner.messages.listen(_messages.add));
     // The LAN side is already listening; a slow relay fetch must not hold the
-    // lobby behind it. The online side becomes usable when it finishes.
+    // lobby behind it. Sends during the wait are replayed once it is ready.
     unawaited(
-      _inner.start().then(
-        (_) => _started = true,
-        onError: (Object _) => _started = false,
+      Future<void>.sync(_inner.start).then(
+        (_) async {
+          if (_closed) {
+            await _inner.close();
+            return;
+          }
+          _started = true;
+          final queued = List<Future<void> Function()>.of(_queued);
+          _queued.clear();
+          for (final send in queued) {
+            try {
+              await send();
+            } on Object {
+              // One dropped frame must not stop the rest of the replay.
+            }
+          }
+        },
+        onError: (Object _) {
+          _started = false;
+          _queued.clear();
+        },
       ),
     );
   }
 
   @override
   Future<void> sendToClient(String clientId, WireMessage message) async {
-    if (!_started) return;
-    await _inner.sendToClient(clientId, message);
+    if (_closed) return;
+    if (_started) {
+      await _inner.sendToClient(clientId, message);
+      return;
+    }
+    _queue(() => _inner.sendToClient(clientId, message));
   }
 
   @override
   Future<void> broadcast(WireMessage message) async {
-    if (!_started) return;
-    await _inner.broadcast(message);
+    if (_closed) return;
+    if (_started) {
+      await _inner.broadcast(message);
+      return;
+    }
+    // Photo chunks are large and a joining client gets a fresh state sync.
+    if (message.type == WireType.photoChunk) return;
+    _queue(() => _inner.broadcast(message));
+  }
+
+  void _queue(Future<void> Function() send) {
+    if (_queued.length >= 32) return;
+    _queued.add(send);
   }
 
   @override
   Future<void> close() async {
+    _closed = true;
+    _queued.clear();
     for (final subscription in _subscriptions) {
       await subscription.cancel();
     }

@@ -251,6 +251,30 @@ void main() {
       );
     });
 
+    test('retries /ice-config while the host room is opening', () async {
+      var calls = 0;
+      final client = SignalingIceClient(
+        signalingUrl: 'https://signal.example',
+        noRoomRetryDelay: Duration.zero,
+        noRoomRetryAttempts: 2,
+        httpClient: MockClient((_) async {
+          calls += 1;
+          if (calls == 1) {
+            return http.Response('{"error":"NO_ROOM"}', 401);
+          }
+          return http.Response(
+            '{"turnAllowed":false,'
+            '"iceServers":[{"urls":"stun:stun.cloudflare.com:3478"}]}',
+            200,
+          );
+        }),
+      );
+
+      final config = await client.fetch(roomId: 'room1234', token: 'secret');
+      expect(calls, 2);
+      expect(config.iceServers.single.urls.single, startsWith('stun:'));
+    });
+
     test('uses a self-hosted TURN server without /ice-config', () async {
       final client = SignalingIceClient(
         signalingUrl: 'https://signal.example',

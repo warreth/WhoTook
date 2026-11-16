@@ -58,6 +58,7 @@ class PartyPassState {
     int? dailyLimit,
     bool clearError = false,
     bool clearRelayError = false,
+    bool clearRelayRetry = false,
   }) => PartyPassState(
     active: active ?? this.active,
     fossIncluded: fossIncluded ?? this.fossIncluded,
@@ -70,7 +71,7 @@ class PartyPassState {
     relayErrorCode: clearRelayError
         ? null
         : (relayErrorCode ?? this.relayErrorCode),
-    relayRetryAtUtc: clearRelayError
+    relayRetryAtUtc: clearRelayError || clearRelayRetry
         ? null
         : (relayRetryAtUtc ?? this.relayRetryAtUtc),
     remainingMatchesToday: remainingMatchesToday ?? this.remainingMatchesToday,
@@ -212,7 +213,8 @@ class PartyPassController extends AsyncNotifier<PartyPassState> {
           );
       if (_disposed) return;
       final latest = state.value ?? current;
-      if (latest.credential?.verificationToken != credential.verificationToken ||
+      if (latest.credential?.verificationToken !=
+              credential.verificationToken ||
           requestId < _appliedQuotaRequestId) {
         return;
       }
@@ -222,6 +224,7 @@ class PartyPassController extends AsyncNotifier<PartyPassState> {
           latest.copyWith(
             relayErrorCode: 'invalid_receipt',
             remainingMatchesToday: 0,
+            clearRelayRetry: true,
           ),
         );
         return;
@@ -236,7 +239,8 @@ class PartyPassController extends AsyncNotifier<PartyPassState> {
     } on TurnRelayException catch (error) {
       if (_disposed) return;
       final latest = state.value ?? current;
-      if (latest.credential?.verificationToken != credential.verificationToken ||
+      if (latest.credential?.verificationToken !=
+              credential.verificationToken ||
           requestId < _appliedQuotaRequestId) {
         return;
       }
@@ -305,8 +309,7 @@ class PartyPassController extends AsyncNotifier<PartyPassState> {
               relayErrorCode: error.code,
               relayRetryAtUtc: error.retryAtUtc,
               remainingMatchesToday:
-                  error.remainingMatchesToday ??
-                  latest.remainingMatchesToday,
+                  error.remainingMatchesToday ?? latest.remainingMatchesToday,
             ),
           );
         }

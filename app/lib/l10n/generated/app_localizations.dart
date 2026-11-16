@@ -3270,6 +3270,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Next allowance: {time}'**
   String firewallQuotaReset(String time);
+
+  /// No description provided for @firewallBusyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Relay is busy'**
+  String get firewallBusyTitle;
+
+  /// No description provided for @firewallBusyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many relay attempts from this network. Wait a moment and try again.'**
+  String get firewallBusyBody;
 }
 
 class _AppLocalizationsDelegate

@@ -38,7 +38,12 @@ cd "$WORK"
 flutter pub get
 flutter test --dart-define=FOSS_BUILD=true
 
-if [[ "${1:-}" != "--test-only" ]]; then
+if [[ "${1:-}" == "--test-only" ]]; then
+  exit 0
+fi
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  flutter build ios --no-codesign --dart-define=FOSS_BUILD=true
+else
   flutter build apk --debug \
     --target-platform android-arm64 \
     --dart-define=FOSS_BUILD=true

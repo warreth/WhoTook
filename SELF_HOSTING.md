@@ -84,13 +84,16 @@ Open UDP/TCP 3478 and TCP 5349, and the relay port range you configure
   configuration. The official relay uses short-lived HMAC credentials
   instead; a self-hosted static user does not need to generate them.
 
-The app uses this server directly, together with public STUN, and never calls
-the official `/ice-config` endpoint or the official relay from a FOSS build.
+When a custom TURN URI is configured, the app uses it directly with public
+STUN and does not call `/ice-config` or the official relay. Every phone that
+joins the room must enter the same custom TURN URI and credentials; relay
+settings are not propagated with the room.
+
 If you run a signaling server without a custom TURN entry, it may receive
 `POST /ice-config` with `{roomId, token}`; answer `200` with
 `{"turnAllowed":false,"iceServers":[{"urls":"stun:stun.cloudflare.com:3478"}]}`
-or `401` for a bad room token. With a custom TURN URI configured, that call is
-skipped.
+or `401` for a bad room token. Without a custom TURN URI, a FOSS build with the
+default signaling also calls this endpoint for STUN.
 
 Build the dependency-clean FOSS variant with:
 
@@ -99,8 +102,9 @@ bash app/foss/build.sh
 ```
 
 The script copies the app, removes the `in_app_purchase` dependencies, overlays
-the no-billing purchase service, runs the FOSS tests and builds the APK. For a
-quick runtime check without the dependency-clean copy, `flutter run
+the no-billing purchase service, runs the FOSS tests and builds the app: the
+Android debug APK on Linux/CI, or an unsigned iOS app on macOS. For a quick
+runtime check without the dependency-clean copy, `flutter run
 --dart-define=FOSS_BUILD=true` still disables billing and the official relay.
 
 FOSS builds never initialize store billing or the official relay client. They

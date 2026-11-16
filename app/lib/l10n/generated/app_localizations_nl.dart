@@ -1885,4 +1885,11 @@ class AppLocalizationsNl extends AppLocalizations {
   String firewallQuotaReset(String time) {
     return 'Volgende tegoed: $time';
   }
+
+  @override
+  String get firewallBusyTitle => 'Relay is bezet';
+
+  @override
+  String get firewallBusyBody =>
+      'Te veel relaypogingen vanaf dit netwerk. Wacht even en probeer opnieuw.';
 }

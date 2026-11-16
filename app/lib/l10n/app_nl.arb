@@ -581,5 +581,7 @@
         "type": "String"
       }
     }
-  }
+  },
+  "firewallBusyTitle": "Relay is bezet",
+  "firewallBusyBody": "Te veel relaypogingen vanaf dit netwerk. Wacht even en probeer opnieuw."
 }

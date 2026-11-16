@@ -57,15 +57,39 @@ void main() {
     expect(inner.started.isCompleted, isTrue);
     expect(gate.isCompleted, isFalse);
 
-    await wrapper.broadcast(WireMessage(type: WireType.ping, seq: 1));
+    await wrapper.sendToClient(
+      'p1',
+      WireMessage(type: WireType.ping, seq: 1),
+    );
+    await wrapper.broadcast(WireMessage(type: WireType.ping, seq: 2));
     expect(inner.sends, 0);
 
     gate.complete();
     await Future<void>.delayed(Duration.zero);
-    await wrapper.broadcast(WireMessage(type: WireType.ping, seq: 2));
-    expect(inner.sends, 1);
+    await Future<void>.delayed(Duration.zero);
+    expect(inner.sends, 2);
+    expect(inner.closed, isFalse);
 
     await wrapper.close();
+  });
+
+  test('closing during a slow start closes the inner transport', () async {
+    final gate = Completer<void>();
+    final inner = _SlowTransport(gate);
+    final wrapper = BestEffortHostTransport(inner);
+
+    await wrapper.start();
+    await wrapper.sendToClient(
+      'p1',
+      WireMessage(type: WireType.ping, seq: 1),
+    );
+    await wrapper.close();
+    gate.complete();
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(inner.closed, isTrue);
+    expect(inner.sends, 0);
   });
 
   test('a failing online transport never blocks the local room', () async {
@@ -91,6 +115,7 @@ class _SlowTransport implements HostTransport {
   final Completer<void> gate;
   final Completer<void> started = Completer<void>();
   int sends = 0;
+  bool closed = false;
 
   @override
   Stream<String> get clientConnected => const Stream<String>.empty();
@@ -122,7 +147,9 @@ class _SlowTransport implements HostTransport {
   }
 
   @override
-  Future<void> close() async {}
+  Future<void> close() async {
+    closed = true;
+  }
 }
 
 class _ExplodingTransport implements HostTransport {
