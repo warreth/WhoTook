@@ -303,7 +303,7 @@ jobs:
           security unlock-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN"
           security default-keychain -s "$KEYCHAIN"
 
-          echo "$CERT_BASE64" | base64 -d > "$RUNNER_TEMP/cert.p12"
+          printf '%s' "$CERT_BASE64" | tr -d '\r\n' | base64 -d > "$RUNNER_TEMP/cert.p12"
           security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$CERT_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASS" "$KEYCHAIN" >/dev/null
           security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
@@ -311,7 +311,7 @@ jobs:
           PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
           mkdir -p "$PROFILE_DIR"
           PROFILE_PATH="$PROFILE_DIR/whotook.mobileprovision"
-          echo "$PROFILE_BASE64" | base64 -d > "$PROFILE_PATH"
+          printf '%s' "$PROFILE_BASE64" | tr -d '\r\n' | base64 -d > "$PROFILE_PATH"
           PROFILE_NAME=$(security cms -D -i "$PROFILE_PATH" | /usr/libexec/PlistBuddy -c "Print :Name" /dev/stdin)
           echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
           echo "TEAM_ID=$TEAM_ID" >> "$GITHUB_ENV"
