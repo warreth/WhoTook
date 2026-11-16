@@ -93,16 +93,13 @@ class AppLocalizationsNl extends AppLocalizations {
   String get howItPlays => 'Zo werkt het';
 
   @override
-  String get threeSteps => '3 stappen';
-
-  @override
-  String get guideSetTable => 'Dek de tafel';
+  String get guideSetTable => 'Kies het spel';
 
   @override
   String get guideSetTableBody => 'Modus, rondes en tempo.';
 
   @override
-  String get guideScanIn => 'Iedereen scant';
+  String get guideScanIn => 'Vrienden scannen in';
 
   @override
   String get guideScanInBody => 'Vrienden komen binnen via de QR.';
@@ -111,7 +108,8 @@ class AppLocalizationsNl extends AppLocalizations {
   String get guidePlay => 'Spelen';
 
   @override
-  String get guidePlayBody => 'Raad, schrijf of reis door de tijd.';
+  String get guidePlayBody =>
+      'Raad een foto, maak een meme of reis door de tijd.';
 
   @override
   String get heroFact => '2–12 spelers · Zelfde wifi of online';
@@ -199,7 +197,7 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get chooseGameSubtitle =>
-      'Klassiek, Bijschrift, Tijdreiziger of van alles wat.';
+      'Klassiek, Make It Meme, Tijdreiziger of van alles wat.';
 
   @override
   String get nextRounds => 'Volgende: rondes';
@@ -569,9 +567,6 @@ class AppLocalizationsNl extends AppLocalizations {
   String get tapNameToLock => 'Tik een naam aan om te gokken.';
 
   @override
-  String get secondsLeftToGuess => 'Seconden om te raden';
-
-  @override
   String get noAnswer => 'Geen antwoord.';
 
   @override
@@ -739,9 +734,6 @@ class AppLocalizationsNl extends AppLocalizations {
   }
 
   @override
-  String get theTimeline => 'De tijdlijn';
-
-  @override
   String get timeLord => 'Tijdheer';
 
   @override
@@ -749,11 +741,6 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get noGuess => 'Geen gok';
-
-  @override
-  String yourPhotoDate(String date) {
-    return 'Jouw foto · $date';
-  }
 
   @override
   String get exact => 'exact';
@@ -793,16 +780,6 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get backToLobby => 'Terug naar de lobby';
-
-  @override
-  String screenshotsCount(int count) {
-    return 'Schermafbeeldingen: $count';
-  }
-
-  @override
-  String championSemantic(String name, int score) {
-    return 'Kampioen $name, $score punten';
-  }
 
   @override
   String points(int score) {
@@ -1333,12 +1310,6 @@ class AppLocalizationsNl extends AppLocalizations {
   String get revealing => 'Onthullen...';
 
   @override
-  String get now => 'nu';
-
-  @override
-  String get monthLabel => 'Maand';
-
-  @override
   String get yours => 'Van jou';
 
   @override
@@ -1346,4 +1317,270 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get you => 'Jij';
+
+  @override
+  String get advancedSettings => 'Geavanceerde instellingen';
+
+  @override
+  String get advancedSettingsBody => 'Relay, TURN en eigen hosting.';
+
+  @override
+  String get modeMakeItMeme => 'Make It Meme';
+
+  @override
+  String get modeMakeItMemeBlurb => 'Maak een meme met de foto van een vriend.';
+
+  @override
+  String get paceMemeSubtitle =>
+      'Hoeveel tijd krijgt iedereen om een meme te maken?';
+
+  @override
+  String get paceFastMeme => 'Snel een meme.';
+
+  @override
+  String get paceNormalMeme => 'Tijd om de grap te bouwen.';
+
+  @override
+  String get paceSlowMeme => 'Geen haast, maak het goed.';
+
+  @override
+  String get memeVaultTitle => 'Je zes foto\'s.';
+
+  @override
+  String get memeVaultBody =>
+      'Reroll de hele set als er iets niet in het spel mag.';
+
+  @override
+  String get memeVaultOnly => 'Alleen deze zes foto\'s komen in het spel.';
+
+  @override
+  String get memeVaultReady => 'Klaar';
+
+  @override
+  String get memeVaultReroll => 'Alles rerollen';
+
+  @override
+  String get memeWritingLabel => 'Bouw de meme';
+
+  @override
+  String get memeMatchSwaps => 'Swaps in het spel';
+
+  @override
+  String get memeTemplate => 'Template';
+
+  @override
+  String get memeTemplateClassic => 'Klassiek';
+
+  @override
+  String get memeTemplatePov => 'POV';
+
+  @override
+  String get memeTemplateBreaking => 'Breaking';
+
+  @override
+  String get memeTemplateLive => 'Live';
+
+  @override
+  String get memeTemplatePoster => 'Poster';
+
+  @override
+  String get memeTemplateSnap => 'Snapbalk';
+
+  @override
+  String get memeTemplateSplit => 'Split';
+
+  @override
+  String get memeTopLine => 'Bovenste regel';
+
+  @override
+  String get memeBottomLine => 'Onderste regel';
+
+  @override
+  String get memeHeader => 'Kop';
+
+  @override
+  String get memeHeadline => 'Kop';
+
+  @override
+  String get memeReaction => 'Reactie';
+
+  @override
+  String get memeTitle => 'Titel';
+
+  @override
+  String get memeSubtitle => 'Ondertitel';
+
+  @override
+  String get memeBarText => 'Balktekst';
+
+  @override
+  String get memeTopPanel => 'Bovenpaneel';
+
+  @override
+  String get memeBottomPanel => 'Onderlabel';
+
+  @override
+  String get memeWritePrompt => 'Maak de grap.';
+
+  @override
+  String get memeSend => 'Meme versturen';
+
+  @override
+  String get memeSentWaiting => 'Meme verstuurd. Wachten op de anderen.';
+
+  @override
+  String get memeSwapPhoto => 'Foto wisselen';
+
+  @override
+  String memeSwapsLeft(int count) {
+    return 'Nog $count';
+  }
+
+  @override
+  String get memeSwapsMatchWide => '5 swaps voor het hele spel.';
+
+  @override
+  String get memeVoteTitle => 'Stem op deze meme.';
+
+  @override
+  String get memeVoteSubtitle =>
+      'Upvote, Meh of Downvote. Je kunt niet op je eigen meme stemmen.';
+
+  @override
+  String get memeUpvote => 'Upvote';
+
+  @override
+  String get memeMeh => 'Meh';
+
+  @override
+  String get memeDownvote => 'Downvote';
+
+  @override
+  String get memeAnonymous => 'Anoniem tot de onthulling';
+
+  @override
+  String get memeYourMeme => 'Jouw meme';
+
+  @override
+  String get memeNextMeme => 'Volgende meme';
+
+  @override
+  String get memeSeeResult => 'Bekijk uitslag';
+
+  @override
+  String get memeVoteLocked => 'Stem vastgelegd.';
+
+  @override
+  String get memeTapToVote => 'Tik om te stemmen.';
+
+  @override
+  String get memeWaitingVotes => 'Wachten op de rest van de tafel.';
+
+  @override
+  String get memeRoundWinner => 'Rondewinnaar';
+
+  @override
+  String get memeCreatorPoints => 'Punten maker';
+
+  @override
+  String get memeModelRoyalty => 'Modelroyalty';
+
+  @override
+  String memeRoyaltyBody(String name) {
+    return 'De foto van $name zit in de winnende meme. $name krijgt +25.';
+  }
+
+  @override
+  String get memeTopMemes => 'Top 3 memes';
+
+  @override
+  String get memeFinalRound =>
+      'Laatste ronde: iedereen krijgt dezelfde foto. Dubbele punten.';
+
+  @override
+  String get memeDownload => 'Meme bewaren';
+
+  @override
+  String get memeSaved => 'Meme bewaard.';
+
+  @override
+  String get memeSaveFailed => 'De meme kon niet worden bewaard.';
+
+  @override
+  String memePhotoFrom(Object name) {
+    return 'Foto van $name';
+  }
+
+  @override
+  String memePoints(int score) {
+    return '$score punten';
+  }
+
+  @override
+  String get memeVotesUp => 'Upvotes';
+
+  @override
+  String get memeVotesMeh => 'Meh';
+
+  @override
+  String get memeVotesDown => 'Down';
+
+  @override
+  String get memeWriteSomething => 'Schrijf eerst iets.';
+
+  @override
+  String get memeSound => 'Geluid';
+
+  @override
+  String get memeSoundBody => 'Tikken, stemmen en de podiumfanfare';
+
+  @override
+  String get memeHaptics => 'Trilfeedback';
+
+  @override
+  String get memeHapticsBody => 'Een tik als er een stem binnenkomt';
+
+  @override
+  String get pickDecade => 'Kies een decennium';
+
+  @override
+  String get pickYear => 'Kies een jaar';
+
+  @override
+  String get pickMonth => 'Kies een maand';
+
+  @override
+  String get actualDate => 'Echte datum';
+
+  @override
+  String get ownerIncluded => 'Eigenaar doet mee';
+
+  @override
+  String averageMiss(String distance) {
+    return 'Gemiddeld ernaast: $distance';
+  }
+
+  @override
+  String get yourGuess => 'Jouw gok';
+
+  @override
+  String get ownerLabel => 'EIGENAAR';
+
+  @override
+  String get breakingNews => 'BREAKING NIEUWS';
+
+  @override
+  String get liveBadge => '● LIVE';
+
+  @override
+  String get gameFeel => 'Gamegevoel';
+
+  @override
+  String get alsoInTheRoom => 'Ook in de room';
+
+  @override
+  String get finalTable => 'Eindstand';
+
+  @override
+  String get memeNoMemes => 'Geen memes deze ronde.';
 }

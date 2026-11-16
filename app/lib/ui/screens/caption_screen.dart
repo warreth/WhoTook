@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/audio/game_audio_service.dart';
 import '../../core/models/models.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../l10n/l10n.dart';
@@ -36,29 +36,31 @@ class _CaptionScreenState extends ConsumerState<CaptionScreen> {
 
     return Scaffold(
       body: SafeArea(
-        child: switch (state.phase) {
-          RoundPhase.captionVoting => _CaptionVoting(
-            state: state,
-            onVote: (id) => unawaited(
-              state.isHosting
-                  ? coordinator.voteCaption(id)
-                  : coordinator.clientVoteCaption(id),
+        child: ScreenBody(
+          child: switch (state.phase) {
+            RoundPhase.captionVoting => _CaptionVoting(
+              state: state,
+              onVote: (id) => unawaited(
+                state.isHosting
+                    ? coordinator.voteCaption(id)
+                    : coordinator.clientVoteCaption(id),
+              ),
+              onRevealNow: state.isHosting
+                  ? () => unawaited(coordinator.revealCaptionNow())
+                  : null,
             ),
-            onRevealNow: state.isHosting
-                ? () => unawaited(coordinator.revealCaptionNow())
-                : null,
-          ),
-          RoundPhase.captionReveal => _CaptionReveal(state: state),
-          _ => _CaptionWriting(
-            state: state,
-            controller: _caption,
-            onSubmit: (text) => unawaited(
-              state.isHosting
-                  ? coordinator.submitCaption(text)
-                  : coordinator.clientSubmitCaption(text),
+            RoundPhase.captionReveal => _CaptionReveal(state: state),
+            _ => _CaptionWriting(
+              state: state,
+              controller: _caption,
+              onSubmit: (text) => unawaited(
+                state.isHosting
+                    ? coordinator.submitCaption(text)
+                    : coordinator.clientSubmitCaption(text),
+              ),
             ),
-          ),
-        },
+          },
+        ),
       ),
     );
   }
@@ -473,7 +475,7 @@ class _StaggeredCaptionListState extends State<_StaggeredCaptionList> {
                   selected: widget.captions[i].id == widget.votedId,
                   locked: widget.votedId != null,
                   onTap: () {
-                    unawaited(HapticFeedback.selectionClick());
+                    unawaited(GameHaptics.instance.selection());
                     widget.onVote(widget.captions[i].id);
                   },
                 ),

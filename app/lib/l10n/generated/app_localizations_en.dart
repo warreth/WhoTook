@@ -94,16 +94,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get howItPlays => 'How it plays';
 
   @override
-  String get threeSteps => '3 steps';
-
-  @override
-  String get guideSetTable => 'Set the table';
+  String get guideSetTable => 'Pick the game';
 
   @override
   String get guideSetTableBody => 'Mode, rounds and pace.';
 
   @override
-  String get guideScanIn => 'Scan in';
+  String get guideScanIn => 'Friends scan in';
 
   @override
   String get guideScanInBody => 'Friends join from the QR.';
@@ -112,7 +109,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get guidePlay => 'Play';
 
   @override
-  String get guidePlayBody => 'Guess, caption or time travel.';
+  String get guidePlayBody =>
+      'Guess a photo, build a meme or travel through time.';
 
   @override
   String get heroFact => '2–12 players · Same Wi-Fi or online';
@@ -199,7 +197,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chooseGameSubtitle =>
-      'Classic, Caption This, Time Traveler or a bit of everything.';
+      'Classic, Make It Meme, Time Traveler or a bit of everything.';
 
   @override
   String get nextRounds => 'Next: rounds';
@@ -570,9 +568,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tapNameToLock => 'Tap a name to lock in';
 
   @override
-  String get secondsLeftToGuess => 'Seconds left to guess';
-
-  @override
   String get noAnswer => 'No answer.';
 
   @override
@@ -737,9 +732,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get theTimeline => 'The timeline';
-
-  @override
   String get timeLord => 'Time Lord';
 
   @override
@@ -747,11 +739,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noGuess => 'No guess';
-
-  @override
-  String yourPhotoDate(String date) {
-    return 'Your photo · $date';
-  }
 
   @override
   String get exact => 'exact';
@@ -791,16 +778,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backToLobby => 'Back to lobby';
-
-  @override
-  String screenshotsCount(int count) {
-    return 'Screenshots: $count';
-  }
-
-  @override
-  String championSemantic(String name, int score) {
-    return 'Champion $name, $score points';
-  }
 
   @override
   String points(int score) {
@@ -1327,12 +1304,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get revealing => 'Revealing...';
 
   @override
-  String get now => 'now';
-
-  @override
-  String get monthLabel => 'Month';
-
-  @override
   String get yours => 'Yours';
 
   @override
@@ -1340,4 +1311,269 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get you => 'You';
+
+  @override
+  String get advancedSettings => 'Advanced settings';
+
+  @override
+  String get advancedSettingsBody => 'Relay, TURN and self-hosting.';
+
+  @override
+  String get modeMakeItMeme => 'Make It Meme';
+
+  @override
+  String get modeMakeItMemeBlurb => 'Make a meme from a friend\'s photo.';
+
+  @override
+  String get paceMemeSubtitle => 'How long does everyone get to build a meme?';
+
+  @override
+  String get paceFastMeme => 'A quick meme.';
+
+  @override
+  String get paceNormalMeme => 'Time to build the joke.';
+
+  @override
+  String get paceSlowMeme => 'No rush, make it good.';
+
+  @override
+  String get memeVaultTitle => 'Your six photos.';
+
+  @override
+  String get memeVaultBody =>
+      'Reroll the whole set if something should not be in the game.';
+
+  @override
+  String get memeVaultOnly => 'Only these six photos enter the game.';
+
+  @override
+  String get memeVaultReady => 'Ready';
+
+  @override
+  String get memeVaultReroll => 'Reroll all';
+
+  @override
+  String get memeWritingLabel => 'Build the meme';
+
+  @override
+  String get memeMatchSwaps => 'Match swaps';
+
+  @override
+  String get memeTemplate => 'Template';
+
+  @override
+  String get memeTemplateClassic => 'Classic';
+
+  @override
+  String get memeTemplatePov => 'POV';
+
+  @override
+  String get memeTemplateBreaking => 'Breaking';
+
+  @override
+  String get memeTemplateLive => 'Live';
+
+  @override
+  String get memeTemplatePoster => 'Poster';
+
+  @override
+  String get memeTemplateSnap => 'Snap bar';
+
+  @override
+  String get memeTemplateSplit => 'Split';
+
+  @override
+  String get memeTopLine => 'Top line';
+
+  @override
+  String get memeBottomLine => 'Bottom line';
+
+  @override
+  String get memeHeader => 'Header';
+
+  @override
+  String get memeHeadline => 'Headline';
+
+  @override
+  String get memeReaction => 'Reaction';
+
+  @override
+  String get memeTitle => 'Title';
+
+  @override
+  String get memeSubtitle => 'Subtitle';
+
+  @override
+  String get memeBarText => 'Bar text';
+
+  @override
+  String get memeTopPanel => 'Top panel';
+
+  @override
+  String get memeBottomPanel => 'Bottom label';
+
+  @override
+  String get memeWritePrompt => 'Make the joke.';
+
+  @override
+  String get memeSend => 'Send meme';
+
+  @override
+  String get memeSentWaiting => 'Meme sent. Waiting for the others.';
+
+  @override
+  String get memeSwapPhoto => 'Swap photo';
+
+  @override
+  String memeSwapsLeft(int count) {
+    return '$count left';
+  }
+
+  @override
+  String get memeSwapsMatchWide => '5 swaps for the whole match.';
+
+  @override
+  String get memeVoteTitle => 'Vote on this meme.';
+
+  @override
+  String get memeVoteSubtitle =>
+      'Upvote, Meh or Downvote. You cannot vote for your own meme.';
+
+  @override
+  String get memeUpvote => 'Upvote';
+
+  @override
+  String get memeMeh => 'Meh';
+
+  @override
+  String get memeDownvote => 'Downvote';
+
+  @override
+  String get memeAnonymous => 'Anonymous until the reveal';
+
+  @override
+  String get memeYourMeme => 'Your meme';
+
+  @override
+  String get memeNextMeme => 'Next meme';
+
+  @override
+  String get memeSeeResult => 'See result';
+
+  @override
+  String get memeVoteLocked => 'Vote locked.';
+
+  @override
+  String get memeTapToVote => 'Tap one to vote.';
+
+  @override
+  String get memeWaitingVotes => 'Waiting for the rest of the table.';
+
+  @override
+  String get memeRoundWinner => 'Round winner';
+
+  @override
+  String get memeCreatorPoints => 'Creator points';
+
+  @override
+  String get memeModelRoyalty => 'Model royalty';
+
+  @override
+  String memeRoyaltyBody(String name) {
+    return '$name\'s photo was in the winning meme. $name gets +25.';
+  }
+
+  @override
+  String get memeTopMemes => 'Top 3 memes';
+
+  @override
+  String get memeFinalRound =>
+      'Final round: everyone gets the same photo. Double points.';
+
+  @override
+  String get memeDownload => 'Save meme';
+
+  @override
+  String get memeSaved => 'Meme saved.';
+
+  @override
+  String get memeSaveFailed => 'Could not save the meme.';
+
+  @override
+  String memePhotoFrom(Object name) {
+    return 'Photo from $name';
+  }
+
+  @override
+  String memePoints(int score) {
+    return '$score pts';
+  }
+
+  @override
+  String get memeVotesUp => 'Upvotes';
+
+  @override
+  String get memeVotesMeh => 'Meh';
+
+  @override
+  String get memeVotesDown => 'Down';
+
+  @override
+  String get memeWriteSomething => 'Write something first.';
+
+  @override
+  String get memeSound => 'Sound';
+
+  @override
+  String get memeSoundBody => 'Ticks, votes and the podium fanfare';
+
+  @override
+  String get memeHaptics => 'Haptics';
+
+  @override
+  String get memeHapticsBody => 'A tap when a vote lands';
+
+  @override
+  String get pickDecade => 'Pick a decade';
+
+  @override
+  String get pickYear => 'Pick a year';
+
+  @override
+  String get pickMonth => 'Pick a month';
+
+  @override
+  String get actualDate => 'Actual date';
+
+  @override
+  String get ownerIncluded => 'Owner included';
+
+  @override
+  String averageMiss(String distance) {
+    return 'Average miss: $distance';
+  }
+
+  @override
+  String get yourGuess => 'Your guess';
+
+  @override
+  String get ownerLabel => 'OWNER';
+
+  @override
+  String get breakingNews => 'BREAKING NEWS';
+
+  @override
+  String get liveBadge => '● LIVE';
+
+  @override
+  String get gameFeel => 'Game feel';
+
+  @override
+  String get alsoInTheRoom => 'Also in the room';
+
+  @override
+  String get finalTable => 'Final table';
+
+  @override
+  String get memeNoMemes => 'No memes this round.';
 }

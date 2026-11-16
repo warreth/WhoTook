@@ -153,13 +153,14 @@ void main() {
     expect(settings.savedNickname, 'Lotte');
 
     expect(find.text('Signaling URL'), findsNothing);
+    final advancedTile = find.widgetWithText(ListTile, 'Advanced settings');
     await tester.dragUntilVisible(
-      find.text('Self-hosted relay'),
+      advancedTile,
       find.byType(ListView),
       const Offset(0, -240),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Self-hosted relay'));
+    await tester.tap(advancedTile);
     await tester.pumpAndSettle();
 
     expect(find.text('Signaling URL'), findsOneWidget);

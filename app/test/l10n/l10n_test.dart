@@ -131,6 +131,21 @@ void main() {
       'onlineRelay',
       'avatarOption',
       'modeSemantic',
+      'modeMakeItMeme',
+      'memeTemplate',
+      'memeTemplatePov',
+      'memeTemplateBreaking',
+      'memeTemplateLive',
+      'memeTemplatePoster',
+      'memeTemplateSplit',
+      'memeUpvote',
+      'memeMeh',
+      'memeDownvote',
+      'memeTopMemes',
+      'memeVotesUp',
+      'memeVotesMeh',
+      'memeVotesDown',
+      'liveBadge',
     };
     final untranslated = <String>[];
     for (final key in en.keys) {

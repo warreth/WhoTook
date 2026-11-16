@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'dart:ui' show Locale;
 
@@ -7,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:photo_manager/photo_manager.dart' show PermissionState;
 import 'package:wakelock_plus/wakelock_plus.dart';
 
+import '../core/audio/game_audio_service.dart';
 import '../core/constants.dart';
 import '../core/media/photo_service.dart';
 import '../core/models/models.dart';
@@ -46,6 +48,97 @@ class ScreenshotBanner {
         playerName: json['playerName'] as String? ?? '',
         atMs: json['atMs'] as int? ?? 0,
       );
+}
+
+/// One meme rendered in the local UI. Author and photo owner stay null during
+/// voting and are filled only after the reveal.
+class MemeCard {
+  const MemeCard({
+    required this.id,
+    required this.photoBase64,
+    required this.template,
+    required this.topText,
+    required this.bottomText,
+    required this.snapY,
+    this.isOwn = false,
+    this.authorName,
+    this.photoOwnerName,
+    this.upVotes = 0,
+    this.mehVotes = 0,
+    this.downVotes = 0,
+    this.points = 0,
+    this.isWinner = false,
+  });
+
+  final String id;
+  final String photoBase64;
+  final MemeTemplate template;
+  final String topText;
+  final String bottomText;
+  final double snapY;
+  final bool isOwn;
+  final String? authorName;
+  final String? photoOwnerName;
+  final int upVotes;
+  final int mehVotes;
+  final int downVotes;
+  final int points;
+  final bool isWinner;
+
+  MemeCard copyWith({bool? isOwn, bool? isWinner, String? photoBase64}) =>
+      MemeCard(
+        id: id,
+        photoBase64: photoBase64 ?? this.photoBase64,
+        template: template,
+        topText: topText,
+        bottomText: bottomText,
+        snapY: snapY,
+        isOwn: isOwn ?? this.isOwn,
+        authorName: authorName,
+        photoOwnerName: photoOwnerName,
+        upVotes: upVotes,
+        mehVotes: mehVotes,
+        downVotes: downVotes,
+        points: points,
+        isWinner: isWinner ?? this.isWinner,
+      );
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'id': id,
+    'photoBase64': photoBase64,
+    'template': template.name,
+    'topText': topText,
+    'bottomText': bottomText,
+    'snapY': snapY,
+    'isOwn': isOwn,
+    'authorName': authorName,
+    'photoOwnerName': photoOwnerName,
+    'upVotes': upVotes,
+    'mehVotes': mehVotes,
+    'downVotes': downVotes,
+    'points': points,
+    'isWinner': isWinner,
+  };
+
+  factory MemeCard.fromJson(Map<String, dynamic> json) => MemeCard(
+    id: json['id'] as String? ?? '',
+    photoBase64: json['photoBase64'] as String? ?? '',
+    template: MemeTemplate.values.firstWhere(
+      (value) => value.name == json['template'],
+      orElse: () => MemeTemplate.classic,
+    ),
+    topText: json['topText'] as String? ?? '',
+    bottomText: json['bottomText'] as String? ?? '',
+    snapY: (json['snapY'] as num?)?.toDouble() ?? 48,
+    isOwn: json['isOwn'] as bool? ?? false,
+    authorName: json['authorName'] as String?,
+    photoOwnerName: json['photoOwnerName'] as String?,
+    upVotes: json['upVotes'] as int? ?? 0,
+    mehVotes: json['mehVotes'] as int? ?? 0,
+    downVotes: json['downVotes'] as int? ?? 0,
+    points: json['points'] as int? ?? 0,
+    isWinner: json['isWinner'] as bool? ?? false,
+  );
 }
 
 /// Everything the UI renders. Replaced wholesale on every change so widgets can
@@ -93,6 +186,17 @@ class MatchUiState {
     this.captionsSubmitted = 0,
     this.votesSubmitted = 0,
     this.lastCaptionReveal,
+    this.memeAssignment,
+    this.memePhotoBase64,
+    this.memeSwapsLeft = 5,
+    this.memeSubmitted = false,
+    this.memeCards = const <MemeCard>[],
+    this.memeVotedIds = const <String>{},
+    this.memeSubmissions = 0,
+    this.memeVotesSubmitted = 0,
+    this.lastMemeReveal,
+    this.memeRevealCards = const <MemeCard>[],
+    this.topMemes = const <MemeCard>[],
     this.timelineSubmitted = false,
     this.timelineGuesses = 0,
     this.lockedTimelineYear,
@@ -147,6 +251,17 @@ class MatchUiState {
   final int captionsSubmitted;
   final int votesSubmitted;
   final CaptionReveal? lastCaptionReveal;
+  final MemeAssignment? memeAssignment;
+  final String? memePhotoBase64;
+  final int memeSwapsLeft;
+  final bool memeSubmitted;
+  final List<MemeCard> memeCards;
+  final Set<String> memeVotedIds;
+  final int memeSubmissions;
+  final int memeVotesSubmitted;
+  final MemeReveal? lastMemeReveal;
+  final List<MemeCard> memeRevealCards;
+  final List<MemeCard> topMemes;
   final bool timelineSubmitted;
   final int timelineGuesses;
   final int? lockedTimelineYear;
@@ -208,6 +323,17 @@ class MatchUiState {
     int? captionsSubmitted,
     int? votesSubmitted,
     CaptionReveal? lastCaptionReveal,
+    MemeAssignment? memeAssignment,
+    String? memePhotoBase64,
+    int? memeSwapsLeft,
+    bool? memeSubmitted,
+    List<MemeCard>? memeCards,
+    Set<String>? memeVotedIds,
+    int? memeSubmissions,
+    int? memeVotesSubmitted,
+    MemeReveal? lastMemeReveal,
+    List<MemeCard>? memeRevealCards,
+    List<MemeCard>? topMemes,
     bool? timelineSubmitted,
     int? timelineGuesses,
     int? lockedTimelineYear,
@@ -280,6 +406,37 @@ class MatchUiState {
     lastCaptionReveal: clearRoundInput
         ? null
         : (lastCaptionReveal ?? this.lastCaptionReveal),
+    memeAssignment: clearRoundInput
+        ? memeAssignment
+        : (memeAssignment ?? this.memeAssignment),
+    memePhotoBase64: clearRoundInput
+        ? memePhotoBase64
+        : (memePhotoBase64 ?? this.memePhotoBase64),
+    memeSwapsLeft: clearRoundInput
+        ? (memeSwapsLeft ?? 5)
+        : (memeSwapsLeft ?? this.memeSwapsLeft),
+    memeSubmitted: clearRoundInput
+        ? (memeSubmitted ?? false)
+        : (memeSubmitted ?? this.memeSubmitted),
+    memeCards: clearRoundInput
+        ? (memeCards ?? const <MemeCard>[])
+        : (memeCards ?? this.memeCards),
+    memeVotedIds: clearRoundInput
+        ? (memeVotedIds ?? const <String>{})
+        : (memeVotedIds ?? this.memeVotedIds),
+    memeSubmissions: clearRoundInput
+        ? (memeSubmissions ?? 0)
+        : (memeSubmissions ?? this.memeSubmissions),
+    memeVotesSubmitted: clearRoundInput
+        ? (memeVotesSubmitted ?? 0)
+        : (memeVotesSubmitted ?? this.memeVotesSubmitted),
+    lastMemeReveal: clearRoundInput
+        ? null
+        : (lastMemeReveal ?? this.lastMemeReveal),
+    memeRevealCards: clearRoundInput
+        ? (memeRevealCards ?? const <MemeCard>[])
+        : (memeRevealCards ?? this.memeRevealCards),
+    topMemes: topMemes ?? this.topMemes,
     timelineSubmitted: clearRoundInput
         ? false
         : (timelineSubmitted ?? this.timelineSubmitted),
@@ -408,6 +565,7 @@ class MatchCoordinator {
       <String, List<PhotoCandidate>>{};
   final Map<String, Uint8List> _assembledHostBytes = <String, Uint8List>{};
   final Map<String, Uint8List> _clientRoundPhotos = <String, Uint8List>{};
+  final Map<String, Uint8List> _memePhotoBytes = <String, Uint8List>{};
   final Map<String, PhotoChunkAssembler> _assemblers =
       <String, PhotoChunkAssembler>{};
   final List<StreamSubscription<dynamic>> _subscriptions =
@@ -685,6 +843,23 @@ class MatchCoordinator {
       'plantEligible': engine.isPlanter(playerId),
       'plantUsed': player.plantUsed,
       'lockedGuessOwnerId': guess?.guessedOwnerId,
+      'memeAssignment': engine.memeAssignmentFor(playerId)?.toJson(),
+      'memePhotoBase64': engine.memeAssignmentPhoto(playerId)?.bytes == null
+          ? null
+          : base64Encode(engine.memeAssignmentPhoto(playerId)!.bytes!),
+      'memeSwapsLeft': engine.memeSwapsLeft(playerId),
+      'memeSubmitted': engine.hasMeme(playerId),
+      'memeCards': phase == RoundPhase.captionVoting
+          ? _memeCardsFor(playerId).map((card) => card.toJson()).toList()
+          : const <Map<String, dynamic>>[],
+      'memeVotedIds': engine.memeVotedIds(playerId).toList(),
+      'memeSubmissions': engine.memeCount,
+      'memeVotesSubmitted': engine.memeVoteCount,
+      'lastMemeReveal': engine.lastMemeReveal?.toJson(),
+      'memeRevealCards': phase == RoundPhase.captionReveal
+          ? _memeRevealCards().map((card) => card.toJson()).toList()
+          : const <Map<String, dynamic>>[],
+      'topMemes': _topMemeCards().map((card) => card.toJson()).toList(),
       'captionSubmitted': engine.hasCaption(playerId),
       'captionOptions': phase == RoundPhase.captionVoting
           ? engine.captionOptions.map((option) => option.toJson()).toList()
@@ -1087,6 +1262,83 @@ class MatchCoordinator {
         if (engine.allCaptionVotesSubmitted) {
           await _finishCaptionRound();
         }
+      case WireType.memeSubmit:
+        final playerId = _playerIdFor(clientId);
+        final templateName = payload['template'] as String?;
+        final template = MemeTemplate.values.firstWhere(
+          (value) => value.name == templateName,
+          orElse: () => MemeTemplate.classic,
+        );
+        try {
+          engine.submitMeme(
+            playerId: playerId,
+            template: template,
+            topText: payload['topText'] as String? ?? '',
+            bottomText: payload['bottomText'] as String? ?? '',
+            snapY: (payload['snapY'] as num?)?.toDouble() ?? 48,
+          );
+        } on EngineException catch (error) {
+          await _hostTransport?.sendToClient(
+            clientId,
+            WireMessage(
+              type: WireType.errorNotice,
+              seq: _nextSeq(),
+              payload: <String, dynamic>{'code': error.code},
+            ),
+          );
+          return;
+        }
+        _emit(
+          _state.copyWith(
+            memeSubmissions: engine.memeCount,
+            memeVotesSubmitted: engine.memeVoteCount,
+          ),
+        );
+        if (engine.allMemesSubmitted) {
+          await _startMemeVoting();
+        }
+      case WireType.memeVote:
+        final voteName = payload['vote'] as String?;
+        final vote = MemeVote.values.firstWhere(
+          (value) => value.name == voteName,
+          orElse: () => MemeVote.meh,
+        );
+        try {
+          engine.submitMemeVote(
+            playerId: _playerIdFor(clientId),
+            memeId: payload['memeId'] as String? ?? '',
+            vote: vote,
+          );
+        } on EngineException catch (error) {
+          await _hostTransport?.sendToClient(
+            clientId,
+            WireMessage(
+              type: WireType.errorNotice,
+              seq: _nextSeq(),
+              payload: <String, dynamic>{'code': error.code},
+            ),
+          );
+          return;
+        }
+        _emit(_state.copyWith(memeVotesSubmitted: engine.memeVoteCount));
+        if (engine.allMemeVotesSubmitted) {
+          await _finishMemeRound();
+        }
+      case WireType.memeSwap:
+        try {
+          engine.swapMemePhoto(_playerIdFor(clientId));
+        } on EngineException catch (error) {
+          await _hostTransport?.sendToClient(
+            clientId,
+            WireMessage(
+              type: WireType.errorNotice,
+              seq: _nextSeq(),
+              payload: <String, dynamic>{'code': error.code},
+            ),
+          );
+          return;
+        }
+        await _sendMemeAssignment(_playerIdFor(clientId));
       case WireType.timelineSubmit:
         try {
           engine.submitTimelineGuess(
@@ -1248,7 +1500,8 @@ class MatchCoordinator {
     _roundStartMs = DateTime.now().millisecondsSinceEpoch;
 
     final bytes = entry.photo.bytes;
-    if (bytes != null) {
+    final isMemeRound = entry.mode == GameMode.makeItMeme;
+    if (!isMemeRound && bytes != null) {
       for (final chunk in PhotoChunker.split(entry.photo.photoId, bytes)) {
         await transport.broadcast(
           WireMessage(
@@ -1265,6 +1518,7 @@ class MatchCoordinator {
     final duration = switch (mode) {
       GameMode.classic || GameMode.mixedParty => effectiveRoundDuration,
       GameMode.captionThis => Duration(seconds: pace.captionSeconds),
+      GameMode.makeItMeme => Duration(seconds: pace.memeSeconds),
       GameMode.timeTraveler => Duration(seconds: pace.timelineSeconds),
     };
     await transport.broadcast(
@@ -1307,11 +1561,19 @@ class MatchCoordinator {
           unawaited(_finishRound());
         case GameMode.captionThis:
           unawaited(_startCaptionVoting());
+        case GameMode.makeItMeme:
+          unawaited(_startMemeVoting());
         case GameMode.timeTraveler:
           unawaited(_finishTimelineRound());
       }
     });
     _tickPhaseProgress(duration, engine.phase);
+    if (isMemeRound) {
+      for (final player in engine.players) {
+        if (!player.connected) continue;
+        await _sendMemeAssignment(player.id);
+      }
+    }
   }
 
   void _tickPhaseProgress(Duration duration, RoundPhase phase) {
@@ -1339,14 +1601,28 @@ class MatchCoordinator {
             unawaited(_finishRound());
           }
         case RoundPhase.captionWriting:
-          if (engine.allCaptionsSubmitted) {
+          final ready = engine.activeMode == GameMode.makeItMeme
+              ? engine.allMemesSubmitted
+              : engine.allCaptionsSubmitted;
+          if (ready) {
             timer.cancel();
-            unawaited(_startCaptionVoting());
+            if (engine.activeMode == GameMode.makeItMeme) {
+              unawaited(_startMemeVoting());
+            } else {
+              unawaited(_startCaptionVoting());
+            }
           }
         case RoundPhase.captionVoting:
-          if (engine.allCaptionVotesSubmitted) {
+          final ready = engine.activeMode == GameMode.makeItMeme
+              ? engine.allMemeVotesSubmitted
+              : engine.allCaptionVotesSubmitted;
+          if (ready) {
             timer.cancel();
-            unawaited(_finishCaptionRound());
+            if (engine.activeMode == GameMode.makeItMeme) {
+              unawaited(_finishMemeRound());
+            } else {
+              unawaited(_finishCaptionRound());
+            }
           }
         case RoundPhase.timelineGuessing:
           if (engine.allTimelineGuessed) {
@@ -1359,9 +1635,388 @@ class MatchCoordinator {
     });
   }
 
+  Uint8List? _photoBytesFor(String photoId) {
+    final cached = _memePhotoBytes[photoId];
+    if (cached != null && cached.isNotEmpty) return cached;
+    final client = _clientRoundPhotos[photoId];
+    if (client != null && client.isNotEmpty) {
+      _memePhotoBytes[photoId] = client;
+      return client;
+    }
+    for (final entry in _assembledHostBytes.entries) {
+      if (entry.key.endsWith(':$photoId') && entry.value.isNotEmpty) {
+        _memePhotoBytes[photoId] = entry.value;
+        return entry.value;
+      }
+    }
+    for (final photos in _remotePhotos.values) {
+      for (final photo in photos) {
+        if (photo.photoId == photoId && photo.bytes != null) {
+          _memePhotoBytes[photoId] = photo.bytes!;
+          return photo.bytes;
+        }
+      }
+    }
+    final engine = _engine;
+    if (engine != null) {
+      for (final player in engine.players) {
+        final photo = engine.memeAssignmentPhoto(player.id);
+        if (photo?.photoId == photoId && photo?.bytes != null) {
+          _memePhotoBytes[photoId] = photo!.bytes!;
+          return photo.bytes;
+        }
+      }
+    }
+    return null;
+  }
+
+  List<MemeCard> _memeCardsFor(String playerId) {
+    final engine = _engine;
+    if (engine == null) return const <MemeCard>[];
+    return List<MemeCard>.unmodifiable(
+      engine.memeOptions.map((option) {
+        final photo = _photoBytesFor(option.photoId);
+        if (photo != null) _memePhotoBytes[option.photoId] = photo;
+        return MemeCard(
+          id: option.id,
+          photoBase64: photo == null ? '' : base64Encode(photo),
+          template: option.template,
+          topText: option.topText,
+          bottomText: option.bottomText,
+          snapY: option.snapY,
+          isOwn: engine.isOwnMeme(playerId, option.id),
+        );
+      }),
+    );
+  }
+
+  List<MemeCard> _memeRevealCards() {
+    final engine = _engine;
+    final reveal = engine?.lastMemeReveal;
+    if (engine == null || reveal == null) return const <MemeCard>[];
+    return List<MemeCard>.unmodifiable(
+      reveal.entries.map((entry) {
+        final photo = _photoBytesFor(entry.photoId);
+        if (photo != null) _memePhotoBytes[entry.photoId] = photo;
+        return MemeCard(
+          id: entry.id,
+          photoBase64: photo == null ? '' : base64Encode(photo),
+          template: entry.template,
+          topText: entry.topText,
+          bottomText: entry.bottomText,
+          snapY: entry.snapY,
+          authorName: entry.authorName,
+          photoOwnerName: entry.photoOwnerName,
+          upVotes: entry.upVotes,
+          mehVotes: entry.mehVotes,
+          downVotes: entry.downVotes,
+          points: entry.points,
+          isWinner: reveal.winnerIds.contains(entry.id),
+        );
+      }),
+    );
+  }
+
+  List<MemeCard> _topMemeCards() {
+    final engine = _engine;
+    if (engine == null) return const <MemeCard>[];
+    return List<MemeCard>.unmodifiable(
+      engine.topMemes.map((entry) {
+        final photo = _photoBytesFor(entry.photoId);
+        if (photo != null) _memePhotoBytes[entry.photoId] = photo;
+        return MemeCard(
+          id: entry.id,
+          photoBase64: photo == null ? '' : base64Encode(photo),
+          template: entry.template,
+          topText: entry.topText,
+          bottomText: entry.bottomText,
+          snapY: entry.snapY,
+          authorName: entry.authorName,
+          photoOwnerName: entry.photoOwnerName,
+          upVotes: entry.upVotes,
+          mehVotes: entry.mehVotes,
+          downVotes: entry.downVotes,
+          points: entry.points,
+          isWinner: true,
+        );
+      }),
+    );
+  }
+
+  Future<void> _sendMemeAssignment(String playerId) async {
+    final engine = _engine;
+    if (engine == null) return;
+    final assignment = engine.memeAssignmentFor(playerId);
+    if (assignment == null) return;
+    final bytes = _photoBytesFor(assignment.photoId);
+    if (bytes != null) _memePhotoBytes[assignment.photoId] = bytes;
+    final payload = <String, dynamic>{
+      'assignment': assignment.toJson(),
+      'photoBase64': bytes == null ? '' : base64Encode(bytes),
+      'swapsLeft': engine.memeSwapsLeft(playerId),
+    };
+    if (playerId == 'host') {
+      _emit(
+        _state.copyWith(
+          memeAssignment: assignment,
+          memePhotoBase64: bytes == null ? null : base64Encode(bytes),
+          memeSwapsLeft: engine.memeSwapsLeft(playerId),
+          memeSubmitted: engine.hasMeme(playerId),
+          memeSubmissions: engine.memeCount,
+          memeVotesSubmitted: engine.memeVoteCount,
+          clearError: true,
+        ),
+      );
+      return;
+    }
+    await _sendToPlayer(
+      playerId,
+      WireMessage(
+        type: WireType.memeAssignment,
+        seq: _nextSeq(),
+        payload: payload,
+      ),
+    );
+  }
+
+  Future<void> _sendMemeOptions(String playerId) async {
+    final engine = _engine;
+    if (engine == null) return;
+    final cards = _memeCardsFor(playerId);
+    final payload = <String, dynamic>{
+      'cards': cards.map((card) => card.toJson()).toList(),
+      'votedIds': engine.memeVotedIds(playerId).toList(),
+      'submissions': engine.memeCount,
+      'votes': engine.memeVoteCount,
+      'durationMs': 0,
+    };
+    if (playerId == 'host') {
+      _emit(
+        _state.copyWith(
+          phase: RoundPhase.captionVoting,
+          activeMode: GameMode.makeItMeme,
+          memeCards: cards,
+          memeVotedIds: engine.memeVotedIds(playerId),
+          memeSubmissions: engine.memeCount,
+          memeVotesSubmitted: engine.memeVoteCount,
+          remainingMs: 0,
+          phaseDurationMs: 0,
+          clearError: true,
+        ),
+      );
+      return;
+    }
+    await _sendToPlayer(
+      playerId,
+      WireMessage(
+        type: WireType.memeOptions,
+        seq: _nextSeq(),
+        payload: payload,
+      ),
+    );
+  }
+
+  Future<void> _startMemeVoting() async {
+    final engine = _engine;
+    if (engine == null || engine.phase != RoundPhase.captionWriting) return;
+    _roundTimer?.cancel();
+    _countdownTicker?.cancel();
+    if (engine.memeCount < 2) {
+      await _finishMemeRound();
+      return;
+    }
+    try {
+      engine.beginMemeVoting();
+    } on EngineException {
+      return;
+    }
+    for (final player in engine.players) {
+      if (!player.connected) continue;
+      await _sendMemeOptions(player.id);
+    }
+  }
+
+  Future<void> _finishMemeRound() async {
+    final engine = _engine;
+    if (engine == null) return;
+    if (engine.phase != RoundPhase.captionWriting &&
+        engine.phase != RoundPhase.captionVoting) {
+      return;
+    }
+    _roundTimer?.cancel();
+    _countdownTicker?.cancel();
+    final reveal = engine.finishMemeRound();
+    unawaited(GameAudioService.instance.fanfare());
+    unawaited(GameHaptics.instance.heavy());
+    final cards = _memeRevealCards();
+    final topMemes = _topMemeCards();
+    await _hostTransport?.broadcast(
+      WireMessage(
+        type: WireType.memeReveal,
+        seq: _nextSeq(),
+        payload: <String, dynamic>{
+          ...reveal.toJson(),
+          'cards': cards.map((card) => card.toJson()).toList(),
+          'players': engine.players.map((player) => player.toJson()).toList(),
+          'topMemes': topMemes.map((card) => card.toJson()).toList(),
+        },
+      ),
+    );
+    _emit(
+      _state.copyWith(
+        phase: RoundPhase.captionReveal,
+        activeMode: GameMode.makeItMeme,
+        lastMemeReveal: reveal,
+        memeRevealCards: cards,
+        memeCards: const <MemeCard>[],
+        memeVotedIds: const <String>{},
+        memeSubmissions: engine.memeCount,
+        memeVotesSubmitted: engine.memeVoteCount,
+        players: engine.players,
+        topMemes: _topMemeCards(),
+        remainingMs: 0,
+      ),
+    );
+    _captionRevealTimer?.cancel();
+    _captionRevealTimer = Timer(
+      captionRevealDuration,
+      () => unawaited(_advanceAfterReveal()),
+    );
+  }
+
+  Future<void> submitMeme({
+    required MemeTemplate template,
+    required String topText,
+    required String bottomText,
+    required double snapY,
+  }) async {
+    final engine = _engine;
+    if (engine == null) return;
+    try {
+      engine.submitMeme(
+        playerId: 'host',
+        template: template,
+        topText: topText,
+        bottomText: bottomText,
+        snapY: snapY,
+      );
+    } on EngineException catch (error) {
+      _emit(_state.copyWith(errorMessage: _engineError(error)));
+      return;
+    }
+    unawaited(GameAudioService.instance.pop());
+    unawaited(GameHaptics.instance.selection());
+    _emit(
+      _state.copyWith(
+        memeSubmitted: true,
+        memeSubmissions: engine.memeCount,
+        memeVotesSubmitted: engine.memeVoteCount,
+        clearError: true,
+      ),
+    );
+    if (engine.allMemesSubmitted) await _startMemeVoting();
+  }
+
+  Future<void> clientSubmitMeme({
+    required MemeTemplate template,
+    required String topText,
+    required String bottomText,
+    required double snapY,
+  }) async {
+    await _clientTransport?.send(
+      WireMessage(
+        type: WireType.memeSubmit,
+        seq: _nextSeq(),
+        payload: <String, dynamic>{
+          'template': template.name,
+          'topText': topText,
+          'bottomText': bottomText,
+          'snapY': snapY,
+        },
+      ),
+    );
+    unawaited(GameAudioService.instance.pop());
+    _emit(_state.copyWith(memeSubmitted: true));
+  }
+
+  Future<void> swapMemePhoto() async {
+    final engine = _engine;
+    if (engine == null) return;
+    try {
+      engine.swapMemePhoto('host');
+    } on EngineException catch (error) {
+      _emit(_state.copyWith(errorMessage: _engineError(error)));
+      return;
+    }
+    await _sendMemeAssignment('host');
+    unawaited(GameAudioService.instance.pop());
+    unawaited(GameHaptics.instance.selection());
+  }
+
+  Future<void> clientSwapMemePhoto() async {
+    await _clientTransport?.send(
+      WireMessage(type: WireType.memeSwap, seq: _nextSeq()),
+    );
+    unawaited(GameAudioService.instance.pop());
+  }
+
+  Future<void> voteMeme(String memeId, MemeVote vote) async {
+    final engine = _engine;
+    if (engine == null || _state.memeVotedIds.contains(memeId)) return;
+    try {
+      engine.submitMemeVote(playerId: 'host', memeId: memeId, vote: vote);
+    } on EngineException catch (error) {
+      _emit(_state.copyWith(errorMessage: _engineError(error)));
+      return;
+    }
+    final voted = <String>{..._state.memeVotedIds, memeId};
+    unawaited(
+      vote == MemeVote.up
+          ? GameAudioService.instance.ding()
+          : vote == MemeVote.meh
+          ? GameAudioService.instance.meh()
+          : GameAudioService.instance.bad(),
+    );
+    unawaited(GameHaptics.instance.selection());
+    _emit(
+      _state.copyWith(
+        memeVotedIds: voted,
+        memeVotesSubmitted: engine.memeVoteCount,
+        clearError: true,
+      ),
+    );
+    if (engine.allMemeVotesSubmitted) await _finishMemeRound();
+  }
+
+  Future<void> clientVoteMeme(String memeId, MemeVote vote) async {
+    if (_state.memeVotedIds.contains(memeId)) return;
+    await _clientTransport?.send(
+      WireMessage(
+        type: WireType.memeVote,
+        seq: _nextSeq(),
+        payload: <String, dynamic>{'memeId': memeId, 'vote': vote.name},
+      ),
+    );
+    unawaited(
+      vote == MemeVote.up
+          ? GameAudioService.instance.ding()
+          : vote == MemeVote.meh
+          ? GameAudioService.instance.meh()
+          : GameAudioService.instance.bad(),
+    );
+    unawaited(GameHaptics.instance.selection());
+    _emit(
+      _state.copyWith(memeVotedIds: <String>{..._state.memeVotedIds, memeId}),
+    );
+  }
+
   Future<void> _startCaptionVoting() async {
     final engine = _engine;
     if (engine == null || engine.phase != RoundPhase.captionWriting) return;
+    if (engine.activeMode == GameMode.makeItMeme) {
+      await _startMemeVoting();
+      return;
+    }
     _roundTimer?.cancel();
     _countdownTicker?.cancel();
     if (engine.captionCount < 2) {
@@ -1406,6 +2061,10 @@ class MatchCoordinator {
   Future<void> _finishCaptionRound() async {
     final engine = _engine;
     if (engine == null) return;
+    if (engine.activeMode == GameMode.makeItMeme) {
+      await _finishMemeRound();
+      return;
+    }
     if (engine.phase != RoundPhase.captionWriting &&
         engine.phase != RoundPhase.captionVoting) {
       return;
@@ -1413,7 +2072,7 @@ class MatchCoordinator {
     _roundTimer?.cancel();
     _countdownTicker?.cancel();
     final reveal = engine.finishCaptionRound();
-    unawaited(HapticFeedback.mediumImpact());
+    unawaited(GameHaptics.instance.light());
     await _hostTransport?.broadcast(
       WireMessage(
         type: WireType.captionReveal,
@@ -1448,7 +2107,7 @@ class MatchCoordinator {
           : Duration(seconds: engine.config.pace.timelineSeconds)
                 .inMilliseconds,
     );
-    unawaited(HapticFeedback.mediumImpact());
+    unawaited(GameHaptics.instance.light());
     await _hostTransport?.broadcast(
       WireMessage(
         type: WireType.timelineReveal,
@@ -1480,8 +2139,8 @@ class MatchCoordinator {
       _emit(_state.copyWith(errorMessage: _engineError(error)));
       return;
     }
-    unawaited(HapticFeedback.selectionClick());
-    unawaited(SystemSound.play(SystemSoundType.click));
+    unawaited(GameHaptics.instance.selection());
+    unawaited(GameAudioService.instance.tap());
     _emit(
       _state.copyWith(
         captionSubmitted: true,
@@ -1503,7 +2162,7 @@ class MatchCoordinator {
       _emit(_state.copyWith(errorMessage: _engineError(error)));
       return;
     }
-    unawaited(HapticFeedback.selectionClick());
+    unawaited(GameHaptics.instance.selection());
     _emit(
       _state.copyWith(
         votedCaptionId: captionId,
@@ -1531,8 +2190,8 @@ class MatchCoordinator {
       _emit(_state.copyWith(errorMessage: _engineError(error)));
       return;
     }
-    unawaited(HapticFeedback.selectionClick());
-    unawaited(SystemSound.play(SystemSoundType.click));
+    unawaited(GameHaptics.instance.selection());
+    unawaited(GameAudioService.instance.tap());
     _emit(
       _state.copyWith(
         timelineSubmitted: true,
@@ -1563,7 +2222,7 @@ class MatchCoordinator {
     _roundTimer?.cancel();
     _countdownTicker?.cancel();
     final reveal = engine.finishRound();
-    unawaited(HapticFeedback.mediumImpact());
+    unawaited(GameHaptics.instance.light());
     await _hostTransport?.broadcast(
       WireMessage(
         type: WireType.roundReveal,
@@ -1588,6 +2247,7 @@ class MatchCoordinator {
     engine.advanceAfterReveal();
     if (engine.phase == RoundPhase.podium) {
       final awards = engine.buildPodiumAwards();
+      final topMemes = _topMemeCards();
       await _hostTransport?.broadcast(
         WireMessage(
           type: WireType.gamePodium,
@@ -1595,10 +2255,10 @@ class MatchCoordinator {
           payload: <String, dynamic>{
             'awards': awards.map((a) => a.toJson()).toList(),
             'players': engine.players.map((p) => p.toJson()).toList(),
+            'topMemes': topMemes.map((card) => card.toJson()).toList(),
           },
         ),
       );
-      await _stopScreenshots();
       _emit(
         _state.copyWith(
           phase: RoundPhase.podium,
@@ -1606,6 +2266,7 @@ class MatchCoordinator {
           players: engine.players,
           hostDeciding: true,
           activePhotoBytes: null,
+          topMemes: topMemes,
         ),
       );
       return;
@@ -1993,8 +2654,8 @@ class MatchCoordinator {
   Future<void> submitGuess(String guessedOwnerId) async {
     final engine = _engine;
     if (engine == null || _state.lockedGuessOwnerId != null) return;
-    unawaited(HapticFeedback.selectionClick());
-    unawaited(SystemSound.play(SystemSoundType.click));
+    unawaited(GameHaptics.instance.selection());
+    unawaited(GameAudioService.instance.tap());
     final elapsed = DateTime.now().millisecondsSinceEpoch - _roundStartMs;
     engine.submitGuess('host', guessedOwnerId, elapsed);
     _emit(_state.copyWith(lockedGuessOwnerId: guessedOwnerId));
@@ -2153,7 +2814,6 @@ class MatchCoordinator {
         },
       ),
     );
-    await _stopScreenshots();
     _emit(
       _state.copyWith(
         phase: RoundPhase.podium,
@@ -2584,6 +3244,31 @@ class MatchCoordinator {
               in (payload['captionOptions'] as List<dynamic>? ?? const []))
             if (entry is Map<String, dynamic>) CaptionOption.fromJson(entry),
         ];
+        final memeAssignmentJson = payload['memeAssignment'];
+        final memeAssignment = memeAssignmentJson is Map<String, dynamic>
+            ? MemeAssignment.fromJson(memeAssignmentJson)
+            : null;
+        final memeCards = <MemeCard>[
+          for (final entry
+              in (payload['memeCards'] as List<dynamic>? ?? const []))
+            if (entry is Map<String, dynamic>) MemeCard.fromJson(entry),
+        ];
+        final memeRevealCards = <MemeCard>[
+          for (final entry
+              in (payload['memeRevealCards'] as List<dynamic>? ?? const []))
+            if (entry is Map<String, dynamic>) MemeCard.fromJson(entry),
+        ];
+        final topMemes = <MemeCard>[
+          for (final entry
+              in (payload['topMemes'] as List<dynamic>? ?? const []))
+            if (entry is Map<String, dynamic>) MemeCard.fromJson(entry),
+        ];
+        final memeVotedIds = <String>{
+          for (final value
+              in (payload['memeVotedIds'] as List<dynamic>? ?? const []))
+            if (value is String) value,
+        };
+        final lastMemeRevealJson = payload['lastMemeReveal'];
         final awards = <MatchAward>[
           for (final entry in (payload['awards'] as List<dynamic>? ?? const []))
             if (entry is Map<String, dynamic>) MatchAward.fromJson(entry),
@@ -2636,6 +3321,19 @@ class MatchCoordinator {
             votedCaptionId: payload['votedCaptionId'] as String?,
             captionsSubmitted: payload['captionsSubmitted'] as int? ?? 0,
             votesSubmitted: payload['votesSubmitted'] as int? ?? 0,
+            memeAssignment: memeAssignment,
+            memePhotoBase64: payload['memePhotoBase64'] as String?,
+            memeSwapsLeft: payload['memeSwapsLeft'] as int? ?? 5,
+            memeSubmitted: payload['memeSubmitted'] as bool? ?? false,
+            memeCards: memeCards,
+            memeVotedIds: memeVotedIds,
+            memeSubmissions: payload['memeSubmissions'] as int? ?? 0,
+            memeVotesSubmitted: payload['memeVotesSubmitted'] as int? ?? 0,
+            lastMemeReveal: lastMemeRevealJson is Map<String, dynamic>
+                ? MemeReveal.fromJson(lastMemeRevealJson)
+                : null,
+            memeRevealCards: memeRevealCards,
+            topMemes: topMemes,
             lastReveal: lastReveal is Map<String, dynamic>
                 ? RoundReveal.fromJson(lastReveal)
                 : null,
@@ -2815,6 +3513,7 @@ class MatchCoordinator {
         final phase = switch (mode) {
           GameMode.classic || GameMode.mixedParty => RoundPhase.guessing,
           GameMode.captionThis => RoundPhase.captionWriting,
+          GameMode.makeItMeme => RoundPhase.captionWriting,
           GameMode.timeTraveler => RoundPhase.timelineGuessing,
         };
         _roundStartMs = DateTime.now().millisecondsSinceEpoch;
@@ -2839,7 +3538,7 @@ class MatchCoordinator {
         _startClientPhaseTicker(payload['durationMs'] as int? ?? 0);
       case WireType.roundReveal:
         _stopClientPhaseTicker();
-        unawaited(HapticFeedback.mediumImpact());
+        unawaited(GameHaptics.instance.light());
         final reveal = RoundReveal.fromJson(payload);
         final updated = <Player>[
           for (final player in _state.players)
@@ -2884,7 +3583,7 @@ class MatchCoordinator {
         _startClientPhaseTicker(payload['durationMs'] as int? ?? 0);
       case WireType.captionReveal:
         _stopClientPhaseTicker();
-        unawaited(HapticFeedback.mediumImpact());
+        unawaited(GameHaptics.instance.light());
         final reveal = CaptionReveal.fromJson(payload);
         _emit(
           _state.copyWith(
@@ -2895,9 +3594,84 @@ class MatchCoordinator {
             remainingMs: 0,
           ),
         );
+      case WireType.memeAssignment:
+        final assignmentJson = payload['assignment'];
+        if (assignmentJson is Map<String, dynamic>) {
+          final assignment = MemeAssignment.fromJson(assignmentJson);
+          final encoded = payload['photoBase64'] as String?;
+          if (encoded != null && encoded.isNotEmpty) {
+            _memePhotoBytes[assignment.photoId] = base64Decode(encoded);
+          }
+          _emit(
+            _state.copyWith(
+              memeAssignment: assignment,
+              memePhotoBase64: encoded,
+              memeSwapsLeft: payload['swapsLeft'] as int? ?? 5,
+              memeSubmitted: false,
+              memeSubmissions: _state.memeSubmissions,
+              clearError: true,
+            ),
+          );
+        }
+      case WireType.memeOptions:
+        final cards = <MemeCard>[
+          for (final entry in (payload['cards'] as List<dynamic>? ?? const []))
+            if (entry is Map<String, dynamic>) MemeCard.fromJson(entry),
+        ];
+        final votedIds = <String>{
+          for (final value
+              in (payload['votedIds'] as List<dynamic>? ?? const []))
+            if (value is String) value,
+        };
+        _emit(
+          _state.copyWith(
+            phase: RoundPhase.captionVoting,
+            activeMode: GameMode.makeItMeme,
+            memeCards: cards,
+            memeVotedIds: votedIds,
+            memeSubmissions: payload['submissions'] as int? ?? cards.length,
+            memeVotesSubmitted: payload['votes'] as int? ?? 0,
+            remainingMs: 0,
+            phaseDurationMs: 0,
+            clearError: true,
+          ),
+        );
+      case WireType.memeReveal:
+        _stopClientPhaseTicker();
+        unawaited(GameAudioService.instance.fanfare());
+        unawaited(GameHaptics.instance.heavy());
+        final reveal = MemeReveal.fromJson(payload);
+        final cards = <MemeCard>[
+          for (final entry in (payload['cards'] as List<dynamic>? ?? const []))
+            if (entry is Map<String, dynamic>) MemeCard.fromJson(entry),
+        ];
+        final players = <Player>[
+          for (final entry
+              in (payload['players'] as List<dynamic>? ?? const []))
+            if (entry is Map<String, dynamic>) Player.fromJson(entry),
+        ];
+        final topMemes = <MemeCard>[
+          for (final entry
+              in (payload['topMemes'] as List<dynamic>? ?? const []))
+            if (entry is Map<String, dynamic>) MemeCard.fromJson(entry),
+        ];
+        _emit(
+          _state.copyWith(
+            phase: RoundPhase.captionReveal,
+            activeMode: GameMode.makeItMeme,
+            lastMemeReveal: reveal,
+            memeRevealCards: cards,
+            memeCards: const <MemeCard>[],
+            memeVotedIds: const <String>{},
+            memeVotesSubmitted: 0,
+            players: players,
+            topMemes: topMemes,
+            remainingMs: 0,
+          ),
+        );
       case WireType.timelineReveal:
         _stopClientPhaseTicker();
-        unawaited(HapticFeedback.mediumImpact());
+        unawaited(GameHaptics.instance.light());
         final reveal = TimelineReveal.fromJson(payload);
         _emit(
           _state.copyWith(
@@ -2935,7 +3709,7 @@ class MatchCoordinator {
         _emit(_state.copyWith(extensionCandidates: drawn));
       case WireType.gamePodium:
         _stopClientPhaseTicker();
-        unawaited(HapticFeedback.heavyImpact());
+        unawaited(GameHaptics.instance.heavy());
         final awards = <MatchAward>[
           for (final entry in (payload['awards'] as List<dynamic>? ?? const []))
             if (entry is Map<String, dynamic>) MatchAward.fromJson(entry),
@@ -2945,7 +3719,11 @@ class MatchCoordinator {
               in (payload['players'] as List<dynamic>? ?? const []))
             if (entry is Map<String, dynamic>) Player.fromJson(entry),
         ];
-        await _stopScreenshots();
+        final topMemes = <MemeCard>[
+          for (final entry
+              in (payload['topMemes'] as List<dynamic>? ?? const []))
+            if (entry is Map<String, dynamic>) MemeCard.fromJson(entry),
+        ];
         _assembledHostBytes.clear();
         _clientRoundPhotos.clear();
         _emit(
@@ -2954,6 +3732,7 @@ class MatchCoordinator {
             awards: awards,
             players: players,
             activePhotoBytes: null,
+            topMemes: topMemes,
           ),
         );
       case WireType.plantPhoto:
@@ -3153,8 +3932,8 @@ class MatchCoordinator {
   Future<void> clientSubmitGuess(String guessedOwnerId) async {
     final transport = _clientTransport;
     if (transport == null || _state.lockedGuessOwnerId != null) return;
-    unawaited(HapticFeedback.selectionClick());
-    unawaited(SystemSound.play(SystemSoundType.click));
+    unawaited(GameHaptics.instance.selection());
+    unawaited(GameAudioService.instance.tap());
     final elapsed = DateTime.now().millisecondsSinceEpoch - _roundStartMs;
     await transport.send(
       WireMessage(
@@ -3179,8 +3958,8 @@ class MatchCoordinator {
         payload: <String, dynamic>{'text': text},
       ),
     );
-    unawaited(HapticFeedback.selectionClick());
-    unawaited(SystemSound.play(SystemSoundType.click));
+    unawaited(GameHaptics.instance.selection());
+    unawaited(GameAudioService.instance.tap());
     _emit(_state.copyWith(captionSubmitted: true, clearError: true));
   }
 
@@ -3194,7 +3973,7 @@ class MatchCoordinator {
         payload: <String, dynamic>{'captionId': captionId},
       ),
     );
-    unawaited(HapticFeedback.selectionClick());
+    unawaited(GameHaptics.instance.selection());
     _emit(_state.copyWith(votedCaptionId: captionId, clearError: true));
   }
 
@@ -3213,8 +3992,8 @@ class MatchCoordinator {
         },
       ),
     );
-    unawaited(HapticFeedback.selectionClick());
-    unawaited(SystemSound.play(SystemSoundType.click));
+    unawaited(GameHaptics.instance.selection());
+    unawaited(GameAudioService.instance.tap());
     _emit(
       _state.copyWith(
         timelineSubmitted: true,
@@ -3260,18 +4039,9 @@ class MatchCoordinator {
   }
 
   Future<void> _onLocalScreenshot() async {
-    const sharingPhases = <RoundPhase>{
-      RoundPhase.guessing,
-      RoundPhase.reveal,
-      RoundPhase.captionWriting,
-      RoundPhase.captionVoting,
-      RoundPhase.captionReveal,
-      RoundPhase.timelineGuessing,
-      RoundPhase.timelineReveal,
-    };
-    if (!sharingPhases.contains(_state.phase)) {
-      return;
-    }
+    // A screenshot is worth reporting wherever it happens in the room: lobby,
+    // photo check, a round or the podium. The detector only runs while a room
+    // is open, so this cannot leak a screenshot from the home screen.
     if (_state.isHosting) {
       await notifyScreenshot();
       return;

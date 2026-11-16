@@ -1,27 +1,27 @@
 # WhoTook
 
 A party game for your camera roll. One phone starts a room, everyone joins with a
-QR code, and each round shows a photo while the table races to guess who took it.
-Choose an avatar, play in English or Nederlands, and rejoin your last room after
-a restart.
+QR code, and the table guesses photos, makes memes from each other's camera rolls,
+and travels through time. Choose an avatar, play in English or Nederlands, and
+rejoin your last room after a restart.
 
 [![CI](https://github.com/warreth/WhoTook/actions/workflows/ci.yml/badge.svg)](https://github.com/warreth/WhoTook/actions/workflows/ci.yml)
 [![Release](https://github.com/warreth/WhoTook/actions/workflows/release.yml/badge.svg)](https://github.com/warreth/WhoTook/actions/workflows/release.yml)
 
-| Round | Lobby | Pick your photos | Podium |
+| Round | Lobby | Make It Meme vault | Podium |
 | --- | --- | --- | --- |
-| <img src="docs/screenshots/round.webp" width="190" alt="A round with a dog photo"> | <img src="docs/screenshots/lobby.webp" width="190" alt="Lobby with a QR code and the chosen setup"> | <img src="docs/screenshots/prepare.webp" width="190" alt="Contact sheet with four different photos"> | <img src="docs/screenshots/podium.webp" width="190" alt="Podium and awards"> |
+| <img src="docs/screenshots/round.webp" width="190" alt="A round with a dog photo"> | <img src="docs/screenshots/lobby.webp" width="190" alt="Lobby with a QR code and the chosen setup"> | <img src="docs/screenshots/prepare.webp" width="190" alt="Make It Meme six-photo vault with six player photos"> | <img src="docs/screenshots/podium.webp" width="190" alt="Podium and awards"> |
 
 ## Game modes
 
 - **Classic:** guess who took the photo.
-- **Caption This:** write the funniest caption, then vote anonymously.
-- **Time Traveler:** guess the year and month on a timeline.
-- **Mixed Party:** all three, shuffled.
+- **Make It Meme:** everyone brings six photos, you get one from someone else, build a template, then vote up, meh or down.
+- **Time Traveler:** pick a decade, year and month, then read the evidence timeline.
+- **Mixed Party:** Classic, Make It Meme and Time Traveler, shuffled.
 
-| Pick a mode | Caption This | Time Traveler |
+| Pick a mode | Make It Meme | Time Traveler |
 | --- | --- | --- |
-| <img src="docs/screenshots/modes.webp" width="190" alt="Setup screen with four game modes"> | <img src="docs/screenshots/caption-writing.webp" width="190" alt="Caption This writing screen"> | <img src="docs/screenshots/timeline-reveal.webp" width="190" alt="Time Traveler timeline reveal"> |
+| <img src="docs/screenshots/modes.webp" width="190" alt="Setup screen with four game modes"> | <img src="docs/screenshots/meme-editor.webp" width="190" alt="Make It Meme editor with a friend's photo"> | <img src="docs/screenshots/timeline-reveal.webp" width="190" alt="Time Traveler evidence timeline"> |
 
 ## Download
 
@@ -35,9 +35,9 @@ a restart.
 ## How it plays
 
 1. **Set the table.** Pick a game mode, the rounds and the pace. Open the room and show the QR code.
-2. **Join and fill the deck.** Everyone joins from their own phone, picks a name and avatar, then approves a handful of photos. A selfie, a gallery photo or an icon all work as an avatar.
-3. **Guess who took it.** A photo appears and everyone taps a name. Faster correct guesses score more. If a connection drops, the phone reconnects to the same room and picks up the round.
-4. **Crown a winner.** The podium hands out awards. Play five more rounds, head back to the lobby to change the game or add players, or skip a stuck round from the host menu.
+2. **Join and fill the vault.** Everyone joins from their own phone, picks a name and avatar, then approves their photos (six for Make It Meme). A selfie, a gallery photo or an icon all work as an avatar.
+3. **Guess, meme or time travel.** Classic asks who took it. Make It Meme gives you a friend's photo, seven templates and five match-wide swaps. Time Traveler asks for the date. If a connection drops, the phone reconnects to the same room and picks up the round.
+4. **Crown a winner.** The podium hands out awards and saves the top memes. Play five more rounds, head back to the lobby to change the game or add players, or skip a stuck round from the host menu.
 
 Two to twelve players. No accounts, no ads, no analytics.
 
@@ -72,6 +72,8 @@ npm install
 npm test
 npx wrangler dev
 ```
+
+
 
 The code is [AGPLv3](LICENSE). The **WhoTook** name and the viewfinder logo are
 trademarks: forks are welcome, but a distributed fork needs its own name and

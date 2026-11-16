@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -202,6 +204,40 @@ void main() {
     expect(find.text('Connection lost'), findsOneWidget);
     expect(find.textContaining('12 seconds'), findsOneWidget);
     expect(find.text('Leave room'), findsOneWidget);
+  });
+
+  testWidgets('a screenshot alert names the player on every screen', (
+    tester,
+  ) async {
+    await usePhone(tester);
+    final states = StreamController<MatchUiState>.broadcast();
+    addTearDown(states.close);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          settingsRepositoryProvider.overrideWithValue(
+            _MemorySettings(const AppSettings(onboardingCompleted: true)),
+          ),
+          matchStateProvider.overrideWith((ref) => states.stream),
+        ],
+        child: const WhoTookApp(),
+      ),
+    );
+    await tester.pump();
+    states.add(const MatchUiState());
+    await tester.pump();
+    states.add(
+      const MatchUiState(
+        screenshotAlerts: <ScreenshotBanner>[
+          ScreenshotBanner(playerId: 'c1', playerName: 'Lotte', atMs: 1234),
+        ],
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Lotte took a screenshot'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 5));
+    expect(find.text('Lotte took a screenshot'), findsNothing);
   });
 
   testWidgets('a version mismatch can be skipped', (tester) async {

@@ -11,6 +11,7 @@ import '../../l10n/l10n.dart';
 import '../../state/match_coordinator.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
+import '../widgets/game_widgets.dart';
 import '../widgets/host_controls.dart';
 import 'settings_screen.dart';
 
@@ -38,9 +39,12 @@ class PrepareScreen extends ConsumerWidget {
         child: Row(
           children: <Widget>[
             Expanded(
-              child: SecondaryButton(
-                label: l10n.rerollAll,
+              child: GameButton(
+                label: state.config.mode == GameMode.makeItMeme
+                    ? l10n.memeVaultReroll
+                    : l10n.rerollAll,
                 icon: Icons.refresh,
+                variant: GameButtonVariant.secondary,
                 onPressed: () => unawaited(
                   isHost
                       ? coordinator.rerollCandidates()
@@ -50,11 +54,13 @@ class PrepareScreen extends ConsumerWidget {
             ),
             const SizedBox(width: AppSpacing.s12),
             Expanded(
-              child: PrimaryButton(
+              child: GameButton(
                 label: state.localReady
                     ? (state.isHosting
                           ? l10n.waitingForPlayersButton
                           : l10n.ready)
+                    : state.config.mode == GameMode.makeItMeme
+                    ? l10n.memeVaultReady
                     : l10n.ready,
                 onPressed: state.localReady || state.candidates.isEmpty
                     ? null
@@ -84,7 +90,9 @@ class PrepareScreen extends ConsumerWidget {
                   children: <Widget>[
                     Expanded(
                       child: Text(
-                        l10n.checkYourPhotos,
+                        state.config.mode == GameMode.makeItMeme
+                            ? l10n.memeVaultTitle
+                            : l10n.checkYourPhotos,
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w500,
@@ -102,8 +110,10 @@ class PrepareScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppSpacing.s4),
                 Text(
-                  state.photosNeeded > 0 &&
-                          state.candidates.length >= state.photosNeeded
+                  state.config.mode == GameMode.makeItMeme
+                      ? l10n.memeVaultBody
+                      : state.photosNeeded > 0 &&
+                            state.candidates.length >= state.photosNeeded
                       ? l10n.photosAllHere(state.candidates.length)
                       : state.photosNeeded > 0 && state.candidates.isNotEmpty
                       ? l10n.photosPartial(
@@ -178,7 +188,8 @@ class PrepareScreen extends ConsumerWidget {
                     },
                   ),
                 const SizedBox(height: AppSpacing.s16),
-                if (state.plantUnlocked &&
+                if (state.config.mode != GameMode.makeItMeme &&
+                    state.plantUnlocked &&
                     state.plantEligible &&
                     !state.plantUsed)
                   _PlantTile(
@@ -190,6 +201,39 @@ class PrepareScreen extends ConsumerWidget {
                   StatusRow(
                     label: l10n.secretPhotoPlanted,
                     tone: StatusTone.positive,
+                  ),
+                ],
+                if (state.config.mode == GameMode.makeItMeme) ...<Widget>[
+                  const SizedBox(height: AppSpacing.s12),
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.s12),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: colors.hairline,
+                        style: BorderStyle.solid,
+                      ),
+                      borderRadius: BorderRadius.circular(AppRadii.rControl),
+                    ),
+                    child: Row(
+                      children: <Widget>[
+                        Icon(
+                          Icons.shield_outlined,
+                          size: 16,
+                          color: colors.ink3,
+                        ),
+                        const SizedBox(width: AppSpacing.s8),
+                        Expanded(
+                          child: Text(
+                            l10n.memeVaultOnly,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: colors.ink2,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
                 if (state.errorMessage != null) ...<Widget>[
@@ -248,7 +292,14 @@ class _PhotoTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.card,
         borderRadius: BorderRadius.circular(AppRadii.rCard),
-        border: Border.all(color: colors.hairline),
+        border: Border.all(color: colors.ink, width: 2),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: colors.ink,
+            offset: const Offset(0, 4),
+            blurRadius: 0,
+          ),
+        ],
       ),
       padding: const EdgeInsets.all(AppSpacing.s4),
       child: ClipRRect(

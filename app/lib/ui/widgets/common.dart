@@ -709,3 +709,22 @@ class CountdownBar extends StatelessWidget {
     );
   }
 }
+
+/// Keeps a phone-first game screen readable on a tablet: the page centres at
+/// 720 logical pixels instead of stretching every card across the display.
+class ScreenBody extends StatelessWidget {
+  const ScreenBody({super.key, required this.child, this.maxWidth = 720});
+
+  final Widget child;
+  final double maxWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        child: child,
+      ),
+    );
+  }
+}

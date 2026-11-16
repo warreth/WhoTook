@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/whotook_theme.dart';
 import '../../../l10n/l10n.dart';
-import '../../widgets/common.dart';
+import '../../widgets/game_widgets.dart';
 
 /// Shared header, step rail and bottom action for the four host setup screens.
 class SetupScaffold extends StatelessWidget {
@@ -144,10 +144,10 @@ class SetupScaffold extends StatelessWidget {
                 constraints: const BoxConstraints(maxWidth: 720),
                 child: SizedBox(
                   width: double.infinity,
-                  child: PrimaryButton(
+                  child: GameButton(
                     label: primaryLabel,
-                    onPressed: primaryEnabled ? onPrimary : null,
-                    busy: busy,
+                    onPressed: primaryEnabled && !busy ? onPrimary : null,
+                    fullWidth: true,
                   ),
                 ),
               ),

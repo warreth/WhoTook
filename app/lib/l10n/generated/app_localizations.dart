@@ -260,16 +260,10 @@ abstract class AppLocalizations {
   /// **'How it plays'**
   String get howItPlays;
 
-  /// No description provided for @threeSteps.
-  ///
-  /// In en, this message translates to:
-  /// **'3 steps'**
-  String get threeSteps;
-
   /// No description provided for @guideSetTable.
   ///
   /// In en, this message translates to:
-  /// **'Set the table'**
+  /// **'Pick the game'**
   String get guideSetTable;
 
   /// No description provided for @guideSetTableBody.
@@ -281,7 +275,7 @@ abstract class AppLocalizations {
   /// No description provided for @guideScanIn.
   ///
   /// In en, this message translates to:
-  /// **'Scan in'**
+  /// **'Friends scan in'**
   String get guideScanIn;
 
   /// No description provided for @guideScanInBody.
@@ -299,7 +293,7 @@ abstract class AppLocalizations {
   /// No description provided for @guidePlayBody.
   ///
   /// In en, this message translates to:
-  /// **'Guess, caption or time travel.'**
+  /// **'Guess a photo, build a meme or travel through time.'**
   String get guidePlayBody;
 
   /// No description provided for @heroFact.
@@ -455,7 +449,7 @@ abstract class AppLocalizations {
   /// No description provided for @chooseGameSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Classic, Caption This, Time Traveler or a bit of everything.'**
+  /// **'Classic, Make It Meme, Time Traveler or a bit of everything.'**
   String get chooseGameSubtitle;
 
   /// No description provided for @nextRounds.
@@ -1076,12 +1070,6 @@ abstract class AppLocalizations {
   /// **'Tap a name to lock in'**
   String get tapNameToLock;
 
-  /// No description provided for @secondsLeftToGuess.
-  ///
-  /// In en, this message translates to:
-  /// **'Seconds left to guess'**
-  String get secondsLeftToGuess;
-
   /// No description provided for @noAnswer.
   ///
   /// In en, this message translates to:
@@ -1310,12 +1298,6 @@ abstract class AppLocalizations {
   /// **'Lock in {date}'**
   String lockInDate(String date);
 
-  /// No description provided for @theTimeline.
-  ///
-  /// In en, this message translates to:
-  /// **'The timeline'**
-  String get theTimeline;
-
   /// No description provided for @timeLord.
   ///
   /// In en, this message translates to:
@@ -1333,12 +1315,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No guess'**
   String get noGuess;
-
-  /// No description provided for @yourPhotoDate.
-  ///
-  /// In en, this message translates to:
-  /// **'Your photo · {date}'**
-  String yourPhotoDate(String date);
 
   /// No description provided for @exact.
   ///
@@ -1381,18 +1357,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Back to lobby'**
   String get backToLobby;
-
-  /// No description provided for @screenshotsCount.
-  ///
-  /// In en, this message translates to:
-  /// **'Screenshots: {count}'**
-  String screenshotsCount(int count);
-
-  /// No description provided for @championSemantic.
-  ///
-  /// In en, this message translates to:
-  /// **'Champion {name}, {score} points'**
-  String championSemantic(String name, int score);
 
   /// No description provided for @points.
   ///
@@ -2257,18 +2221,6 @@ abstract class AppLocalizations {
   /// **'Revealing...'**
   String get revealing;
 
-  /// No description provided for @now.
-  ///
-  /// In en, this message translates to:
-  /// **'now'**
-  String get now;
-
-  /// No description provided for @monthLabel.
-  ///
-  /// In en, this message translates to:
-  /// **'Month'**
-  String get monthLabel;
-
   /// No description provided for @yours.
   ///
   /// In en, this message translates to:
@@ -2286,6 +2238,510 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You'**
   String get you;
+
+  /// No description provided for @advancedSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced settings'**
+  String get advancedSettings;
+
+  /// No description provided for @advancedSettingsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Relay, TURN and self-hosting.'**
+  String get advancedSettingsBody;
+
+  /// No description provided for @modeMakeItMeme.
+  ///
+  /// In en, this message translates to:
+  /// **'Make It Meme'**
+  String get modeMakeItMeme;
+
+  /// No description provided for @modeMakeItMemeBlurb.
+  ///
+  /// In en, this message translates to:
+  /// **'Make a meme from a friend\'s photo.'**
+  String get modeMakeItMemeBlurb;
+
+  /// No description provided for @paceMemeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'How long does everyone get to build a meme?'**
+  String get paceMemeSubtitle;
+
+  /// No description provided for @paceFastMeme.
+  ///
+  /// In en, this message translates to:
+  /// **'A quick meme.'**
+  String get paceFastMeme;
+
+  /// No description provided for @paceNormalMeme.
+  ///
+  /// In en, this message translates to:
+  /// **'Time to build the joke.'**
+  String get paceNormalMeme;
+
+  /// No description provided for @paceSlowMeme.
+  ///
+  /// In en, this message translates to:
+  /// **'No rush, make it good.'**
+  String get paceSlowMeme;
+
+  /// No description provided for @memeVaultTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your six photos.'**
+  String get memeVaultTitle;
+
+  /// No description provided for @memeVaultBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Reroll the whole set if something should not be in the game.'**
+  String get memeVaultBody;
+
+  /// No description provided for @memeVaultOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Only these six photos enter the game.'**
+  String get memeVaultOnly;
+
+  /// No description provided for @memeVaultReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get memeVaultReady;
+
+  /// No description provided for @memeVaultReroll.
+  ///
+  /// In en, this message translates to:
+  /// **'Reroll all'**
+  String get memeVaultReroll;
+
+  /// No description provided for @memeWritingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Build the meme'**
+  String get memeWritingLabel;
+
+  /// No description provided for @memeMatchSwaps.
+  ///
+  /// In en, this message translates to:
+  /// **'Match swaps'**
+  String get memeMatchSwaps;
+
+  /// No description provided for @memeTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'Template'**
+  String get memeTemplate;
+
+  /// No description provided for @memeTemplateClassic.
+  ///
+  /// In en, this message translates to:
+  /// **'Classic'**
+  String get memeTemplateClassic;
+
+  /// No description provided for @memeTemplatePov.
+  ///
+  /// In en, this message translates to:
+  /// **'POV'**
+  String get memeTemplatePov;
+
+  /// No description provided for @memeTemplateBreaking.
+  ///
+  /// In en, this message translates to:
+  /// **'Breaking'**
+  String get memeTemplateBreaking;
+
+  /// No description provided for @memeTemplateLive.
+  ///
+  /// In en, this message translates to:
+  /// **'Live'**
+  String get memeTemplateLive;
+
+  /// No description provided for @memeTemplatePoster.
+  ///
+  /// In en, this message translates to:
+  /// **'Poster'**
+  String get memeTemplatePoster;
+
+  /// No description provided for @memeTemplateSnap.
+  ///
+  /// In en, this message translates to:
+  /// **'Snap bar'**
+  String get memeTemplateSnap;
+
+  /// No description provided for @memeTemplateSplit.
+  ///
+  /// In en, this message translates to:
+  /// **'Split'**
+  String get memeTemplateSplit;
+
+  /// No description provided for @memeTopLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Top line'**
+  String get memeTopLine;
+
+  /// No description provided for @memeBottomLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Bottom line'**
+  String get memeBottomLine;
+
+  /// No description provided for @memeHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Header'**
+  String get memeHeader;
+
+  /// No description provided for @memeHeadline.
+  ///
+  /// In en, this message translates to:
+  /// **'Headline'**
+  String get memeHeadline;
+
+  /// No description provided for @memeReaction.
+  ///
+  /// In en, this message translates to:
+  /// **'Reaction'**
+  String get memeReaction;
+
+  /// No description provided for @memeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get memeTitle;
+
+  /// No description provided for @memeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtitle'**
+  String get memeSubtitle;
+
+  /// No description provided for @memeBarText.
+  ///
+  /// In en, this message translates to:
+  /// **'Bar text'**
+  String get memeBarText;
+
+  /// No description provided for @memeTopPanel.
+  ///
+  /// In en, this message translates to:
+  /// **'Top panel'**
+  String get memeTopPanel;
+
+  /// No description provided for @memeBottomPanel.
+  ///
+  /// In en, this message translates to:
+  /// **'Bottom label'**
+  String get memeBottomPanel;
+
+  /// No description provided for @memeWritePrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Make the joke.'**
+  String get memeWritePrompt;
+
+  /// No description provided for @memeSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send meme'**
+  String get memeSend;
+
+  /// No description provided for @memeSentWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Meme sent. Waiting for the others.'**
+  String get memeSentWaiting;
+
+  /// No description provided for @memeSwapPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Swap photo'**
+  String get memeSwapPhoto;
+
+  /// No description provided for @memeSwapsLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} left'**
+  String memeSwapsLeft(int count);
+
+  /// No description provided for @memeSwapsMatchWide.
+  ///
+  /// In en, this message translates to:
+  /// **'5 swaps for the whole match.'**
+  String get memeSwapsMatchWide;
+
+  /// No description provided for @memeVoteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Vote on this meme.'**
+  String get memeVoteTitle;
+
+  /// No description provided for @memeVoteSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Upvote, Meh or Downvote. You cannot vote for your own meme.'**
+  String get memeVoteSubtitle;
+
+  /// No description provided for @memeUpvote.
+  ///
+  /// In en, this message translates to:
+  /// **'Upvote'**
+  String get memeUpvote;
+
+  /// No description provided for @memeMeh.
+  ///
+  /// In en, this message translates to:
+  /// **'Meh'**
+  String get memeMeh;
+
+  /// No description provided for @memeDownvote.
+  ///
+  /// In en, this message translates to:
+  /// **'Downvote'**
+  String get memeDownvote;
+
+  /// No description provided for @memeAnonymous.
+  ///
+  /// In en, this message translates to:
+  /// **'Anonymous until the reveal'**
+  String get memeAnonymous;
+
+  /// No description provided for @memeYourMeme.
+  ///
+  /// In en, this message translates to:
+  /// **'Your meme'**
+  String get memeYourMeme;
+
+  /// No description provided for @memeNextMeme.
+  ///
+  /// In en, this message translates to:
+  /// **'Next meme'**
+  String get memeNextMeme;
+
+  /// No description provided for @memeSeeResult.
+  ///
+  /// In en, this message translates to:
+  /// **'See result'**
+  String get memeSeeResult;
+
+  /// No description provided for @memeVoteLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Vote locked.'**
+  String get memeVoteLocked;
+
+  /// No description provided for @memeTapToVote.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap one to vote.'**
+  String get memeTapToVote;
+
+  /// No description provided for @memeWaitingVotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for the rest of the table.'**
+  String get memeWaitingVotes;
+
+  /// No description provided for @memeRoundWinner.
+  ///
+  /// In en, this message translates to:
+  /// **'Round winner'**
+  String get memeRoundWinner;
+
+  /// No description provided for @memeCreatorPoints.
+  ///
+  /// In en, this message translates to:
+  /// **'Creator points'**
+  String get memeCreatorPoints;
+
+  /// No description provided for @memeModelRoyalty.
+  ///
+  /// In en, this message translates to:
+  /// **'Model royalty'**
+  String get memeModelRoyalty;
+
+  /// No description provided for @memeRoyaltyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{name}\'s photo was in the winning meme. {name} gets +25.'**
+  String memeRoyaltyBody(String name);
+
+  /// No description provided for @memeTopMemes.
+  ///
+  /// In en, this message translates to:
+  /// **'Top 3 memes'**
+  String get memeTopMemes;
+
+  /// No description provided for @memeFinalRound.
+  ///
+  /// In en, this message translates to:
+  /// **'Final round: everyone gets the same photo. Double points.'**
+  String get memeFinalRound;
+
+  /// No description provided for @memeDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Save meme'**
+  String get memeDownload;
+
+  /// No description provided for @memeSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Meme saved.'**
+  String get memeSaved;
+
+  /// No description provided for @memeSaveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the meme.'**
+  String get memeSaveFailed;
+
+  /// No description provided for @memePhotoFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Photo from {name}'**
+  String memePhotoFrom(Object name);
+
+  /// No description provided for @memePoints.
+  ///
+  /// In en, this message translates to:
+  /// **'{score} pts'**
+  String memePoints(int score);
+
+  /// No description provided for @memeVotesUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Upvotes'**
+  String get memeVotesUp;
+
+  /// No description provided for @memeVotesMeh.
+  ///
+  /// In en, this message translates to:
+  /// **'Meh'**
+  String get memeVotesMeh;
+
+  /// No description provided for @memeVotesDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Down'**
+  String get memeVotesDown;
+
+  /// No description provided for @memeWriteSomething.
+  ///
+  /// In en, this message translates to:
+  /// **'Write something first.'**
+  String get memeWriteSomething;
+
+  /// No description provided for @memeSound.
+  ///
+  /// In en, this message translates to:
+  /// **'Sound'**
+  String get memeSound;
+
+  /// No description provided for @memeSoundBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Ticks, votes and the podium fanfare'**
+  String get memeSoundBody;
+
+  /// No description provided for @memeHaptics.
+  ///
+  /// In en, this message translates to:
+  /// **'Haptics'**
+  String get memeHaptics;
+
+  /// No description provided for @memeHapticsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'A tap when a vote lands'**
+  String get memeHapticsBody;
+
+  /// No description provided for @pickDecade.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a decade'**
+  String get pickDecade;
+
+  /// No description provided for @pickYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a year'**
+  String get pickYear;
+
+  /// No description provided for @pickMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a month'**
+  String get pickMonth;
+
+  /// No description provided for @actualDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Actual date'**
+  String get actualDate;
+
+  /// No description provided for @ownerIncluded.
+  ///
+  /// In en, this message translates to:
+  /// **'Owner included'**
+  String get ownerIncluded;
+
+  /// No description provided for @averageMiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Average miss: {distance}'**
+  String averageMiss(String distance);
+
+  /// No description provided for @yourGuess.
+  ///
+  /// In en, this message translates to:
+  /// **'Your guess'**
+  String get yourGuess;
+
+  /// No description provided for @ownerLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'OWNER'**
+  String get ownerLabel;
+
+  /// No description provided for @breakingNews.
+  ///
+  /// In en, this message translates to:
+  /// **'BREAKING NEWS'**
+  String get breakingNews;
+
+  /// No description provided for @liveBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'● LIVE'**
+  String get liveBadge;
+
+  /// No description provided for @gameFeel.
+  ///
+  /// In en, this message translates to:
+  /// **'Game feel'**
+  String get gameFeel;
+
+  /// No description provided for @alsoInTheRoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Also in the room'**
+  String get alsoInTheRoom;
+
+  /// No description provided for @finalTable.
+  ///
+  /// In en, this message translates to:
+  /// **'Final table'**
+  String get finalTable;
+
+  /// No description provided for @memeNoMemes.
+  ///
+  /// In en, this message translates to:
+  /// **'No memes this round.'**
+  String get memeNoMemes;
 }
 
 class _AppLocalizationsDelegate

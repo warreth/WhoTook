@@ -189,6 +189,7 @@ void main() {
     expect(GameMode.values, <GameMode>[
       GameMode.classic,
       GameMode.captionThis,
+      GameMode.makeItMeme,
       GameMode.timeTraveler,
       GameMode.mixedParty,
     ]);

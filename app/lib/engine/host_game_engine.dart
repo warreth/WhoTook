@@ -74,6 +74,17 @@ class HostGameEngine {
   final Map<String, String> _captionPlayerById = <String, String>{};
   final Map<String, String> _captionVotes = <String, String>{};
   final Map<String, TimelineGuess> _timelineGuesses = <String, TimelineGuess>{};
+  final Map<String, MemeSubmission> _memes = <String, MemeSubmission>{};
+  final Map<String, String> _memeIdByPlayer = <String, String>{};
+  final Map<String, String> _memePlayerById = <String, String>{};
+  final Map<String, Map<String, MemeVote>> _memeVotes =
+      <String, Map<String, MemeVote>>{};
+  final Map<String, PhotoCandidate> _memeAssignments =
+      <String, PhotoCandidate>{};
+  final Map<String, int> _memeSwaps = <String, int>{};
+  final List<MemeEntry> _memeHistory = <MemeEntry>[];
+  int _memeSerial = 0;
+  MemeReveal? _lastMemeReveal;
   final List<GameMode> _mixedCycle = <GameMode>[];
   final Map<String, List<PhotoCandidate>> _pendingExtension =
       <String, List<PhotoCandidate>>{};
@@ -109,9 +120,52 @@ class HostGameEngine {
   GameMode get activeMode => _activeMode;
   CaptionReveal? get lastCaptionReveal => _lastCaptionReveal;
   TimelineReveal? get lastTimelineReveal => _lastTimelineReveal;
+  MemeReveal? get lastMemeReveal => _lastMemeReveal;
   int get captionCount => _captions.length;
   int get captionVoteCount => _captionVotes.length;
   int get timelineGuessCount => _timelineGuesses.length;
+  int get memeCount => _memes.length;
+  int get memeVoteCount =>
+      _memeVotes.values.fold<int>(0, (sum, votes) => sum + votes.length);
+  bool hasMeme(String playerId) => _memes.containsKey(playerId);
+  int memeSwapsLeft(String playerId) => _memeSwaps[playerId] ?? 0;
+  Set<String> memeVotedIds(String playerId) => <String>{
+    for (final entry in _memeVotes.entries)
+      if (entry.value.containsKey(playerId)) entry.key,
+  };
+  List<MemeOption> get memeOptions => List<MemeOption>.unmodifiable(
+    _memePlayerById.entries
+        .map((entry) {
+          final meme = _memes[entry.value];
+          if (meme == null) {
+            return const MemeOption(
+              id: '',
+              photoId: '',
+              template: MemeTemplate.classic,
+              topText: '',
+              bottomText: '',
+              snapY: 48,
+            );
+          }
+          return MemeOption(
+            id: meme.id,
+            photoId: meme.photoId,
+            template: meme.template,
+            topText: meme.topText,
+            bottomText: meme.bottomText,
+            snapY: meme.snapY,
+          );
+        })
+        .where((option) => option.id.isNotEmpty),
+  );
+  List<MemeEntry> get topMemes => List<MemeEntry>.unmodifiable(
+    (List<MemeEntry>.of(_memeHistory)..sort((a, b) {
+          final byPoints = b.points.compareTo(a.points);
+          if (byPoints != 0) return byPoints;
+          return b.upVotes.compareTo(a.upVotes);
+        }))
+        .take(3),
+  );
 
   bool hasCaption(String playerId) => _captions.containsKey(playerId);
   String? captionVoteFor(String playerId) => _captionVotes[playerId];
@@ -247,7 +301,9 @@ class HostGameEngine {
     if (_players.isEmpty) {
       throw const EngineException('no_players', 'need at least one player');
     }
-    _photosNeeded = computePhotosNeeded(_roundsK, _players.length);
+    _photosNeeded = _mode == GameMode.makeItMeme
+        ? 6
+        : computePhotosNeeded(_roundsK, _players.length);
     _planterId = _players.isEmpty
         ? null
         : (planterOverride ??
@@ -299,7 +355,8 @@ class HostGameEngine {
     if (_phase != RoundPhase.preparing) {
       throw const EngineException('wrong_phase', 'not preparing');
     }
-    if ((_photoQueue[playerId] ?? const []).isEmpty) {
+    final queue = _photoQueue[playerId] ?? const <PhotoCandidate>[];
+    if (queue.isEmpty || (_mode == GameMode.makeItMeme && queue.length < 6)) {
       throw const EngineException(
         'no_photos',
         'submit approved photos before ready',
@@ -395,11 +452,8 @@ class HostGameEngine {
     final startRound = _deck.length + 1;
     if (_mode == GameMode.mixedParty && _mixedCycle.isEmpty) {
       _mixedCycle.addAll(
-        <GameMode>[
-          GameMode.classic,
-          GameMode.captionThis,
-          GameMode.timeTraveler,
-        ]..shuffle(_random),
+        <GameMode>[GameMode.classic, GameMode.makeItMeme, GameMode.timeTraveler]
+          ..shuffle(_random),
       );
     }
     var previousLast = _deck.isEmpty ? null : _deck.last.ownerId;
@@ -473,6 +527,9 @@ class HostGameEngine {
         'all players must be ready',
       );
     }
+    _memeSwaps
+      ..clear()
+      ..addEntries(_players.keys.map((id) => MapEntry(id, 5)));
     _buildDeck(_roundsK);
     if (_deck.isEmpty) {
       throw const EngineException('empty_deck', 'no photos to play');
@@ -496,6 +553,13 @@ class HostGameEngine {
     _captionVotes.clear();
     _captionSerial = 0;
     _timelineGuesses.clear();
+    _memes.clear();
+    _memeIdByPlayer.clear();
+    _memePlayerById.clear();
+    _memeVotes.clear();
+    _memeAssignments.clear();
+    _memeSerial = 0;
+    _lastMemeReveal = null;
     _roundDeltas
       ..clear()
       ..addEntries(_players.keys.map((id) => MapEntry(id, 0)));
@@ -508,9 +572,13 @@ class HostGameEngine {
     _phase = switch (entry.mode) {
       GameMode.classic => RoundPhase.guessing,
       GameMode.captionThis => RoundPhase.captionWriting,
+      GameMode.makeItMeme => RoundPhase.captionWriting,
       GameMode.timeTraveler => RoundPhase.timelineGuessing,
       GameMode.mixedParty => RoundPhase.guessing,
     };
+    if (entry.mode == GameMode.makeItMeme) {
+      _assignMemePhotos();
+    }
     return entry;
   }
 
@@ -741,13 +809,258 @@ class HostGameEngine {
     return reveal;
   }
 
+  // Make It Meme -----------------------------------------------------------
+
+  void _assignMemePhotos() {
+    final connected = _players.values
+        .where((player) => player.connected)
+        .toList();
+    for (final player in connected) {
+      final pool = <PhotoCandidate>[];
+      for (final other in connected) {
+        if (other.id == player.id) continue;
+        pool.addAll(_photoQueue[other.id] ?? const <PhotoCandidate>[]);
+      }
+      if (pool.isEmpty) {
+        pool.addAll(_photoQueue[player.id] ?? const <PhotoCandidate>[]);
+      }
+      if (pool.isEmpty) continue;
+      _memeAssignments[player.id] = pool[_random.nextInt(pool.length)];
+      _memeSwaps[player.id] = _memeSwaps[player.id] ?? 5;
+    }
+  }
+
+  MemeAssignment? memeAssignmentFor(String playerId) {
+    final photo = _memeAssignments[playerId];
+    if (photo == null) return null;
+    final owner = _players[photo.ownerId];
+    return MemeAssignment(
+      playerId: playerId,
+      photoId: photo.photoId,
+      ownerId: photo.ownerId,
+      ownerName: owner?.name ?? '',
+      isPanorama: photo.isPanorama,
+    );
+  }
+
+  PhotoCandidate? memeAssignmentPhoto(String playerId) =>
+      _memeAssignments[playerId];
+
+  bool get allMemesSubmitted =>
+      _phase == RoundPhase.captionWriting &&
+      _players.values
+          .where((player) => player.connected)
+          .every((player) => _memes.containsKey(player.id));
+
+  bool get allMemeVotesSubmitted {
+    if (_phase != RoundPhase.captionVoting) return false;
+    final memes = _memePlayerById.keys;
+    for (final player in _players.values.where((p) => p.connected)) {
+      for (final memeId in memes) {
+        if (_memePlayerById[memeId] == player.id) continue;
+        if (_memeVotes[memeId]?[player.id] == null) return false;
+      }
+    }
+    return true;
+  }
+
+  bool isOwnMeme(String playerId, String memeId) =>
+      _memePlayerById[memeId] == playerId;
+
+  PhotoCandidate swapMemePhoto(String playerId) {
+    _requirePlayer(playerId);
+    if (_phase != RoundPhase.captionWriting) {
+      throw const EngineException('wrong_phase', 'not writing memes');
+    }
+    if (_memes.containsKey(playerId)) {
+      throw const EngineException('already_captioned', 'meme is locked');
+    }
+    final left = _memeSwaps[playerId] ?? 0;
+    if (left <= 0) {
+      throw const EngineException('no_swaps', 'no photo swaps left');
+    }
+    final current = _memeAssignments[playerId];
+    if (current == null) {
+      throw const EngineException('no_photo', 'no photo assigned');
+    }
+    final pool = <PhotoCandidate>[];
+    for (final player in _players.values) {
+      if (player.id == playerId || !player.connected) continue;
+      for (final photo in _photoQueue[player.id] ?? const <PhotoCandidate>[]) {
+        if (photo.photoId != current.photoId) pool.add(photo);
+      }
+    }
+    if (pool.isEmpty) {
+      throw const EngineException('no_swap_photo', 'no other photo available');
+    }
+    final next = pool[_random.nextInt(pool.length)];
+    _memeAssignments[playerId] = next;
+    _memeSwaps[playerId] = left - 1;
+    return next;
+  }
+
+  void submitMeme({
+    required String playerId,
+    required MemeTemplate template,
+    required String topText,
+    required String bottomText,
+    required double snapY,
+  }) {
+    _requirePlayer(playerId);
+    if (_phase != RoundPhase.captionWriting) {
+      throw const EngineException('wrong_phase', 'not writing memes');
+    }
+    final assignment = _memeAssignments[playerId];
+    if (assignment == null) {
+      throw const EngineException('no_photo', 'no photo assigned');
+    }
+    if (_memes.containsKey(playerId)) {
+      throw const EngineException('already_captioned', 'meme is locked');
+    }
+    final top = topText.trim();
+    final bottom = bottomText.trim();
+    if (top.isEmpty && bottom.isEmpty) {
+      throw const EngineException('empty_caption', 'write something first');
+    }
+    if (top.length > 70 || bottom.length > 70) {
+      throw const EngineException('caption_too_long', 'keep it under 70');
+    }
+    final id = 'meme-${_memeSerial++}';
+    final meme = MemeSubmission(
+      id: id,
+      playerId: playerId,
+      photoId: assignment.photoId,
+      photoOwnerId: assignment.ownerId,
+      template: template,
+      topText: top,
+      bottomText: bottom,
+      snapY: snapY.clamp(10, 90),
+    );
+    _memes[playerId] = meme;
+    _memeIdByPlayer[playerId] = id;
+    _memePlayerById[id] = playerId;
+  }
+
+  void beginMemeVoting() {
+    if (_phase != RoundPhase.captionWriting) {
+      throw const EngineException('wrong_phase', 'not writing memes');
+    }
+    if (_memes.isEmpty) {
+      throw const EngineException('no_captions', 'nothing to vote on');
+    }
+    _phase = RoundPhase.captionVoting;
+  }
+
+  void submitMemeVote({
+    required String playerId,
+    required String memeId,
+    required MemeVote vote,
+  }) {
+    _requirePlayer(playerId);
+    if (_phase != RoundPhase.captionVoting) {
+      throw const EngineException('wrong_phase', 'not voting');
+    }
+    if (!_memePlayerById.containsKey(memeId)) {
+      throw const EngineException('unknown_caption', 'meme not found');
+    }
+    if (_memePlayerById[memeId] == playerId) {
+      throw const EngineException(
+        'own_caption',
+        'you cannot vote for yourself',
+      );
+    }
+    final votes = _memeVotes.putIfAbsent(memeId, () => <String, MemeVote>{});
+    if (votes.containsKey(playerId)) {
+      throw const EngineException('already_voted', 'vote is locked');
+    }
+    votes[playerId] = vote;
+  }
+
+  MemeReveal finishMemeRound() {
+    if (_phase != RoundPhase.captionWriting &&
+        _phase != RoundPhase.captionVoting) {
+      throw const EngineException('wrong_phase', 'no meme round running');
+    }
+    final entry = _deck[_currentRound - 1];
+    final deltas = <String, int>{
+      for (final player in _players.values) player.id: 0,
+    };
+    final entries = <MemeEntry>[];
+    for (final mapEntry in _memePlayerById.entries) {
+      final meme = _memes[mapEntry.value];
+      if (meme == null) continue;
+      final author = _players[meme.playerId];
+      final owner = _players[meme.photoOwnerId];
+      if (author == null) continue;
+      final votes = _memeVotes[mapEntry.key] ?? const <String, MemeVote>{};
+      final up = votes.values.where((vote) => vote == MemeVote.up).length;
+      final meh = votes.values.where((vote) => vote == MemeVote.meh).length;
+      final down = votes.values.where((vote) => vote == MemeVote.down).length;
+      final points = up * 100 - down * 50;
+      deltas[author.id] = (deltas[author.id] ?? 0) + points;
+      entries.add(
+        MemeEntry(
+          id: meme.id,
+          authorId: author.id,
+          authorName: author.name,
+          photoId: meme.photoId,
+          photoOwnerId: meme.photoOwnerId,
+          photoOwnerName: owner?.name ?? '',
+          template: meme.template,
+          topText: meme.topText,
+          bottomText: meme.bottomText,
+          snapY: meme.snapY,
+          upVotes: up,
+          mehVotes: meh,
+          downVotes: down,
+          points: points,
+        ),
+      );
+    }
+    entries.sort((a, b) {
+      final byPoints = b.points.compareTo(a.points);
+      if (byPoints != 0) return byPoints;
+      final byUp = b.upVotes.compareTo(a.upVotes);
+      if (byUp != 0) return byUp;
+      return a.id.compareTo(b.id);
+    });
+    final maxPoints = entries.isEmpty ? 0 : entries.first.points;
+    final winners = maxPoints > 0
+        ? <String>[
+            for (final entry in entries)
+              if (entry.points == maxPoints) entry.id,
+          ]
+        : const <String>[];
+    final royaltyWinners = <MemeEntry>[
+      for (final entry in entries)
+        if (winners.contains(entry.id)) entry,
+    ];
+    for (final winner in royaltyWinners) {
+      deltas[winner.photoOwnerId] = (deltas[winner.photoOwnerId] ?? 0) + 25;
+    }
+    for (final player in _players.values) {
+      player.score += deltas[player.id] ?? 0;
+    }
+    _memeHistory.addAll(entries);
+    final reveal = MemeReveal(
+      roundNumber: entry.roundNumber,
+      entries: List<MemeEntry>.unmodifiable(entries),
+      winnerIds: List<String>.unmodifiable(winners),
+      scoreDeltas: Map<String, int>.unmodifiable(deltas),
+    );
+    _lastMemeReveal = reveal;
+    _phase = RoundPhase.captionReveal;
+    return reveal;
+  }
+
   // Time Traveler -----------------------------------------------------------
 
   bool get allTimelineGuessed {
     if (_phase != RoundPhase.timelineGuessing) return false;
-    final ownerId = _deck[_currentRound - 1].ownerId;
+    // The owner guesses their own photo too, so the round cannot close before
+    // they have had the same turn as everyone else.
     return _players.values
-        .where((player) => player.connected && player.id != ownerId)
+        .where((player) => player.connected)
         .every((player) => _timelineGuesses.containsKey(player.id));
   }
 

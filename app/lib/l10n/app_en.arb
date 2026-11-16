@@ -34,13 +34,12 @@
   },
   "forgetRoom": "Forget this room",
   "howItPlays": "How it plays",
-  "threeSteps": "3 steps",
-  "guideSetTable": "Set the table",
+  "guideSetTable": "Pick the game",
   "guideSetTableBody": "Mode, rounds and pace.",
-  "guideScanIn": "Scan in",
+  "guideScanIn": "Friends scan in",
   "guideScanInBody": "Friends join from the QR.",
   "guidePlay": "Play",
-  "guidePlayBody": "Guess, caption or time travel.",
+  "guidePlayBody": "Guess a photo, build a meme or travel through time.",
   "heroFact": "2–12 players · Same Wi-Fi or online",
   "heroTitle": "Whose camera\nroll is this?",
   "heroSubtitle": "One photo at a time. Everyone guesses whose it is.",
@@ -73,7 +72,7 @@
   },
   "invalidInvite": "That invite is not valid. Scan the QR code again.",
   "chooseGame": "Choose the game",
-  "chooseGameSubtitle": "Classic, Caption This, Time Traveler or a bit of everything.",
+  "chooseGameSubtitle": "Classic, Make It Meme, Time Traveler or a bit of everything.",
   "nextRounds": "Next: rounds",
   "howManyRounds": "How many rounds?",
   "roundsSubtitle": "Short and sharp. You can always add five more at the podium.",
@@ -273,7 +272,6 @@
   "getReady": "Get ready",
   "tapWhoTook": "Tap who took the photo as soon as it appears",
   "tapNameToLock": "Tap a name to lock in",
-  "secondsLeftToGuess": "Seconds left to guess",
   "noAnswer": "No answer.",
   "yourPhotoYouGotIt": "Your photo. You got it. +{points}",
   "@yourPhotoYouGotIt": {
@@ -412,18 +410,9 @@
       }
     }
   },
-  "theTimeline": "The timeline",
   "timeLord": "Time Lord",
   "mostDelusional": "Most delusional",
   "noGuess": "No guess",
-  "yourPhotoDate": "Your photo · {date}",
-  "@yourPhotoDate": {
-    "placeholders": {
-      "date": {
-        "type": "String"
-      }
-    }
-  },
   "exact": "exact",
   "offBy": "off by {distance}",
   "@offBy": {
@@ -452,25 +441,6 @@
   "matchAwards": "Match awards",
   "oneMoreRound": "One more round (5)",
   "backToLobby": "Back to lobby",
-  "screenshotsCount": "Screenshots: {count}",
-  "@screenshotsCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "championSemantic": "Champion {name}, {score} points",
-  "@championSemantic": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      },
-      "score": {
-        "type": "int"
-      }
-    }
-  },
   "points": "{score} pts",
   "@points": {
     "placeholders": {
@@ -766,9 +736,119 @@
   "youreIn": "You're in",
   "swap": "Swap",
   "revealing": "Revealing...",
-  "now": "now",
-  "monthLabel": "Month",
   "yours": "Yours",
   "couldNotOpenLink": "Could not open this link.",
-  "you": "You"
+  "you": "You",
+  "advancedSettings": "Advanced settings",
+  "advancedSettingsBody": "Relay, TURN and self-hosting.",
+  "modeMakeItMeme": "Make It Meme",
+  "modeMakeItMemeBlurb": "Make a meme from a friend's photo.",
+  "paceMemeSubtitle": "How long does everyone get to build a meme?",
+  "paceFastMeme": "A quick meme.",
+  "paceNormalMeme": "Time to build the joke.",
+  "paceSlowMeme": "No rush, make it good.",
+  "memeVaultTitle": "Your six photos.",
+  "memeVaultBody": "Reroll the whole set if something should not be in the game.",
+  "memeVaultOnly": "Only these six photos enter the game.",
+  "memeVaultReady": "Ready",
+  "memeVaultReroll": "Reroll all",
+  "memeWritingLabel": "Build the meme",
+  "memeMatchSwaps": "Match swaps",
+  "memeTemplate": "Template",
+  "memeTemplateClassic": "Classic",
+  "memeTemplatePov": "POV",
+  "memeTemplateBreaking": "Breaking",
+  "memeTemplateLive": "Live",
+  "memeTemplatePoster": "Poster",
+  "memeTemplateSnap": "Snap bar",
+  "memeTemplateSplit": "Split",
+  "memeTopLine": "Top line",
+  "memeBottomLine": "Bottom line",
+  "memeHeader": "Header",
+  "memeHeadline": "Headline",
+  "memeReaction": "Reaction",
+  "memeTitle": "Title",
+  "memeSubtitle": "Subtitle",
+  "memeBarText": "Bar text",
+  "memeTopPanel": "Top panel",
+  "memeBottomPanel": "Bottom label",
+  "memeWritePrompt": "Make the joke.",
+  "memeSend": "Send meme",
+  "memeSentWaiting": "Meme sent. Waiting for the others.",
+  "memeSwapPhoto": "Swap photo",
+  "memeSwapsLeft": "{count} left",
+  "memeSwapsMatchWide": "5 swaps for the whole match.",
+  "memeVoteTitle": "Vote on this meme.",
+  "memeVoteSubtitle": "Upvote, Meh or Downvote. You cannot vote for your own meme.",
+  "memeUpvote": "Upvote",
+  "memeMeh": "Meh",
+  "memeDownvote": "Downvote",
+  "memeAnonymous": "Anonymous until the reveal",
+  "memeYourMeme": "Your meme",
+  "memeNextMeme": "Next meme",
+  "memeSeeResult": "See result",
+  "memeVoteLocked": "Vote locked.",
+  "memeTapToVote": "Tap one to vote.",
+  "memeWaitingVotes": "Waiting for the rest of the table.",
+  "memeRoundWinner": "Round winner",
+  "memeCreatorPoints": "Creator points",
+  "memeModelRoyalty": "Model royalty",
+  "memeRoyaltyBody": "{name}'s photo was in the winning meme. {name} gets +25.",
+  "memeTopMemes": "Top 3 memes",
+  "memeFinalRound": "Final round: everyone gets the same photo. Double points.",
+  "memeDownload": "Save meme",
+  "memeSaved": "Meme saved.",
+  "memeSaveFailed": "Could not save the meme.",
+  "memePhotoFrom": "Photo from {name}",
+  "memePoints": "{score} pts",
+  "memeVotesUp": "Upvotes",
+  "memeVotesMeh": "Meh",
+  "memeVotesDown": "Down",
+  "memeWriteSomething": "Write something first.",
+  "memeSound": "Sound",
+  "memeSoundBody": "Ticks, votes and the podium fanfare",
+  "memeHaptics": "Haptics",
+  "memeHapticsBody": "A tap when a vote lands",
+  "pickDecade": "Pick a decade",
+  "pickYear": "Pick a year",
+  "pickMonth": "Pick a month",
+  "actualDate": "Actual date",
+  "ownerIncluded": "Owner included",
+  "averageMiss": "Average miss: {distance}",
+  "@memeSwapsLeft": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@memeRoyaltyBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@memePoints": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "@averageMiss": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "yourGuess": "Your guess",
+  "ownerLabel": "OWNER",
+  "breakingNews": "BREAKING NEWS",
+  "liveBadge": "● LIVE",
+  "gameFeel": "Game feel",
+  "alsoInTheRoom": "Also in the room",
+  "finalTable": "Final table",
+  "memeNoMemes": "No memes this round."
 }

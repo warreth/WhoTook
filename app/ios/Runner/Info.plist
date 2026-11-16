@@ -44,6 +44,8 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>FlutterDeepLinkingEnabled</key>
 	<false/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSAppTransportSecurity</key>
@@ -63,6 +65,8 @@
 	<string>WhoTook finds nearby players on the same Wi-Fi or hotspot without an external server.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>WhoTook picks random photos from albums you allow for the guessing game. Photos stay on players' devices during the match.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>WhoTook saves the memes you choose to keep.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
