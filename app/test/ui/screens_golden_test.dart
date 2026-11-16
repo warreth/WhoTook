@@ -40,6 +40,11 @@ import '../support/test_photo_library.dart';
 ///     --dart-define=STORE_SCREENSHOTS=true --plain-name "store"
 const bool _storeScreenshots = bool.fromEnvironment('STORE_SCREENSHOTS');
 
+/// Writes 2x PNGs into `docs/screenshots` for the site and README:
+///   flutter test test/ui/screens_golden_test.dart \
+///     --dart-define=EXPORT_SCREENSHOTS=true --plain-name "export marketing shots"
+const bool _exportScreenshots = bool.fromEnvironment('EXPORT_SCREENSHOTS');
+
 /// Renders every screen at phone size so the layout can be checked visually and
 /// changes are caught by the golden diff.
 void main() {
@@ -567,6 +572,73 @@ void main() {
     );
   });
 
+  testWidgets('412 wide phone holds every party screen', (tester) async {
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.implicitView!;
+    view.physicalSize = const Size(412, 915);
+    view.devicePixelRatio = 1;
+    final photo = _fixturePhoto('party-dog');
+    final hamster = _fixturePhoto('party-hamster');
+    await _precacheHomePhotos(tester);
+    await _precachePhoto(tester, photo);
+    await _precachePhoto(tester, hamster);
+
+    await _pump(tester, const HomeScreen(), _settings());
+    expect(tester.takeException(), isNull);
+
+    await _pump(tester, const LobbyScreen(), _settings(), state: _lobbyState());
+    expect(tester.takeException(), isNull);
+
+    await _pump(
+      tester,
+      const PrepareScreen(),
+      _settings(),
+      state: _prepareState(_fixturePhotosSix(), count: 6, needed: 6),
+    );
+    expect(tester.takeException(), isNull);
+
+    await _pump(
+      tester,
+      const RoundScreen(),
+      _settings(),
+      state: _roundState(photo),
+    );
+    expect(tester.takeException(), isNull);
+
+    await _pump(
+      tester,
+      const MemeScreen(),
+      _settings(),
+      state: _memeEditorState(photo),
+    );
+    expect(tester.takeException(), isNull);
+
+    await _pump(
+      tester,
+      const MemeScreen(),
+      _settings(),
+      state: _memeVoteState(photo),
+    );
+    expect(tester.takeException(), isNull);
+
+    await _pump(
+      tester,
+      const TimelineScreen(),
+      _settings(),
+      state: _timelineRevealState(hamster),
+    );
+    expect(tester.takeException(), isNull);
+
+    await _pump(
+      tester,
+      const PodiumScreen(),
+      _settings(),
+      state: _podiumState(),
+    );
+    await tester.pump(const Duration(milliseconds: 900));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('large text keeps the party screens usable', (tester) async {
     tester.platformDispatcher.textScaleFactorTestValue = 1.6;
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
@@ -718,6 +790,130 @@ void main() {
     await tester.pump(const Duration(milliseconds: 850));
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'export marketing shots',
+    (tester) async {
+      if (!_exportScreenshots) return;
+      final out = Directory('../docs/screenshots')..createSync(recursive: true);
+      Future<void> shot(
+        String name,
+        Widget screen,
+        MatchUiState state, {
+        Brightness brightness = Brightness.light,
+        int extraMs = 0,
+        Future<void> Function()? before,
+      }) async {
+        await _pumpWidget(
+          tester,
+          screen,
+          _settings(),
+          state: state,
+          brightness: brightness,
+        );
+        debugPrint('export: pumping $name');
+        await tester.pumpAndSettle();
+        debugPrint('export: settled $name');
+        if (extraMs > 0) await tester.pump(Duration(milliseconds: extraMs));
+        if (before != null) await before();
+        await _settleImages(tester);
+        await tester.runAsync(() async {
+          final boundary = tester.renderObject<RenderRepaintBoundary>(
+            find.byType(RepaintBoundary).first,
+          );
+          final image = await boundary.toImage(pixelRatio: 2);
+          final data = await image.toByteData(format: ui.ImageByteFormat.png);
+          await File('${out.path}/$name.png')
+              .writeAsBytes(data!.buffer.asUint8List());
+        });
+        debugPrint('export: wrote $name');
+      }
+
+      final dog = _fixturePhoto('party-dog');
+      final hamster = _fixturePhoto('party-hamster');
+      final cat = _fixturePhoto('party-cat');
+      await _precacheHomePhotos(tester);
+      await _precachePhoto(tester, dog);
+      await _precachePhoto(tester, hamster);
+      await _precachePhoto(tester, cat);
+
+      await shot('home', const HomeScreen(), const MatchUiState());
+      await shot('lobby', const LobbyScreen(), _lobbyState());
+      await shot(
+        'prepare',
+        const PrepareScreen(),
+        _prepareState(_fixturePhotosSix(), count: 6, needed: 6),
+      );
+      await shot('round', const RoundScreen(), _roundState(dog));
+      await shot(
+        'round-reveal',
+        const RoundScreen(),
+        _classicRevealState(dog),
+        extraMs: 900,
+      );
+      await shot(
+        'meme-editor',
+        const MemeScreen(),
+        _memeEditorState(cat),
+        before: () async {
+          await tester.enterText(
+            find.byType(TextField).at(0),
+            'WHEN THE CAKE HITS THE FLOOR',
+          );
+          await tester.enterText(
+            find.byType(TextField).at(1),
+            'AND THE ROOM HEARD YOU',
+          );
+          await tester.pump();
+        },
+      );
+      await shot('meme-vote', const MemeScreen(), _memeVoteState(cat));
+      await shot('meme-reveal', const MemeScreen(), _memeRevealState(cat));
+      await shot(
+        'timeline-guessing',
+        const TimelineScreen(),
+        _timelineRevealState(hamster).copyWith(
+          phase: RoundPhase.timelineGuessing,
+          remainingMs: 22000,
+          phaseDurationMs: 30000,
+        ),
+      );
+      await shot(
+        'timeline-reveal',
+        const TimelineScreen(),
+        _timelineRevealState(hamster),
+      );
+      await shot(
+        'modes',
+        const ModeSetupScreen(),
+        _setupState(mode: GameMode.makeItMeme),
+      );
+      final meme = MemeCard(
+        id: 'meme-win',
+        photoBase64: _encoded(cat),
+        template: MemeTemplate.classic,
+        topText: 'When the cake hits the floor',
+        bottomText: 'and the room heard you',
+        snapY: 48,
+        photoId: 'p-cat',
+        authorName: 'Bram',
+        photoOwnerName: 'Noor',
+        upVotes: 3,
+        mehVotes: 0,
+        downVotes: 0,
+        points: 300,
+        isWinner: true,
+      );
+      await shot(
+        'podium',
+        const PodiumScreen(),
+        _podiumState().copyWith(topMemes: <MemeCard>[meme]),
+        extraMs: 900,
+      );
+    },
+    skip: !_exportScreenshots,
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
 
   testWidgets('store play screenshots', (tester) async {
     final view =
@@ -1173,6 +1369,7 @@ Future<void> _pumpWidget(
 }) async {
   await tester.pumpWidget(
     ProviderScope(
+      key: UniqueKey(),
       overrides: [
         appSettingsProvider.overrideWith(() => _FixedSettings(settings)),
         photoLibraryProvider.overrideWithValue(TestPhotoLibrary()),
@@ -1460,6 +1657,12 @@ MatchUiState _memeVoteState(Uint8List photo) => MatchUiState(
   totalRounds: 5,
   remainingMs: 0,
   config: const MatchConfig(roundsK: 5, mode: GameMode.makeItMeme),
+  memeFocusId: 'meme-0',
+  memeFocusIndex: 0,
+  memeFocusCount: 2,
+  memeFocusVotes: 2,
+  memeFocusEligible: 3,
+  memeFocusVoterIds: const <String>{'c1', 'c3'},
   memeCards: <MemeCard>[
     MemeCard(
       id: 'meme-0',
@@ -1650,7 +1853,9 @@ Future<void> _loadFonts() async {
     ..addFont(rootBundle.load('assets/fonts/DMSans.ttf'));
   final mono = FontLoader('JetBrainsMono')
     ..addFont(rootBundle.load('assets/fonts/JetBrainsMono.ttf'));
-  await Future.wait(<Future<void>>[dmSans.load(), mono.load()]);
+  final display = FontLoader('Fredoka')
+    ..addFont(rootBundle.load('assets/fonts/Fredoka.ttf'));
+  await Future.wait(<Future<void>>[dmSans.load(), mono.load(), display.load()]);
   final iconFont = File(
     '${Platform.environment['FLUTTER_ROOT'] ?? '/opt/flutter'}'
     '/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf',

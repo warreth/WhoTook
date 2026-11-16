@@ -6,11 +6,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/media/photo_service.dart';
 import '../../core/models/models.dart';
+import '../../core/theme/game_skin.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../l10n/l10n.dart';
 import '../../state/match_coordinator.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
+import '../widgets/game_background.dart';
 import '../widgets/game_widgets.dart';
 import '../widgets/host_controls.dart';
 import 'settings_screen.dart';
@@ -29,6 +31,7 @@ class PrepareScreen extends ConsumerWidget {
     final l10n = context.l10n;
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.fromLTRB(
           AppSpacing.s20,
@@ -74,177 +77,176 @@ class PrepareScreen extends ConsumerWidget {
           ],
         ),
       ),
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 840),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.s20,
-                AppSpacing.s16,
-                AppSpacing.s20,
-                AppSpacing.s24,
-              ),
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: Text(
-                        state.config.mode == GameMode.makeItMeme
-                            ? l10n.memeVaultTitle
-                            : l10n.checkYourPhotos,
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: -0.4,
-                          color: colors.ink,
+      body: GameBackdrop(
+        mode: state.config.mode,
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 840),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.s20,
+                  AppSpacing.s16,
+                  AppSpacing.s20,
+                  AppSpacing.s24,
+                ),
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          state.config.mode == GameMode.makeItMeme
+                              ? l10n.memeVaultTitle
+                              : l10n.checkYourPhotos,
+                          style: gameDisplay(size: 28, color: colors.ink),
                         ),
                       ),
+                      const HostControlsButton(),
+                      FrameCounter(
+                        current: state.candidates.length,
+                        total: state.photosNeeded,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.s4),
+                  Text(
+                    state.config.mode == GameMode.makeItMeme
+                        ? l10n.memeVaultBody
+                        : state.photosNeeded > 0 &&
+                              state.candidates.length >= state.photosNeeded
+                        ? l10n.photosAllHere(state.candidates.length)
+                        : state.photosNeeded > 0 && state.candidates.isNotEmpty
+                        ? l10n.photosPartial(
+                            state.candidates.length,
+                            state.photosNeeded,
+                          )
+                        : l10n.photosReading,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: colors.ink2,
+                      height: 1.4,
                     ),
-                    const HostControlsButton(),
-                    FrameCounter(
-                      current: state.candidates.length,
-                      total: state.photosNeeded,
+                  ),
+                  const SizedBox(height: AppSpacing.s16),
+                  if (state.candidates.isNotEmpty &&
+                      state.photosNeeded > 0 &&
+                      state.candidates.length < state.photosNeeded) ...<Widget>[
+                    NoticeBanner(
+                      message: l10n.photosTooFew(state.candidates.length),
+                      tone: StatusTone.warning,
+                      icon: Icons.photo_library_outlined,
+                    ),
+                    const SizedBox(height: AppSpacing.s12),
+                  ],
+                  if (state.candidates.isEmpty)
+                    SurfaceCard(
+                      child: EmptyState(
+                        title: state.errorMessage == null
+                            ? l10n.readingAlbums
+                            : l10n.noUsablePhotos,
+                        body: state.errorMessage ?? l10n.noUsablePhotosBody,
+                        actionLabel: l10n.photoSettings,
+                        onAction: () => unawaited(
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const SettingsScreen(),
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final columns = _photoColumns(
+                          constraints.maxWidth,
+                          state.candidates.length,
+                        );
+                        final tileWidth =
+                            (constraints.maxWidth -
+                                AppSpacing.s12 * (columns - 1)) /
+                            columns;
+                        return Wrap(
+                          spacing: AppSpacing.s12,
+                          runSpacing: AppSpacing.s12,
+                          children: <Widget>[
+                            for (
+                              var index = 0;
+                              index < state.candidates.length;
+                              index++
+                            )
+                              SizedBox(
+                                width: tileWidth,
+                                height: tileWidth,
+                                child: _PhotoTile(
+                                  candidate: state.candidates[index],
+                                  index: index,
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                  const SizedBox(height: AppSpacing.s16),
+                  if (state.config.mode != GameMode.makeItMeme &&
+                      state.plantUnlocked &&
+                      state.plantEligible &&
+                      !state.plantUsed)
+                    _PlantTile(
+                      onTap: () => unawaited(
+                        _plant(context, coordinator, state, isHost),
+                      ),
+                    ),
+                  if (state.plantUsed) ...<Widget>[
+                    const SizedBox(height: AppSpacing.s8),
+                    StatusRow(
+                      label: l10n.secretPhotoPlanted,
+                      tone: StatusTone.positive,
                     ),
                   ],
-                ),
-                const SizedBox(height: AppSpacing.s4),
-                Text(
-                  state.config.mode == GameMode.makeItMeme
-                      ? l10n.memeVaultBody
-                      : state.photosNeeded > 0 &&
-                            state.candidates.length >= state.photosNeeded
-                      ? l10n.photosAllHere(state.candidates.length)
-                      : state.photosNeeded > 0 && state.candidates.isNotEmpty
-                      ? l10n.photosPartial(
-                          state.candidates.length,
-                          state.photosNeeded,
-                        )
-                      : l10n.photosReading,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: colors.ink2,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.s16),
-                if (state.candidates.isNotEmpty &&
-                    state.photosNeeded > 0 &&
-                    state.candidates.length < state.photosNeeded) ...<Widget>[
-                  NoticeBanner(
-                    message: l10n.photosTooFew(state.candidates.length),
-                    tone: StatusTone.warning,
-                    icon: Icons.photo_library_outlined,
-                  ),
-                  const SizedBox(height: AppSpacing.s12),
-                ],
-                if (state.candidates.isEmpty)
-                  SurfaceCard(
-                    child: EmptyState(
-                      title: state.errorMessage == null
-                          ? l10n.readingAlbums
-                          : l10n.noUsablePhotos,
-                      body: state.errorMessage ?? l10n.noUsablePhotosBody,
-                      actionLabel: l10n.photoSettings,
-                      onAction: () => unawaited(
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const SettingsScreen(),
-                          ),
+                  if (state.config.mode == GameMode.makeItMeme) ...<Widget>[
+                    const SizedBox(height: AppSpacing.s12),
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.s12),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: colors.hairline,
+                          style: BorderStyle.solid,
                         ),
+                        borderRadius: BorderRadius.circular(AppRadii.rControl),
                       ),
-                    ),
-                  )
-                else
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final columns = _photoColumns(
-                        constraints.maxWidth,
-                        state.candidates.length,
-                      );
-                      final tileWidth =
-                          (constraints.maxWidth -
-                              AppSpacing.s12 * (columns - 1)) /
-                          columns;
-                      return Wrap(
-                        spacing: AppSpacing.s12,
-                        runSpacing: AppSpacing.s12,
+                      child: Row(
                         children: <Widget>[
-                          for (
-                            var index = 0;
-                            index < state.candidates.length;
-                            index++
-                          )
-                            SizedBox(
-                              width: tileWidth,
-                              height: tileWidth,
-                              child: _PhotoTile(
-                                candidate: state.candidates[index],
-                                index: index,
+                          Icon(
+                            Icons.shield_outlined,
+                            size: 16,
+                            color: colors.ink3,
+                          ),
+                          const SizedBox(width: AppSpacing.s8),
+                          Expanded(
+                            child: Text(
+                              l10n.memeVaultOnly,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: colors.ink2,
+                                height: 1.35,
                               ),
                             ),
-                        ],
-                      );
-                    },
-                  ),
-                const SizedBox(height: AppSpacing.s16),
-                if (state.config.mode != GameMode.makeItMeme &&
-                    state.plantUnlocked &&
-                    state.plantEligible &&
-                    !state.plantUsed)
-                  _PlantTile(
-                    onTap: () =>
-                        unawaited(_plant(context, coordinator, state, isHost)),
-                  ),
-                if (state.plantUsed) ...<Widget>[
-                  const SizedBox(height: AppSpacing.s8),
-                  StatusRow(
-                    label: l10n.secretPhotoPlanted,
-                    tone: StatusTone.positive,
-                  ),
-                ],
-                if (state.config.mode == GameMode.makeItMeme) ...<Widget>[
-                  const SizedBox(height: AppSpacing.s12),
-                  Container(
-                    padding: const EdgeInsets.all(AppSpacing.s12),
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: colors.hairline,
-                        style: BorderStyle.solid,
-                      ),
-                      borderRadius: BorderRadius.circular(AppRadii.rControl),
-                    ),
-                    child: Row(
-                      children: <Widget>[
-                        Icon(
-                          Icons.shield_outlined,
-                          size: 16,
-                          color: colors.ink3,
-                        ),
-                        const SizedBox(width: AppSpacing.s8),
-                        Expanded(
-                          child: Text(
-                            l10n.memeVaultOnly,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: colors.ink2,
-                              height: 1.35,
-                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
+                  ],
+                  if (state.errorMessage != null) ...<Widget>[
+                    const SizedBox(height: AppSpacing.s12),
+                    NoticeBanner(
+                      message: state.errorMessage!,
+                      tone: StatusTone.warning,
+                      icon: Icons.error_outline,
+                    ),
+                  ],
                 ],
-                if (state.errorMessage != null) ...<Widget>[
-                  const SizedBox(height: AppSpacing.s12),
-                  NoticeBanner(
-                    message: state.errorMessage!,
-                    tone: StatusTone.warning,
-                    icon: Icons.error_outline,
-                  ),
-                ],
-              ],
+              ),
             ),
           ),
         ),

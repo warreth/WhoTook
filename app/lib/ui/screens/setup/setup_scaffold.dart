@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/models/models.dart';
+import '../../../core/theme/game_skin.dart';
 import '../../../core/theme/whotook_theme.dart';
 import '../../../l10n/l10n.dart';
+import '../../widgets/game_background.dart';
 import '../../widgets/game_widgets.dart';
 
 /// Shared header, step rail and bottom action for the four host setup screens.
@@ -33,98 +36,98 @@ class SetupScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 720),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.s8,
-                    AppSpacing.s8,
-                    AppSpacing.s20,
-                    0,
+      backgroundColor: Colors.transparent,
+      body: GameBackdrop(
+        mode: GameMode.classic,
+        lobby: true,
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.s8,
+                      AppSpacing.s8,
+                      AppSpacing.s20,
+                      0,
+                    ),
+                    child: Row(
+                      children: <Widget>[
+                        IconButton(
+                          tooltip: context.l10n.back,
+                          onPressed: () => Navigator.of(context).maybePop(),
+                          icon: const Icon(Icons.arrow_back),
+                        ),
+                        const SizedBox(width: AppSpacing.s4),
+                        Expanded(
+                          child: Text(
+                            context.l10n.hostAGameTitle,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: colors.ink2,
+                            ),
+                          ),
+                        ),
+                        StickerBadge(
+                          label: context.l10n.stepOf(step),
+                          background: colors.raised,
+                          foreground: colors.ink,
+                          angle: 0.03,
+                        ),
+                      ],
+                    ),
                   ),
-                  child: Row(
-                    children: <Widget>[
-                      IconButton(
-                        tooltip: context.l10n.back,
-                        onPressed: () => Navigator.of(context).maybePop(),
-                        icon: const Icon(Icons.arrow_back),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.s20,
+                      AppSpacing.s8,
+                      AppSpacing.s20,
+                      0,
+                    ),
+                    child: _StepRail(step: step),
+                  ),
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.s20,
+                        AppSpacing.s12,
+                        AppSpacing.s20,
+                        AppSpacing.s24,
                       ),
-                      const SizedBox(width: AppSpacing.s4),
-                      Expanded(
-                        child: Text(
-                          context.l10n.hostAGameTitle,
+                      children: <Widget>[
+                        Text(
+                          title,
+                          style: gameDisplay(
+                            size: 34,
+                            height: 1.02,
+                            color: colors.ink,
+                            letterSpacing: -1,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.s4),
+                        Text(
+                          subtitle,
                           style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
+                            fontSize: 14,
+                            height: 1.4,
                             color: colors.ink2,
                           ),
                         ),
-                      ),
-                      Text(
-                        context.l10n.stepOf(step),
-                        style: tabularFigures(
-                          TextStyle(
-                            fontFamily: 'JetBrainsMono',
-                            fontSize: 11,
-                            color: colors.ink3,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.s20,
-                    AppSpacing.s8,
-                    AppSpacing.s20,
-                    0,
-                  ),
-                  child: _StepRail(step: step),
-                ),
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.s20,
-                      AppSpacing.s12,
-                      AppSpacing.s20,
-                      AppSpacing.s24,
-                    ),
-                    children: <Widget>[
-                      Text(
-                        title,
-                        style: TextStyle(
-                          fontSize: 30,
-                          height: 1.05,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: -0.9,
-                          color: colors.ink,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.s4),
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          fontSize: 14,
-                          height: 1.4,
-                          color: colors.ink2,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.s20),
-                      child,
-                      if (notice != null) ...<Widget>[
-                        const SizedBox(height: AppSpacing.s12),
-                        notice!,
+                        const SizedBox(height: AppSpacing.s20),
+                        child,
+                        if (notice != null) ...<Widget>[
+                          const SizedBox(height: AppSpacing.s12),
+                          notice!,
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

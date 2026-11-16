@@ -5,16 +5,22 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../core/avatars.dart';
+import '../../core/media/avatar_photo_service.dart';
 import '../../core/models/models.dart';
+import '../../core/theme/game_skin.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../l10n/l10n.dart';
 import '../../state/match_coordinator.dart';
 import '../../state/providers.dart';
+import '../widgets/avatar_editor.dart';
 import '../widgets/common.dart';
+import '../widgets/game_background.dart';
 import '../widgets/game_widgets.dart';
 import '../widgets/mode_picker.dart';
 import '../widgets/online_hint.dart';
 import '../widgets/party_pass_bar.dart';
+import 'avatar_crop_screen.dart';
 
 class LobbyScreen extends ConsumerWidget {
   const LobbyScreen({super.key});
@@ -28,6 +34,7 @@ class LobbyScreen extends ConsumerWidget {
     final l10n = context.l10n;
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       bottomNavigationBar: isHost
           ? SafeArea(
               minimum: const EdgeInsets.fromLTRB(
@@ -73,246 +80,252 @@ class LobbyScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: SafeArea(
-        top: false,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 720),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.s20,
-                AppSpacing.s8,
-                AppSpacing.s20,
-                112,
-              ),
-              children: <Widget>[
-                if (isHost && state.inviteUrl != null) ...<Widget>[
-                  Text(
-                    l10n.scanToJoin,
-                    style: TextStyle(
-                      fontSize: 30,
-                      height: 1.05,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.9,
-                      color: colors.ink,
+      body: GameBackdrop(
+        mode: state.config.mode,
+        lobby: true,
+        child: SafeArea(
+          top: false,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.s20,
+                  AppSpacing.s8,
+                  AppSpacing.s20,
+                  112,
+                ),
+                children: <Widget>[
+                  if (isHost && state.inviteUrl != null) ...<Widget>[
+                    Text(
+                      l10n.scanToJoin,
+                      style: gameDisplay(
+                        size: 34,
+                        height: 1.02,
+                        color: colors.ink,
+                        letterSpacing: -1,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: AppSpacing.s4),
-                  Text(
-                    l10n.scanToJoinBody,
-                    style: TextStyle(
-                      fontSize: 14,
-                      height: 1.4,
-                      color: colors.ink2,
+                    const SizedBox(height: AppSpacing.s4),
+                    Text(
+                      l10n.scanToJoinBody,
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.4,
+                        color: colors.ink2,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: AppSpacing.s16),
-                  SurfaceCard(
-                    child: Column(
-                      children: <Widget>[
-                        Row(
-                          children: <Widget>[
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.s8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: colors.raised,
-                                borderRadius: BorderRadius.circular(
-                                  AppRadii.rSm,
+                    const SizedBox(height: AppSpacing.s16),
+                    SurfaceCard(
+                      child: Column(
+                        children: <Widget>[
+                          Row(
+                            children: <Widget>[
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.s8,
+                                  vertical: 4,
                                 ),
-                              ),
-                              child: Text(
-                                l10n.roomCode(state.roomId ?? ''),
-                                style: tabularFigures(
-                                  const TextStyle(
-                                    fontFamily: 'JetBrainsMono',
-                                    fontSize: 10,
-                                    letterSpacing: 0.5,
+                                decoration: BoxDecoration(
+                                  color: colors.raised,
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadii.rSm,
+                                  ),
+                                ),
+                                child: Text(
+                                  l10n.roomCode(state.roomId ?? ''),
+                                  style: tabularFigures(
+                                    const TextStyle(
+                                      fontFamily: 'JetBrainsMono',
+                                      fontSize: 10,
+                                      letterSpacing: 0.5,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            const Spacer(),
-                            StatusRow(
-                              label:
-                                  state.connectionMode ==
-                                      ConnectionMode.localLan
-                                  ? l10n.sameWifi
-                                  : l10n.online,
-                              tone: StatusTone.positive,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppSpacing.s16),
-                        Container(
-                          padding: const EdgeInsets.all(AppSpacing.s12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(AppRadii.rSm),
+                              const Spacer(),
+                              StatusRow(
+                                label:
+                                    state.connectionMode ==
+                                        ConnectionMode.localLan
+                                    ? l10n.sameWifi
+                                    : l10n.online,
+                                tone: StatusTone.positive,
+                              ),
+                            ],
                           ),
-                          child: QrImageView(
-                            data: state.inviteUrl!,
-                            version: QrVersions.auto,
-                            size: 160,
-                            backgroundColor: Colors.white,
-                            eyeStyle: const QrEyeStyle(
-                              eyeShape: QrEyeShape.square,
-                              color: Color(0xFF1F1B16),
+                          const SizedBox(height: AppSpacing.s16),
+                          Container(
+                            padding: const EdgeInsets.all(AppSpacing.s12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(AppRadii.rSm),
                             ),
-                            dataModuleStyle: const QrDataModuleStyle(
-                              dataModuleShape: QrDataModuleShape.square,
-                              color: Color(0xFF1F1B16),
+                            child: QrImageView(
+                              data: state.inviteUrl!,
+                              version: QrVersions.auto,
+                              size: 160,
+                              backgroundColor: Colors.white,
+                              eyeStyle: const QrEyeStyle(
+                                eyeShape: QrEyeShape.square,
+                                color: Color(0xFF1F1B16),
+                              ),
+                              dataModuleStyle: const QrDataModuleStyle(
+                                dataModuleShape: QrDataModuleShape.square,
+                                color: Color(0xFF1F1B16),
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: AppSpacing.s16),
-                        SecondaryButton(
-                          label: l10n.shareInviteLink,
-                          icon: Icons.ios_share,
-                          onPressed: () => _shareInvite(context, state),
+                          const SizedBox(height: AppSpacing.s16),
+                          SecondaryButton(
+                            label: l10n.shareInviteLink,
+                            icon: Icons.ios_share,
+                            onPressed: () => _shareInvite(context, state),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else ...<Widget>[
+                    Text(
+                      l10n.youreIn,
+                      style: gameDisplay(
+                        size: 34,
+                        height: 1.02,
+                        color: colors.ink,
+                        letterSpacing: -1,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.s4),
+                    Text(
+                      l10n.hostStartsPhotoCheck,
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.4,
+                        color: colors.ink2,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.s16),
+                    NoticeBanner(
+                      message: l10n.waitingForHostToStart,
+                      icon: Icons.hourglass_empty,
+                    ),
+                    OnlinePlayHint(
+                      key: ValueKey<String>(
+                        'online-hint-${state.roomId ?? ''}',
+                      ),
+                      mode: state.connectionMode,
+                    ),
+                  ],
+                  const SizedBox(height: AppSpacing.s16),
+                  _ModeBanner(
+                    mode: state.config.mode,
+                    isHost: isHost,
+                    onEdit: isHost
+                        ? () => unawaited(_openSetupEditor(context))
+                        : null,
+                  ),
+                  const SizedBox(height: AppSpacing.s12),
+                  const PartyPassLobbyBar(),
+                  const SizedBox(height: AppSpacing.s12),
+                  SurfaceCard(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.s16,
+                      AppSpacing.s12,
+                      AppSpacing.s8,
+                      AppSpacing.s12,
+                    ),
+                    child: Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: Wrap(
+                            spacing: AppSpacing.s12,
+                            runSpacing: AppSpacing.s8,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: <Widget>[
+                              _SetupChip(
+                                icon: Icons.casino_outlined,
+                                label: l10n.roundsCount(state.config.roundsK),
+                              ),
+                              _SetupChip(
+                                icon: Icons.timer_outlined,
+                                label:
+                                    '${_paceName(l10n, state.config.roundSeconds)} · ${l10n.secondsShort(state.config.roundSeconds)}',
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
-                ] else ...<Widget>[
-                  Text(
-                    l10n.youreIn,
-                    style: TextStyle(
-                      fontSize: 30,
-                      height: 1.05,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.9,
-                      color: colors.ink,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.s4),
-                  Text(
-                    l10n.hostStartsPhotoCheck,
-                    style: TextStyle(
-                      fontSize: 14,
-                      height: 1.4,
-                      color: colors.ink2,
-                    ),
-                  ),
                   const SizedBox(height: AppSpacing.s16),
-                  NoticeBanner(
-                    message: l10n.waitingForHostToStart,
-                    icon: Icons.hourglass_empty,
-                  ),
-                  OnlinePlayHint(
-                    key: ValueKey<String>('online-hint-${state.roomId ?? ''}'),
-                    mode: state.connectionMode,
-                  ),
-                ],
-                const SizedBox(height: AppSpacing.s16),
-                _ModeBanner(
-                  mode: state.config.mode,
-                  isHost: isHost,
-                  onEdit: isHost
-                      ? () => unawaited(_openSetupEditor(context))
-                      : null,
-                ),
-                const SizedBox(height: AppSpacing.s12),
-                const PartyPassLobbyBar(),
-                const SizedBox(height: AppSpacing.s12),
-                SurfaceCard(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.s16,
-                    AppSpacing.s12,
-                    AppSpacing.s8,
-                    AppSpacing.s12,
-                  ),
-                  child: Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: Wrap(
-                          spacing: AppSpacing.s12,
-                          runSpacing: AppSpacing.s8,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: <Widget>[
-                            _SetupChip(
-                              icon: Icons.casino_outlined,
-                              label: l10n.roundsCount(state.config.roundsK),
-                            ),
-                            _SetupChip(
-                              icon: Icons.timer_outlined,
-                              label:
-                                  '${_paceName(l10n, state.config.roundSeconds)} · ${l10n.secondsShort(state.config.roundSeconds)}',
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.s16),
-                SurfaceCard(
-                  padding: EdgeInsets.zero,
-                  child: Column(
-                    children: <Widget>[
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                          AppSpacing.s16,
-                          AppSpacing.s12,
-                          AppSpacing.s16,
-                          AppSpacing.s12,
-                        ),
-                        child: Row(
-                          children: <Widget>[
-                            Expanded(
-                              child: Text(
-                                l10n.playersJoined(state.players.length),
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                            Text(
-                              l10n.roomLabel(state.roomId ?? ''),
-                              style: tabularFigures(
-                                TextStyle(
-                                  fontFamily: 'JetBrainsMono',
-                                  fontSize: 12,
-                                  color: colors.ink3,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      for (final player in state.players)
-                        _PlayerRow(
-                          player: player,
-                          photoBase64: state.avatarPhotos[player.id],
-                          onKick: isHost && !player.isHost
-                              ? () => unawaited(
-                                  _confirmKick(context, coordinator, player),
-                                )
-                              : null,
-                        ),
-                      if (state.players.length == 1)
+                  _LobbyAvatarCard(state: state),
+                  const SizedBox(height: AppSpacing.s16),
+                  SurfaceCard(
+                    padding: EdgeInsets.zero,
+                    child: Column(
+                      children: <Widget>[
                         Padding(
-                          padding: const EdgeInsets.all(AppSpacing.s16),
-                          child: EmptyState(
-                            title: l10n.waitingFirstFriend,
-                            body: l10n.waitingFirstFriendBody,
+                          padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.s16,
+                            AppSpacing.s12,
+                            AppSpacing.s16,
+                            AppSpacing.s12,
+                          ),
+                          child: Row(
+                            children: <Widget>[
+                              Expanded(
+                                child: Text(
+                                  l10n.playersJoined(state.players.length),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                l10n.roomLabel(state.roomId ?? ''),
+                                style: tabularFigures(
+                                  TextStyle(
+                                    fontFamily: 'JetBrainsMono',
+                                    fontSize: 12,
+                                    color: colors.ink3,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                    ],
+                        for (final player in state.players)
+                          _PlayerRow(
+                            player: player,
+                            photoBase64: state.avatarPhotos[player.id],
+                            onKick: isHost && !player.isHost
+                                ? () => unawaited(
+                                    _confirmKick(context, coordinator, player),
+                                  )
+                                : null,
+                          ),
+                        if (state.players.length == 1)
+                          Padding(
+                            padding: const EdgeInsets.all(AppSpacing.s16),
+                            child: EmptyState(
+                              title: l10n.waitingFirstFriend,
+                              body: l10n.waitingFirstFriendBody,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-                if (state.errorMessage != null) ...<Widget>[
-                  const SizedBox(height: AppSpacing.s12),
-                  NoticeBanner(
-                    message: state.errorMessage!,
-                    tone: StatusTone.warning,
-                    icon: Icons.error_outline,
-                  ),
+                  if (state.errorMessage != null) ...<Widget>[
+                    const SizedBox(height: AppSpacing.s12),
+                    NoticeBanner(
+                      message: state.errorMessage!,
+                      tone: StatusTone.warning,
+                      icon: Icons.error_outline,
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
@@ -769,6 +782,178 @@ class _SheetChoice extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _LobbyAvatarCard extends ConsumerStatefulWidget {
+  const _LobbyAvatarCard({required this.state});
+
+  final MatchUiState state;
+
+  @override
+  ConsumerState<_LobbyAvatarCard> createState() => _LobbyAvatarCardState();
+}
+
+class _LobbyAvatarCardState extends ConsumerState<_LobbyAvatarCard> {
+  bool _picking = false;
+
+  Player? get _local => widget.state.players
+      .where((player) => player.id == widget.state.localPlayerId)
+      .firstOrNull;
+
+  Future<void> _apply(String avatar, String? photo) async {
+    final coordinator = ref.read(matchCoordinatorProvider);
+    await ref
+        .read(appSettingsProvider.notifier)
+        .apply(
+          (current) => current.copyWith(
+            avatar: avatar,
+            avatarPhoto: photo,
+            clearAvatarPhoto: photo == null,
+          ),
+        );
+    await coordinator.setLocalAvatar(avatar, photo);
+  }
+
+  Future<void> _snapSelfie() async {
+    if (_picking) return;
+    setState(() => _picking = true);
+    try {
+      final bytes = await ref
+          .read(avatarPhotoServiceProvider)
+          .pick(camera: true);
+      if (bytes == null || !mounted) return;
+      final cropped = await Navigator.of(context).push<Uint8List>(
+        MaterialPageRoute<Uint8List>(
+          builder: (_) => AvatarCropScreen(imageBytes: bytes),
+        ),
+      );
+      if (cropped == null || !mounted) return;
+      await _apply(kPhotoAvatar, encodeAvatarPhoto(cropped));
+    } finally {
+      if (mounted) setState(() => _picking = false);
+    }
+  }
+
+  Future<void> _openStickers() async {
+    final player = _local;
+    if (player == null) return;
+    var avatar = player.avatar;
+    var photo = widget.state.avatarPhotos[player.id];
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) => SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.s20,
+              0,
+              AppSpacing.s20,
+              AppSpacing.s24,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Text(
+                  context.l10n.avatar,
+                  style: gameDisplay(
+                    size: 24,
+                    color: WhoTookColors.of(context).ink,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.s12),
+                AvatarEditor(
+                  avatar: avatar,
+                  photoBase64: photo,
+                  onChanged: (nextAvatar, nextPhoto) {
+                    setSheetState(() {
+                      avatar = nextAvatar;
+                      photo = nextPhoto;
+                    });
+                    unawaited(_apply(nextAvatar, nextPhoto));
+                  },
+                ),
+                const SizedBox(height: AppSpacing.s16),
+                GameButton(
+                  label: context.l10n.done,
+                  onPressed: () => Navigator.of(context).pop(),
+                  fullWidth: true,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
+    final player = _local;
+    if (player == null) return const SizedBox.shrink();
+    final photo = widget.state.avatarPhotos[player.id];
+    return SurfaceCard(
+      child: Row(
+        children: <Widget>[
+          PlayerAvatar(
+            initial: player.name,
+            avatar: player.avatar,
+            photoBase64: photo,
+            size: 54,
+          ),
+          const SizedBox(width: AppSpacing.s12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  l10n.selfieStickerTitle,
+                  style: gameDisplay(size: 16, color: colors.ink),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  l10n.selfieStickerBody,
+                  style: TextStyle(
+                    fontSize: 11,
+                    height: 1.3,
+                    color: colors.ink2,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.s8),
+                Wrap(
+                  spacing: AppSpacing.s8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: <Widget>[
+                    GameButton(
+                      label: l10n.takeSelfie,
+                      onPressed: _picking
+                          ? null
+                          : () => unawaited(_snapSelfie()),
+                      icon: Icons.photo_camera_front_outlined,
+                      small: true,
+                    ),
+                    TextButton(
+                      onPressed: () => unawaited(_openStickers()),
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size(0, 42),
+                        foregroundColor: colors.ink2,
+                      ),
+                      child: Text(l10n.avatarChoices),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

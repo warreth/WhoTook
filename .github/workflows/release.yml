@@ -10,7 +10,7 @@ on:
         required: true
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
@@ -19,6 +19,7 @@ concurrency:
 jobs:
   gate:
     name: Check optional store secrets
+    environment: production
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -52,20 +53,23 @@ jobs:
 
   android:
     name: Signed APK and AAB
+    environment: production
     runs-on: ubuntu-latest
     timeout-minutes: 30
     outputs:
       version: ${{ steps.version.outputs.version }}
       signed: ${{ steps.signing.outputs.present }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
           java-version: 17
 
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           flutter-version: 3.47.2
           channel: stable
@@ -86,6 +90,7 @@ jobs:
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          umask 077
           if [ -z "$KEYSTORE_BASE64" ]; then
             echo "present=false" >> "$GITHUB_OUTPUT"
             echo "No keystore secret. A release must be signed; refusing to publish a debug-signed APK." >> "$GITHUB_STEP_SUMMARY"
@@ -136,7 +141,7 @@ jobs:
           sha256sum *.apk *.aab 2>/dev/null > SHA256SUMS.txt || true
           ls -lh
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: android
           path: dist/*
@@ -147,9 +152,11 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           flutter-version: 3.47.2
           channel: stable
@@ -175,7 +182,7 @@ jobs:
           sha256sum *.ipa > SHA256SUMS-ios.txt
           ls -lh
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ios-unsigned
           path: dist/*
@@ -184,17 +191,23 @@ jobs:
   release:
     name: GitHub release
     needs: [android, ios-unsigned]
+    if: github.event_name == 'push' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
+    environment: production
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: android
           path: dist
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: ios-unsigned
           path: dist
@@ -211,6 +224,10 @@ jobs:
           TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           VERSION: ${{ needs.android.outputs.version }}
         run: |
+          case "$TAG" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "Tag must look like v1.2.3" >&2; exit 1 ;;
+          esac
           if [ "${TAG#v}" != "$VERSION" ]; then
             echo "Tag $TAG does not match pubspec version $VERSION" >&2
             exit 1
@@ -231,15 +248,16 @@ jobs:
     name: Google Play (optional)
     needs: [gate, android]
     if: needs.gate.outputs.play == 'true' && needs.android.outputs.signed == 'true'
+    environment: production
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: android
           path: dist
 
-      - uses: r0adkll/upload-google-play@v1.1.3
+      - uses: r0adkll/upload-google-play@935ef9c68bb393a8e6116b1575626a7f5be3a7fb # v1.1.3
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: party.whotook.app
@@ -252,12 +270,15 @@ jobs:
     name: Build and upload a signed IPA (optional)
     needs: gate
     if: needs.gate.outputs.ios == 'true'
+    environment: production
     runs-on: macos-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           flutter-version: 3.47.2
           channel: stable
@@ -348,7 +369,7 @@ jobs:
       # publish it as a public release asset: SideStore and AltStore install the
       # unsigned IPA and re-sign it on the device.
       - name: Keep the signed IPA as a private CI artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ios-signed
           path: app/build/ios/ipa/*.ipa

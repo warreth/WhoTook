@@ -2521,18 +2521,6 @@ abstract class AppLocalizations {
   /// **'Your meme'**
   String get memeYourMeme;
 
-  /// No description provided for @memeNextMeme.
-  ///
-  /// In en, this message translates to:
-  /// **'Next meme'**
-  String get memeNextMeme;
-
-  /// No description provided for @memeSeeResult.
-  ///
-  /// In en, this message translates to:
-  /// **'See result'**
-  String get memeSeeResult;
-
   /// No description provided for @memeVoteLocked.
   ///
   /// In en, this message translates to:
@@ -2544,12 +2532,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tap one to vote.'**
   String get memeTapToVote;
-
-  /// No description provided for @memeWaitingVotes.
-  ///
-  /// In en, this message translates to:
-  /// **'Waiting for the rest of the table.'**
-  String get memeWaitingVotes;
 
   /// No description provided for @memeRoundWinner.
   ///
@@ -2665,6 +2647,90 @@ abstract class AppLocalizations {
   /// **'A tap when a vote lands'**
   String get memeHapticsBody;
 
+  /// No description provided for @photoLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading photo...'**
+  String get photoLoading;
+
+  /// Tilted round sticker in a game header
+  ///
+  /// In en, this message translates to:
+  /// **'ROUND {current}/{total}'**
+  String roundBadge(int current, int total);
+
+  /// Live vote counter while the room votes on one meme
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for votes: {voted}/{eligible} voted'**
+  String waitingForVotes(int voted, int eligible);
+
+  /// No description provided for @endVoting.
+  ///
+  /// In en, this message translates to:
+  /// **'End voting / Skip AFK'**
+  String get endVoting;
+
+  /// No description provided for @votesAreIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Votes are in!'**
+  String get votesAreIn;
+
+  /// No description provided for @countingVotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Counting the votes...'**
+  String get countingVotes;
+
+  /// No description provided for @nextRound.
+  ///
+  /// In en, this message translates to:
+  /// **'Next Round'**
+  String get nextRound;
+
+  /// No description provided for @waitingForHostToContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for host to continue...'**
+  String get waitingForHostToContinue;
+
+  /// No description provided for @winningMemeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Winning meme of the match'**
+  String get winningMemeTitle;
+
+  /// Vote split shown under the winning meme
+  ///
+  /// In en, this message translates to:
+  /// **'{up} up · {meh} meh · {down} down'**
+  String memeVoteTally(int up, int meh, int down);
+
+  /// Full-screen arcade transition between rounds
+  ///
+  /// In en, this message translates to:
+  /// **'ROUND {round}: {mode}!'**
+  String roundSplash(int round, String mode);
+
+  /// No description provided for @selfieStickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your sticker'**
+  String get selfieStickerTitle;
+
+  /// No description provided for @selfieStickerBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Snap a quick selfie or pick a cartoon face.'**
+  String get selfieStickerBody;
+
+  /// No description provided for @playerVoted.
+  ///
+  /// In en, this message translates to:
+  /// **'Voted'**
+  String get playerVoted;
+
   /// No description provided for @pickDecade.
   ///
   /// In en, this message translates to:
@@ -2689,23 +2755,17 @@ abstract class AppLocalizations {
   /// **'Actual date'**
   String get actualDate;
 
-  /// No description provided for @ownerIncluded.
+  /// No description provided for @yourGuess.
   ///
   /// In en, this message translates to:
-  /// **'Owner included'**
-  String get ownerIncluded;
+  /// **'Your guess'**
+  String get yourGuess;
 
   /// No description provided for @averageMiss.
   ///
   /// In en, this message translates to:
   /// **'Average miss: {distance}'**
   String averageMiss(String distance);
-
-  /// No description provided for @yourGuess.
-  ///
-  /// In en, this message translates to:
-  /// **'Your guess'**
-  String get yourGuess;
 
   /// No description provided for @ownerLabel.
   ///
@@ -2800,7 +2860,7 @@ abstract class AppLocalizations {
   /// partyPassUnlockButton
   ///
   /// In en, this message translates to:
-  /// **'Unlock Forever — {price}'**
+  /// **'Unlock Forever, {price}'**
   String partyPassUnlockButton(String price);
 
   /// No description provided for @partyPassRestore.

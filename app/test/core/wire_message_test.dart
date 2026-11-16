@@ -75,7 +75,7 @@ void main() {
     });
 
     test('every protocol constant is unique and non empty', () {
-      expect(WireType.all.length, 41);
+      expect(WireType.all.length, 45);
       for (final type in WireType.all) {
         expect(type, isNotEmpty);
       }
@@ -92,6 +92,7 @@ void main() {
         'submit_photos',
         'photo_chunk',
         'photo_complete',
+        'photo_request',
         'player_ready',
         'plant_photo',
         'plant_assignment',
@@ -104,6 +105,7 @@ void main() {
         'sound_effect',
         'room_theme',
         'party_pass',
+        'avatar_update',
         'round_reveal',
         'caption_submit',
         'caption_options',
@@ -112,6 +114,8 @@ void main() {
         'meme_assignment',
         'meme_submit',
         'meme_options',
+        'meme_focus',
+        'meme_tally',
         'meme_vote',
         'meme_reveal',
         'meme_swap',

@@ -1,6 +1,8 @@
 name: TestFlight
 
 on:
+  push:
+    tags: ["v*"]
   workflow_dispatch:
     inputs:
       build_number:
@@ -11,15 +13,23 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: testflight-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   ios:
     name: Build and upload to TestFlight
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
+    environment: production
     runs-on: macos-latest
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           flutter-version: 3.47.2
           channel: stable
@@ -49,7 +59,14 @@ jobs:
           REQUESTED_BUILD: ${{ inputs.build_number }}
         run: |
           VERSION=$(awk '/^version:/ {print $2}' app/pubspec.yaml | cut -d+ -f1)
+          case "$VERSION" in
+            [0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "Unexpected pubspec version: $VERSION" >&2; exit 1 ;;
+          esac
           if [ -n "$REQUESTED_BUILD" ]; then
+            case "$REQUESTED_BUILD" in
+              *[!0-9]*) echo "build_number must be numeric" >&2; exit 1 ;;
+            esac
             BUILD="$REQUESTED_BUILD"
           else
             BUILD=$((1000 + GITHUB_RUN_NUMBER))
@@ -67,6 +84,7 @@ jobs:
           API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
           TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
         run: |
+          umask 077
           KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
           KEYCHAIN_PASS=$(openssl rand -hex 24)
           security create-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN"

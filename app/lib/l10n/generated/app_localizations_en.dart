@@ -1459,19 +1459,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get memeYourMeme => 'Your meme';
 
   @override
-  String get memeNextMeme => 'Next meme';
-
-  @override
-  String get memeSeeResult => 'See result';
-
-  @override
   String get memeVoteLocked => 'Vote locked.';
 
   @override
   String get memeTapToVote => 'Tap one to vote.';
-
-  @override
-  String get memeWaitingVotes => 'Waiting for the rest of the table.';
 
   @override
   String get memeRoundWinner => 'Round winner';
@@ -1538,6 +1529,56 @@ class AppLocalizationsEn extends AppLocalizations {
   String get memeHapticsBody => 'A tap when a vote lands';
 
   @override
+  String get photoLoading => 'Loading photo...';
+
+  @override
+  String roundBadge(int current, int total) {
+    return 'ROUND $current/$total';
+  }
+
+  @override
+  String waitingForVotes(int voted, int eligible) {
+    return 'Waiting for votes: $voted/$eligible voted';
+  }
+
+  @override
+  String get endVoting => 'End voting / Skip AFK';
+
+  @override
+  String get votesAreIn => 'Votes are in!';
+
+  @override
+  String get countingVotes => 'Counting the votes...';
+
+  @override
+  String get nextRound => 'Next Round';
+
+  @override
+  String get waitingForHostToContinue => 'Waiting for host to continue...';
+
+  @override
+  String get winningMemeTitle => 'Winning meme of the match';
+
+  @override
+  String memeVoteTally(int up, int meh, int down) {
+    return '$up up · $meh meh · $down down';
+  }
+
+  @override
+  String roundSplash(int round, String mode) {
+    return 'ROUND $round: $mode!';
+  }
+
+  @override
+  String get selfieStickerTitle => 'Your sticker';
+
+  @override
+  String get selfieStickerBody => 'Snap a quick selfie or pick a cartoon face.';
+
+  @override
+  String get playerVoted => 'Voted';
+
+  @override
   String get pickDecade => 'Pick a decade';
 
   @override
@@ -1550,15 +1591,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get actualDate => 'Actual date';
 
   @override
-  String get ownerIncluded => 'Owner included';
+  String get yourGuess => 'Your guess';
 
   @override
   String averageMiss(String distance) {
     return 'Average miss: $distance';
   }
-
-  @override
-  String get yourGuess => 'Your guess';
 
   @override
   String get ownerLabel => 'OWNER';
@@ -1610,7 +1648,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String partyPassUnlockButton(String price) {
-    return 'Unlock Forever — $price';
+    return 'Unlock Forever, $price';
   }
 
   @override

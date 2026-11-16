@@ -7,11 +7,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/audio/game_audio_service.dart';
 import '../../core/models/models.dart';
+import '../../core/theme/game_skin.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../l10n/l10n.dart';
 import '../../state/match_coordinator.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
+import '../widgets/game_background.dart';
 import '../widgets/game_widgets.dart';
 import '../widgets/host_controls.dart';
 
@@ -30,11 +32,13 @@ class _MemeScreenState extends ConsumerState<MemeScreen> {
   final GlobalKey _winnerKey = GlobalKey();
   MemeTemplate _template = MemeTemplate.classic;
   double _snapY = 48;
-  int _voteIndex = 0;
   int? _round;
   int _reactionTrigger = 0;
   MemeVote? _reactionKind;
-  Timer? _autoAdvance;
+  Timer? _skipTimer;
+  String? _skipFocus;
+  bool _skipReady = false;
+  final Set<String> _requestedPhotos = <String>{};
 
   @override
   void initState() {
@@ -53,7 +57,7 @@ class _MemeScreenState extends ConsumerState<MemeScreen> {
     _bottom.removeListener(_onTextChanged);
     _top.dispose();
     _bottom.dispose();
-    _autoAdvance?.cancel();
+    _skipTimer?.cancel();
     super.dispose();
   }
 
@@ -64,8 +68,10 @@ class _MemeScreenState extends ConsumerState<MemeScreen> {
     _top.clear();
     _bottom.clear();
     _snapY = 48;
-    _voteIndex = 0;
-    _autoAdvance?.cancel();
+    _skipTimer?.cancel();
+    _skipFocus = null;
+    _skipReady = false;
+    _requestedPhotos.clear();
   }
 
   @override
@@ -73,72 +79,87 @@ class _MemeScreenState extends ConsumerState<MemeScreen> {
     final coordinator = ref.read(matchCoordinatorProvider);
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
     _resetForRound(state.currentRound);
+    _syncHostSkip(state);
+    final photoId = state.memeAssignment?.photoId;
+    if (photoId != null &&
+        photoId.isNotEmpty &&
+        (state.memePhotoBase64 == null || state.memePhotoBase64!.isEmpty) &&
+        _requestedPhotos.add(photoId)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) coordinator.requestPhoto(photoId);
+      });
+    }
     return Scaffold(
-      body: SafeArea(
-        child: ScreenBody(
-          child: switch (state.phase) {
-            RoundPhase.captionVoting => _MemeVoting(
-              state: state,
-              index: _voteIndex,
-              reactionKind: _reactionKind,
-              reactionTrigger: _reactionTrigger,
-              onSelectIndex: (index) => setState(() => _voteIndex = index),
-              onVote: (card, vote) {
-                if (card.isOwn || state.memeVotedIds.contains(card.id)) return;
-                setState(() {
-                  _reactionKind = vote;
-                  _reactionTrigger++;
-                });
-                unawaited(
-                  state.isHosting
-                      ? coordinator.voteMeme(card.id, vote)
-                      : coordinator.clientVoteMeme(card.id, vote),
-                );
-                _autoAdvance?.cancel();
-                _autoAdvance = Timer(const Duration(milliseconds: 700), () {
-                  if (mounted) _advanceVote(state);
-                });
-              },
-              onNext: () => _advanceVote(state),
-            ),
-            RoundPhase.captionReveal => _MemeReveal(
-              state: state,
-              winnerKey: _winnerKey,
-              onSave: () => _saveMeme(context),
-            ),
-            _ => _MemeEditor(
-              state: state,
-              template: _template,
-              topController: _top,
-              bottomController: _bottom,
-              snapY: _snapY,
-              onTemplate: (template) => setState(() => _template = template),
-              onSnap: (value) => setState(() => _snapY = value),
-              onSwap: () => unawaited(
-                state.isHosting
-                    ? coordinator.swapMemePhoto()
-                    : coordinator.clientSwapMemePhoto(),
+      backgroundColor: Colors.transparent,
+      body: GameBackdrop(
+        mode: GameMode.makeItMeme,
+        child: SafeArea(
+          child: ScreenBody(
+            child: switch (state.phase) {
+              RoundPhase.captionVoting => _MemeVoting(
+                state: state,
+                reactionKind: _reactionKind,
+                reactionTrigger: _reactionTrigger,
+                skipReady: _skipReady,
+                onVote: (card, vote) {
+                  if (card.isOwn || state.memeVotedIds.contains(card.id)) {
+                    return;
+                  }
+                  setState(() {
+                    _reactionKind = vote;
+                    _reactionTrigger++;
+                  });
+                  unawaited(
+                    state.isHosting
+                        ? coordinator.voteMeme(card.id, vote)
+                        : coordinator.clientVoteMeme(card.id, vote),
+                  );
+                },
+                onEndVoting: () => unawaited(coordinator.endMemeVoting()),
+                onRequestPhoto: coordinator.requestPhoto,
               ),
-              onSubmit: () => unawaited(_submit(coordinator, state)),
-            ),
-          },
+              RoundPhase.captionReveal => _MemeReveal(
+                state: state,
+                winnerKey: _winnerKey,
+                onSave: () => _saveMeme(context),
+              ),
+              _ => _MemeEditor(
+                state: state,
+                template: _template,
+                topController: _top,
+                bottomController: _bottom,
+                snapY: _snapY,
+                onTemplate: (template) => setState(() => _template = template),
+                onSnap: (value) => setState(() => _snapY = value),
+                onSwap: () => unawaited(
+                  state.isHosting
+                      ? coordinator.swapMemePhoto()
+                      : coordinator.clientSwapMemePhoto(),
+                ),
+                onSubmit: () => unawaited(_submit(coordinator, state)),
+              ),
+            },
+          ),
         ),
       ),
     );
   }
 
-  void _advanceVote(MatchUiState state) {
-    if (state.memeCards.isEmpty) return;
-    var next = (_voteIndex + 1) % state.memeCards.length;
-    for (var i = 0; i < state.memeCards.length; i++) {
-      final candidate = (_voteIndex + 1 + i) % state.memeCards.length;
-      final card = state.memeCards[candidate];
-      if (!state.memeVotedIds.contains(card.id)) {
-        next = candidate;
-        break;
-      }
+  void _syncHostSkip(MatchUiState state) {
+    final focus = state.memeFocusId;
+    if (!state.isHosting || state.phase != RoundPhase.captionVoting) {
+      _skipTimer?.cancel();
+      _skipFocus = null;
+      _skipReady = false;
+      return;
     }
-    if (next != _voteIndex) setState(() => _voteIndex = next);
+    if (_skipFocus == focus) return;
+    _skipFocus = focus;
+    _skipReady = false;
+    _skipTimer?.cancel();
+    _skipTimer = Timer(const Duration(seconds: 12), () {
+      if (mounted) setState(() => _skipReady = true);
+    });
   }
 
   Future<void> _submit(MatchCoordinator coordinator, MatchUiState state) async {
@@ -226,16 +247,15 @@ class _MemeEditor extends StatelessWidget {
             Expanded(
               child: Text(
                 l10n.modeMakeItMeme,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: -0.4,
-                  color: colors.ink,
-                ),
+                style: gameDisplay(size: 26, color: colors.ink),
               ),
             ),
             const HostControlsButton(),
-            FrameCounter(current: state.currentRound, total: state.totalRounds),
+            FrameCounter(
+              current: state.currentRound,
+              total: state.totalRounds,
+              label: l10n.roundBadge(state.currentRound, state.totalRounds),
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.s8),
@@ -280,13 +300,13 @@ class _MemeEditor extends StatelessWidget {
             onSnapChanged: onSnap,
           ),
           const SizedBox(height: AppSpacing.s12),
-          Text(
-            l10n.memeTemplate.toUpperCase(),
-            style: TextStyle(
-              fontFamily: 'JetBrainsMono',
-              fontSize: 9,
-              letterSpacing: 0.8,
-              color: colors.ink3,
+          Align(
+            alignment: Alignment.centerLeft,
+            child: StickerBadge(
+              label: l10n.memeTemplate,
+              background: colors.raised,
+              foreground: colors.ink,
+              angle: 0.025,
             ),
           ),
           const SizedBox(height: AppSpacing.s8),
@@ -401,6 +421,7 @@ class _MemeField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
     return TextField(
       controller: controller,
       enabled: enabled,
@@ -413,8 +434,20 @@ class _MemeField extends StatelessWidget {
         hintText: hint,
         counterText: '',
         isDense: true,
+        filled: true,
+        fillColor: colors.card,
+        labelStyle: gameDisplay(size: 13, color: colors.ink2),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadii.rControl),
+          borderSide: BorderSide(color: colors.ink, width: 2),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadii.rControl),
+          borderSide: BorderSide(color: colors.ink, width: 2),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppRadii.rControl),
+          borderSide: BorderSide(color: colors.accent, width: 3),
         ),
       ),
     );
@@ -424,21 +457,21 @@ class _MemeField extends StatelessWidget {
 class _MemeVoting extends StatelessWidget {
   const _MemeVoting({
     required this.state,
-    required this.index,
     required this.reactionKind,
     required this.reactionTrigger,
-    required this.onSelectIndex,
+    required this.skipReady,
     required this.onVote,
-    required this.onNext,
+    required this.onEndVoting,
+    required this.onRequestPhoto,
   });
 
   final MatchUiState state;
-  final int index;
   final MemeVote? reactionKind;
   final int reactionTrigger;
-  final ValueChanged<int> onSelectIndex;
+  final bool skipReady;
   final void Function(MemeCard card, MemeVote vote) onVote;
-  final VoidCallback onNext;
+  final VoidCallback onEndVoting;
+  final ValueChanged<String> onRequestPhoto;
 
   @override
   Widget build(BuildContext context) {
@@ -446,13 +479,25 @@ class _MemeVoting extends StatelessWidget {
     final l10n = context.l10n;
     final cards = state.memeCards;
     if (cards.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(child: PhotoShimmer(compact: false));
     }
-    final safeIndex = index.clamp(0, cards.length - 1);
-    final card = cards[safeIndex];
-    final voted = state.memeVotedIds.contains(card.id);
-    final progress = state.memeVotedIds.length;
-    final eligible = cards.where((item) => !item.isOwn).length;
+    final focusId = state.memeFocusId;
+    final card =
+        cards.where((item) => item.id == focusId).firstOrNull ?? cards.first;
+    final index = cards.indexOf(card);
+    final voted =
+        state.memeVotedIds.contains(card.id) ||
+        state.memeFocusVoterIds.contains(state.localPlayerId);
+    final eligible = state.memeFocusEligible > 0
+        ? state.memeFocusEligible
+        : cards.where((item) => !item.isOwn).length;
+    final progress = state.memeFocusVotes;
+    final bytesEmpty = card.photoBase64.isEmpty;
+    if (bytesEmpty && card.photoId.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        onRequestPhoto(card.photoId);
+      });
+    }
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.s20,
@@ -466,16 +511,15 @@ class _MemeVoting extends StatelessWidget {
             Expanded(
               child: Text(
                 l10n.modeMakeItMeme,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: -0.4,
-                  color: colors.ink,
-                ),
+                style: gameDisplay(size: 26, color: colors.ink),
               ),
             ),
             const HostControlsButton(),
-            FrameCounter(current: state.currentRound, total: state.totalRounds),
+            FrameCounter(
+              current: state.currentRound,
+              total: state.totalRounds,
+              label: l10n.roundBadge(state.currentRound, state.totalRounds),
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.s8),
@@ -483,12 +527,11 @@ class _MemeVoting extends StatelessWidget {
         const SizedBox(height: AppSpacing.s16),
         Text(
           l10n.memeVoteTitle,
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w600,
-            letterSpacing: -1,
-            height: 1,
+          style: gameDisplay(
+            size: 32,
+            height: 0.98,
             color: colors.ink,
+            letterSpacing: -0.9,
           ),
         ),
         const SizedBox(height: AppSpacing.s4),
@@ -513,18 +556,18 @@ class _MemeVoting extends StatelessWidget {
                 trigger: reactionTrigger,
               ),
             ),
+            Positioned.fill(child: _TallyBurst(active: state.memeTallying)),
           ],
         ),
         const SizedBox(height: AppSpacing.s12),
         Row(
           children: <Widget>[
-            Text(
-              '${safeIndex + 1} / ${cards.length}',
-              style: TextStyle(
-                fontFamily: 'JetBrainsMono',
-                fontSize: 11,
-                color: colors.ink3,
-              ),
+            StickerBadge(
+              label:
+                  '${index + 1}/${state.memeFocusCount <= 0 ? cards.length : state.memeFocusCount}',
+              background: colors.raised,
+              foreground: colors.ink,
+              angle: 0.03,
             ),
             const SizedBox(width: AppSpacing.s8),
             if (card.isOwn)
@@ -540,17 +583,25 @@ class _MemeVoting extends StatelessWidget {
                 ),
               )
             else
-              Text(
-                l10n.memeAnonymous,
-                style: TextStyle(fontSize: 10, color: colors.ink3),
+              Flexible(
+                child: Text(
+                  l10n.memeAnonymous,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 10, color: colors.ink3),
+                ),
               ),
-            const Spacer(),
-            Text(
-              '$progress/$eligible',
-              style: TextStyle(
-                fontFamily: 'JetBrainsMono',
-                fontSize: 10,
-                color: colors.ink3,
+            const SizedBox(width: AppSpacing.s8),
+            Flexible(
+              child: Text(
+                l10n.waitingForVotes(progress, eligible),
+                textAlign: TextAlign.right,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: gameDisplay(
+                  size: 10,
+                  color: progress >= eligible ? colors.positive : colors.ink2,
+                ),
               ),
             ),
           ],
@@ -564,7 +615,7 @@ class _MemeVoting extends StatelessWidget {
                 label: l10n.memeUpvote,
                 points: '+100',
                 color: GamePalette.tealSoft,
-                enabled: !card.isOwn && !voted,
+                enabled: !card.isOwn && !voted && !state.memeTallying,
                 onTap: () => onVote(card, MemeVote.up),
               ),
             ),
@@ -575,7 +626,7 @@ class _MemeVoting extends StatelessWidget {
                 label: l10n.memeMeh,
                 points: '0',
                 color: colors.raised,
-                enabled: !card.isOwn && !voted,
+                enabled: !card.isOwn && !voted && !state.memeTallying,
                 onTap: () => onVote(card, MemeVote.meh),
               ),
             ),
@@ -589,12 +640,14 @@ class _MemeVoting extends StatelessWidget {
                   colors.negative.withValues(alpha: 0.12),
                   colors.card,
                 ),
-                enabled: !card.isOwn && !voted,
+                enabled: !card.isOwn && !voted && !state.memeTallying,
                 onTap: () => onVote(card, MemeVote.down),
               ),
             ),
           ],
         ),
+        const SizedBox(height: AppSpacing.s12),
+        _VoteStatus(state: state, l10n: l10n),
         const SizedBox(height: AppSpacing.s8),
         Text(
           card.isOwn
@@ -607,26 +660,218 @@ class _MemeVoting extends StatelessWidget {
             color: voted || card.isOwn ? colors.positive : colors.ink2,
           ),
         ),
-        if (progress >= eligible) ...<Widget>[
-          const SizedBox(height: AppSpacing.s8),
-          NoticeBanner(
-            message: l10n.memeWaitingVotes,
-            icon: Icons.hourglass_empty,
+        if (state.memeTallying) ...<Widget>[
+          const SizedBox(height: AppSpacing.s12),
+          NoticeBanner(message: l10n.countingVotes, icon: Icons.celebration),
+        ],
+        if (state.isHosting && skipReady && !state.memeTallying) ...<Widget>[
+          const SizedBox(height: AppSpacing.s12),
+          GameButton(
+            label: l10n.endVoting,
+            onPressed: onEndVoting,
+            variant: GameButtonVariant.secondary,
+            icon: Icons.timer_off_outlined,
+            fullWidth: true,
           ),
         ],
-        const SizedBox(height: AppSpacing.s12),
-        GameButton(
-          label: safeIndex == cards.length - 1
-              ? l10n.memeSeeResult
-              : l10n.memeNextMeme,
-          onPressed: progress >= eligible
-              ? null
-              : (card.isOwn || voted ? onNext : null),
-          fullWidth: true,
-          variant: GameButtonVariant.secondary,
-          icon: Icons.arrow_forward,
-        ),
       ],
+    );
+  }
+}
+
+class _VoteStatus extends StatelessWidget {
+  const _VoteStatus({required this.state, required this.l10n});
+
+  final MatchUiState state;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.s12),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(AppRadii.rControl),
+        border: Border.all(color: colors.ink, width: 2),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: colors.ink,
+            offset: const Offset(0, 3),
+            blurRadius: 0,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Icon(Icons.how_to_vote_outlined, size: 18, color: colors.accent),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  l10n.waitingForVotes(
+                    state.memeFocusVotes,
+                    state.memeFocusEligible,
+                  ),
+                  style: gameDisplay(size: 13, color: colors.ink),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.s8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: <Widget>[
+              for (final player in state.players)
+                Tooltip(
+                  message: state.memeFocusVoterIds.contains(player.id)
+                      ? '${player.name} · ${l10n.playerVoted}'
+                      : player.name,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: <Widget>[
+                      PlayerAvatar(
+                        initial: player.name,
+                        avatar: player.avatar,
+                        photoBase64: state.avatarPhotos[player.id],
+                        size: 30,
+                      ),
+                      if (state.memeFocusVoterIds.contains(player.id))
+                        Positioned(
+                          right: -2,
+                          bottom: -2,
+                          child: Container(
+                            width: 14,
+                            height: 14,
+                            decoration: BoxDecoration(
+                              color: colors.positive,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: colors.card, width: 2),
+                            ),
+                            child: const Icon(
+                              Icons.check,
+                              size: 8,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TallyBurst extends StatefulWidget {
+  const _TallyBurst({required this.active});
+
+  final bool active;
+
+  @override
+  State<_TallyBurst> createState() => _TallyBurstState();
+}
+
+class _TallyBurstState extends State<_TallyBurst>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2400),
+  );
+
+  @override
+  void didUpdateWidget(covariant _TallyBurst oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.active && !oldWidget.active) {
+      _controller.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.active) return const SizedBox.shrink();
+    final l10n = context.l10n;
+    final icons = <IconData>[
+      Icons.thumb_up,
+      Icons.remove_circle_outline,
+      Icons.thumb_down,
+    ];
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          final t = Curves.easeOut.transform(_controller.value);
+          return Stack(
+            children: <Widget>[
+              Positioned.fill(
+                child: ColoredBox(
+                  color: Colors.black.withValues(alpha: 0.22 * (1 - t * 0.4)),
+                ),
+              ),
+              Center(
+                child: Transform.scale(
+                  scale: 0.7 + t * 0.4,
+                  child: Opacity(
+                    opacity: (1 - (t - 0.7).clamp(0.0, 0.3) / 0.3).clamp(
+                      0.0,
+                      1.0,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.black, width: 2),
+                      ),
+                      child: Text(
+                        l10n.votesAreIn,
+                        style: gameDisplay(
+                          size: 18,
+                          color: const Color(0xFF171310),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              for (var i = 0; i < 9; i++)
+                Positioned(
+                  left: 18.0 + (i * 61) % 320,
+                  bottom: 24 + t * (170 + i * 7),
+                  child: Opacity(
+                    opacity: (1 - t).clamp(0.0, 1.0),
+                    child: Transform.rotate(
+                      angle: (i.isEven ? -1 : 1) * t * 0.5,
+                      child: Icon(
+                        icons[i % icons.length],
+                        size: 26,
+                        color: Colors.white,
+                        shadows: const <Shadow>[
+                          Shadow(color: Colors.black54, blurRadius: 4),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
     );
   }
 }
@@ -673,7 +918,8 @@ class _VoteButton extends StatelessWidget {
         child: Opacity(
           opacity: enabled ? 1 : 0.45,
           child: Container(
-            height: 65,
+            constraints: const BoxConstraints(minHeight: 65),
+            padding: const EdgeInsets.symmetric(vertical: 4),
             decoration: BoxDecoration(
               color: color,
               borderRadius: BorderRadius.circular(11),
@@ -828,6 +1074,9 @@ class _MemeReveal extends StatelessWidget {
     }
     final winner =
         cards.where((card) => card.isWinner).firstOrNull ?? cards.first;
+    final winnerAuthor = state.players
+        .where((player) => player.name == winner.authorName)
+        .firstOrNull;
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.s20,
@@ -836,14 +1085,20 @@ class _MemeReveal extends StatelessWidget {
         AppSpacing.s24,
       ),
       children: <Widget>[
-        Text(
-          l10n.modeMakeItMeme,
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w500,
-            letterSpacing: -0.4,
-            color: colors.ink,
-          ),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                l10n.modeMakeItMeme,
+                style: gameDisplay(size: 28, color: colors.ink),
+              ),
+            ),
+            FrameCounter(
+              current: state.currentRound,
+              total: state.totalRounds,
+              label: l10n.roundBadge(state.currentRound, state.totalRounds),
+            ),
+          ],
         ),
         const SizedBox(height: AppSpacing.s8),
         ProgressSegments(current: state.currentRound, total: state.totalRounds),
@@ -875,15 +1130,31 @@ class _MemeReveal extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 3),
-              Text(
-                winner.authorName ?? '',
-                style: const TextStyle(
-                  fontSize: 34,
-                  height: 0.98,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -1.4,
-                  color: GamePalette.onGold,
-                ),
+              Row(
+                children: <Widget>[
+                  if (winnerAuthor != null) ...<Widget>[
+                    PlayerAvatar(
+                      initial: winnerAuthor.name,
+                      avatar: winnerAuthor.avatar,
+                      photoBase64: state.avatarPhotos[winnerAuthor.id],
+                      size: 44,
+                    ),
+                    const SizedBox(width: AppSpacing.s8),
+                  ],
+                  Expanded(
+                    child: Text(
+                      winner.authorName ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: gameDisplay(
+                        size: 34,
+                        height: 0.98,
+                        color: GamePalette.onGold,
+                        letterSpacing: -1.4,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 4),
               Text(

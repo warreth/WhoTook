@@ -720,6 +720,8 @@ void main() {
 
     await clientOne.clientSwapMemePhoto();
     await _waitFor(() => clientOne.state.memeSwapsLeft == 4);
+    expect(clientOne.state.memeAssignment?.photoId, isNotEmpty);
+    expect(clientOne.state.memePhotoBase64, isNotEmpty);
 
     await host.submitMeme(
       template: MemeTemplate.classic,

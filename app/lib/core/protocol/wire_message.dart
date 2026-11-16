@@ -13,6 +13,7 @@ abstract final class WireType {
   static const String submitPhotoMeta = 'submit_photos';
   static const String photoChunk = 'photo_chunk';
   static const String photoComplete = 'photo_complete';
+  static const String photoRequest = 'photo_request';
   static const String playerReady = 'player_ready';
   static const String plantPhoto = 'plant_photo';
   static const String plantAssignment = 'plant_assignment';
@@ -25,6 +26,7 @@ abstract final class WireType {
   static const String soundEffect = 'sound_effect';
   static const String roomTheme = 'room_theme';
   static const String partyPass = 'party_pass';
+  static const String avatarUpdate = 'avatar_update';
   static const String roundReveal = 'round_reveal';
   static const String captionSubmit = 'caption_submit';
   static const String captionOptions = 'caption_options';
@@ -33,6 +35,8 @@ abstract final class WireType {
   static const String memeAssignment = 'meme_assignment';
   static const String memeSubmit = 'meme_submit';
   static const String memeOptions = 'meme_options';
+  static const String memeFocus = 'meme_focus';
+  static const String memeTally = 'meme_tally';
   static const String memeVote = 'meme_vote';
   static const String memeReveal = 'meme_reveal';
   static const String memeSwap = 'meme_swap';
@@ -56,6 +60,7 @@ abstract final class WireType {
     submitPhotoMeta,
     photoChunk,
     photoComplete,
+    photoRequest,
     playerReady,
     plantPhoto,
     plantAssignment,
@@ -68,6 +73,7 @@ abstract final class WireType {
     soundEffect,
     roomTheme,
     partyPass,
+    avatarUpdate,
     roundReveal,
     captionSubmit,
     captionOptions,
@@ -76,6 +82,8 @@ abstract final class WireType {
     memeAssignment,
     memeSubmit,
     memeOptions,
+    memeFocus,
+    memeTally,
     memeVote,
     memeReveal,
     memeSwap,

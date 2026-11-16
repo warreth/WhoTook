@@ -64,6 +64,7 @@ class MemeCard {
     required this.topText,
     required this.bottomText,
     required this.snapY,
+    this.photoId = '',
     this.isOwn = false,
     this.authorName,
     this.photoOwnerName,
@@ -76,6 +77,7 @@ class MemeCard {
 
   final String id;
   final String photoBase64;
+  final String photoId;
   final MemeTemplate template;
   final String topText;
   final String bottomText;
@@ -93,6 +95,7 @@ class MemeCard {
       MemeCard(
         id: id,
         photoBase64: photoBase64 ?? this.photoBase64,
+        photoId: photoId,
         template: template,
         topText: topText,
         bottomText: bottomText,
@@ -110,6 +113,7 @@ class MemeCard {
   Map<String, dynamic> toJson() => <String, dynamic>{
     'id': id,
     'photoBase64': photoBase64,
+    'photoId': photoId,
     'template': template.name,
     'topText': topText,
     'bottomText': bottomText,
@@ -127,6 +131,7 @@ class MemeCard {
   factory MemeCard.fromJson(Map<String, dynamic> json) => MemeCard(
     id: json['id'] as String? ?? '',
     photoBase64: json['photoBase64'] as String? ?? '',
+    photoId: json['photoId'] as String? ?? '',
     template: MemeTemplate.values.firstWhere(
       (value) => value.name == json['template'],
       orElse: () => MemeTemplate.classic,
@@ -168,6 +173,7 @@ class MatchUiState {
     this.remainingMs = 0,
     this.phaseDurationMs = 0,
     this.activePhotoBytes,
+    this.activePhotoId,
     this.activePhotoIsPanorama = false,
     this.avatarPhotos = const <String, String>{},
     this.activeRoundOptions = const <Player>[],
@@ -198,6 +204,16 @@ class MatchUiState {
     this.memeVotedIds = const <String>{},
     this.memeSubmissions = 0,
     this.memeVotesSubmitted = 0,
+    this.memeFocusId,
+    this.memeFocusIndex = 0,
+    this.memeFocusCount = 0,
+    this.memeFocusVotes = 0,
+    this.memeFocusEligible = 0,
+    this.memeFocusVoterIds = const <String>{},
+    this.memeTallying = false,
+    this.memeTallyUp = 0,
+    this.memeTallyMeh = 0,
+    this.memeTallyDown = 0,
     this.lastMemeReveal,
     this.memeRevealCards = const <MemeCard>[],
     this.topMemes = const <MemeCard>[],
@@ -236,6 +252,7 @@ class MatchUiState {
   final int remainingMs;
   final int phaseDurationMs;
   final Uint8List? activePhotoBytes;
+  final String? activePhotoId;
   final bool activePhotoIsPanorama;
 
   /// Player id to a small base64 JPEG avatar. Kept out of Player so the
@@ -268,6 +285,19 @@ class MatchUiState {
   final Set<String> memeVotedIds;
   final int memeSubmissions;
   final int memeVotesSubmitted;
+
+  /// The one meme the whole room is looking at. The host owns this pointer so
+  /// every phone stays on the same card.
+  final String? memeFocusId;
+  final int memeFocusIndex;
+  final int memeFocusCount;
+  final int memeFocusVotes;
+  final int memeFocusEligible;
+  final Set<String> memeFocusVoterIds;
+  final bool memeTallying;
+  final int memeTallyUp;
+  final int memeTallyMeh;
+  final int memeTallyDown;
   final MemeReveal? lastMemeReveal;
   final List<MemeCard> memeRevealCards;
   final List<MemeCard> topMemes;
@@ -321,6 +351,7 @@ class MatchUiState {
     int? remainingMs,
     int? phaseDurationMs,
     Uint8List? activePhotoBytes,
+    String? activePhotoId,
     bool? activePhotoIsPanorama,
     Map<String, String>? avatarPhotos,
     List<Player>? activeRoundOptions,
@@ -351,6 +382,16 @@ class MatchUiState {
     Set<String>? memeVotedIds,
     int? memeSubmissions,
     int? memeVotesSubmitted,
+    String? memeFocusId,
+    int? memeFocusIndex,
+    int? memeFocusCount,
+    int? memeFocusVotes,
+    int? memeFocusEligible,
+    Set<String>? memeFocusVoterIds,
+    bool? memeTallying,
+    int? memeTallyUp,
+    int? memeTallyMeh,
+    int? memeTallyDown,
     MemeReveal? lastMemeReveal,
     List<MemeCard>? memeRevealCards,
     List<MemeCard>? topMemes,
@@ -369,6 +410,7 @@ class MatchUiState {
     bool? firewallRelayAttempted,
     String? firewallRelayErrorCode,
     bool clearFirewallError = false,
+    bool clearMemeFocus = false,
     bool clearVersionWarning = false,
     bool clearError = false,
     bool clearLoading = false,
@@ -394,6 +436,7 @@ class MatchUiState {
     remainingMs: remainingMs ?? this.remainingMs,
     phaseDurationMs: phaseDurationMs ?? this.phaseDurationMs,
     activePhotoBytes: activePhotoBytes ?? this.activePhotoBytes,
+    activePhotoId: activePhotoId ?? this.activePhotoId,
     activePhotoIsPanorama: activePhotoIsPanorama ?? this.activePhotoIsPanorama,
     avatarPhotos: avatarPhotos ?? this.avatarPhotos,
     activeRoundOptions: activeRoundOptions ?? this.activeRoundOptions,
@@ -456,6 +499,38 @@ class MatchUiState {
     memeVotesSubmitted: clearRoundInput
         ? (memeVotesSubmitted ?? 0)
         : (memeVotesSubmitted ?? this.memeVotesSubmitted),
+    memeFocusId: clearMemeFocus
+        ? null
+        : clearRoundInput
+        ? memeFocusId
+        : (memeFocusId ?? this.memeFocusId),
+    memeFocusIndex: clearRoundInput
+        ? (memeFocusIndex ?? 0)
+        : (memeFocusIndex ?? this.memeFocusIndex),
+    memeFocusCount: clearRoundInput
+        ? (memeFocusCount ?? 0)
+        : (memeFocusCount ?? this.memeFocusCount),
+    memeFocusVotes: clearRoundInput
+        ? (memeFocusVotes ?? 0)
+        : (memeFocusVotes ?? this.memeFocusVotes),
+    memeFocusEligible: clearRoundInput
+        ? (memeFocusEligible ?? 0)
+        : (memeFocusEligible ?? this.memeFocusEligible),
+    memeFocusVoterIds: clearRoundInput
+        ? (memeFocusVoterIds ?? const <String>{})
+        : (memeFocusVoterIds ?? this.memeFocusVoterIds),
+    memeTallying: clearRoundInput
+        ? (memeTallying ?? false)
+        : (memeTallying ?? this.memeTallying),
+    memeTallyUp: clearRoundInput
+        ? (memeTallyUp ?? 0)
+        : (memeTallyUp ?? this.memeTallyUp),
+    memeTallyMeh: clearRoundInput
+        ? (memeTallyMeh ?? 0)
+        : (memeTallyMeh ?? this.memeTallyMeh),
+    memeTallyDown: clearRoundInput
+        ? (memeTallyDown ?? 0)
+        : (memeTallyDown ?? this.memeTallyDown),
     lastMemeReveal: clearRoundInput
         ? null
         : (lastMemeReveal ?? this.lastMemeReveal),
@@ -608,6 +683,9 @@ class MatchCoordinator {
   final Map<String, Uint8List> _assembledHostBytes = <String, Uint8List>{};
   final Map<String, Uint8List> _clientRoundPhotos = <String, Uint8List>{};
   final Map<String, Uint8List> _memePhotoBytes = <String, Uint8List>{};
+  final Map<String, Set<String>> _pendingMemeAssignments =
+      <String, Set<String>>{};
+  final Map<String, int> _photoRequestAttempts = <String, int>{};
   final Map<String, PhotoChunkAssembler> _assemblers =
       <String, PhotoChunkAssembler>{};
   final List<StreamSubscription<dynamic>> _subscriptions =
@@ -628,6 +706,10 @@ class MatchCoordinator {
   Timer? _extendTicker;
   Timer? _captionRevealTimer;
   Timer? _timelineRevealTimer;
+  Timer? _memeTallyTimer;
+  List<String> _memeFocusOrder = <String>[];
+  int _memeFocusIndex = 0;
+  bool _memeTallying = false;
   Timer? _clientPhaseTicker;
   Timer? _reconnectTimer;
   Completer<void>? _reconnectAck;
@@ -688,6 +770,64 @@ class MatchCoordinator {
   /// Without this, names and excluded albums only reached the repository.
   void updateSettings(AppSettings settings) {
     _settingsValue = settings;
+  }
+
+  /// Changes the local player's sticker or selfie while a room is open. The
+  /// host patches the player and rebroadcasts the lobby; a guest asks the host.
+  Future<void> setLocalAvatar(String avatar, String? photoBase64) async {
+    final normalized = normalizeAvatar(avatar);
+    _settingsValue = _settingsValue.copyWith(
+      avatar: normalized,
+      avatarPhoto: photoBase64,
+      clearAvatarPhoto: photoBase64 == null,
+    );
+    await _settings.save(_settingsValue);
+    final localId = _state.localPlayerId;
+    if (localId == null) return;
+    if (_state.isHosting) {
+      final player = _engine?.player(localId);
+      if (player != null) player.avatar = normalized;
+      if (photoBase64 != null && photoBase64.isNotEmpty) {
+        _avatarPhotos[localId] = photoBase64;
+      } else {
+        _avatarPhotos.remove(localId);
+      }
+      _emit(
+        _state.copyWith(
+          players: _engine?.players ?? _state.players,
+          avatarPhotos: Map<String, String>.unmodifiable(_avatarPhotos),
+        ),
+      );
+      await _broadcastLobby();
+      return;
+    }
+    await _clientTransport?.send(
+      WireMessage(
+        type: WireType.avatarUpdate,
+        seq: _nextSeq(),
+        payload: <String, dynamic>{
+          'avatar': normalized,
+          'avatarPhoto': photoBase64 ?? '',
+        },
+      ),
+    );
+    _emit(
+      _state.copyWith(
+        avatarPhotos: <String, String>{
+          ..._state.avatarPhotos,
+          if (photoBase64 != null && photoBase64.isNotEmpty)
+            localId: photoBase64
+          else
+            localId: '',
+        },
+        players: <Player>[
+          for (final player in _state.players)
+            player.id == localId
+                ? (Player.fromJson(player.toJson())..avatar = normalized)
+                : player,
+        ],
+      ),
+    );
   }
 
   /// The local Party Pass decides whether this phone may start sound effects
@@ -1023,6 +1163,28 @@ class MatchCoordinator {
       'memeVotedIds': engine.memeVotedIds(playerId).toList(),
       'memeSubmissions': engine.memeCount,
       'memeVotesSubmitted': engine.memeVoteCount,
+      'memeFocusId': _currentMemeFocusId.isEmpty ? null : _currentMemeFocusId,
+      'memeFocusIndex': _memeFocusIndex,
+      'memeFocusCount': _memeFocusOrder.length,
+      'memeFocusVotes': _currentMemeFocusId.isEmpty
+          ? 0
+          : engine.voteCountFor(_currentMemeFocusId),
+      'memeFocusEligible': _currentMemeFocusId.isEmpty
+          ? 0
+          : engine.eligibleVotersFor(_currentMemeFocusId).length,
+      'memeFocusVoterIds': _currentMemeFocusId.isEmpty
+          ? const <String>[]
+          : engine.voterIdsFor(_currentMemeFocusId).toList(),
+      'memeTallying': _memeTallying,
+      'memeTallyUp': _currentMemeFocusId.isEmpty
+          ? 0
+          : engine.voteSplitFor(_currentMemeFocusId)['up'] ?? 0,
+      'memeTallyMeh': _currentMemeFocusId.isEmpty
+          ? 0
+          : engine.voteSplitFor(_currentMemeFocusId)['meh'] ?? 0,
+      'memeTallyDown': _currentMemeFocusId.isEmpty
+          ? 0
+          : engine.voteSplitFor(_currentMemeFocusId)['down'] ?? 0,
       'lastMemeReveal': engine.lastMemeReveal?.toJson(),
       'memeRevealCards': phase == RoundPhase.captionReveal
           ? _memeRevealCards().map((card) => card.toJson()).toList()
@@ -1127,6 +1289,16 @@ class MatchCoordinator {
             clearVersionWarning: latestBuild <= appBuild,
           ),
         );
+        final engine = _engine;
+        if (engine != null &&
+            engine.activeMode == GameMode.makeItMeme &&
+            engine.phase == RoundPhase.captionVoting &&
+            !_memeTallying) {
+          await _publishMemeFocus();
+          if (engine.allVotesFor(_currentMemeFocusId)) {
+            await _startMemeTally();
+          }
+        }
         await _broadcastLobby();
       }),
     );
@@ -1297,6 +1469,7 @@ class MatchCoordinator {
         final bytes = assembler.add(chunk);
         if (bytes != null) {
           _assembledHostBytes['$playerId:${chunk.photoId}'] = bytes;
+          _memePhotoBytes[chunk.photoId] = bytes;
           final photos = _remotePhotos[playerId];
           if (photos != null) {
             for (var i = 0; i < photos.length; i++) {
@@ -1305,6 +1478,7 @@ class MatchCoordinator {
               }
             }
           }
+          unawaited(_resendMemeAssignmentsFor(chunk.photoId));
         }
       case WireType.playerReady:
         final playerId = _playerIdFor(clientId);
@@ -1320,8 +1494,21 @@ class MatchCoordinator {
           );
           return;
         }
+        final hydrated = <PhotoCandidate>[
+          for (final photo in approved)
+            if (photo.bytes != null)
+              photo
+            else
+              (() {
+                final assembled =
+                    _assembledHostBytes['$playerId:${photo.photoId}'];
+                return assembled == null
+                    ? photo
+                    : photo.copyWith(bytes: assembled);
+              })(),
+        ];
         try {
-          engine.submitInitialPhotos(playerId, approved);
+          engine.submitInitialPhotos(playerId, hydrated);
           engine.markReady(playerId);
         } on EngineException {
           return;
@@ -1369,6 +1556,16 @@ class MatchCoordinator {
           );
         }
         _emit(_state.copyWith(players: engine.players));
+      case WireType.photoRequest:
+        final photoId = payload['photoId'] as String?;
+        if (photoId == null || photoId.isEmpty) return;
+        final bytes = _photoBytesFor(photoId);
+        if (bytes != null && bytes.isNotEmpty) {
+          await _sendPhotoChunks(clientId, photoId, bytes);
+        } else {
+          final owner = _ownerForPhotoId(photoId);
+          if (owner != null) _requestPhotoFromOwner(photoId, owner);
+        }
       case WireType.submitGuess:
         final playerId = _playerIdFor(clientId);
         try {
@@ -1381,6 +1578,24 @@ class MatchCoordinator {
           return;
         }
         await _syncGuesses();
+      case WireType.avatarUpdate:
+        final playerId = _playerIdFor(clientId);
+        final player = engine.player(playerId);
+        if (player == null) return;
+        player.avatar = normalizeAvatar(payload['avatar'] as String?);
+        final photo = payload['avatarPhoto'] as String?;
+        if (photo != null && photo.isNotEmpty) {
+          _avatarPhotos[playerId] = photo;
+        } else {
+          _avatarPhotos.remove(playerId);
+        }
+        _emit(
+          _state.copyWith(
+            players: engine.players,
+            avatarPhotos: Map<String, String>.unmodifiable(_avatarPhotos),
+          ),
+        );
+        await _broadcastLobby();
       case WireType.screenshotTaken:
         _onRemoteScreenshot(_playerIdFor(clientId), payload);
       case WireType.partyPass:
@@ -1541,9 +1756,10 @@ class MatchCoordinator {
           );
           return;
         }
-        _emit(_state.copyWith(memeVotesSubmitted: engine.memeVoteCount));
-        if (engine.allMemeVotesSubmitted) {
-          await _finishMemeRound();
+        if (_memeTallying) return;
+        await _publishMemeFocus();
+        if (engine.allVotesFor(_currentMemeFocusId)) {
+          await _startMemeTally();
         }
       case WireType.memeSwap:
         try {
@@ -1719,6 +1935,8 @@ class MatchCoordinator {
     final entry = engine.startRound();
     _roundFinishing = false;
     _roundStartMs = DateTime.now().millisecondsSinceEpoch;
+    _memeTallyTimer?.cancel();
+    _memeTallying = false;
 
     final bytes = entry.photo.bytes;
     final isMemeRound = entry.mode == GameMode.makeItMeme;
@@ -1757,6 +1975,7 @@ class MatchCoordinator {
         currentRound: entry.roundNumber,
         totalRounds: engine.totalRounds,
         activePhotoBytes: bytes,
+        activePhotoId: entry.photo.photoId,
         activePhotoIsPanorama: entry.photo.isPanorama,
         activeRoundOptions: engine.players,
         remainingMs: duration.inMilliseconds,
@@ -1848,6 +2067,62 @@ class MatchCoordinator {
     });
   }
 
+  void _requestMissingMemePhotos() {
+    final activeId = _state.activePhotoId;
+    if (activeId != null && _state.activePhotoBytes == null) {
+      requestPhoto(activeId);
+    }
+    final assignment = _state.memeAssignment;
+    final encoded = _state.memePhotoBase64;
+    if (assignment != null && (encoded == null || encoded.isEmpty)) {
+      requestPhoto(assignment.photoId);
+    }
+    for (final card in <MemeCard>[
+      ..._state.memeCards,
+      ..._state.memeRevealCards,
+      ..._state.topMemes,
+    ]) {
+      if (card.photoBase64.isEmpty) requestPhoto(card.photoId);
+    }
+  }
+
+  MemeCard _withPhoto(MemeCard card, String photoId, String encoded) =>
+      card.photoId == photoId && card.photoBase64.isEmpty
+      ? card.copyWith(photoBase64: encoded)
+      : card;
+
+  /// Asks the host for one photo that has not arrived yet. Retries twice with
+  /// a short gap; the UI keeps showing the photo shimmer while it waits.
+  void requestPhoto(String photoId) {
+    if (_state.isHosting || photoId.isEmpty) return;
+    if (_clientRoundPhotos.containsKey(photoId) ||
+        _memePhotoBytes.containsKey(photoId)) {
+      return;
+    }
+    final transport = _clientTransport;
+    if (transport == null) return;
+    final attempts = _photoRequestAttempts[photoId] ?? 0;
+    if (attempts >= 3) return;
+    _photoRequestAttempts[photoId] = attempts + 1;
+    unawaited(
+      transport.send(
+        WireMessage(
+          type: WireType.photoRequest,
+          seq: _nextSeq(),
+          payload: <String, dynamic>{'photoId': photoId},
+        ),
+      ),
+    );
+    Timer(const Duration(milliseconds: 1500), () {
+      if (_disposed) return;
+      if (_clientRoundPhotos.containsKey(photoId) ||
+          _memePhotoBytes.containsKey(photoId)) {
+        return;
+      }
+      if ((_photoRequestAttempts[photoId] ?? 0) < 3) requestPhoto(photoId);
+    });
+  }
+
   Uint8List? _photoBytesFor(String photoId) {
     final cached = _memePhotoBytes[photoId];
     if (cached != null && cached.isNotEmpty) return cached;
@@ -1893,6 +2168,7 @@ class MatchCoordinator {
         return MemeCard(
           id: option.id,
           photoBase64: photo == null ? '' : base64Encode(photo),
+          photoId: option.photoId,
           template: option.template,
           topText: option.topText,
           bottomText: option.bottomText,
@@ -1914,6 +2190,7 @@ class MatchCoordinator {
         return MemeCard(
           id: entry.id,
           photoBase64: photo == null ? '' : base64Encode(photo),
+          photoId: entry.photoId,
           template: entry.template,
           topText: entry.topText,
           bottomText: entry.bottomText,
@@ -1940,6 +2217,7 @@ class MatchCoordinator {
         return MemeCard(
           id: entry.id,
           photoBase64: photo == null ? '' : base64Encode(photo),
+          photoId: entry.photoId,
           template: entry.template,
           topText: entry.topText,
           bottomText: entry.bottomText,
@@ -1956,13 +2234,32 @@ class MatchCoordinator {
     );
   }
 
+  Future<void> _resendMemeAssignmentsFor(String photoId) async {
+    if (_state.memeAssignment?.photoId == photoId) {
+      await _sendMemeAssignment('host');
+    }
+    final waiting = _pendingMemeAssignments.remove(photoId);
+    if (waiting == null || waiting.isEmpty) return;
+    for (final playerId in waiting) {
+      await _sendMemeAssignment(playerId);
+    }
+  }
+
   Future<void> _sendMemeAssignment(String playerId) async {
     final engine = _engine;
     if (engine == null) return;
     final assignment = engine.memeAssignmentFor(playerId);
     if (assignment == null) return;
-    final bytes = _photoBytesFor(assignment.photoId);
-    if (bytes != null) _memePhotoBytes[assignment.photoId] = bytes;
+    var bytes = _photoBytesFor(assignment.photoId);
+    if (bytes != null && bytes.isNotEmpty) {
+      _memePhotoBytes[assignment.photoId] = bytes;
+    } else {
+      bytes = null;
+      _pendingMemeAssignments
+          .putIfAbsent(assignment.photoId, () => <String>{})
+          .add(playerId);
+      _requestPhotoFromOwner(assignment.photoId, assignment.ownerId);
+    }
     final payload = <String, dynamic>{
       'assignment': assignment.toJson(),
       'photoBase64': bytes == null ? '' : base64Encode(bytes),
@@ -1992,29 +2289,131 @@ class MatchCoordinator {
     );
   }
 
+  String? _ownerForPhotoId(String photoId) {
+    for (final entry in _remotePhotos.entries) {
+      if (entry.value.any((photo) => photo.photoId == photoId)) {
+        return entry.key;
+      }
+    }
+    final engine = _engine;
+    if (engine != null) {
+      for (final player in engine.players) {
+        final assigned = engine.memeAssignmentPhoto(player.id);
+        if (assigned?.photoId == photoId) return assigned!.ownerId;
+      }
+    }
+    return null;
+  }
+
+  void _requestPhotoFromOwner(String photoId, String ownerId) {
+    if (ownerId == 'host') return;
+    final clientId = _playerClientIds[ownerId];
+    if (clientId == null) return;
+    final attempts = _photoRequestAttempts[photoId] ?? 0;
+    if (attempts >= 3) return;
+    _photoRequestAttempts[photoId] = attempts + 1;
+    unawaited(
+      _hostTransport?.sendToClient(
+        clientId,
+        WireMessage(
+          type: WireType.photoRequest,
+          seq: _nextSeq(),
+          payload: <String, dynamic>{'photoId': photoId},
+        ),
+      ),
+    );
+  }
+
+  String get _currentMemeFocusId =>
+      _memeFocusIndex >= 0 && _memeFocusIndex < _memeFocusOrder.length
+      ? _memeFocusOrder[_memeFocusIndex]
+      : '';
+
+  Map<String, dynamic> _memeFocusPayload({
+    bool tallying = false,
+    Map<String, int>? split,
+  }) {
+    final engine = _engine;
+    final memeId = _currentMemeFocusId;
+    if (engine == null || memeId.isEmpty) {
+      return <String, dynamic>{
+        'memeId': '',
+        'index': 0,
+        'count': 0,
+        'votes': 0,
+        'eligible': 0,
+        'voterIds': const <String>[],
+        'tallying': tallying,
+      };
+    }
+    final voters = engine.voterIdsFor(memeId);
+    final eligible = engine.eligibleVotersFor(memeId).length;
+    final counts = split ?? engine.voteSplitFor(memeId);
+    return <String, dynamic>{
+      'memeId': memeId,
+      'index': _memeFocusIndex,
+      'count': _memeFocusOrder.length,
+      'votes': voters.length,
+      'eligible': eligible,
+      'voterIds': voters.toList(),
+      'tallying': tallying,
+      'tallyUp': counts['up'] ?? 0,
+      'tallyMeh': counts['meh'] ?? 0,
+      'tallyDown': counts['down'] ?? 0,
+    };
+  }
+
+  MatchUiState _withMemeFocus(
+    MatchUiState state,
+    Map<String, dynamic> payload,
+  ) {
+    final id = payload['memeId'] as String? ?? '';
+    final voterIds = <String>{
+      for (final value in (payload['voterIds'] as List<dynamic>? ?? const []))
+        if (value is String) value,
+    };
+    return state.copyWith(
+      phase: RoundPhase.captionVoting,
+      activeMode: GameMode.makeItMeme,
+      memeFocusId: id.isEmpty ? null : id,
+      memeFocusIndex: payload['index'] as int? ?? 0,
+      memeFocusCount: payload['count'] as int? ?? 0,
+      memeFocusVotes: payload['votes'] as int? ?? 0,
+      memeFocusEligible: payload['eligible'] as int? ?? 0,
+      memeFocusVoterIds: voterIds,
+      memeTallying: payload['tallying'] as bool? ?? false,
+      memeTallyUp: payload['tallyUp'] as int? ?? 0,
+      memeTallyMeh: payload['tallyMeh'] as int? ?? 0,
+      memeTallyDown: payload['tallyDown'] as int? ?? 0,
+      memeVotesSubmitted: _engine?.memeVoteCount ?? state.memeVotesSubmitted,
+      clearError: true,
+    );
+  }
+
   Future<void> _sendMemeOptions(String playerId) async {
     final engine = _engine;
     if (engine == null) return;
     final cards = _memeCardsFor(playerId);
+    final focus = _memeFocusPayload(tallying: _memeTallying);
     final payload = <String, dynamic>{
       'cards': cards.map((card) => card.toJson()).toList(),
       'votedIds': engine.memeVotedIds(playerId).toList(),
       'submissions': engine.memeCount,
       'votes': engine.memeVoteCount,
       'durationMs': 0,
+      ...focus,
     };
     if (playerId == 'host') {
       _emit(
-        _state.copyWith(
-          phase: RoundPhase.captionVoting,
-          activeMode: GameMode.makeItMeme,
-          memeCards: cards,
-          memeVotedIds: engine.memeVotedIds(playerId),
-          memeSubmissions: engine.memeCount,
-          memeVotesSubmitted: engine.memeVoteCount,
-          remainingMs: 0,
-          phaseDurationMs: 0,
-          clearError: true,
+        _withMemeFocus(
+          _state.copyWith(
+            memeCards: cards,
+            memeVotedIds: engine.memeVotedIds(playerId),
+            memeSubmissions: engine.memeCount,
+            remainingMs: 0,
+            phaseDurationMs: 0,
+          ),
+          focus,
         ),
       );
       return;
@@ -2023,6 +2422,21 @@ class MatchCoordinator {
       playerId,
       WireMessage(
         type: WireType.memeOptions,
+        seq: _nextSeq(),
+        payload: payload,
+      ),
+    );
+  }
+
+  /// Pushes the host's current focus (or its tally moment) to every phone.
+  Future<void> _publishMemeFocus({bool tallying = false}) async {
+    final engine = _engine;
+    if (engine == null) return;
+    final payload = _memeFocusPayload(tallying: tallying);
+    _emit(_withMemeFocus(_state, payload));
+    await _hostTransport?.broadcast(
+      WireMessage(
+        type: tallying ? WireType.memeTally : WireType.memeFocus,
         seq: _nextSeq(),
         payload: payload,
       ),
@@ -2043,10 +2457,52 @@ class MatchCoordinator {
     } on EngineException {
       return;
     }
+    _memeTallyTimer?.cancel();
+    _memeTallying = false;
+    _memeFocusOrder = engine.memeIds;
+    _memeFocusIndex = 0;
     for (final player in engine.players) {
       if (!player.connected) continue;
       await _sendMemeOptions(player.id);
     }
+  }
+
+  Future<void> _startMemeTally() async {
+    final engine = _engine;
+    if (engine == null || _memeTallying) return;
+    final memeId = _currentMemeFocusId;
+    if (memeId.isEmpty) return;
+    _memeTallying = true;
+    _roundTimer?.cancel();
+    _memeTallyTimer?.cancel();
+    unawaited(GameAudioService.instance.ding());
+    unawaited(GameHaptics.instance.light());
+    await _publishMemeFocus(tallying: true);
+    _memeTallyTimer = Timer(const Duration(milliseconds: 2500), () {
+      unawaited(_advanceMemeFocus());
+    });
+  }
+
+  Future<void> _advanceMemeFocus() async {
+    if (!_memeTallying) return;
+    _memeTallying = false;
+    final engine = _engine;
+    if (engine == null) return;
+    if (_memeFocusIndex + 1 < _memeFocusOrder.length) {
+      _memeFocusIndex += 1;
+      await _publishMemeFocus();
+      if (engine.allVotesFor(_currentMemeFocusId)) {
+        await _startMemeTally();
+      }
+      return;
+    }
+    await _finishMemeRound();
+  }
+
+  /// Host-only: close the current meme even if an AFK player never votes.
+  Future<void> endMemeVoting() async {
+    if (!_state.isHosting || _state.phase != RoundPhase.captionVoting) return;
+    await _startMemeTally();
   }
 
   Future<void> _finishMemeRound() async {
@@ -2058,6 +2514,8 @@ class MatchCoordinator {
     }
     _roundTimer?.cancel();
     _countdownTicker?.cancel();
+    _memeTallyTimer?.cancel();
+    _memeTallying = false;
     final reveal = engine.finishMemeRound();
     unawaited(GameAudioService.instance.fanfare());
     unawaited(GameHaptics.instance.heavy());
@@ -2085,6 +2543,14 @@ class MatchCoordinator {
         memeVotedIds: const <String>{},
         memeSubmissions: engine.memeCount,
         memeVotesSubmitted: engine.memeVoteCount,
+        memeFocusVotes: 0,
+        memeFocusEligible: 0,
+        memeFocusVoterIds: const <String>{},
+        memeTallying: false,
+        memeTallyUp: 0,
+        memeTallyMeh: 0,
+        memeTallyDown: 0,
+        clearMemeFocus: true,
         players: engine.players,
         topMemes: _topMemeCards(),
         remainingMs: 0,
@@ -2198,7 +2664,11 @@ class MatchCoordinator {
         clearError: true,
       ),
     );
-    if (engine.allMemeVotesSubmitted) await _finishMemeRound();
+    if (_memeTallying) return;
+    await _publishMemeFocus();
+    if (engine.allVotesFor(_currentMemeFocusId)) {
+      await _startMemeTally();
+    }
   }
 
   Future<void> clientVoteMeme(String memeId, MemeVote vote) async {
@@ -2336,11 +2806,9 @@ class MatchCoordinator {
         remainingMs: 0,
       ),
     );
+    // The host decides when the group has laughed enough; the reveal never
+    // advances on a hidden timer.
     _timelineRevealTimer?.cancel();
-    _timelineRevealTimer = Timer(
-      timelineRevealDuration,
-      () => unawaited(_advanceAfterReveal()),
-    );
   }
 
   Future<void> submitCaption(String text) async {
@@ -3018,6 +3486,7 @@ class MatchCoordinator {
     final engine = _engine;
     if (engine == null) return;
     final awards = engine.buildPodiumAwards();
+    final topMemes = _topMemeCards();
     await _hostTransport?.broadcast(
       WireMessage(
         type: WireType.gamePodium,
@@ -3025,6 +3494,7 @@ class MatchCoordinator {
         payload: <String, dynamic>{
           'awards': awards.map((a) => a.toJson()).toList(),
           'players': engine.players.map((p) => p.toJson()).toList(),
+          'topMemes': topMemes.map((card) => card.toJson()).toList(),
         },
       ),
     );
@@ -3033,6 +3503,7 @@ class MatchCoordinator {
         phase: RoundPhase.podium,
         awards: awards,
         hostDeciding: false,
+        topMemes: topMemes,
         activePhotoBytes: null,
         candidates: const <PhotoCandidate>[],
         extensionCandidates: const <PhotoCandidate>[],
@@ -3107,6 +3578,10 @@ class MatchCoordinator {
     _remotePhotos.clear();
     _assembledHostBytes.clear();
     _clientRoundPhotos.clear();
+    _memeTallyTimer?.cancel();
+    _memeFocusOrder = <String>[];
+    _memeFocusIndex = 0;
+    _memeTallying = false;
     _emit(
       MatchUiState(
         isHosting: true,
@@ -3554,6 +4029,7 @@ class MatchCoordinator {
             phaseDurationMs: payload['phaseDurationMs'] as int? ?? 0,
             activeMode: activeMode,
             activePhotoBytes: activeBytes,
+            activePhotoId: activePhotoId,
             activePhotoIsPanorama:
                 payload['activePhotoIsPanorama'] as bool? ?? false,
             activeRoundOptions: options,
@@ -3578,6 +4054,21 @@ class MatchCoordinator {
             memeVotedIds: memeVotedIds,
             memeSubmissions: payload['memeSubmissions'] as int? ?? 0,
             memeVotesSubmitted: payload['memeVotesSubmitted'] as int? ?? 0,
+            memeFocusId: payload['memeFocusId'] as String?,
+            memeFocusIndex: payload['memeFocusIndex'] as int? ?? 0,
+            memeFocusCount: payload['memeFocusCount'] as int? ?? 0,
+            memeFocusVotes: payload['memeFocusVotes'] as int? ?? 0,
+            memeFocusEligible: payload['memeFocusEligible'] as int? ?? 0,
+            memeFocusVoterIds: <String>{
+              for (final value
+                  in (payload['memeFocusVoterIds'] as List<dynamic>? ??
+                      const []))
+                if (value is String) value,
+            },
+            memeTallying: payload['memeTallying'] as bool? ?? false,
+            memeTallyUp: payload['memeTallyUp'] as int? ?? 0,
+            memeTallyMeh: payload['memeTallyMeh'] as int? ?? 0,
+            memeTallyDown: payload['memeTallyDown'] as int? ?? 0,
             lastMemeReveal: lastMemeRevealJson is Map<String, dynamic>
                 ? MemeReveal.fromJson(lastMemeRevealJson)
                 : null,
@@ -3606,6 +4097,7 @@ class MatchCoordinator {
             clearError: true,
           ),
         );
+        _requestMissingMemePhotos();
         if (phase == RoundPhase.countdown ||
             phase == RoundPhase.guessing ||
             phase == RoundPhase.captionWriting ||
@@ -3740,6 +4232,27 @@ class MatchCoordinator {
         _emit(
           _state.copyWith(plantEligible: payload['eligible'] as bool? ?? false),
         );
+      case WireType.photoRequest:
+        final photoId = payload['photoId'] as String?;
+        if (photoId == null || photoId.isEmpty) return;
+        Uint8List? localBytes;
+        for (final candidate in _state.candidates) {
+          if (candidate.photoId == photoId && candidate.bytes != null) {
+            localBytes = candidate.bytes;
+            break;
+          }
+        }
+        localBytes ??= _memePhotoBytes[photoId] ?? _clientRoundPhotos[photoId];
+        if (localBytes == null || localBytes.isEmpty) return;
+        for (final chunk in PhotoChunker.split(photoId, localBytes)) {
+          await _clientTransport?.send(
+            WireMessage(
+              type: WireType.photoChunk,
+              seq: _nextSeq(),
+              payload: chunk.toJson(),
+            ),
+          );
+        }
       case WireType.photoChunk:
         final chunk = PhotoChunk.fromJson(payload);
         final localId = _state.localPlayerId ?? 'client';
@@ -3750,7 +4263,29 @@ class MatchCoordinator {
         final bytes = assembler.add(chunk);
         if (bytes != null) {
           _clientRoundPhotos[chunk.photoId] = bytes;
-          _emit(_state.copyWith(activePhotoBytes: bytes));
+          _memePhotoBytes[chunk.photoId] = bytes;
+          _photoRequestAttempts.remove(chunk.photoId);
+          final encoded = base64Encode(bytes);
+          final active = _state.activePhotoId;
+          _emit(
+            _state.copyWith(
+              activePhotoBytes: active == null || active == chunk.photoId
+                  ? bytes
+                  : _state.activePhotoBytes,
+              memePhotoBase64: _state.memeAssignment?.photoId == chunk.photoId
+                  ? encoded
+                  : _state.memePhotoBase64,
+              memeCards: _state.memeCards
+                  .map((card) => _withPhoto(card, chunk.photoId, encoded))
+                  .toList(),
+              memeRevealCards: _state.memeRevealCards
+                  .map((card) => _withPhoto(card, chunk.photoId, encoded))
+                  .toList(),
+              topMemes: _state.topMemes
+                  .map((card) => _withPhoto(card, chunk.photoId, encoded))
+                  .toList(),
+            ),
+          );
         }
       case WireType.roundCountdown:
         _emit(
@@ -3793,6 +4328,7 @@ class MatchCoordinator {
             activePhotoBytes: photoId == null
                 ? null
                 : _clientRoundPhotos[photoId],
+            activePhotoId: photoId,
             activePhotoIsPanorama: payload['isPanorama'] as bool? ?? false,
             activeRoundOptions: options,
             clearGuess: true,
@@ -3877,6 +4413,9 @@ class MatchCoordinator {
               clearError: true,
             ),
           );
+          if (encoded == null || encoded.isEmpty) {
+            requestPhoto(assignment.photoId);
+          }
         }
       case WireType.memeOptions:
         final cards = <MemeCard>[
@@ -3889,18 +4428,30 @@ class MatchCoordinator {
             if (value is String) value,
         };
         _emit(
-          _state.copyWith(
-            phase: RoundPhase.captionVoting,
-            activeMode: GameMode.makeItMeme,
-            memeCards: cards,
-            memeVotedIds: votedIds,
-            memeSubmissions: payload['submissions'] as int? ?? cards.length,
-            memeVotesSubmitted: payload['votes'] as int? ?? 0,
-            remainingMs: 0,
-            phaseDurationMs: 0,
-            clearError: true,
+          _withMemeFocus(
+            _state.copyWith(
+              phase: RoundPhase.captionVoting,
+              activeMode: GameMode.makeItMeme,
+              memeCards: cards,
+              memeVotedIds: votedIds,
+              memeSubmissions: payload['submissions'] as int? ?? cards.length,
+              memeVotesSubmitted: payload['votes'] as int? ?? 0,
+              remainingMs: 0,
+              phaseDurationMs: 0,
+              clearError: true,
+            ),
+            payload,
           ),
         );
+        _requestMissingMemePhotos();
+      case WireType.memeFocus:
+      case WireType.memeTally:
+        final tally = message.type == WireType.memeTally;
+        _emit(_withMemeFocus(_state.copyWith(memeTallying: tally), payload));
+        if (tally) {
+          unawaited(GameHaptics.instance.light());
+          unawaited(GameAudioService.instance.ding());
+        }
       case WireType.memeReveal:
         _stopClientPhaseTicker();
         unawaited(GameAudioService.instance.fanfare());
@@ -4457,6 +5008,7 @@ class MatchCoordinator {
     _extendTicker?.cancel();
     _captionRevealTimer?.cancel();
     _timelineRevealTimer?.cancel();
+    _memeTallyTimer?.cancel();
     _roundTimer = null;
     _clientPhaseTicker = null;
     _countdownTicker = null;

@@ -5,11 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/audio/game_audio_service.dart';
 import '../../core/models/models.dart';
+import '../../core/theme/game_skin.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../l10n/l10n.dart';
 import '../../state/match_coordinator.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
+import '../widgets/game_background.dart';
 import '../widgets/host_controls.dart';
 
 /// Caption This: write, vote, then watch the authors get exposed.
@@ -35,31 +37,35 @@ class _CaptionScreenState extends ConsumerState<CaptionScreen> {
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
 
     return Scaffold(
-      body: SafeArea(
-        child: ScreenBody(
-          child: switch (state.phase) {
-            RoundPhase.captionVoting => _CaptionVoting(
-              state: state,
-              onVote: (id) => unawaited(
-                state.isHosting
-                    ? coordinator.voteCaption(id)
-                    : coordinator.clientVoteCaption(id),
+      backgroundColor: Colors.transparent,
+      body: GameBackdrop(
+        mode: GameMode.captionThis,
+        child: SafeArea(
+          child: ScreenBody(
+            child: switch (state.phase) {
+              RoundPhase.captionVoting => _CaptionVoting(
+                state: state,
+                onVote: (id) => unawaited(
+                  state.isHosting
+                      ? coordinator.voteCaption(id)
+                      : coordinator.clientVoteCaption(id),
+                ),
+                onRevealNow: state.isHosting
+                    ? () => unawaited(coordinator.revealCaptionNow())
+                    : null,
               ),
-              onRevealNow: state.isHosting
-                  ? () => unawaited(coordinator.revealCaptionNow())
-                  : null,
-            ),
-            RoundPhase.captionReveal => _CaptionReveal(state: state),
-            _ => _CaptionWriting(
-              state: state,
-              controller: _caption,
-              onSubmit: (text) => unawaited(
-                state.isHosting
-                    ? coordinator.submitCaption(text)
-                    : coordinator.clientSubmitCaption(text),
+              RoundPhase.captionReveal => _CaptionReveal(state: state),
+              _ => _CaptionWriting(
+                state: state,
+                controller: _caption,
+                onSubmit: (text) => unawaited(
+                  state.isHosting
+                      ? coordinator.submitCaption(text)
+                      : coordinator.clientSubmitCaption(text),
+                ),
               ),
-            ),
-          },
+            },
+          ),
         ),
       ),
     );
@@ -325,12 +331,7 @@ class _CaptionReveal extends StatelessWidget {
         const SizedBox(height: AppSpacing.s12),
         Text(
           l10n.tableHasSpoken,
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w500,
-            letterSpacing: -0.3,
-            color: colors.ink,
-          ),
+          style: gameDisplay(size: 26, color: colors.ink),
         ),
         if (state.players
                 .where((player) => player.id == reveal.ownerId)
@@ -390,16 +391,15 @@ class _CaptionHeader extends StatelessWidget {
             Expanded(
               child: Text(
                 l10n.modeCaptionThis,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: -0.4,
-                  color: colors.ink,
-                ),
+                style: gameDisplay(size: 26, color: colors.ink),
               ),
             ),
             const HostControlsButton(),
-            FrameCounter(current: state.currentRound, total: state.totalRounds),
+            FrameCounter(
+              current: state.currentRound,
+              total: state.totalRounds,
+              label: l10n.roundBadge(state.currentRound, state.totalRounds),
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.s8),

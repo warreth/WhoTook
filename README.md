@@ -10,18 +10,18 @@ rejoin your last room after a restart.
 
 | Round | Lobby | Make It Meme vault | Podium |
 | --- | --- | --- | --- |
-| <img src="docs/screenshots/round.webp" width="190" alt="A round with a dog photo"> | <img src="docs/screenshots/lobby.webp" width="190" alt="Lobby with a QR code and the chosen setup"> | <img src="docs/screenshots/prepare.webp" width="190" alt="Make It Meme six-photo vault with six player photos"> | <img src="docs/screenshots/podium.webp" width="190" alt="Podium and awards"> |
+| <img src="docs/screenshots/round.webp" width="190" alt="A Classic round with a party dog photo and a round clock"> | <img src="docs/screenshots/lobby.webp" width="190" alt="Lobby with a QR code and the chosen setup"> | <img src="docs/screenshots/prepare.webp" width="190" alt="Make It Meme six-photo vault with six player photos"> | <img src="docs/screenshots/podium.webp" width="190" alt="Podium with the winning meme and match awards"> |
 
 ## Game modes
 
 - **Classic:** guess who took the photo.
-- **Make It Meme:** everyone brings six photos, you get one from someone else, build a template, then vote up, meh or down.
+- **Make It Meme:** everyone brings six photos, you get one from someone else, build a template with live text on the photo, then vote up, meh or down.
 - **Time Traveler:** pick a decade, year and month, then read the evidence timeline.
 - **Mixed Party:** Classic, Make It Meme and Time Traveler, shuffled.
 
 | Pick a mode | Make It Meme | Time Traveler |
 | --- | --- | --- |
-| <img src="docs/screenshots/modes.webp" width="190" alt="Setup screen with four game modes"> | <img src="docs/screenshots/meme-editor.webp" width="190" alt="Make It Meme editor with a friend's photo"> | <img src="docs/screenshots/timeline-reveal.webp" width="190" alt="Time Traveler evidence timeline"> |
+| <img src="docs/screenshots/modes.webp" width="190" alt="Setup screen with four game modes"> | <img src="docs/screenshots/meme-editor.webp" width="190" alt="Make It Meme editor with live text on a friend's photo"> | <img src="docs/screenshots/timeline-reveal.webp" width="190" alt="Time Traveler evidence timeline with staggered player pins"> |
 
 ## Download
 
@@ -37,7 +37,7 @@ rejoin your last room after a restart.
 1. **Set the table.** Pick a game mode, the rounds and the pace. Open the room and show the QR code.
 2. **Join and fill the vault.** Everyone joins from their own phone, picks a name and avatar, then approves their photos (six for Make It Meme). A selfie, a gallery photo or an icon all work as an avatar.
 3. **Guess, meme or time travel.** Classic asks who took it. Make It Meme gives you a friend's photo, seven templates and five match-wide swaps. Time Traveler asks for the date. If a connection drops, the phone reconnects to the same room and picks up the round.
-4. **Crown a winner.** The podium hands out awards and saves the top memes. Play five more rounds, head back to the lobby to change the game or add players, or skip a stuck round from the host menu.
+4. **Crown a winner.** The podium shows the match-winning meme, hands out awards and saves the top memes. Play five more rounds, head back to the lobby to change the game or add players, or skip a stuck round from the host menu.
 
 Two to twelve players. No accounts, no ads, no analytics.
 

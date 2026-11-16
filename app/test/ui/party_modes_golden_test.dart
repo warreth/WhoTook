@@ -415,7 +415,9 @@ Future<void> _loadFonts() async {
     ..addFont(rootBundle.load('assets/fonts/DMSans.ttf'));
   final mono = FontLoader('JetBrainsMono')
     ..addFont(rootBundle.load('assets/fonts/JetBrainsMono.ttf'));
-  await Future.wait(<Future<void>>[dmSans.load(), mono.load()]);
+  final display = FontLoader('Fredoka')
+    ..addFont(rootBundle.load('assets/fonts/Fredoka.ttf'));
+  await Future.wait(<Future<void>>[dmSans.load(), mono.load(), display.load()]);
   final iconFont = File(
     '${Platform.environment['FLUTTER_ROOT'] ?? '/opt/flutter'}'
     '/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf',

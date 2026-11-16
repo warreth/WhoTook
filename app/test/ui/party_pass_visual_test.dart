@@ -106,6 +106,9 @@ void main() {
         InMemorySharedPreferencesAsync.empty();
     final sans = FontLoader('DMSans')
       ..addFont(rootBundle.load('assets/fonts/DMSans.ttf'));
+    final display = FontLoader('Fredoka')
+      ..addFont(rootBundle.load('assets/fonts/Fredoka.ttf'));
+    await display.load();
     final mono = FontLoader('JetBrainsMono')
       ..addFont(rootBundle.load('assets/fonts/JetBrainsMono.ttf'));
     await Future.wait(<Future<void>>[sans.load(), mono.load()]);

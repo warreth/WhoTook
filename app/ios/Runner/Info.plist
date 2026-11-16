@@ -60,11 +60,11 @@
 		<string>_whotook._tcp</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>WhoTook uses the camera to scan match QR codes.</string>
+	<string>WhoTook uses your camera to scan a friend's room QR code to join a local game and to snap an optional player avatar selfie.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>WhoTook finds nearby players on the same Wi-Fi or hotspot without an external server.</string>
+	<string>WhoTook uses your local Wi-Fi network to connect directly peer-to-peer with friends in the same room without needing an external server.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>WhoTook picks random photos from albums you allow for the guessing game. Photos stay on players' devices during the match.</string>
+	<string>WhoTook selects random photos from your camera roll for the party game. You review and approve your photos beforehand in your private vault, and they are sent directly peer-to-peer to your friends in the same room.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>WhoTook saves the memes you choose to keep.</string>
 	<key>UIApplicationSceneManifest</key>

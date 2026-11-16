@@ -16,6 +16,7 @@ import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../widgets/avatar_editor.dart';
 import '../widgets/common.dart';
+import '../widgets/game_background.dart';
 import '../widgets/custom_turn_section.dart';
 import '../widgets/party_pass_sheet.dart';
 import 'advanced_settings_screen.dart';
@@ -134,400 +135,415 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         backgroundColor: colors.bg,
         surfaceTintColor: Colors.transparent,
       ),
-      body: SafeArea(
-        top: false,
-        child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.s20),
-          children: <Widget>[
-            TextField(
-              controller: _name,
-              textCapitalization: TextCapitalization.words,
-              decoration: InputDecoration(
-                labelText: l10n.nameLabel,
-                helperText: l10n.nameHelper,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadii.rControl),
+      body: GameBackdrop(
+        mode: GameMode.classic,
+        lobby: true,
+        child: SafeArea(
+          top: false,
+          child: ListView(
+            padding: const EdgeInsets.all(AppSpacing.s20),
+            children: <Widget>[
+              TextField(
+                controller: _name,
+                textCapitalization: TextCapitalization.words,
+                decoration: InputDecoration(
+                  labelText: l10n.nameLabel,
+                  helperText: l10n.nameHelper,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppRadii.rControl),
+                  ),
                 ),
+                onChanged: _onNameChanged,
+                onSubmitted: (value) => unawaited(_saveName(value)),
               ),
-              onChanged: _onNameChanged,
-              onSubmitted: (value) => unawaited(_saveName(value)),
-            ),
-            const SizedBox(height: AppSpacing.s24),
-            SectionLabel(l10n.avatar),
-            AvatarEditor(
-              avatar: normalizeAvatar(settings?.avatar),
-              photoBase64: settings?.avatarPhoto,
-              onChanged: (avatar, photo) => unawaited(
-                _settings.apply(
-                  (current) => current.copyWith(
-                    avatar: avatar,
-                    avatarPhoto: photo,
-                    clearAvatarPhoto: photo == null,
+              const SizedBox(height: AppSpacing.s24),
+              SectionLabel(l10n.avatar),
+              AvatarEditor(
+                avatar: normalizeAvatar(settings?.avatar),
+                photoBase64: settings?.avatarPhoto,
+                onChanged: (avatar, photo) => unawaited(
+                  _settings.apply(
+                    (current) => current.copyWith(
+                      avatar: avatar,
+                      avatarPhoto: photo,
+                      clearAvatarPhoto: photo == null,
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.s24),
-            SectionLabel(l10n.theme),
-            SurfaceCard(
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: <Widget>[
-                  for (final preference in ThemePreference.values)
-                    ListTile(
-                      minTileHeight: 56,
-                      title: Text(switch (preference) {
-                        ThemePreference.system => l10n.themeSystem,
-                        ThemePreference.light => l10n.themeLight,
-                        ThemePreference.dark => l10n.themeDark,
-                      }, style: const TextStyle(fontSize: 14)),
-                      trailing: Icon(
-                        (settings?.themePreference ?? ThemePreference.system) ==
-                                preference
-                            ? Icons.radio_button_checked
-                            : Icons.radio_button_unchecked,
-                        size: 18,
-                        color: colors.ink2,
-                      ),
-                      onTap: () => unawaited(
-                        _settings.apply(
-                          (current) =>
-                              current.copyWith(themePreference: preference),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.s24),
-            SectionLabel(l10n.gameFeel),
-            SurfaceCard(
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: <Widget>[
-                  SwitchListTile(
-                    value: settings?.soundEnabled ?? true,
-                    onChanged: (value) {
-                      unawaited(
-                        _settings.apply(
-                          (current) => current.copyWith(soundEnabled: value),
-                        ),
-                      );
-                      if (value) unawaited(GameAudioService.instance.tap());
-                    },
-                    title: Text(
-                      l10n.memeSound,
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                    subtitle: Text(
-                      l10n.memeSoundBody,
-                      style: TextStyle(fontSize: 12, color: colors.ink2),
-                    ),
-                  ),
-                  Divider(height: 1, color: colors.hairline),
-                  SwitchListTile(
-                    value: settings?.hapticsEnabled ?? true,
-                    onChanged: (value) {
-                      unawaited(
-                        _settings.apply(
-                          (current) => current.copyWith(hapticsEnabled: value),
-                        ),
-                      );
-                      if (value) unawaited(GameHaptics.instance.selection());
-                    },
-                    title: Text(
-                      l10n.memeHaptics,
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                    subtitle: Text(
-                      l10n.memeHapticsBody,
-                      style: TextStyle(fontSize: 12, color: colors.ink2),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.s24),
-            SectionLabel(l10n.language),
-            SurfaceCard(
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: <Widget>[
-                  for (final language in AppLanguage.values)
-                    ListTile(
-                      minTileHeight: 56,
-                      title: Text(switch (language) {
-                        AppLanguage.system => l10n.languageSystem,
-                        AppLanguage.english => l10n.languageEnglish,
-                        AppLanguage.dutch => l10n.languageDutch,
-                      }, style: const TextStyle(fontSize: 14)),
-                      trailing: Icon(
-                        (settings?.language ?? AppLanguage.system) == language
-                            ? Icons.radio_button_checked
-                            : Icons.radio_button_unchecked,
-                        size: 18,
-                        color: colors.ink2,
-                      ),
-                      onTap: () => unawaited(
-                        _settings.apply(
-                          (current) => current.copyWith(language: language),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.s24),
-            SectionLabel(
-              l10n.privateAlbums,
-              trailing: Text(
-                l10n.excludedCount(settings?.excludedAlbumIds.length ?? 0),
-                style: tabularFigures(
-                  TextStyle(fontSize: 12, color: colors.ink3),
-                ),
-              ),
-            ),
-            Text(
-              l10n.privateAlbumsBody,
-              style: TextStyle(fontSize: 13, color: colors.ink2, height: 1.4),
-            ),
-            const SizedBox(height: AppSpacing.s12),
-            if (_albumError)
-              SurfaceCard(
-                child: EmptyState(
-                  title: l10n.albumListUnavailable,
-                  body: l10n.albumListUnavailableBody,
-                  actionLabel: l10n.retry,
-                  onAction: () => unawaited(_retryAlbums()),
-                ),
-              )
-            else if (_albums == null)
-              SurfaceCard(
-                child: Row(
-                  children: <Widget>[
-                    SizedBox.square(
-                      dimension: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: colors.ink3,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.s12),
-                    Text(l10n.readingAlbums),
-                  ],
-                ),
-              )
-            else if (_albums!.isEmpty)
-              SurfaceCard(
-                child: EmptyState(
-                  title: l10n.noAlbums,
-                  body: l10n.noAlbumsBody,
-                  actionLabel: l10n.allowPhotoAccess,
-                  onAction: () => unawaited(_retryAlbums()),
-                ),
-              )
-            else
+              const SizedBox(height: AppSpacing.s24),
+              SectionLabel(l10n.theme),
               SurfaceCard(
                 padding: EdgeInsets.zero,
                 child: Column(
                   children: <Widget>[
-                    for (final album in _albums!)
-                      CheckboxListTile(
-                        value:
-                            settings?.excludedAlbumIds.contains(album.id) ??
-                            false,
-                        onChanged: (checked) {
-                          unawaited(
-                            _settings.apply((current) {
-                              final excluded = Set<String>.of(
-                                current.excludedAlbumIds,
-                              );
-                              if (checked ?? false) {
-                                excluded.add(album.id);
-                              } else {
-                                excluded.remove(album.id);
-                              }
-                              return current.copyWith(
-                                excludedAlbumIds: excluded,
-                              );
-                            }),
-                          );
-                        },
-                        title: Text(
-                          album.name,
-                          style: const TextStyle(fontSize: 14),
+                    for (final preference in ThemePreference.values)
+                      ListTile(
+                        minTileHeight: 56,
+                        title: Text(switch (preference) {
+                          ThemePreference.system => l10n.themeSystem,
+                          ThemePreference.light => l10n.themeLight,
+                          ThemePreference.dark => l10n.themeDark,
+                        }, style: const TextStyle(fontSize: 14)),
+                        trailing: Icon(
+                          (settings?.themePreference ??
+                                      ThemePreference.system) ==
+                                  preference
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
+                          size: 18,
+                          color: colors.ink2,
                         ),
-                        subtitle: Text(
-                          l10n.photosCount(album.assetCount),
-                          style: TextStyle(fontSize: 12, color: colors.ink3),
+                        onTap: () => unawaited(
+                          _settings.apply(
+                            (current) =>
+                                current.copyWith(themePreference: preference),
+                          ),
                         ),
-                        controlAffinity: ListTileControlAffinity.trailing,
-                        dense: true,
                       ),
                   ],
                 ),
               ),
-            const SizedBox(height: AppSpacing.s24),
-            SectionLabel(l10n.onlineRelay),
-            SurfaceCard(
-              padding: EdgeInsets.zero,
-              child: ListTile(
-                minTileHeight: 64,
-                leading: const Icon(Icons.tune, size: 20),
-                title: Text(
-                  l10n.advancedSettings,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                subtitle: Text(
-                  l10n.advancedSettingsBody,
-                  style: TextStyle(fontSize: 12, color: colors.ink2),
-                ),
-                trailing: const Icon(Icons.chevron_right, size: 20),
-                onTap: () => unawaited(
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const AdvancedSettingsScreen(),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.s24),
-            SectionLabel(l10n.settingsPartyPassTitle),
-            SurfaceCard(
-              padding: EdgeInsets.zero,
-              child: ListTile(
-                minTileHeight: 64,
-                leading: Icon(
-                  Icons.workspace_premium,
-                  size: 20,
-                  color: colors.accent,
-                ),
-                title: Text(
-                  l10n.settingsPartyPassTitle,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                subtitle: Text(
-                  ref.watch(partyPassProvider).value?.active ?? false
-                      ? l10n.settingsPartyPassActive
-                      : l10n.settingsPartyPassInactive,
-                  style: TextStyle(fontSize: 12, color: colors.ink2),
-                ),
-                trailing: const Icon(Icons.chevron_right, size: 20),
-                onTap: () => unawaited(showPartyPassSheet(context)),
-              ),
-            ),
-            if (BuildFlavor.foss) ...<Widget>[
               const SizedBox(height: AppSpacing.s24),
-              SectionLabel(l10n.fossBuildBadge),
-              Text(
-                l10n.fossBuildBody,
-                style: TextStyle(
-                  fontSize: 13,
-                  height: 1.4,
-                  color: colors.ink2,
+              SectionLabel(l10n.gameFeel),
+              SurfaceCard(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: <Widget>[
+                    SwitchListTile(
+                      value: settings?.soundEnabled ?? true,
+                      onChanged: (value) {
+                        unawaited(
+                          _settings.apply(
+                            (current) => current.copyWith(soundEnabled: value),
+                          ),
+                        );
+                        if (value) unawaited(GameAudioService.instance.tap());
+                      },
+                      title: Text(
+                        l10n.memeSound,
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      subtitle: Text(
+                        l10n.memeSoundBody,
+                        style: TextStyle(fontSize: 12, color: colors.ink2),
+                      ),
+                    ),
+                    Divider(height: 1, color: colors.hairline),
+                    SwitchListTile(
+                      value: settings?.hapticsEnabled ?? true,
+                      onChanged: (value) {
+                        unawaited(
+                          _settings.apply(
+                            (current) =>
+                                current.copyWith(hapticsEnabled: value),
+                          ),
+                        );
+                        if (value) unawaited(GameHaptics.instance.selection());
+                      },
+                      title: Text(
+                        l10n.memeHaptics,
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      subtitle: Text(
+                        l10n.memeHapticsBody,
+                        style: TextStyle(fontSize: 12, color: colors.ink2),
+                      ),
+                    ),
+                  ],
                 ),
+              ),
+              const SizedBox(height: AppSpacing.s24),
+              SectionLabel(l10n.language),
+              SurfaceCard(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: <Widget>[
+                    for (final language in AppLanguage.values)
+                      ListTile(
+                        minTileHeight: 56,
+                        title: Text(switch (language) {
+                          AppLanguage.system => l10n.languageSystem,
+                          AppLanguage.english => l10n.languageEnglish,
+                          AppLanguage.dutch => l10n.languageDutch,
+                        }, style: const TextStyle(fontSize: 14)),
+                        trailing: Icon(
+                          (settings?.language ?? AppLanguage.system) == language
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
+                          size: 18,
+                          color: colors.ink2,
+                        ),
+                        onTap: () => unawaited(
+                          _settings.apply(
+                            (current) => current.copyWith(language: language),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.s24),
+              SectionLabel(
+                l10n.privateAlbums,
+                trailing: Text(
+                  l10n.excludedCount(settings?.excludedAlbumIds.length ?? 0),
+                  style: tabularFigures(
+                    TextStyle(fontSize: 12, color: colors.ink3),
+                  ),
+                ),
+              ),
+              Text(
+                l10n.privateAlbumsBody,
+                style: TextStyle(fontSize: 13, color: colors.ink2, height: 1.4),
               ),
               const SizedBox(height: AppSpacing.s12),
-              const CustomTurnSection(),
+              if (_albumError)
+                SurfaceCard(
+                  child: EmptyState(
+                    title: l10n.albumListUnavailable,
+                    body: l10n.albumListUnavailableBody,
+                    actionLabel: l10n.retry,
+                    onAction: () => unawaited(_retryAlbums()),
+                  ),
+                )
+              else if (_albums == null)
+                SurfaceCard(
+                  child: Row(
+                    children: <Widget>[
+                      SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: colors.ink3,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.s12),
+                      Text(l10n.readingAlbums),
+                    ],
+                  ),
+                )
+              else if (_albums!.isEmpty)
+                SurfaceCard(
+                  child: EmptyState(
+                    title: l10n.noAlbums,
+                    body: l10n.noAlbumsBody,
+                    actionLabel: l10n.allowPhotoAccess,
+                    onAction: () => unawaited(_retryAlbums()),
+                  ),
+                )
+              else
+                SurfaceCard(
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    children: <Widget>[
+                      for (final album in _albums!)
+                        CheckboxListTile(
+                          value:
+                              settings?.excludedAlbumIds.contains(album.id) ??
+                              false,
+                          onChanged: (checked) {
+                            unawaited(
+                              _settings.apply((current) {
+                                final excluded = Set<String>.of(
+                                  current.excludedAlbumIds,
+                                );
+                                if (checked ?? false) {
+                                  excluded.add(album.id);
+                                } else {
+                                  excluded.remove(album.id);
+                                }
+                                return current.copyWith(
+                                  excludedAlbumIds: excluded,
+                                );
+                              }),
+                            );
+                          },
+                          title: Text(
+                            album.name,
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                          subtitle: Text(
+                            l10n.photosCount(album.assetCount),
+                            style: TextStyle(fontSize: 12, color: colors.ink3),
+                          ),
+                          controlAffinity: ListTileControlAffinity.trailing,
+                          dense: true,
+                        ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: AppSpacing.s24),
+              SectionLabel(l10n.onlineRelay),
+              SurfaceCard(
+                padding: EdgeInsets.zero,
+                child: ListTile(
+                  minTileHeight: 64,
+                  leading: const Icon(Icons.tune, size: 20),
+                  title: Text(
+                    l10n.advancedSettings,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  subtitle: Text(
+                    l10n.advancedSettingsBody,
+                    style: TextStyle(fontSize: 12, color: colors.ink2),
+                  ),
+                  trailing: const Icon(Icons.chevron_right, size: 20),
+                  onTap: () => unawaited(
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const AdvancedSettingsScreen(),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.s24),
+              SectionLabel(l10n.settingsPartyPassTitle),
+              SurfaceCard(
+                padding: EdgeInsets.zero,
+                child: ListTile(
+                  minTileHeight: 64,
+                  leading: Icon(
+                    Icons.workspace_premium,
+                    size: 20,
+                    color: colors.accent,
+                  ),
+                  title: Text(
+                    l10n.settingsPartyPassTitle,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  subtitle: Text(
+                    ref.watch(partyPassProvider).value?.active ?? false
+                        ? l10n.settingsPartyPassActive
+                        : l10n.settingsPartyPassInactive,
+                    style: TextStyle(fontSize: 12, color: colors.ink2),
+                  ),
+                  trailing: const Icon(Icons.chevron_right, size: 20),
+                  onTap: () => unawaited(showPartyPassSheet(context)),
+                ),
+              ),
+              if (BuildFlavor.foss) ...<Widget>[
+                const SizedBox(height: AppSpacing.s24),
+                SectionLabel(l10n.fossBuildBadge),
+                Text(
+                  l10n.fossBuildBody,
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 1.4,
+                    color: colors.ink2,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.s12),
+                const CustomTurnSection(),
+              ],
+              const SizedBox(height: AppSpacing.s24),
+              SectionLabel(l10n.helpAndLegal),
+              SurfaceCard(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: <Widget>[
+                    ListTile(
+                      minTileHeight: 56,
+                      leading: const Icon(Icons.outlined_flag, size: 20),
+                      title: Text(
+                        l10n.reportContent,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      subtitle: Text(
+                        l10n.reportBody(kSupportEmail),
+                        style: TextStyle(fontSize: 12, color: colors.ink2),
+                      ),
+                      onTap: () => unawaited(
+                        openExternal(
+                          context,
+                          'mailto:$kSupportEmail?subject=WhoTook%20report',
+                        ),
+                      ),
+                    ),
+                    Divider(height: 1, color: colors.hairline),
+                    ListTile(
+                      minTileHeight: 56,
+                      leading: const Icon(Icons.mail_outline, size: 20),
+                      title: Text(
+                        l10n.support,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      subtitle: Text(
+                        kSupportEmail,
+                        style: TextStyle(fontSize: 12, color: colors.ink2),
+                      ),
+                      onTap: () => unawaited(openSupport(context)),
+                    ),
+                    Divider(height: 1, color: colors.hairline),
+                    ListTile(
+                      minTileHeight: 56,
+                      leading: const Icon(Icons.gavel_outlined, size: 20),
+                      title: Text(
+                        l10n.termsAndRules,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      onTap: () => unawaited(openExternal(context, kTermsUrl)),
+                    ),
+                    Divider(height: 1, color: colors.hairline),
+                    ListTile(
+                      minTileHeight: 56,
+                      leading: const Icon(Icons.privacy_tip_outlined, size: 20),
+                      title: Text(
+                        l10n.privacy,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      onTap: () =>
+                          unawaited(openExternal(context, kPrivacyUrl)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.s24),
+              SectionLabel(l10n.about),
+              Divider(color: colors.hairline, height: 1),
+              const SizedBox(height: AppSpacing.s12),
+              Text(
+                l10n.openSource,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: colors.ink2,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.s8),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _onAboutTap,
+                child: Text(
+                  l10n.trademark,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colors.ink3,
+                    height: 1.4,
+                  ),
+                ),
+              ),
             ],
-            const SizedBox(height: AppSpacing.s24),
-            SectionLabel(l10n.helpAndLegal),
-            SurfaceCard(
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: <Widget>[
-                  ListTile(
-                    minTileHeight: 56,
-                    leading: const Icon(Icons.outlined_flag, size: 20),
-                    title: Text(
-                      l10n.reportContent,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    subtitle: Text(
-                      l10n.reportBody(kSupportEmail),
-                      style: TextStyle(fontSize: 12, color: colors.ink2),
-                    ),
-                    onTap: () => unawaited(
-                      openExternal(
-                        context,
-                        'mailto:$kSupportEmail?subject=WhoTook%20report',
-                      ),
-                    ),
-                  ),
-                  Divider(height: 1, color: colors.hairline),
-                  ListTile(
-                    minTileHeight: 56,
-                    leading: const Icon(Icons.mail_outline, size: 20),
-                    title: Text(
-                      l10n.support,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    subtitle: Text(
-                      kSupportEmail,
-                      style: TextStyle(fontSize: 12, color: colors.ink2),
-                    ),
-                    onTap: () => unawaited(openSupport(context)),
-                  ),
-                  Divider(height: 1, color: colors.hairline),
-                  ListTile(
-                    minTileHeight: 56,
-                    leading: const Icon(Icons.gavel_outlined, size: 20),
-                    title: Text(
-                      l10n.termsAndRules,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    onTap: () => unawaited(openExternal(context, kTermsUrl)),
-                  ),
-                  Divider(height: 1, color: colors.hairline),
-                  ListTile(
-                    minTileHeight: 56,
-                    leading: const Icon(Icons.privacy_tip_outlined, size: 20),
-                    title: Text(
-                      l10n.privacy,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    onTap: () => unawaited(openExternal(context, kPrivacyUrl)),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.s24),
-            SectionLabel(l10n.about),
-            Divider(color: colors.hairline, height: 1),
-            const SizedBox(height: AppSpacing.s12),
-            Text(
-              l10n.openSource,
-              style: TextStyle(fontSize: 13, color: colors.ink2, height: 1.45),
-            ),
-            const SizedBox(height: AppSpacing.s8),
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: _onAboutTap,
-              child: Text(
-                l10n.trademark,
-                style: TextStyle(fontSize: 12, color: colors.ink3, height: 1.4),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

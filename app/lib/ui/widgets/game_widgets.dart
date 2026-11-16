@@ -10,6 +10,7 @@ import 'package:gal/gal.dart';
 import '../../core/audio/game_audio_service.dart';
 import '../../core/constants.dart';
 import '../../core/models/models.dart';
+import '../../core/theme/game_skin.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../l10n/l10n.dart';
 
@@ -147,8 +148,9 @@ class _GameButtonState extends State<GameButton> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: widget.small ? 12 : 14,
-                    fontWeight: FontWeight.w700,
+                    fontFamily: 'Fredoka',
+                    fontSize: widget.small ? 13 : 15,
+                    fontWeight: FontWeight.w600,
                     color: foreground,
                     letterSpacing: -0.1,
                   ),
@@ -274,29 +276,152 @@ class _PhotoBytes extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = WhoTookColors.of(context);
     final data = bytes;
     if (data == null || data.isEmpty) {
-      return Container(
-        color: colors.raised,
-        alignment: Alignment.center,
-        child: Icon(Icons.image_outlined, size: 28, color: colors.ink3),
-      );
+      return const PhotoShimmer();
     }
+    return GamePhoto(bytes: data, fit: BoxFit.cover);
+  }
+}
+
+/// Decoded photo with a real loading state. `Image.memory` paints nothing
+/// until its first frame is ready, which is exactly the black box a delayed
+/// peer photo used to leave on screen. This keeps the shimmer up instead.
+class GamePhoto extends StatelessWidget {
+  const GamePhoto({
+    super.key,
+    required this.bytes,
+    this.fit = BoxFit.cover,
+    this.compact = false,
+  });
+
+  final Uint8List bytes;
+  final BoxFit fit;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
     return Image.memory(
-      data,
-      fit: BoxFit.cover,
+      bytes,
+      fit: fit,
       gaplessPlayback: true,
+      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+        if (wasSynchronouslyLoaded || frame != null) return child;
+        return PhotoShimmer(compact: compact);
+      },
       errorBuilder: (context, error, stack) => Container(
         color: colors.raised,
         alignment: Alignment.center,
-        child: Icon(Icons.image_not_supported_outlined, color: colors.ink3),
+        child: Icon(
+          Icons.image_not_supported_outlined,
+          color: colors.ink3,
+          size: compact ? 22 : 30,
+        ),
       ),
     );
   }
 }
 
-/// A fat, pulsing timer with a tick in the last five seconds.
+/// Playful photo placeholder shown while a peer's JPEG is still arriving.
+/// One finite sweep, then calm, so it never becomes an endless animation.
+class PhotoShimmer extends StatefulWidget {
+  const PhotoShimmer({super.key, this.compact = false});
+
+  final bool compact;
+
+  @override
+  State<PhotoShimmer> createState() => _PhotoShimmerState();
+}
+
+class _PhotoShimmerState extends State<PhotoShimmer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _sweep = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 250),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    final reduce = WidgetsBinding
+        .instance
+        .platformDispatcher
+        .accessibilityFeatures
+        .disableAnimations;
+    if (reduce) {
+      _sweep.value = 1;
+    } else {
+      _sweep.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _sweep.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    return Semantics(
+      label: context.l10n.photoLoading,
+      child: AnimatedBuilder(
+        animation: _sweep,
+        builder: (context, child) {
+          final t = Curves.easeInOut.transform(_sweep.value);
+          return DecoratedBox(
+            decoration: BoxDecoration(
+              color: colors.raised,
+              gradient: LinearGradient(
+                begin: Alignment(-1.5 + t * 3, -0.4),
+                end: Alignment(-0.5 + t * 3, 0.4),
+                colors: <Color>[
+                  colors.raised,
+                  Color.alphaBlend(
+                    colors.accent.withValues(alpha: 0.16),
+                    colors.card,
+                  ),
+                  colors.raised,
+                ],
+                stops: const <double>[0, 0.5, 1],
+              ),
+            ),
+            child: Stack(
+              fit: StackFit.expand,
+              children: <Widget>[
+                Center(
+                  child: Icon(
+                    Icons.photo_camera_back_outlined,
+                    size: widget.compact ? 22 : 34,
+                    color: colors.ink3,
+                  ),
+                ),
+                Positioned(
+                  left: 10,
+                  right: 10,
+                  bottom: 10,
+                  child: Container(
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: colors.card.withValues(alpha: 0.75),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// A chunky circular clock / time-bomb. It pulses, turns red and shakes in the
+/// last five seconds. The parent already ticks [remainingMs] about ten times a
+/// second, so no endless animation controller is needed.
 class PanicTimerBar extends StatefulWidget {
   const PanicTimerBar({
     super.key,
@@ -331,6 +456,7 @@ class _PanicTimerBarState extends State<PanicTimerBar> {
       if (seconds != _lastTickSecond) {
         _lastTickSecond = seconds;
         unawaited(GameAudioService.instance.tick());
+        unawaited(GameHaptics.instance.light());
       }
     } else {
       _up = false;
@@ -344,63 +470,151 @@ class _PanicTimerBarState extends State<PanicTimerBar> {
     final fraction = (widget.remainingMs / total).clamp(0.0, 1.0);
     final danger = widget.remainingMs <= widget.dangerThresholdMs;
     final reduce = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-    final bar = AnimatedScale(
-      scale: danger && _up && !reduce ? 1.012 : 1.0,
-      duration: const Duration(milliseconds: 120),
-      curve: Curves.easeOut,
-      child: Container(
-        height: 18,
-        decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: colors.ink, width: 2),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: FractionallySizedBox(
-          alignment: Alignment.centerLeft,
-          widthFactor: fraction,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
-            color: danger ? colors.negative : colors.accent,
+    final seconds = (widget.remainingMs / 1000).ceil().clamp(0, 999);
+    final shake = danger && !reduce
+        ? math.sin(widget.remainingMs / 70) * 2.6
+        : 0.0;
+    final tone = danger ? colors.negative : colors.accent;
+    final badge = Transform.translate(
+      offset: Offset(shake, 0),
+      child: AnimatedScale(
+        scale: danger && _up && !reduce ? 1.075 : 1.0,
+        duration: const Duration(milliseconds: 110),
+        curve: Curves.easeOut,
+        child: Semantics(
+          label: widget.label,
+          value: '$seconds',
+          child: SizedBox.square(
+            dimension: 66,
+            child: Stack(
+              fit: StackFit.expand,
+              children: <Widget>[
+                CustomPaint(
+                  painter: _BombRingPainter(
+                    fraction: fraction,
+                    tone: tone,
+                    track: colors.raised,
+                    ink: colors.ink,
+                  ),
+                ),
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: danger ? colors.negative : colors.ink,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: colors.ink, width: 2),
+                    ),
+                    child: Text(
+                      '$seconds',
+                      style: gameDisplay(
+                        size: seconds >= 100 ? 13 : 20,
+                        weight: FontWeight.w700,
+                        color: danger ? Colors.white : colors.bg,
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 2,
+                  top: 0,
+                  child: Transform.rotate(
+                    angle: 0.5,
+                    child: Container(
+                      width: 10,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: tone,
+                        borderRadius: BorderRadius.circular(2),
+                        border: Border.all(color: colors.ink, width: 1.5),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
     final label = widget.label;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    if (!widget.showLabel) return Center(child: badge);
+    return Row(
       children: <Widget>[
-        if (widget.showLabel)
-          Row(
-            children: <Widget>[
-              Text(
-                '${(widget.remainingMs / 1000).ceil()}s',
-                style: tabularFigures(
-                  TextStyle(
-                    fontFamily: 'JetBrainsMono',
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                    color: danger ? colors.negative : colors.ink,
-                  ),
-                ),
+        badge,
+        if (label != null) ...<Widget>[
+          const SizedBox(width: AppSpacing.s12),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                height: 1.25,
+                fontWeight: FontWeight.w600,
+                color: danger ? colors.negative : colors.ink2,
               ),
-              if (label != null) ...<Widget>[
-                const SizedBox(width: AppSpacing.s8),
-                Expanded(
-                  child: Text(
-                    label,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12, color: colors.ink2),
-                  ),
-                ),
-              ],
-            ],
+            ),
           ),
-        if (widget.showLabel) const SizedBox(height: 5),
-        bar,
+        ],
       ],
     );
   }
+}
+
+class _BombRingPainter extends CustomPainter {
+  const _BombRingPainter({
+    required this.fraction,
+    required this.tone,
+    required this.track,
+    required this.ink,
+  });
+
+  final double fraction;
+  final Color tone;
+  final Color track;
+  final Color ink;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final centre = size.center(Offset.zero);
+    final radius = size.shortestSide / 2 - 3;
+    final background = Paint()
+      ..color = track
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 8;
+    canvas.drawCircle(centre, radius, background);
+    final ring = Paint()
+      ..color = tone
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 8
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(
+      Rect.fromCircle(center: centre, radius: radius),
+      -math.pi / 2,
+      math.pi * 2 * fraction,
+      false,
+      ring,
+    );
+    canvas.drawCircle(
+      centre,
+      radius,
+      Paint()
+        ..color = ink
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _BombRingPainter oldDelegate) =>
+      oldDelegate.fraction != fraction ||
+      oldDelegate.tone != tone ||
+      oldDelegate.track != track ||
+      oldDelegate.ink != ink;
 }
 
 /// One canvas for all seven meme templates. The same widget is used in the
@@ -613,7 +827,7 @@ class MemeCanvas extends StatelessWidget {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontFamily: 'Georgia',
+                                fontFamily: 'Fredoka',
                                 color: Color(0xFFF7F4EE),
                                 fontSize: 21,
                                 height: 1.05,
@@ -815,8 +1029,9 @@ class MemeTemplatePicker extends StatelessWidget {
     final colors = WhoTookColors.of(context);
     final dark = Theme.of(context).brightness == Brightness.dark;
     final l10n = context.l10n;
+    final scale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.8);
     return SizedBox(
-      height: 58,
+      height: 58 * scale,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: MemeTemplate.values.length,

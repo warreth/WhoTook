@@ -867,6 +867,46 @@ class HostGameEngine {
   bool isOwnMeme(String playerId, String memeId) =>
       _memePlayerById[memeId] == playerId;
 
+  /// Stable display order for the voting loop: submissions arrive in player
+  /// order, which keeps every phone in step.
+  List<String> get memeIds => List<String>.unmodifiable(_memePlayerById.keys);
+
+  String? memeAuthorFor(String memeId) => _memePlayerById[memeId];
+
+  List<Player> eligibleVotersFor(String memeId) {
+    final authorId = _memePlayerById[memeId];
+    return List<Player>.unmodifiable(
+      _players.values.where(
+        (player) => player.connected && player.id != authorId,
+      ),
+    );
+  }
+
+  Set<String> voterIdsFor(String memeId) => Set<String>.unmodifiable(
+    (_memeVotes[memeId] ?? const <String, MemeVote>{}).keys,
+  );
+
+  int voteCountFor(String memeId) => _memeVotes[memeId]?.length ?? 0;
+
+  Map<String, int> voteSplitFor(String memeId) {
+    final votes = _memeVotes[memeId] ?? const <String, MemeVote>{};
+    return <String, int>{
+      'up': votes.values.where((vote) => vote == MemeVote.up).length,
+      'meh': votes.values.where((vote) => vote == MemeVote.meh).length,
+      'down': votes.values.where((vote) => vote == MemeVote.down).length,
+    };
+  }
+
+  bool allVotesFor(String memeId) {
+    final authorId = _memePlayerById[memeId];
+    if (authorId == null) return false;
+    for (final player in _players.values) {
+      if (!player.connected || player.id == authorId) continue;
+      if (_memeVotes[memeId]?[player.id] == null) return false;
+    }
+    return true;
+  }
+
   PhotoCandidate swapMemePhoto(String playerId) {
     _requirePlayer(playerId);
     if (_phase != RoundPhase.captionWriting) {

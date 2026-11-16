@@ -129,7 +129,7 @@ void main() {
     expect(find.text('5G & firewall relay'), findsOneWidget);
     expect(find.text('Live soundboard'), findsOneWidget);
     expect(find.text('Shared room themes'), findsOneWidget);
-    expect(find.text('Unlock Forever — €2.99'), findsOneWidget);
+    expect(find.text('Unlock Forever, €2.99'), findsOneWidget);
     expect(find.text('Restore purchases'), findsOneWidget);
     expect(find.text('Use your own TURN server'), findsOneWidget);
   });
@@ -152,7 +152,7 @@ void main() {
 
     expect(find.text('Party Pass Active'), findsOneWidget);
     expect(find.text('12 of 15 relay matches left today'), findsOneWidget);
-    expect(find.text('Unlock Forever — €2.99'), findsNothing);
+    expect(find.text('Unlock Forever, €2.99'), findsNothing);
     expect(find.text('Restore purchases'), findsOneWidget);
   });
 
@@ -174,7 +174,7 @@ void main() {
 
     expect(find.text('Included in this FOSS build'), findsOneWidget);
     expect(find.text('Use your own TURN server'), findsOneWidget);
-    expect(find.text('Unlock Forever — €2.99'), findsNothing);
+    expect(find.text('Unlock Forever, €2.99'), findsNothing);
   });
 
   testWidgets('the soundboard expands with all six sounds', (tester) async {

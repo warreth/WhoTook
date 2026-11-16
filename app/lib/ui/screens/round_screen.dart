@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,10 +7,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/audio/game_audio_service.dart';
 import '../../core/models/models.dart';
+import '../../core/theme/game_skin.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
+import '../widgets/game_background.dart';
 import '../widgets/game_widgets.dart';
 import '../widgets/host_controls.dart';
 
@@ -30,110 +33,113 @@ class RoundScreen extends ConsumerWidget {
     final roundNumber = showingReveal ? reveal.roundNumber : state.currentRound;
 
     return Scaffold(
-      body: SafeArea(
-        child: ScreenBody(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.s20,
-              AppSpacing.s12,
-              AppSpacing.s20,
-              AppSpacing.s16,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: Text(
-                        showingReveal || showingCountdown
-                            ? l10n.roundOf(roundNumber, state.totalRounds)
-                            : l10n.whoTookThis,
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: -0.3,
-                          color: colors.ink,
+      backgroundColor: Colors.transparent,
+      body: GameBackdrop(
+        mode: state.activeMode,
+        child: SafeArea(
+          child: ScreenBody(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.s20,
+                AppSpacing.s12,
+                AppSpacing.s20,
+                AppSpacing.s16,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          showingReveal || showingCountdown
+                              ? l10n.roundOf(roundNumber, state.totalRounds)
+                              : l10n.whoTookThis,
+                          style: gameDisplay(size: 28, color: colors.ink),
                         ),
                       ),
-                    ),
-                    const HostControlsButton(),
-                    FrameCounter(
+                      const HostControlsButton(),
+                      FrameCounter(
+                        current: roundNumber,
+                        total: state.totalRounds,
+                        label: l10n.roundBadge(roundNumber, state.totalRounds),
+                      ),
+                    ],
+                  ),
+                  if (state.totalRounds > 0) ...<Widget>[
+                    const SizedBox(height: AppSpacing.s8),
+                    ProgressSegments(
                       current: roundNumber,
                       total: state.totalRounds,
                     ),
                   ],
-                ),
-                if (state.totalRounds > 0) ...<Widget>[
-                  const SizedBox(height: AppSpacing.s8),
-                  ProgressSegments(
-                    current: roundNumber,
-                    total: state.totalRounds,
-                  ),
-                ],
-                const SizedBox(height: AppSpacing.s12),
-                if (showingCountdown)
-                  Expanded(
-                    child: _CountdownView(
-                      seconds: ((state.remainingMs + 999) ~/ 1000).clamp(1, 9),
-                    ),
-                  )
-                else ...<Widget>[
-                  Expanded(
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 220),
-                      switchInCurve: Curves.easeOut,
-                      child: _PhotoFrame(
-                        key: ValueKey<int>(state.currentRound),
-                        bytes: state.activePhotoBytes,
-                        isPanorama: state.activePhotoIsPanorama,
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: AppSpacing.s12),
-                  if (showingReveal)
-                    _RevealBlock(
-                      reveal: reveal,
-                      players: state.players,
-                      avatarPhotos: state.avatarPhotos,
-                      localPlayerId: state.localPlayerId,
+                  if (showingCountdown)
+                    Expanded(
+                      child: _CountdownView(
+                        seconds: ((state.remainingMs + 999) ~/ 1000).clamp(
+                          1,
+                          9,
+                        ),
+                      ),
                     )
                   else ...<Widget>[
-                    const SizedBox(height: AppSpacing.s12),
-                    PanicTimerBar(
-                      remainingMs: state.remainingMs,
-                      totalMs: (state.config.roundSeconds * 1000).clamp(
-                        1,
-                        60000,
+                    Expanded(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 220),
+                        switchInCurve: Curves.easeOut,
+                        child: _PhotoFrame(
+                          key: ValueKey<int>(state.currentRound),
+                          bytes: state.activePhotoBytes,
+                          isPanorama: state.activePhotoIsPanorama,
+                        ),
                       ),
-                      label: l10n.tapNameToLock,
                     ),
                     const SizedBox(height: AppSpacing.s12),
-                    _GuessGrid(
-                      options: state.activeRoundOptions,
-                      avatarPhotos: state.avatarPhotos,
-                      lockedOwnerId: state.lockedGuessOwnerId,
-                      onGuess: (ownerId) {
-                        unawaited(GameHaptics.instance.selection());
-                        unawaited(GameAudioService.instance.tap());
-                        unawaited(
-                          state.isHosting
-                              ? coordinator.submitGuess(ownerId)
-                              : coordinator.clientSubmitGuess(ownerId),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: AppSpacing.s8),
-                    const SizedBox(height: AppSpacing.s8),
-                    if (state.lockedGuessOwnerId != null)
-                      Text(
-                        l10n.lockedInWaiting,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 13, color: colors.ink2),
+                    if (showingReveal)
+                      _RevealBlock(
+                        reveal: reveal,
+                        players: state.players,
+                        avatarPhotos: state.avatarPhotos,
+                        localPlayerId: state.localPlayerId,
+                      )
+                    else ...<Widget>[
+                      const SizedBox(height: AppSpacing.s12),
+                      PanicTimerBar(
+                        remainingMs: state.remainingMs,
+                        totalMs: (state.config.roundSeconds * 1000).clamp(
+                          1,
+                          60000,
+                        ),
+                        label: l10n.tapNameToLock,
                       ),
+                      const SizedBox(height: AppSpacing.s12),
+                      _GuessGrid(
+                        options: state.activeRoundOptions,
+                        avatarPhotos: state.avatarPhotos,
+                        lockedOwnerId: state.lockedGuessOwnerId,
+                        onGuess: (ownerId) {
+                          unawaited(GameHaptics.instance.selection());
+                          unawaited(GameAudioService.instance.tap());
+                          unawaited(
+                            state.isHosting
+                                ? coordinator.submitGuess(ownerId)
+                                : coordinator.clientSubmitGuess(ownerId),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.s8),
+                      const SizedBox(height: AppSpacing.s8),
+                      if (state.lockedGuessOwnerId != null)
+                        Text(
+                          l10n.lockedInWaiting,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 13, color: colors.ink2),
+                        ),
+                    ],
                   ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
@@ -257,27 +263,13 @@ class _Photo extends StatelessWidget {
     final colors = WhoTookColors.of(context);
     final data = bytes;
     if (data == null || data.isEmpty) {
-      return Container(
-        color: colors.raised,
-        alignment: Alignment.center,
-        child: Icon(Icons.image_outlined, size: 28, color: colors.ink3),
-      );
+      return const PhotoShimmer();
     }
     return ColoredBox(
       color: colors.ink,
-      child: Image.memory(
-        data,
+      child: GamePhoto(
+        bytes: data,
         fit: isPanorama ? BoxFit.contain : BoxFit.cover,
-        gaplessPlayback: true,
-        errorBuilder: (context, error, stack) => Container(
-          color: colors.raised,
-          alignment: Alignment.center,
-          child: Icon(
-            Icons.image_not_supported_outlined,
-            size: 28,
-            color: colors.ink3,
-          ),
-        ),
       ),
     );
   }
@@ -451,6 +443,9 @@ class _RevealBlockState extends State<_RevealBlock> {
         ? null
         : reveal.guesses.where((g) => g.playerId == localId).firstOrNull;
     final ownPhoto = localId != null && reveal.ownerId == localId;
+    final maxScore = widget.players.isEmpty
+        ? 0
+        : widget.players.map((player) => player.score).reduce(math.max);
 
     var result = '';
     var tone = colors.ink2;
@@ -578,6 +573,7 @@ class _RevealBlockState extends State<_RevealBlock> {
                       streak: reveal
                           .streaks[_playerFor(context, reveal.guesses[i]).id],
                       highlighted: reveal.guesses[i].isOwnPhoto,
+                      maxScore: maxScore,
                     ),
                 ],
               ),

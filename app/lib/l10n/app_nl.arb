@@ -403,11 +403,8 @@
   "memeDownvote": "Downvote",
   "memeAnonymous": "Anoniem tot de onthulling",
   "memeYourMeme": "Jouw meme",
-  "memeNextMeme": "Volgende meme",
-  "memeSeeResult": "Bekijk uitslag",
   "memeVoteLocked": "Stem vastgelegd.",
   "memeTapToVote": "Tik om te stemmen.",
-  "memeWaitingVotes": "Wachten op de rest van de tafel.",
   "memeRoundWinner": "Rondewinnaar",
   "memeCreatorPoints": "Punten maker",
   "memeModelRoyalty": "Modelroyalty",
@@ -427,11 +424,72 @@
   "memeSoundBody": "Tikken, stemmen en de podiumfanfare",
   "memeHaptics": "Trilfeedback",
   "memeHapticsBody": "Een tik als er een stem binnenkomt",
+  "photoLoading": "Foto laden...",
+  "roundBadge": "RONDE {current}/{total}",
+  "@roundBadge": {
+    "description": "Tilted round sticker in a game header",
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "waitingForVotes": "Wachten op stemmen: {voted}/{eligible} gestemd",
+  "@waitingForVotes": {
+    "description": "Live vote counter while the room votes on one meme",
+    "placeholders": {
+      "voted": {
+        "type": "int"
+      },
+      "eligible": {
+        "type": "int"
+      }
+    }
+  },
+  "endVoting": "Stemmen sluiten / AFK overslaan",
+  "votesAreIn": "Alle stemmen binnen!",
+  "countingVotes": "Stemmen tellen...",
+  "nextRound": "Volgende ronde",
+  "waitingForHostToContinue": "Wachten tot de host verdergaat...",
+  "winningMemeTitle": "Winnende meme van de match",
+  "memeVoteTally": "{up} op · {meh} meh · {down} neer",
+  "@memeVoteTally": {
+    "description": "Vote split shown under the winning meme",
+    "placeholders": {
+      "up": {
+        "type": "int"
+      },
+      "meh": {
+        "type": "int"
+      },
+      "down": {
+        "type": "int"
+      }
+    }
+  },
+  "roundSplash": "RONDE {round}: {mode}!",
+  "@roundSplash": {
+    "description": "Full-screen arcade transition between rounds",
+    "placeholders": {
+      "round": {
+        "type": "int"
+      },
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "selfieStickerTitle": "Jouw sticker",
+  "selfieStickerBody": "Maak een snelle selfie of kies een stripgezicht.",
+  "playerVoted": "Gestemd",
   "pickDecade": "Kies een decennium",
   "pickYear": "Kies een jaar",
   "pickMonth": "Kies een maand",
   "actualDate": "Echte datum",
-  "ownerIncluded": "Eigenaar doet mee",
+  "yourGuess": "Jouw gok",
   "averageMiss": "Gemiddeld ernaast: {distance}",
   "yourGuess": "Jouw gok",
   "ownerLabel": "EIGENAAR",
@@ -449,7 +507,7 @@
   "partyPassPerkSoundboardBody": "Laat Airhorn, Vine Boom en meer horen tijdens rondes. Iedereen in de kamer hoort het.",
   "partyPassPerkThemesTitle": "Gedeelde kamerthema's",
   "partyPassPerkThemesBody": "Kies een premium thema en elke telefoon van je vrienden schakelt mee voor de hele wedstrijd.",
-  "partyPassUnlockButton": "Voor altijd ontgrendelen — {price}",
+  "partyPassUnlockButton": "Voor altijd ontgrendelen, {price}",
   "partyPassRestore": "Aankopen herstellen",
   "partyPassRestoreHint": "Al gekocht? Herstel het op dit toestel.",
   "partyPassActiveBadge": "Party Pass actief",

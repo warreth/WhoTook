@@ -1466,19 +1466,10 @@ class AppLocalizationsNl extends AppLocalizations {
   String get memeYourMeme => 'Jouw meme';
 
   @override
-  String get memeNextMeme => 'Volgende meme';
-
-  @override
-  String get memeSeeResult => 'Bekijk uitslag';
-
-  @override
   String get memeVoteLocked => 'Stem vastgelegd.';
 
   @override
   String get memeTapToVote => 'Tik om te stemmen.';
-
-  @override
-  String get memeWaitingVotes => 'Wachten op de rest van de tafel.';
 
   @override
   String get memeRoundWinner => 'Rondewinnaar';
@@ -1545,6 +1536,57 @@ class AppLocalizationsNl extends AppLocalizations {
   String get memeHapticsBody => 'Een tik als er een stem binnenkomt';
 
   @override
+  String get photoLoading => 'Foto laden...';
+
+  @override
+  String roundBadge(int current, int total) {
+    return 'RONDE $current/$total';
+  }
+
+  @override
+  String waitingForVotes(int voted, int eligible) {
+    return 'Wachten op stemmen: $voted/$eligible gestemd';
+  }
+
+  @override
+  String get endVoting => 'Stemmen sluiten / AFK overslaan';
+
+  @override
+  String get votesAreIn => 'Alle stemmen binnen!';
+
+  @override
+  String get countingVotes => 'Stemmen tellen...';
+
+  @override
+  String get nextRound => 'Volgende ronde';
+
+  @override
+  String get waitingForHostToContinue => 'Wachten tot de host verdergaat...';
+
+  @override
+  String get winningMemeTitle => 'Winnende meme van de match';
+
+  @override
+  String memeVoteTally(int up, int meh, int down) {
+    return '$up op · $meh meh · $down neer';
+  }
+
+  @override
+  String roundSplash(int round, String mode) {
+    return 'RONDE $round: $mode!';
+  }
+
+  @override
+  String get selfieStickerTitle => 'Jouw sticker';
+
+  @override
+  String get selfieStickerBody =>
+      'Maak een snelle selfie of kies een stripgezicht.';
+
+  @override
+  String get playerVoted => 'Gestemd';
+
+  @override
   String get pickDecade => 'Kies een decennium';
 
   @override
@@ -1557,15 +1599,12 @@ class AppLocalizationsNl extends AppLocalizations {
   String get actualDate => 'Echte datum';
 
   @override
-  String get ownerIncluded => 'Eigenaar doet mee';
+  String get yourGuess => 'Jouw gok';
 
   @override
   String averageMiss(String distance) {
     return 'Gemiddeld ernaast: $distance';
   }
-
-  @override
-  String get yourGuess => 'Jouw gok';
 
   @override
   String get ownerLabel => 'EIGENAAR';
@@ -1618,7 +1657,7 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String partyPassUnlockButton(String price) {
-    return 'Voor altijd ontgrendelen — $price';
+    return 'Voor altijd ontgrendelen, $price';
   }
 
   @override

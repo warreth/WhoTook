@@ -7,11 +7,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/audio/game_audio_service.dart';
 import '../../core/format/date_label.dart';
 import '../../core/models/models.dart';
+import '../../core/theme/game_skin.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../l10n/l10n.dart';
 import '../../state/match_coordinator.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
+import '../widgets/game_background.dart';
 import '../widgets/game_widgets.dart';
 import '../widgets/host_controls.dart';
 
@@ -65,151 +67,153 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     final year = state.lockedTimelineYear ?? _year;
     final month = state.lockedTimelineMonth ?? _month;
     if (state.phase == RoundPhase.timelineReveal) {
-      return _TimelineRevealView(state: state);
+      return _TimelineRevealView(state: state, coordinator: coordinator);
     }
     final years = <int>[
       for (var value = _eraStart; value <= _eraEnd(_eraStart); value++) value,
     ];
     return Scaffold(
-      body: SafeArea(
-        child: ScreenBody(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.s20,
-              AppSpacing.s12,
-              AppSpacing.s20,
-              AppSpacing.s24,
-            ),
-            children: <Widget>[
-              _TimelineHeader(state: state),
-              const SizedBox(height: AppSpacing.s12),
-              PolaroidPhotoCard(
-                bytes: state.activePhotoBytes,
-                caption: l10n.modeTimeTraveler,
-                meta: l10n.ownerIncluded,
-                tilt: -0.018,
-                aspectRatio: 1.35,
+      backgroundColor: Colors.transparent,
+      body: GameBackdrop(
+        mode: GameMode.timeTraveler,
+        child: SafeArea(
+          child: ScreenBody(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.s20,
+                AppSpacing.s12,
+                AppSpacing.s20,
+                AppSpacing.s24,
               ),
-              const SizedBox(height: AppSpacing.s12),
-              Text(
-                submitted ? l10n.lockedIn : l10n.whenWasThisTaken,
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: colors.ink2),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                monthYear(l10n, year, month),
-                textAlign: TextAlign.center,
-                style: tabularFigures(
-                  TextStyle(
-                    fontFamily: 'JetBrainsMono',
-                    fontSize: 38,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: -1.8,
-                    color: colors.ink,
+              children: <Widget>[
+                _TimelineHeader(state: state),
+                const SizedBox(height: AppSpacing.s12),
+                PolaroidPhotoCard(
+                  bytes: state.activePhotoBytes,
+                  caption: l10n.modeTimeTraveler,
+                  tilt: -0.018,
+                  aspectRatio: 1.35,
+                ),
+                const SizedBox(height: AppSpacing.s12),
+                Text(
+                  submitted ? l10n.lockedIn : l10n.whenWasThisTaken,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: colors.ink2),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  monthYear(l10n, year, month),
+                  textAlign: TextAlign.center,
+                  style: tabularFigures(
+                    TextStyle(
+                      fontFamily: 'JetBrainsMono',
+                      fontSize: 38,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: -1.8,
+                      color: colors.ink,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.s8),
-              PanicTimerBar(
-                remainingMs: state.remainingMs,
-                totalMs: state.phaseDurationMs,
-                label: l10n.guessYearMonth,
-              ),
-              const SizedBox(height: AppSpacing.s12),
-              _StepLabel(number: '01', label: l10n.pickDecade),
-              _EraGrid(
-                starts: _eraStarts,
-                selected: _eraStart,
-                currentYear: _currentYear,
-                onSelected: _selectEra,
-              ),
-              const SizedBox(height: AppSpacing.s12),
-              _StepLabel(number: '02', label: l10n.pickYear),
-              _YearGrid(years: years, selected: year, onSelected: _selectYear),
-              const SizedBox(height: AppSpacing.s12),
-              _StepLabel(number: '03', label: l10n.pickMonth),
-              _MonthGrid(selected: month, onSelected: _selectMonth),
-              const SizedBox(height: AppSpacing.s12),
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.s12),
-                decoration: BoxDecoration(
-                  color: colors.raised,
-                  borderRadius: BorderRadius.circular(AppRadii.rCard),
-                  border: Border.all(color: colors.hairline),
+                const SizedBox(height: AppSpacing.s8),
+                PanicTimerBar(
+                  remainingMs: state.remainingMs,
+                  totalMs: state.phaseDurationMs,
+                  label: l10n.guessYearMonth,
                 ),
-                child: Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(
-                            l10n.yourGuess.toUpperCase(),
-                            style: TextStyle(
-                              fontFamily: 'JetBrainsMono',
-                              fontSize: 8,
-                              letterSpacing: 0.8,
-                              color: colors.ink3,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            monthYear(l10n, year, month),
-                            style: tabularFigures(
-                              TextStyle(
+                const SizedBox(height: AppSpacing.s12),
+                _StepLabel(number: '01', label: l10n.pickDecade),
+                _EraGrid(
+                  starts: _eraStarts,
+                  selected: _eraStart,
+                  currentYear: _currentYear,
+                  onSelected: _selectEra,
+                ),
+                const SizedBox(height: AppSpacing.s12),
+                _StepLabel(number: '02', label: l10n.pickYear),
+                _YearGrid(
+                  years: years,
+                  selected: year,
+                  onSelected: _selectYear,
+                ),
+                const SizedBox(height: AppSpacing.s12),
+                _StepLabel(number: '03', label: l10n.pickMonth),
+                _MonthGrid(selected: month, onSelected: _selectMonth),
+                const SizedBox(height: AppSpacing.s12),
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.s12),
+                  decoration: BoxDecoration(
+                    color: colors.raised,
+                    borderRadius: BorderRadius.circular(AppRadii.rCard),
+                    border: Border.all(color: colors.hairline),
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              l10n.yourGuess.toUpperCase(),
+                              style: TextStyle(
                                 fontFamily: 'JetBrainsMono',
-                                fontSize: 22,
-                                fontWeight: FontWeight.w500,
-                                letterSpacing: -1,
-                                color: colors.ink,
+                                fontSize: 8,
+                                letterSpacing: 0.8,
+                                color: colors.ink3,
                               ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 2),
+                            Text(
+                              monthYear(l10n, year, month),
+                              style: tabularFigures(
+                                TextStyle(
+                                  fontFamily: 'JetBrainsMono',
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w500,
+                                  letterSpacing: -1,
+                                  color: colors.ink,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    Text(
-                      l10n.ownerIncluded,
-                      textAlign: TextAlign.right,
-                      style: TextStyle(fontSize: 11, color: colors.ink2),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppSpacing.s12),
-              if (submitted) ...<Widget>[
-                NoticeBanner(
-                  message: l10n.lockedInWaiting,
-                  icon: Icons.hourglass_empty,
-                ),
-                const SizedBox(height: AppSpacing.s12),
-                GameButton(
-                  label: l10n.lockedDate(monthYear(l10n, year, month)),
-                  onPressed: null,
-                  fullWidth: true,
-                  variant: GameButtonVariant.secondary,
-                ),
-              ] else
-                GameButton(
-                  label: l10n.lockInDate(monthYear(l10n, year, month)),
-                  onPressed: () => unawaited(
-                    state.isHosting
-                        ? coordinator.submitTimeline(year, month)
-                        : coordinator.clientSubmitTimeline(year, month),
+                    ],
                   ),
-                  fullWidth: true,
-                  icon: Icons.lock_outline,
                 ),
-              if (state.errorMessage != null) ...<Widget>[
                 const SizedBox(height: AppSpacing.s12),
-                NoticeBanner(
-                  message: state.errorMessage!,
-                  tone: StatusTone.warning,
-                  icon: Icons.error_outline,
-                ),
+                if (submitted) ...<Widget>[
+                  NoticeBanner(
+                    message: l10n.lockedInWaiting,
+                    icon: Icons.hourglass_empty,
+                  ),
+                  const SizedBox(height: AppSpacing.s12),
+                  GameButton(
+                    label: l10n.lockedDate(monthYear(l10n, year, month)),
+                    onPressed: null,
+                    fullWidth: true,
+                    variant: GameButtonVariant.secondary,
+                  ),
+                ] else
+                  GameButton(
+                    label: l10n.lockInDate(monthYear(l10n, year, month)),
+                    onPressed: () => unawaited(
+                      state.isHosting
+                          ? coordinator.submitTimeline(year, month)
+                          : coordinator.clientSubmitTimeline(year, month),
+                    ),
+                    fullWidth: true,
+                    icon: Icons.lock_outline,
+                  ),
+                if (state.errorMessage != null) ...<Widget>[
+                  const SizedBox(height: AppSpacing.s12),
+                  NoticeBanner(
+                    message: state.errorMessage!,
+                    tone: StatusTone.warning,
+                    icon: Icons.error_outline,
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -460,16 +464,15 @@ class _TimelineHeader extends StatelessWidget {
             Expanded(
               child: Text(
                 l10n.modeTimeTraveler,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: -0.4,
-                  color: colors.ink,
-                ),
+                style: gameDisplay(size: 26, color: colors.ink),
               ),
             ),
             const HostControlsButton(),
-            FrameCounter(current: state.currentRound, total: state.totalRounds),
+            FrameCounter(
+              current: state.currentRound,
+              total: state.totalRounds,
+              label: l10n.roundBadge(state.currentRound, state.totalRounds),
+            ),
           ],
         ),
         const SizedBox(height: AppSpacing.s8),
@@ -480,9 +483,10 @@ class _TimelineHeader extends StatelessWidget {
 }
 
 class _TimelineRevealView extends StatelessWidget {
-  const _TimelineRevealView({required this.state});
+  const _TimelineRevealView({required this.state, required this.coordinator});
 
   final MatchUiState state;
+  final MatchCoordinator coordinator;
 
   @override
   Widget build(BuildContext context) {
@@ -511,49 +515,65 @@ class _TimelineRevealView extends StatelessWidget {
                   entries.length)
               .round();
     return Scaffold(
-      body: SafeArea(
-        child: ScreenBody(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.s20,
-              AppSpacing.s12,
-              AppSpacing.s20,
-              AppSpacing.s24,
-            ),
-            children: <Widget>[
-              _TimelineHeader(state: state),
-              const SizedBox(height: AppSpacing.s12),
-              _AwardDuo(closest: closest, furthest: furthest, l10n: l10n),
-              const SizedBox(height: AppSpacing.s12),
-              _EvidenceBoard(
-                state: state,
-                reveal: reveal,
-                entries: entries,
-                ownerName: owner?.name ?? l10n.player,
+      backgroundColor: Colors.transparent,
+      bottomNavigationBar: ColoredBox(
+        color: colors.card,
+        child: SafeArea(
+          top: false,
+          minimum: const EdgeInsets.fromLTRB(
+            AppSpacing.s20,
+            AppSpacing.s8,
+            AppSpacing.s20,
+            AppSpacing.s16,
+          ),
+          child: state.isHosting
+              ? GameButton(
+                  label: l10n.nextRound,
+                  onPressed: () => unawaited(coordinator.skipRound()),
+                  icon: Icons.arrow_forward,
+                  fullWidth: true,
+                )
+              : NoticeBanner(
+                  message: l10n.waitingForHostToContinue,
+                  icon: Icons.hourglass_empty,
+                ),
+        ),
+      ),
+      body: GameBackdrop(
+        mode: GameMode.timeTraveler,
+        child: SafeArea(
+          child: ScreenBody(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.s20,
+                AppSpacing.s12,
+                AppSpacing.s20,
+                AppSpacing.s24,
               ),
-              const SizedBox(height: AppSpacing.s12),
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Text(
-                      l10n.averageMiss(monthDistance(l10n, average)),
-                      style: TextStyle(fontSize: 12, color: colors.ink2),
+              children: <Widget>[
+                _TimelineHeader(state: state),
+                const SizedBox(height: AppSpacing.s12),
+                _AwardDuo(closest: closest, furthest: furthest, l10n: l10n),
+                const SizedBox(height: AppSpacing.s12),
+                _EvidenceBoard(
+                  state: state,
+                  reveal: reveal,
+                  entries: entries,
+                  ownerName: owner?.name ?? l10n.player,
+                ),
+                const SizedBox(height: AppSpacing.s12),
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        l10n.averageMiss(monthDistance(l10n, average)),
+                        style: TextStyle(fontSize: 12, color: colors.ink2),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    l10n.ownerIncluded,
-                    style: TextStyle(fontSize: 10, color: colors.ink3),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.s12),
-              Text(
-                l10n.nextRoundInMoment,
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: colors.ink3),
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -651,7 +671,7 @@ class _AwardCard extends StatelessWidget {
           ),
           const SizedBox(height: 3),
           Text(
-            entry?.playerName ?? '—',
+            entry?.playerName ?? '...',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
@@ -779,27 +799,27 @@ class _EvidenceBoardState extends State<_EvidenceBoard> {
               ),
             ),
             const SizedBox(height: AppSpacing.s8),
-            SizedBox(
-              height: 112,
-              child: _EvidenceTimeline(
-                state: widget.state,
-                entries: widget.entries,
-                actualYear: widget.reveal.actualYear,
-                actualMonth: widget.reveal.actualMonth,
-                l10n: l10n,
-              ),
+            _EvidenceTimeline(
+              state: widget.state,
+              entries: widget.entries,
+              actualYear: widget.reveal.actualYear,
+              actualMonth: widget.reveal.actualMonth,
+              l10n: l10n,
             ),
             const SizedBox(height: AppSpacing.s8),
             LayoutBuilder(
               builder: (context, constraints) {
                 final columns = constraints.maxWidth >= 560 ? 4 : 2;
+                final scale = MediaQuery.textScalerOf(context)
+                    .scale(1)
+                    .clamp(1.0, 1.8);
                 return GridView.count(
                   crossAxisCount: columns,
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   mainAxisSpacing: 7,
                   crossAxisSpacing: 7,
-                  childAspectRatio: columns == 4 ? 1.15 : 1.52,
+                  mainAxisExtent: 122 * scale,
                   children: <Widget>[
                     for (final entry in widget.entries)
                       _EvidenceNote(
@@ -836,11 +856,8 @@ class _EvidenceTimeline extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
-    final years = <int>[
-      actualYear,
-      for (final entry in entries)
-        if (entry.year != null) entry.year!,
-    ];
+    final dated = entries.where((entry) => entry.year != null).toList();
+    final years = <int>[actualYear, for (final entry in dated) entry.year!];
     var minYear = years.reduce(math.min) - 1;
     var maxYear = years.reduce(math.max) + 1;
     if (maxYear - minYear < 4) {
@@ -851,159 +868,367 @@ class _EvidenceTimeline extends StatelessWidget {
     double fraction(int year, int month) =>
         ((year - minYear) * 12 + (month - 1)) / totalMonths;
     final actualFraction = fraction(actualYear, actualMonth);
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        return Stack(
-          clipBehavior: Clip.none,
-          children: <Widget>[
-            Positioned.fill(
-              child: CustomPaint(
-                painter: _StringPainter(
-                  actualFraction: actualFraction,
-                  fractions: <double>[
-                    for (final entry in entries)
-                      if (entry.year != null)
-                        fraction(entry.year!, entry.month ?? 1),
-                  ],
-                  color: colors.accent,
-                ),
-              ),
-            ),
-            Positioned(
-              left: 4,
-              right: 4,
-              top: 56,
-              child: Container(height: 3, color: colors.ink),
-            ),
-            for (var i = 0; i < 3; i++)
-              Positioned(
-                left: 4 + (width - 8) * (i / 2) - 16,
-                top: 64,
-                child: SizedBox(
-                  width: 32,
-                  child: Text(
-                    '${minYear + ((maxYear - minYear) * i / 2).round()}',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: 'JetBrainsMono',
-                      fontSize: 8,
-                      color: colors.ink2,
-                    ),
-                  ),
-                ),
-              ),
-            for (final entry in entries)
-              if (entry.year != null)
-                Positioned(
-                  left: fraction(entry.year!, entry.month ?? 1) * width - 20,
-                  top: 36,
-                  child: Tooltip(
-                    message:
-                        '${entry.playerName} · ${monthYear(l10n, entry.year!, entry.month ?? 1)}',
-                    child: PlayerAvatar(
-                      initial: entry.playerName,
-                      avatar:
-                          state.players
-                              .where((player) => player.id == entry.playerId)
-                              .firstOrNull
-                              ?.avatar ??
-                          '',
-                      photoBase64: state.avatarPhotos[entry.playerId],
-                      size: 40,
-                    ),
-                  ),
-                ),
-            Positioned(
-              left: actualFraction * width - 24,
-              top: 0,
-              child: Column(
-                children: <Widget>[
-                  Tooltip(
-                    message: l10n.actualDate,
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: GamePalette.goldDeep,
-                          width: 3,
+    final clusters = _cluster(dated, fraction);
+    final lanes = _assignLanes(clusters);
+    final maxTier = lanes.isEmpty ? 0 : lanes.reduce(math.max) ~/ 2;
+    final height = 170.0 + maxTier * 76;
+    final axisY = height / 2;
+
+    return SizedBox(
+      height: height,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          return Stack(
+            clipBehavior: Clip.none,
+            children: <Widget>[
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _TimelinePainter(
+                    axisY: axisY,
+                    actualFraction: actualFraction,
+                    pins: <_PinPoint>[
+                      for (var i = 0; i < clusters.length; i++)
+                        _PinPoint(
+                          fraction: clusters[i].fraction,
+                          lane: lanes[i],
                         ),
-                        color: colors.raised,
-                        boxShadow: const <BoxShadow>[
-                          BoxShadow(
-                            color: Color(0x44B46B12),
-                            blurRadius: 8,
-                            spreadRadius: 2,
+                    ],
+                    minYear: minYear,
+                    maxYear: maxYear,
+                    ink: colors.ink,
+                    accent: colors.accent,
+                    gold: GamePalette.goldDeep,
+                  ),
+                ),
+              ),
+              for (var i = 0; i < clusters.length; i++)
+                _ClusterPin(
+                  cluster: clusters[i],
+                  lane: lanes[i],
+                  width: width,
+                  axisY: axisY,
+                  state: state,
+                  l10n: l10n,
+                ),
+              Positioned(
+                left: actualFraction * (width - 44) + 22 - 24,
+                top: axisY - 24,
+                child: Tooltip(
+                  message:
+                      '${l10n.actualDate}: ${monthYear(l10n, actualYear, actualMonth)}',
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: GamePalette.goldDeep, width: 3),
+                      color: colors.raised,
+                      boxShadow: const <BoxShadow>[
+                        BoxShadow(
+                          color: Color(0x66F5B82E),
+                          blurRadius: 14,
+                          spreadRadius: 4,
+                        ),
+                      ],
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child:
+                        state.activePhotoBytes == null ||
+                            state.activePhotoBytes!.isEmpty
+                        ? const Icon(
+                            Icons.star,
+                            color: GamePalette.goldDeep,
+                            size: 22,
+                          )
+                        : GamePhoto(
+                            bytes: state.activePhotoBytes!,
+                            fit: BoxFit.cover,
+                            compact: true,
                           ),
-                        ],
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child:
-                          state.activePhotoBytes == null ||
-                              state.activePhotoBytes!.isEmpty
-                          ? const Icon(
-                              Icons.star,
-                              color: GamePalette.goldDeep,
-                              size: 22,
-                            )
-                          : Image.memory(
-                              state.activePhotoBytes!,
-                              fit: BoxFit.cover,
-                            ),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: (actualFraction * width - 38).clamp(0, width - 76),
+                top: axisY + 40,
+                child: Container(
+                  width: 76,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colors.accent,
+                    border: Border.all(color: colors.ink, width: 1.5),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    l10n.actualDate.toUpperCase(),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: gameDisplay(
+                      size: 7,
+                      color: colors.onAccent,
+                      letterSpacing: 0.4,
                     ),
                   ),
-                  Container(width: 2, height: 8, color: GamePalette.goldDeep),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  List<_DateCluster> _cluster(
+    List<TimelineEntry> dated,
+    double Function(int, int) fraction,
+  ) {
+    final sorted = <TimelineEntry>[...dated]
+      ..sort(
+        (a, b) => fraction(
+          a.year!,
+          a.month ?? 1,
+        ).compareTo(fraction(b.year!, b.month ?? 1)),
+      );
+    final clusters = <_DateCluster>[];
+    for (final entry in sorted) {
+      final x = fraction(entry.year!, entry.month ?? 1);
+      if (clusters.isNotEmpty && (x - clusters.last.fraction).abs() < 0.075) {
+        clusters.last.entries.add(entry);
+      } else {
+        clusters.add(
+          _DateCluster(fraction: x, entries: <TimelineEntry>[entry]),
         );
-      },
+      }
+    }
+    return clusters;
+  }
+
+  List<int> _assignLanes(List<_DateCluster> clusters) {
+    final lanes = <double>[];
+    final result = <int>[];
+    for (final cluster in clusters) {
+      var lane = -1;
+      for (var i = 0; i < lanes.length; i++) {
+        if (cluster.fraction - lanes[i] >= 0.075) {
+          lane = i;
+          break;
+        }
+      }
+      if (lane == -1) {
+        if (lanes.length < 6) {
+          lanes.add(cluster.fraction);
+          lane = lanes.length - 1;
+        } else {
+          // Pack the extra cluster into the least crowded lane.
+          lane = 0;
+          for (var i = 1; i < lanes.length; i++) {
+            if (lanes[i] < lanes[lane]) lane = i;
+          }
+          lanes[lane] = cluster.fraction;
+        }
+      } else {
+        lanes[lane] = cluster.fraction;
+      }
+      result.add(lane);
+    }
+    return result;
+  }
+}
+
+class _DateCluster {
+  _DateCluster({required this.fraction, required this.entries});
+
+  final double fraction;
+  final List<TimelineEntry> entries;
+}
+
+class _PinPoint {
+  const _PinPoint({required this.fraction, required this.lane});
+
+  final double fraction;
+  final int lane;
+}
+
+class _ClusterPin extends StatelessWidget {
+  const _ClusterPin({
+    required this.cluster,
+    required this.lane,
+    required this.width,
+    required this.axisY,
+    required this.state,
+    required this.l10n,
+  });
+
+  final _DateCluster cluster;
+  final int lane;
+  final double width;
+  final double axisY;
+  final MatchUiState state;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    final above = lane.isEven;
+    final tier = lane ~/ 2;
+    final clusterWidth = 26.0 + math.min(cluster.entries.length - 1, 2) * 12;
+    final centre = cluster.fraction * (width - 44) + 22;
+    final top = above ? axisY - 54 - tier * 38 : axisY + 34 + tier * 38;
+    final names = cluster.entries
+        .map(
+          (entry) =>
+              '${entry.playerName} · ${monthYear(l10n, entry.year!, entry.month ?? 1)}',
+        )
+        .join('\n');
+    return Positioned(
+      left: (centre - clusterWidth / 2).clamp(0, width - clusterWidth),
+      top: top,
+      child: Tooltip(
+        message: names,
+        child: SizedBox(
+          width: clusterWidth,
+          height: 26,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: <Widget>[
+              for (var i = 0; i < math.min(cluster.entries.length, 3); i++)
+                Positioned(
+                  left: i * 12,
+                  child: PlayerAvatar(
+                    initial: cluster.entries[i].playerName,
+                    avatar:
+                        state.players
+                            .where(
+                              (player) =>
+                                  player.id == cluster.entries[i].playerId,
+                            )
+                            .firstOrNull
+                            ?.avatar ??
+                        '',
+                    photoBase64:
+                        state.avatarPhotos[cluster.entries[i].playerId],
+                    size: 26,
+                  ),
+                ),
+              if (cluster.entries.length > 3)
+                Positioned(
+                  right: 0,
+                  top: 3,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colors.ink,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: colors.card, width: 1),
+                    ),
+                    child: Text(
+                      '+${cluster.entries.length - 3}',
+                      style: TextStyle(fontSize: 7, color: colors.bg),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
 
-class _StringPainter extends CustomPainter {
-  const _StringPainter({
+class _TimelinePainter extends CustomPainter {
+  const _TimelinePainter({
+    required this.axisY,
     required this.actualFraction,
-    required this.fractions,
-    required this.color,
+    required this.pins,
+    required this.minYear,
+    required this.maxYear,
+    required this.ink,
+    required this.accent,
+    required this.gold,
   });
 
+  final double axisY;
   final double actualFraction;
-  final List<double> fractions;
-  final Color color;
+  final List<_PinPoint> pins;
+  final int minYear;
+  final int maxYear;
+  final Color ink;
+  final Color accent;
+  final Color gold;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color.withValues(alpha: 0.65)
-      ..strokeWidth = 1.5
+    final axis = Paint()
+      ..color = ink
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(4, axisY), Offset(size.width - 4, axisY), axis);
+
+    final pinLine = Paint()
+      ..color = ink.withValues(alpha: 0.55)
+      ..strokeWidth = 1.4
       ..style = PaintingStyle.stroke;
-    final start = Offset(size.width * actualFraction, 0);
-    for (final fraction in fractions) {
-      final end = Offset(size.width * fraction, 56);
-      final delta = end - start;
-      final length = delta.distance;
-      if (length < 1) continue;
-      final direction = delta / length;
-      var distance = 0.0;
-      while (distance < length) {
-        final a = start + direction * distance;
-        final b = start + direction * math.min(distance + 4, length);
-        canvas.drawLine(a, b, paint);
-        distance += 8;
-      }
+    final dot = Paint()..color = ink;
+    for (final pin in pins) {
+      final x = pin.fraction * (size.width - 44) + 22;
+      final above = pin.lane.isEven;
+      final tier = pin.lane ~/ 2;
+      final y = above ? axisY - 28 - tier * 38 : axisY + 26 + tier * 38;
+      canvas.drawLine(Offset(x, y), Offset(x, axisY), pinLine);
+      canvas.drawCircle(Offset(x, axisY), 3.2, dot);
     }
+
+    final tick = Paint()
+      ..color = ink.withValues(alpha: 0.40)
+      ..strokeWidth = 1;
+    for (var i = 0; i <= 2; i++) {
+      final x = 4 + (size.width - 8) * (i / 2);
+      canvas.drawLine(Offset(x, axisY - 4), Offset(x, axisY + 4), tick);
+      final label = TextPainter(
+        text: TextSpan(
+          text: '${minYear + ((maxYear - minYear) * i / 2).round()}',
+          style: TextStyle(
+            fontFamily: 'JetBrainsMono',
+            fontSize: 8,
+            color: ink.withValues(alpha: 0.55),
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      label.paint(canvas, Offset(x - label.width / 2, axisY + 10));
+    }
+
+    final actualX = actualFraction * (size.width - 44) + 22;
+    final glow = Paint()
+      ..color = gold.withValues(alpha: 0.35)
+      ..strokeWidth = 6
+      ..style = PaintingStyle.stroke;
+    canvas.drawCircle(Offset(actualX, axisY), 24, glow);
+    canvas.drawCircle(
+      Offset(actualX, axisY),
+      25,
+      Paint()
+        ..color = accent
+        ..strokeWidth = 2
+        ..style = PaintingStyle.stroke,
+    );
   }
 
   @override
-  bool shouldRepaint(covariant _StringPainter oldDelegate) =>
+  bool shouldRepaint(covariant _TimelinePainter oldDelegate) =>
+      oldDelegate.axisY != axisY ||
       oldDelegate.actualFraction != actualFraction ||
-      oldDelegate.fractions != fractions ||
-      oldDelegate.color != color;
+      oldDelegate.pins != pins ||
+      oldDelegate.minYear != minYear ||
+      oldDelegate.maxYear != maxYear;
 }
 
 class _EvidenceNote extends StatelessWidget {

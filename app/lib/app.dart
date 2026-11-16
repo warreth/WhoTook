@@ -10,6 +10,7 @@ import '../core/party_pass/room_theme.dart';
 import '../core/audio/game_audio_service.dart';
 import '../core/audio/soundboard_service.dart';
 import '../l10n/l10n.dart';
+import '../core/theme/game_skin.dart';
 import '../core/theme/whotook_theme.dart';
 import '../state/match_coordinator.dart';
 import '../state/providers.dart';
@@ -39,9 +40,7 @@ class WhoTookApp extends ConsumerWidget {
         settings.value?.themePreference ?? ThemePreference.system;
     final roomThemeId =
         ref.watch(
-          matchStateProvider.select(
-            (value) => value.value?.roomThemeId,
-          ),
+          matchStateProvider.select((value) => value.value?.roomThemeId),
         ) ??
         kDefaultRoomThemeId;
     final roomTheme = RoomThemeId.fromWire(roomThemeId);
@@ -122,6 +121,37 @@ class _MatchRoot extends ConsumerStatefulWidget {
 
 class _MatchRootState extends ConsumerState<_MatchRoot> {
   int? _dismissedBuild;
+  int? _splashRound;
+  GameMode? _splashMode;
+  Timer? _splashTimer;
+  bool _showSplash = false;
+
+  @override
+  void dispose() {
+    _splashTimer?.cancel();
+    super.dispose();
+  }
+
+  void _maybeSplash(MatchUiState state) {
+    if (state.phase != RoundPhase.countdown || state.currentRound <= 0) {
+      return;
+    }
+    if (_splashRound == state.currentRound && _splashMode == state.activeMode) {
+      return;
+    }
+    _splashRound = state.currentRound;
+    _splashMode = state.activeMode;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() => _showSplash = true);
+      unawaited(GameAudioService.instance.pop());
+      unawaited(GameHaptics.instance.light());
+      _splashTimer?.cancel();
+      _splashTimer = Timer(const Duration(milliseconds: 1500), () {
+        if (mounted) setState(() => _showSplash = false);
+      });
+    });
+  }
 
   void _dismissWarning(VersionWarning warning) {
     setState(() => _dismissedBuild = warning.latestBuild);
@@ -139,6 +169,7 @@ class _MatchRootState extends ConsumerState<_MatchRoot> {
       SoundboardService.instance.enabled = settings.soundEnabled;
       GameHaptics.instance.enabled = settings.hapticsEnabled;
     }
+    _maybeSplash(state);
     final partyPass = ref.watch(partyPassProvider).value;
     coordinator.updatePartyPass(active: partyPass?.active ?? false);
     coordinator.updateLocale(Localizations.localeOf(context));
@@ -183,6 +214,11 @@ class _MatchRootState extends ConsumerState<_MatchRoot> {
         fit: StackFit.expand,
         children: <Widget>[
           screen,
+          if (_showSplash && _splashRound != null)
+            _ArcadeSplash(
+              round: _splashRound!,
+              mode: _splashMode ?? state.activeMode,
+            ),
           if (warning != null &&
               warning.isNewer &&
               !state.reconnecting &&
@@ -257,6 +293,79 @@ class _MatchRootState extends ConsumerState<_MatchRoot> {
     if (leave == true) {
       await coordinator.leaveMatch();
     }
+  }
+}
+
+class _ArcadeSplash extends StatelessWidget {
+  const _ArcadeSplash({required this.round, required this.mode});
+
+  final int round;
+  final GameMode mode;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final skin = GameModeSkin.forMode(mode);
+    final reduce = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final modeName = switch (mode) {
+      GameMode.classic => l10n.modeClassic,
+      GameMode.captionThis => l10n.modeCaptionThis,
+      GameMode.makeItMeme => l10n.modeMakeItMeme,
+      GameMode.timeTraveler => l10n.modeTimeTraveler,
+      GameMode.mixedParty => l10n.modeMixedParty,
+    };
+    return IgnorePointer(
+      child: ColoredBox(
+        color: skin.base,
+        child: Center(
+          child: TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0.2, end: 1),
+            duration: reduce
+                ? Duration.zero
+                : const Duration(milliseconds: 900),
+            curve: Curves.elasticOut,
+            builder: (context, value, child) => Transform.scale(
+              scale: value,
+              child: Transform.rotate(
+                angle: -0.04,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 18,
+                  ),
+                  decoration: BoxDecoration(
+                    color: skin.deep,
+                    border: Border.all(color: Colors.black, width: 4),
+                    boxShadow: const <BoxShadow>[
+                      BoxShadow(
+                        color: Colors.black,
+                        offset: Offset(0, 8),
+                        blurRadius: 0,
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(
+                        l10n.roundSplash(round, modeName),
+                        textAlign: TextAlign.center,
+                        style: gameDisplay(
+                          size: 30,
+                          height: 1.02,
+                          color: skin.accent,
+                          letterSpacing: -0.8,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

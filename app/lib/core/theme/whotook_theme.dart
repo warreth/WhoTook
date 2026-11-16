@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// Palette tokens from DESIGN.md. Every color is a flat value; no gradients.
+/// Palette tokens from DESIGN.md. Core surfaces stay flat; the party
+/// backdrop owns the gradients and drifting props.
 @immutable
 class WhoTookColors extends ThemeExtension<WhoTookColors> {
   const WhoTookColors({
@@ -155,10 +156,7 @@ TextStyle tabularFigures(TextStyle style) => style.copyWith(
   fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
 );
 
-ThemeData buildWhoTookTheme(
-  Brightness brightness, {
-  WhoTookColors? palette,
-}) {
+ThemeData buildWhoTookTheme(Brightness brightness, {WhoTookColors? palette}) {
   final colors =
       palette ??
       (brightness == Brightness.dark
@@ -191,8 +189,8 @@ ThemeData buildWhoTookTheme(
   );
 }
 
-/// Flat crop-frame glyph: a rounded print matte with four corner marks and a
-/// lens ring. Drawn with strokes only so it stays crisp at any size.
+/// Flat crop-frame glyph with the new camera and question-mark lens. Drawn
+/// with strokes only so it stays crisp at any size.
 class WhoTookMark extends StatelessWidget {
   const WhoTookMark({super.key, this.size = 48, this.color});
 
@@ -216,41 +214,165 @@ class _MarkPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final stroke = size.shortestSide * 0.09;
-    final paint = Paint()
+    final s = size.shortestSide;
+    final stroke = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = stroke
-      ..strokeCap = StrokeCap.square;
-    final inset = stroke * 0.75;
-    final rect = Rect.fromLTRB(
-      inset,
-      inset,
-      size.width - inset,
-      size.height - inset,
+      ..strokeWidth = s * 0.075
+      ..strokeJoin = StrokeJoin.round
+      ..strokeCap = StrokeCap.round;
+    final body = RRect.fromRectAndRadius(
+      Rect.fromLTWH(s * 0.10, s * 0.30, s * 0.80, s * 0.56),
+      Radius.circular(s * 0.13),
     );
-    final arm = size.shortestSide * 0.26;
-    final path = Path()
-      ..moveTo(rect.left, rect.top + arm)
-      ..lineTo(rect.left, rect.top)
-      ..lineTo(rect.left + arm, rect.top)
-      ..moveTo(rect.right - arm, rect.top)
-      ..lineTo(rect.right, rect.top)
-      ..lineTo(rect.right, rect.top + arm)
-      ..moveTo(rect.right, rect.bottom - arm)
-      ..lineTo(rect.right, rect.bottom)
-      ..lineTo(rect.right - arm, rect.bottom)
-      ..moveTo(rect.left + arm, rect.bottom)
-      ..lineTo(rect.left, rect.bottom)
-      ..lineTo(rect.left, rect.bottom - arm);
-    canvas.drawPath(path, paint);
-    final center = rect.center;
-    final lens = size.shortestSide * 0.16;
-    canvas.drawCircle(center, lens, paint);
+    final hump = Path()
+      ..moveTo(s * 0.30, s * 0.30)
+      ..lineTo(s * 0.36, s * 0.17)
+      ..lineTo(s * 0.64, s * 0.17)
+      ..lineTo(s * 0.70, s * 0.30);
+    canvas.drawRRect(body, stroke);
+    canvas.drawPath(hump, stroke);
+    canvas.drawCircle(Offset(s * 0.50, s * 0.58), s * 0.19, stroke);
+    final question = TextPainter(
+      text: TextSpan(
+        text: '?',
+        style: TextStyle(
+          fontFamily: 'Fredoka',
+          fontSize: s * 0.30,
+          fontWeight: FontWeight.w700,
+          color: color,
+          height: 1,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    question.paint(
+      canvas,
+      Offset(s * 0.50 - question.width / 2, s * 0.58 - question.height / 2),
+    );
   }
 
   @override
   bool shouldRepaint(_MarkPainter oldDelegate) => oldDelegate.color != color;
+}
+
+/// The product logo: a terracotta camera with a yellow question mark in the
+/// lens, black neo-brutalist border and a hard offset shadow.
+class WhoTookLogo extends StatelessWidget {
+  const WhoTookLogo({super.key, this.size = 48, this.shadow = true});
+
+  final double size;
+  final bool shadow;
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: size,
+    child: CustomPaint(painter: _LogoPainter(shadow: shadow)),
+  );
+}
+
+class _LogoPainter extends CustomPainter {
+  _LogoPainter({required this.shadow});
+
+  final bool shadow;
+
+  static const Color terracotta = Color(0xFFC63D22);
+  static const Color charcoal = Color(0xFF1A1714);
+  static const Color yellow = Color(0xFFFFC93C);
+  static const Color cream = Color(0xFFFFF8E8);
+
+  RRect _body(double s) => RRect.fromRectAndRadius(
+    Rect.fromLTWH(s * 0.08, s * 0.28, s * 0.84, s * 0.58),
+    Radius.circular(s * 0.14),
+  );
+
+  Path _hump(double s) => Path()
+    ..moveTo(s * 0.30, s * 0.30)
+    ..lineTo(s * 0.37, s * 0.16)
+    ..lineTo(s * 0.64, s * 0.16)
+    ..lineTo(s * 0.71, s * 0.30)
+    ..close();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final s = size.shortestSide;
+    canvas.save();
+    canvas.scale(s / 64);
+    final ink = Paint()..color = charcoal;
+    final body = _body(64);
+    final hump = _hump(64);
+
+    if (shadow) {
+      canvas.save();
+      canvas.translate(4, 5);
+      final shadowBody = RRect.fromRectAndRadius(
+        body.outerRect,
+        const Radius.circular(9),
+      );
+      canvas.drawRRect(shadowBody, ink);
+      canvas.drawPath(hump, ink);
+      canvas.restore();
+    }
+
+    final fill = Paint()..color = terracotta;
+    final border = Paint()
+      ..color = charcoal
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4.2
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(hump, fill);
+    canvas.drawPath(hump, border);
+    canvas.drawRRect(body, fill);
+    canvas.drawRRect(body, border);
+
+    // Viewfinder and shutter button.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(13, 24, 11, 6),
+        const Radius.circular(2),
+      ),
+      Paint()..color = cream,
+    );
+    canvas.drawCircle(const Offset(51, 33), 3.2, Paint()..color = yellow);
+
+    // Lens, with the question mark set into it.
+    const lensCentre = Offset(32, 41);
+    canvas.drawCircle(lensCentre, 15, Paint()..color = cream);
+    canvas.drawCircle(lensCentre, 15, border);
+    canvas.drawCircle(lensCentre, 12, Paint()..color = charcoal);
+    canvas.drawCircle(
+      lensCentre,
+      9.2,
+      Paint()
+        ..color = const Color(0xFF3A332D)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.6,
+    );
+    final question = TextPainter(
+      text: const TextSpan(
+        text: '?',
+        style: TextStyle(
+          fontFamily: 'Fredoka',
+          fontSize: 19,
+          fontWeight: FontWeight.w700,
+          color: yellow,
+          height: 1,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    question.paint(
+      canvas,
+      Offset(
+        lensCentre.dx - question.width / 2,
+        lensCentre.dy - question.height / 2,
+      ),
+    );
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_LogoPainter oldDelegate) => oldDelegate.shadow != shadow;
 }
 
 /// The four crisp corner crop marks around the active photo frame.

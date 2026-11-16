@@ -3,17 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/avatars.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../l10n/l10n.dart';
-
-IconData avatarIcon(String avatar) => switch (avatar) {
-  'face' => Icons.face_outlined,
-  'pizza' => Icons.local_pizza_outlined,
-  'music' => Icons.music_note_outlined,
-  'game' => Icons.sports_esports_outlined,
-  'rocket' => Icons.rocket_launch_outlined,
-  'star' => Icons.star_outline,
-  'plant' => Icons.local_florist_outlined,
-  _ => Icons.pets_outlined,
-};
+import 'common.dart';
 
 class AvatarPicker extends StatelessWidget {
   const AvatarPicker({
@@ -50,10 +40,8 @@ class AvatarPicker extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AppRadii.rControl),
                 child: SizedBox.square(
                   dimension: 48,
-                  child: Icon(
-                    avatarIcon(avatar),
-                    size: 22,
-                    color: avatar == selected ? colors.accent : colors.ink2,
+                  child: Center(
+                    child: PlayerAvatar(initial: '', avatar: avatar, size: 38),
                   ),
                 ),
               ),

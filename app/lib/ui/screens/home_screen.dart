@@ -6,10 +6,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/storage/last_room_repository.dart';
 import '../../l10n/l10n.dart';
+import '../../core/theme/game_skin.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../state/match_coordinator.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
+import '../widgets/game_background.dart';
 import 'join_screen.dart';
 import 'settings_screen.dart';
 import 'setup/mode_setup_screen.dart';
@@ -59,6 +61,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final coordinator = ref.read(matchCoordinatorProvider);
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
     final wide = MediaQuery.sizeOf(context).width >= 900;
+    final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.3;
     final actions = _HomeActions(
       state: state,
       showGuide: wide,
@@ -74,83 +77,91 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
 
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: wide ? 1120 : 720),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.s20,
-                AppSpacing.s8,
-                AppSpacing.s20,
-                AppSpacing.s12,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      WhoTookMark(size: 24, color: colors.accent),
-                      const SizedBox(width: AppSpacing.s8),
-                      const Expanded(
-                        child: Text(
-                          'WhoTook',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.5,
+      backgroundColor: Colors.transparent,
+      body: GameBackdrop(
+        mode: state.config.mode,
+        lobby: true,
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: wide ? 1120 : 720),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.s20,
+                  AppSpacing.s8,
+                  AppSpacing.s20,
+                  AppSpacing.s12,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        const WhoTookLogo(size: 34),
+                        const SizedBox(width: AppSpacing.s8),
+                        Expanded(
+                          child: Text(
+                            'WhoTook',
+                            style: gameDisplay(
+                              size: 24,
+                              color: colors.ink,
+                              letterSpacing: -0.8,
+                            ),
                           ),
                         ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const SettingsScreen(),
+                        IconButton(
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const SettingsScreen(),
+                            ),
                           ),
+                          icon: const Icon(Icons.settings_outlined),
+                          tooltip: l10n.settings,
                         ),
-                        icon: const Icon(Icons.settings_outlined),
-                        tooltip: l10n.settings,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.s8),
-                  Expanded(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        if (wide) {
-                          return Row(
-                            children: <Widget>[
-                              const Expanded(flex: 3, child: _Hero()),
-                              const SizedBox(width: AppSpacing.s24),
-                              SizedBox(
-                                width: 360,
-                                child: Center(child: actions),
-                              ),
-                            ],
-                          );
-                        }
-                        if (constraints.maxHeight >= 700) {
-                          return Column(
-                            children: <Widget>[
-                              const Expanded(child: _Hero()),
-                              actions,
-                            ],
-                          );
-                        }
-                        // Short windows scroll instead of squeezing the hero
-                        // behind the action buttons.
-                        return SingleChildScrollView(
-                          child: Column(
-                            children: <Widget>[
-                              const SizedBox(height: 380, child: _Hero()),
-                              actions,
-                            ],
-                          ),
-                        );
-                      },
+                      ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: AppSpacing.s8),
+                    Expanded(
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          if (wide) {
+                            return Row(
+                              children: <Widget>[
+                                const Expanded(flex: 3, child: _Hero()),
+                                const SizedBox(width: AppSpacing.s24),
+                                SizedBox(
+                                  width: 360,
+                                  child: Center(child: actions),
+                                ),
+                              ],
+                            );
+                          }
+                          if (constraints.maxHeight >= 700 && !largeText) {
+                            return Column(
+                              children: <Widget>[
+                                const Expanded(child: _Hero()),
+                                actions,
+                              ],
+                            );
+                          }
+                          // Short windows and large accessibility text scroll
+                          // instead of squeezing the hero behind the buttons.
+                          return SingleChildScrollView(
+                            child: Column(
+                              children: <Widget>[
+                                SizedBox(
+                                  height: largeText ? 540 : 380,
+                                  child: const _Hero(),
+                                ),
+                                actions,
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -465,12 +476,11 @@ class _Hero extends StatelessWidget {
                   const Spacer(),
                   Text(
                     l10n.heroTitle,
-                    style: const TextStyle(
-                      fontSize: 38,
+                    style: gameDisplay(
+                      size: 42,
                       height: 0.98,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -1.6,
                       color: paper,
+                      letterSpacing: -1.6,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.s12),
@@ -648,11 +658,10 @@ class _BigAction extends StatelessWidget {
                     children: <Widget>[
                       Text(
                         title,
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: -0.2,
+                        style: gameDisplay(
+                          size: 19,
                           color: foreground,
+                          letterSpacing: -0.3,
                         ),
                       ),
                       const SizedBox(height: 1),
