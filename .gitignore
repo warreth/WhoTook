@@ -16,6 +16,9 @@ key.properties
 *.p8
 *.p12
 *.mobileprovision
+*.key
+*.cer
+*.certSigningRequest
 GoogleService-Info.plist
 google-services.json
 
@@ -43,6 +46,12 @@ dist/
 # OS
 .DS_Store
 Thumbs.db
+
+# Server code lives in the private repository, never here.
+cloudflare-signaling/
+tool/prepare_app_links.py
+tool/store_assets.py
+tool/update_altstore.py
 
 # Private design prototypes and visual checks
 .private_prototypes/
