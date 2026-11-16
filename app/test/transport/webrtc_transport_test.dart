@@ -137,6 +137,16 @@ void main() {
     });
   });
 
+  test('client ICE timeout covers the host relay setup window', () {
+    final transport = WebRtcClientTransport(
+      invite: _invite,
+      iceClient: SignalingIceClient(
+        signalingUrl: 'https://signal.whotook.party',
+      ),
+    );
+    expect(transport.iceTimeout, greaterThanOrEqualTo(const Duration(seconds: 12)));
+  });
+
   test('a granted relay timeout maps to the relay prompt', () {
     final transport = WebRtcClientTransport(
       invite: _invite,
