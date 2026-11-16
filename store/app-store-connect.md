@@ -27,14 +27,56 @@ Business. Tax and banking are not required for a free app.
    App IDs > App. Use `party.whotook.app` and enable **Associated Domains**.
 2. **Distribution certificate.** Create an **Apple Distribution** certificate.
    Install it in Keychain, export a `.p12` with a password, and keep it safe.
+   Apple asks for a Certificate Signing Request (CSR). On a Mac use Keychain
+   Access > Certificate Assistant > Request a Certificate from a Certificate
+   Authority, save it to disk and upload it. Without a Mac, use the OpenSSL
+   route below.
 3. **Provisioning profile.** Create an **App Store** distribution profile for
    the App ID and that certificate. Download the `.mobileprovision`.
+
+### Geen Mac: CSR en .p12 met OpenSSL
+
+Run this on Linux, WSL or any machine with OpenSSL. The private key stays on
+that machine; keep a backup.
+
+```bash
+mkdir -p ~/whotook-signing && cd ~/whotook-signing
+openssl genrsa -out distribution.key 2048
+openssl req -new -key distribution.key \
+  -out distribution.certSigningRequest \
+  -subj "/CN=WhoTook Distribution/C=NL"
+```
+
+Upload `distribution.certSigningRequest` in the Apple Developer portal when it
+asks for a CSR. Download the generated `.cer` into the same folder. Then build
+the `.p12` with the current Apple intermediate certificates:
+
+```bash
+curl -fsSLO https://www.apple.com/certificateauthority/AppleWWDRCAG4.cer
+curl -fsSLO https://www.apple.com/certificateauthority/AppleWWDRCAG5.cer
+openssl x509 -inform DER -in distribution.cer -out distribution.pem
+openssl x509 -inform DER -in AppleWWDRCAG4.cer -out AppleWWDRCAG4.pem
+openssl x509 -inform DER -in AppleWWDRCAG5.cer -out AppleWWDRCAG5.pem
+cat AppleWWDRCAG4.pem AppleWWDRCAG5.pem > AppleWWDR.pem
+openssl pkcs12 -export -inkey distribution.key -in distribution.pem \
+  -certfile AppleWWDR.pem -out distribution.p12 -name "WhoTook Distribution"
+```
+
+Choose a strong export password and save it for `IOS_DIST_CERT_PASSWORD`.
+Back up `distribution.key`, `distribution.p12` and the password somewhere safe.
+If you lose the key you must revoke the certificate and create a new one.
 4. **API key.** App Store Connect > Users and Access > Integrations > App Store
    Connect API > Team Keys > **+**. Give it App Manager access. Download the
    `.p8` once, and note the **Key ID** and **Issuer ID**.
 5. **Team ID.** Membership details in the Apple Developer portal.
 
 ## 3. GitHub secrets for TestFlight
+
+> **Use exactly these names.** Other guides mention
+> `BUILD_CERTIFICATE_BASE64`, `P12_PASSWORD`,
+> `BUILD_PROVISION_PROFILE_BASE64` or `KEYCHAIN_PASSWORD`; those belong to a
+> different workflow. This repository's TestFlight workflow generates its own
+> temporary keychain password and reads the seven names below.
 
 Add these in GitHub > Settings > Secrets and variables > Actions:
 
