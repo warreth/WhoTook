@@ -85,6 +85,8 @@ jobs:
           TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
         run: |
           umask 077
+          CERT_PASSWORD=$(printf '%s' "$CERT_PASSWORD" | tr -d '\r\n')
+          TEAM_ID=$(printf '%s' "$TEAM_ID" | tr -d '\r\n')
           KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
           KEYCHAIN_PASS=$(openssl rand -hex 24)
           security create-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN"
@@ -152,6 +154,8 @@ jobs:
           API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
           API_ISSUER: ${{ secrets.APPSTORE_API_ISSUER_ID }}
         run: |
+          API_KEY_ID=$(printf '%s' "$API_KEY_ID" | tr -d '\r\n')
+          API_ISSUER=$(printf '%s' "$API_ISSUER" | tr -d '\r\n')
           IPA=$(find app/build/ios/ipa -name '*.ipa' | head -1)
           if [ -z "$IPA" ]; then
             echo "No IPA found" >&2

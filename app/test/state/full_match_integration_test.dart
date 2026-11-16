@@ -584,8 +584,8 @@ void main() {
       connector: HybridConnector(
         onlineClientFactory: () => LoopbackClientTransport(hub),
       ),
-      appVersion: '1.9.0',
-      appBuild: 13,
+      appVersion: '1.9.1',
+      appBuild: 14,
       roundDuration: const Duration(milliseconds: 900),
       countdownDuration: Duration.zero,
       revealDuration: const Duration(milliseconds: 40),
@@ -598,9 +598,9 @@ void main() {
     await _waitFor(() => host.state.versionWarning != null);
     await _waitFor(() => clientOne.state.versionWarning != null);
 
-    expect(host.state.versionWarning!.latestBuild, 13);
-    expect(host.state.versionWarning!.ownBuild, 12);
-    expect(clientOne.state.versionWarning!.latestVersion, '1.9.0');
+    expect(host.state.versionWarning!.latestBuild, 14);
+    expect(host.state.versionWarning!.ownBuild, 13);
+    expect(clientOne.state.versionWarning!.latestVersion, '1.9.1');
     expect(newer.state.versionWarning, isNull);
 
     host.dismissVersionWarning();
