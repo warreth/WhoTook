@@ -146,6 +146,19 @@ void main() {
       'memeVotesMeh',
       'memeVotesDown',
       'liveBadge',
+      'partyPassTitle',
+      'partyPassPrivacy',
+      'partyPassLobbyButton',
+      'settingsPartyPassTitle',
+      'roomThemeMidnightArcade',
+      'roomThemeCyberNeon',
+      'roomThemeRetroPolaroid',
+      'roomThemePremium',
+      'lobbySoundboardLabel',
+      'lobbyRelayLabel',
+      'relayStatusDirect',
+      'soundboardTitle',
+      'soundVineBoom',
     };
     final untranslated = <String>[];
     for (final key in en.keys) {

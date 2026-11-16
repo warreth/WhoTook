@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../core/models/models.dart';
+import '../core/party_pass/turn_relay_client.dart';
 import '../core/protocol/wire_message.dart';
 import '../core/qr/invite_codec.dart';
 import 'game_transport.dart';
@@ -19,6 +20,22 @@ class TurnQuotaBlockedException implements Exception {
 
   @override
   String toString() => 'TurnQuotaBlockedException(${notice.reason})';
+}
+
+/// Direct P2P failed and no relay credentials were available. This is the
+/// strict 5G / carrier-NAT case the lobby explains to the player.
+class RelayRequiredException implements Exception {
+  const RelayRequiredException({
+    this.passActive = false,
+    this.relayErrorCode,
+  });
+
+  final bool passActive;
+  final String? relayErrorCode;
+
+  @override
+  String toString() =>
+      'RelayRequiredException(passActive: $passActive, $relayErrorCode)';
 }
 
 class IceServerConfig {
@@ -55,6 +72,9 @@ class IceConfig {
     this.dailyLimit = 5,
     this.usedToday = 0,
     this.retryAtUtc,
+    this.remainingMatchesToday = 0,
+    this.relayPassActive = false,
+    this.relayErrorCode,
   });
 
   final bool turnAllowed;
@@ -63,6 +83,9 @@ class IceConfig {
   final int dailyLimit;
   final int usedToday;
   final DateTime? retryAtUtc;
+  final int remainingMatchesToday;
+  final bool relayPassActive;
+  final String? relayErrorCode;
 
   Map<String, dynamic> toRtcConfiguration() => <String, dynamic>{
     'iceServers': iceServers.map((s) => s.toWebRtc()).toList(),
@@ -84,6 +107,8 @@ class IceConfig {
       dailyLimit: json['dailyLimit'] as int? ?? 5,
       usedToday: json['usedToday'] as int? ?? 0,
       retryAtUtc: retry is String ? DateTime.tryParse(retry) : null,
+      remainingMatchesToday:
+          json['remainingMatchesToday'] as int? ?? 0,
     );
   }
 }
@@ -96,11 +121,18 @@ class SignalingIceClient {
     required this.signalingUrl,
     http.Client? httpClient,
     this.timeout = const Duration(seconds: 6),
+    this.turnRelay,
+    this.acceptServerTurn = true,
   }) : _http = httpClient ?? http.Client();
 
   final String signalingUrl;
   final Duration timeout;
   final http.Client _http;
+
+  /// Official builds obtain relay credentials only from a verified Party Pass.
+  /// Legacy self-hosted signaling servers may still return TURN to FOSS builds.
+  final Future<TurnRelayAttempt> Function()? turnRelay;
+  final bool acceptServerTurn;
 
   Future<IceConfig> fetch({
     required String roomId,
@@ -136,15 +168,68 @@ class SignalingIceClient {
       );
     }
     final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-    final config = IceConfig.fromJson(decoded);
-    if (custom == null) return config;
+    final parsed = IceConfig.fromJson(decoded);
+    final config = acceptServerTurn
+        ? parsed
+        : IceConfig(
+            turnAllowed: false,
+            iceServers: parsed.iceServers
+                .where(
+                  (server) => server.urls.every(
+                    (url) =>
+                        url.startsWith('stun:') || url.startsWith('stuns:'),
+                  ),
+                )
+                .toList(growable: false),
+            reason: parsed.reason,
+            dailyLimit: parsed.dailyLimit,
+            usedToday: parsed.usedToday,
+            retryAtUtc: parsed.retryAtUtc,
+          );
+    if (custom != null) {
+      return IceConfig(
+        turnAllowed: true,
+        iceServers: <IceServerConfig>[...config.iceServers, custom],
+        reason: config.reason,
+        dailyLimit: config.dailyLimit,
+        usedToday: config.usedToday,
+        retryAtUtc: config.retryAtUtc,
+        remainingMatchesToday: config.remainingMatchesToday,
+      );
+    }
+    final relay = turnRelay;
+    if (relay == null) return config;
+    final attempt = await relay();
+    final grant = attempt.grant;
+    if (grant == null) {
+      return IceConfig(
+        turnAllowed: false,
+        iceServers: config.iceServers,
+        reason: attempt.errorCode ?? config.reason,
+        dailyLimit: config.dailyLimit,
+        usedToday: config.usedToday,
+        retryAtUtc: config.retryAtUtc,
+        relayPassActive: attempt.passActive,
+        relayErrorCode: attempt.errorCode,
+      );
+    }
+    final relayServers = <IceServerConfig>[
+      for (final server in grant.iceServers)
+        IceServerConfig(
+          urls: server.urls,
+          username: server.username,
+          credential: server.credential,
+        ),
+    ];
     return IceConfig(
       turnAllowed: true,
-      iceServers: <IceServerConfig>[...config.iceServers, custom],
+      iceServers: <IceServerConfig>[...config.iceServers, ...relayServers],
       reason: config.reason,
-      dailyLimit: config.dailyLimit,
-      usedToday: config.usedToday,
+      dailyLimit: grant.dailyLimit,
+      usedToday: grant.dailyLimit - grant.remainingMatchesToday,
       retryAtUtc: config.retryAtUtc,
+      remainingMatchesToday: grant.remainingMatchesToday,
+      relayPassActive: true,
     );
   }
 
@@ -638,6 +723,13 @@ class WebRtcClientTransport extends _WebRtcTransportBase
     await _channelOpen!.future.timeout(
       iceTimeout,
       onTimeout: () {
+        final config = _config;
+        if (config != null && !config.turnAllowed) {
+          throw RelayRequiredException(
+            passActive: config.relayPassActive,
+            relayErrorCode: config.relayErrorCode,
+          );
+        }
         final notice = _turnNotice;
         if (notice != null) throw TurnQuotaBlockedException(notice);
         throw const TransportException('ice_failed', 'peer connection failed');

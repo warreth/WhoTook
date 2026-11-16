@@ -907,6 +907,9 @@ enum AppLanguage { system, english, dutch }
 
 enum ConnectionMode { localLan, webrtcP2p, webrtcTurn, offlineLoopback }
 
+/// Wire id for the free theme. Premium ids live in room_theme.dart.
+const String kDefaultRoomThemeId = 'classic_party';
+
 /// Locally persisted preferences. No account, no server-side profile.
 class AppSettings {
   const AppSettings({

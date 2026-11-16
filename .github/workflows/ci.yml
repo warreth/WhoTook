@@ -11,6 +11,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  no-server-code:
+    name: Public tree has no server code
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+      - name: Refuse server code in the public repository
+        run: |
+          if [ -e cloudflare-signaling ]; then
+            echo "Server code belongs in the private repository." >&2
+            exit 1
+          fi
+          echo "No server tree in the public repository."
+
   android:
     name: Android build and tests
     runs-on: ubuntu-latest

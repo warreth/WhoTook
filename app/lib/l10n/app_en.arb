@@ -580,10 +580,10 @@
       }
     }
   },
-  "customTurnUrl": "Custom TURN URL",
+  "customTurnUrl": "TURN URI",
   "customTurnHelper": "Optional, e.g. turn:turn.example.org:3478",
-  "turnUsername": "TURN username",
-  "turnCredential": "TURN credential",
+  "turnUsername": "Username",
+  "turnCredential": "Password",
   "resetToDefault": "Reset to default",
   "saveRelay": "Save relay",
   "helpAndLegal": "Help and legal",
@@ -850,5 +850,134 @@
   "gameFeel": "Game feel",
   "alsoInTheRoom": "Also in the room",
   "finalTable": "Final table",
-  "memeNoMemes": "No memes this round."
+  "memeNoMemes": "No memes this round.",
+  "partyPassTitle": "WhoTook Party Pass",
+  "partyPassSubtitle": "One payment. Every party feature, forever.",
+  "partyPassPerkRelayTitle": "5G & firewall relay",
+  "partyPassPerkRelayBody": "Play through strict 5G and carrier NATs with our encrypted relay, with a fair-use allowance every day.",
+  "partyPassPerkSoundboardTitle": "Live soundboard",
+  "partyPassPerkSoundboardBody": "Drop Airhorn, Vine Boom and more during rounds. Everyone in the room hears it.",
+  "partyPassPerkThemesTitle": "Shared room themes",
+  "partyPassPerkThemesBody": "Pick a premium theme and every friend's phone switches with you for the whole match.",
+  "partyPassUnlockButton": "Unlock Forever — {price}",
+  "partyPassRestore": "Restore purchases",
+  "partyPassRestoreHint": "Already bought it? Restore it on this device.",
+  "partyPassActiveBadge": "Party Pass Active",
+  "partyPassActiveBody": "Relay, soundboard and shared themes are unlocked on this device.",
+  "partyPassFairUse": "{remaining} of {limit} relay matches left today",
+  "partyPassFossIncluded": "Included in this FOSS build",
+  "partyPassFossBody": "No store, no tracking. The soundboard and all themes are free, and you can point the app at your own TURN server.",
+  "partyPassCustomTurn": "Use your own TURN server",
+  "partyPassStoreUnavailable": "The store is not available in this build. Restore purchases after installing from the App Store or Google Play.",
+  "partyPassPurchasePending": "Waiting for the store to confirm your purchase…",
+  "partyPassErrorCanceled": "Purchase canceled. Nothing was charged.",
+  "partyPassErrorUnavailable": "The store is not available right now. Try again in a moment.",
+  "partyPassErrorProduct": "The Party Pass product is not available in this store yet.",
+  "partyPassErrorRestoreEmpty": "No previous Party Pass purchase was found on this account.",
+  "partyPassErrorGeneric": "Something went wrong. Try again, or restore purchases.",
+  "partyPassRelayError": "The relay could not verify this purchase right now. Direct play still works.",
+  "partyPassTerms": "Terms",
+  "partyPassPrivacy": "Privacy",
+  "partyPassLobbyButton": "Party Pass ({price})",
+  "partyPassLobbyActive": "Party Pass Active",
+  "partyPassLoading": "Checking your pass…",
+  "roomThemePickerTitle": "Room theme",
+  "roomThemePickerBody": "The theme applies to every phone in this lobby for the whole match.",
+  "roomThemeClassicParty": "Classic Party",
+  "roomThemeMidnightArcade": "Midnight Arcade",
+  "roomThemeCyberNeon": "Cyber Neon",
+  "roomThemeRetroPolaroid": "Retro Polaroid 90s",
+  "roomThemePubKroeg": "Pub / Kroeg Mode",
+  "roomThemePremium": "Party Pass",
+  "roomThemeSelected": "Selected",
+  "roomThemeLocked": "Unlock the Party Pass to share this theme",
+  "lobbyThemeLabel": "Theme",
+  "lobbySoundboardLabel": "Soundboard",
+  "lobbyRelayLabel": "Relay",
+  "lobbySoundboardOn": "Ready",
+  "lobbySoundboardOff": "Pass only",
+  "relayStatusLocal": "Same Wi-Fi",
+  "relayStatusDirect": "Direct P2P",
+  "relayStatusRelay": "5G relay",
+  "relayStatusCustom": "Custom TURN",
+  "relayStatusOffline": "Not connected",
+  "relayStatusFoss": "Self-host ready",
+  "soundboardTitle": "Soundboard",
+  "soundboardHint": "Tap a sound. Everyone hears it.",
+  "soundboardCollapse": "Hide soundboard",
+  "soundboardExpand": "Show soundboard",
+  "soundboardCooldown": "Wait {seconds}s",
+  "soundboardLocked": "The live soundboard is part of the Party Pass.",
+  "soundVineBoom": "Vine Boom",
+  "soundAirhorn": "Airhorn",
+  "soundCrickets": "Crickets",
+  "soundSadTrombone": "Sad Trombone",
+  "soundDrumroll": "Drumroll",
+  "soundLaughTrack": "Laugh Track",
+  "soundPlayedToast": "{name} played {sound}",
+  "firewallTitle": "Strict 5G firewall detected!",
+  "firewallBody": "Connect to the same Wi-Fi/Hotspot to play 100% free, or unlock the WhoTook Party Pass (€2.99 once) to use our high-speed 5G Relay Server.",
+  "firewallWifiAction": "Play on Wi-Fi/Hotspot",
+  "firewallUnlockAction": "Unlock Party Pass",
+  "firewallFossAction": "Set up custom TURN",
+  "firewallRelayDownTitle": "Relay could not connect",
+  "firewallRelayDownBody": "Your Party Pass is active, but the relay did not answer. Check your connection, then try again.",
+  "firewallRetryAction": "Try again",
+  "fossTurnTitle": "Custom TURN Server (Self-Host)",
+  "fossTurnBody": "FOSS builds never use the official relay. Point the app at your own coturn server for strict networks.",
+  "fossTurnSaved": "Custom TURN saved",
+  "fossBuildBadge": "FOSS build",
+  "fossBuildBody": "No billing, no analytics, no official relay.",
+  "settingsPartyPassTitle": "WhoTook Party Pass",
+  "settingsPartyPassActive": "Active on this device",
+  "settingsPartyPassInactive": "Relay, soundboard and shared themes",
+  "errorRelayUnavailable": "The relay is unavailable right now. Direct play still works.",
+  "@partyPassUnlockButton": {
+    "description": "partyPassUnlockButton",
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "@partyPassFairUse": {
+    "description": "partyPassFairUse",
+    "placeholders": {
+      "remaining": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "@partyPassLobbyButton": {
+    "description": "partyPassLobbyButton",
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "@soundboardCooldown": {
+    "description": "soundboardCooldown",
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "@soundPlayedToast": {
+    "description": "soundPlayedToast",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "sound": {
+        "type": "String"
+      }
+    }
+  },
+  "roomThemeFree": "Free for everyone",
+  "turnCredentialPairError": "Fill in both the TURN username and password, or leave both empty."
 }

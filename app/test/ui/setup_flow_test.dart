@@ -145,6 +145,8 @@ void main() {
     expect(coordinator.state.config.pace, GamePace.slow);
     expect(coordinator.state.config.roundSeconds, 12);
     expect(find.text('Classic'), findsOneWidget);
+    await tester.drag(find.byType(ListView).first, const Offset(0, -240));
+    await tester.pumpAndSettle();
     expect(find.text('Slow · 12s'), findsOneWidget);
 
     await tester.tap(find.text('Start photo check'));

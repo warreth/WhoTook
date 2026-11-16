@@ -53,10 +53,17 @@ device.
    use it) or change the address everywhere.
 6. **Website deployment.** Deploy the private site and signaling worker after
    the store links exist. The Play/App Store buttons are still marked “soon”.
-7. **Store forms.** Complete the Data safety, App Privacy, age rating, content
+7. **Party Pass (optional IAP).** Create the non-consumable
+   `whotook_party_pass` at €2.99 in both stores and attach it to the app
+   version. Set the private backend secrets (`TURN_SHARED_SECRET`,
+   `GOOGLE_SERVICE_ACCOUNT_JSON`, `IP_HASH_SALT`) and deploy it. Test purchase,
+   restore, refund and the 15-per-day fair-use response. The field-by-field
+   steps are in `store/party-pass.md`. The FOSS build has no billing and
+   includes the cosmetic features for free.
+8. **Store forms.** Complete the Data safety, App Privacy, age rating, content
    declarations and review notes in Play Console and App Store Connect. The
    drafts are in `store/listing.md`.
-8. **Upload the assets.** Use `store/assets/screenshots/play/`,
+9. **Upload the assets.** Use `store/assets/screenshots/play/`,
    `iphone69/`, `ipad13/`, `play-feature-graphic-1024x500.png` and
    `play-icon-512.png`.
 

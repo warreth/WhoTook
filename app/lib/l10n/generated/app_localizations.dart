@@ -1691,7 +1691,7 @@ abstract class AppLocalizations {
   /// No description provided for @customTurnUrl.
   ///
   /// In en, this message translates to:
-  /// **'Custom TURN URL'**
+  /// **'TURN URI'**
   String get customTurnUrl;
 
   /// No description provided for @customTurnHelper.
@@ -1703,13 +1703,13 @@ abstract class AppLocalizations {
   /// No description provided for @turnUsername.
   ///
   /// In en, this message translates to:
-  /// **'TURN username'**
+  /// **'Username'**
   String get turnUsername;
 
   /// No description provided for @turnCredential.
   ///
   /// In en, this message translates to:
-  /// **'TURN credential'**
+  /// **'Password'**
   String get turnCredential;
 
   /// No description provided for @resetToDefault.
@@ -2742,6 +2742,504 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No memes this round.'**
   String get memeNoMemes;
+
+  /// No description provided for @partyPassTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'WhoTook Party Pass'**
+  String get partyPassTitle;
+
+  /// No description provided for @partyPassSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'One payment. Every party feature, forever.'**
+  String get partyPassSubtitle;
+
+  /// No description provided for @partyPassPerkRelayTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'5G & firewall relay'**
+  String get partyPassPerkRelayTitle;
+
+  /// No description provided for @partyPassPerkRelayBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Play through strict 5G and carrier NATs with our encrypted relay, with a fair-use allowance every day.'**
+  String get partyPassPerkRelayBody;
+
+  /// No description provided for @partyPassPerkSoundboardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Live soundboard'**
+  String get partyPassPerkSoundboardTitle;
+
+  /// No description provided for @partyPassPerkSoundboardBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Drop Airhorn, Vine Boom and more during rounds. Everyone in the room hears it.'**
+  String get partyPassPerkSoundboardBody;
+
+  /// No description provided for @partyPassPerkThemesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared room themes'**
+  String get partyPassPerkThemesTitle;
+
+  /// No description provided for @partyPassPerkThemesBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a premium theme and every friend\'s phone switches with you for the whole match.'**
+  String get partyPassPerkThemesBody;
+
+  /// partyPassUnlockButton
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock Forever — {price}'**
+  String partyPassUnlockButton(String price);
+
+  /// No description provided for @partyPassRestore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore purchases'**
+  String get partyPassRestore;
+
+  /// No description provided for @partyPassRestoreHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Already bought it? Restore it on this device.'**
+  String get partyPassRestoreHint;
+
+  /// No description provided for @partyPassActiveBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Party Pass Active'**
+  String get partyPassActiveBadge;
+
+  /// No description provided for @partyPassActiveBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Relay, soundboard and shared themes are unlocked on this device.'**
+  String get partyPassActiveBody;
+
+  /// partyPassFairUse
+  ///
+  /// In en, this message translates to:
+  /// **'{remaining} of {limit} relay matches left today'**
+  String partyPassFairUse(int remaining, int limit);
+
+  /// No description provided for @partyPassFossIncluded.
+  ///
+  /// In en, this message translates to:
+  /// **'Included in this FOSS build'**
+  String get partyPassFossIncluded;
+
+  /// No description provided for @partyPassFossBody.
+  ///
+  /// In en, this message translates to:
+  /// **'No store, no tracking. The soundboard and all themes are free, and you can point the app at your own TURN server.'**
+  String get partyPassFossBody;
+
+  /// No description provided for @partyPassCustomTurn.
+  ///
+  /// In en, this message translates to:
+  /// **'Use your own TURN server'**
+  String get partyPassCustomTurn;
+
+  /// No description provided for @partyPassStoreUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The store is not available in this build. Restore purchases after installing from the App Store or Google Play.'**
+  String get partyPassStoreUnavailable;
+
+  /// No description provided for @partyPassPurchasePending.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for the store to confirm your purchase…'**
+  String get partyPassPurchasePending;
+
+  /// No description provided for @partyPassErrorCanceled.
+  ///
+  /// In en, this message translates to:
+  /// **'Purchase canceled. Nothing was charged.'**
+  String get partyPassErrorCanceled;
+
+  /// No description provided for @partyPassErrorUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The store is not available right now. Try again in a moment.'**
+  String get partyPassErrorUnavailable;
+
+  /// No description provided for @partyPassErrorProduct.
+  ///
+  /// In en, this message translates to:
+  /// **'The Party Pass product is not available in this store yet.'**
+  String get partyPassErrorProduct;
+
+  /// No description provided for @partyPassErrorRestoreEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No previous Party Pass purchase was found on this account.'**
+  String get partyPassErrorRestoreEmpty;
+
+  /// No description provided for @partyPassErrorGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong. Try again, or restore purchases.'**
+  String get partyPassErrorGeneric;
+
+  /// No description provided for @partyPassRelayError.
+  ///
+  /// In en, this message translates to:
+  /// **'The relay could not verify this purchase right now. Direct play still works.'**
+  String get partyPassRelayError;
+
+  /// No description provided for @partyPassTerms.
+  ///
+  /// In en, this message translates to:
+  /// **'Terms'**
+  String get partyPassTerms;
+
+  /// No description provided for @partyPassPrivacy.
+  ///
+  /// In en, this message translates to:
+  /// **'Privacy'**
+  String get partyPassPrivacy;
+
+  /// partyPassLobbyButton
+  ///
+  /// In en, this message translates to:
+  /// **'Party Pass ({price})'**
+  String partyPassLobbyButton(String price);
+
+  /// No description provided for @partyPassLobbyActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Party Pass Active'**
+  String get partyPassLobbyActive;
+
+  /// No description provided for @partyPassLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking your pass…'**
+  String get partyPassLoading;
+
+  /// No description provided for @roomThemePickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Room theme'**
+  String get roomThemePickerTitle;
+
+  /// No description provided for @roomThemePickerBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The theme applies to every phone in this lobby for the whole match.'**
+  String get roomThemePickerBody;
+
+  /// No description provided for @roomThemeClassicParty.
+  ///
+  /// In en, this message translates to:
+  /// **'Classic Party'**
+  String get roomThemeClassicParty;
+
+  /// No description provided for @roomThemeMidnightArcade.
+  ///
+  /// In en, this message translates to:
+  /// **'Midnight Arcade'**
+  String get roomThemeMidnightArcade;
+
+  /// No description provided for @roomThemeCyberNeon.
+  ///
+  /// In en, this message translates to:
+  /// **'Cyber Neon'**
+  String get roomThemeCyberNeon;
+
+  /// No description provided for @roomThemeRetroPolaroid.
+  ///
+  /// In en, this message translates to:
+  /// **'Retro Polaroid 90s'**
+  String get roomThemeRetroPolaroid;
+
+  /// No description provided for @roomThemePubKroeg.
+  ///
+  /// In en, this message translates to:
+  /// **'Pub / Kroeg Mode'**
+  String get roomThemePubKroeg;
+
+  /// No description provided for @roomThemePremium.
+  ///
+  /// In en, this message translates to:
+  /// **'Party Pass'**
+  String get roomThemePremium;
+
+  /// No description provided for @roomThemeSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected'**
+  String get roomThemeSelected;
+
+  /// No description provided for @roomThemeLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock the Party Pass to share this theme'**
+  String get roomThemeLocked;
+
+  /// No description provided for @lobbyThemeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get lobbyThemeLabel;
+
+  /// No description provided for @lobbySoundboardLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Soundboard'**
+  String get lobbySoundboardLabel;
+
+  /// No description provided for @lobbyRelayLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Relay'**
+  String get lobbyRelayLabel;
+
+  /// No description provided for @lobbySoundboardOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get lobbySoundboardOn;
+
+  /// No description provided for @lobbySoundboardOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Pass only'**
+  String get lobbySoundboardOff;
+
+  /// No description provided for @relayStatusLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Same Wi-Fi'**
+  String get relayStatusLocal;
+
+  /// No description provided for @relayStatusDirect.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct P2P'**
+  String get relayStatusDirect;
+
+  /// No description provided for @relayStatusRelay.
+  ///
+  /// In en, this message translates to:
+  /// **'5G relay'**
+  String get relayStatusRelay;
+
+  /// No description provided for @relayStatusCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom TURN'**
+  String get relayStatusCustom;
+
+  /// No description provided for @relayStatusOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Not connected'**
+  String get relayStatusOffline;
+
+  /// No description provided for @relayStatusFoss.
+  ///
+  /// In en, this message translates to:
+  /// **'Self-host ready'**
+  String get relayStatusFoss;
+
+  /// No description provided for @soundboardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Soundboard'**
+  String get soundboardTitle;
+
+  /// No description provided for @soundboardHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a sound. Everyone hears it.'**
+  String get soundboardHint;
+
+  /// No description provided for @soundboardCollapse.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide soundboard'**
+  String get soundboardCollapse;
+
+  /// No description provided for @soundboardExpand.
+  ///
+  /// In en, this message translates to:
+  /// **'Show soundboard'**
+  String get soundboardExpand;
+
+  /// soundboardCooldown
+  ///
+  /// In en, this message translates to:
+  /// **'Wait {seconds}s'**
+  String soundboardCooldown(int seconds);
+
+  /// No description provided for @soundboardLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'The live soundboard is part of the Party Pass.'**
+  String get soundboardLocked;
+
+  /// No description provided for @soundVineBoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Vine Boom'**
+  String get soundVineBoom;
+
+  /// No description provided for @soundAirhorn.
+  ///
+  /// In en, this message translates to:
+  /// **'Airhorn'**
+  String get soundAirhorn;
+
+  /// No description provided for @soundCrickets.
+  ///
+  /// In en, this message translates to:
+  /// **'Crickets'**
+  String get soundCrickets;
+
+  /// No description provided for @soundSadTrombone.
+  ///
+  /// In en, this message translates to:
+  /// **'Sad Trombone'**
+  String get soundSadTrombone;
+
+  /// No description provided for @soundDrumroll.
+  ///
+  /// In en, this message translates to:
+  /// **'Drumroll'**
+  String get soundDrumroll;
+
+  /// No description provided for @soundLaughTrack.
+  ///
+  /// In en, this message translates to:
+  /// **'Laugh Track'**
+  String get soundLaughTrack;
+
+  /// soundPlayedToast
+  ///
+  /// In en, this message translates to:
+  /// **'{name} played {sound}'**
+  String soundPlayedToast(String name, String sound);
+
+  /// No description provided for @firewallTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Strict 5G firewall detected!'**
+  String get firewallTitle;
+
+  /// No description provided for @firewallBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to the same Wi-Fi/Hotspot to play 100% free, or unlock the WhoTook Party Pass (€2.99 once) to use our high-speed 5G Relay Server.'**
+  String get firewallBody;
+
+  /// No description provided for @firewallWifiAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Play on Wi-Fi/Hotspot'**
+  String get firewallWifiAction;
+
+  /// No description provided for @firewallUnlockAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock Party Pass'**
+  String get firewallUnlockAction;
+
+  /// No description provided for @firewallFossAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Set up custom TURN'**
+  String get firewallFossAction;
+
+  /// No description provided for @firewallRelayDownTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Relay could not connect'**
+  String get firewallRelayDownTitle;
+
+  /// No description provided for @firewallRelayDownBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Party Pass is active, but the relay did not answer. Check your connection, then try again.'**
+  String get firewallRelayDownBody;
+
+  /// No description provided for @firewallRetryAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get firewallRetryAction;
+
+  /// No description provided for @fossTurnTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom TURN Server (Self-Host)'**
+  String get fossTurnTitle;
+
+  /// No description provided for @fossTurnBody.
+  ///
+  /// In en, this message translates to:
+  /// **'FOSS builds never use the official relay. Point the app at your own coturn server for strict networks.'**
+  String get fossTurnBody;
+
+  /// No description provided for @fossTurnSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom TURN saved'**
+  String get fossTurnSaved;
+
+  /// No description provided for @fossBuildBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'FOSS build'**
+  String get fossBuildBadge;
+
+  /// No description provided for @fossBuildBody.
+  ///
+  /// In en, this message translates to:
+  /// **'No billing, no analytics, no official relay.'**
+  String get fossBuildBody;
+
+  /// No description provided for @settingsPartyPassTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'WhoTook Party Pass'**
+  String get settingsPartyPassTitle;
+
+  /// No description provided for @settingsPartyPassActive.
+  ///
+  /// In en, this message translates to:
+  /// **'Active on this device'**
+  String get settingsPartyPassActive;
+
+  /// No description provided for @settingsPartyPassInactive.
+  ///
+  /// In en, this message translates to:
+  /// **'Relay, soundboard and shared themes'**
+  String get settingsPartyPassInactive;
+
+  /// No description provided for @errorRelayUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The relay is unavailable right now. Direct play still works.'**
+  String get errorRelayUnavailable;
+
+  /// No description provided for @roomThemeFree.
+  ///
+  /// In en, this message translates to:
+  /// **'Free for everyone'**
+  String get roomThemeFree;
+
+  /// No description provided for @turnCredentialPairError.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill in both the TURN username and password, or leave both empty.'**
+  String get turnCredentialPairError;
 }
 
 class _AppLocalizationsDelegate

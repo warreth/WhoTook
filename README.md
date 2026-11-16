@@ -76,6 +76,13 @@ cd app
 flutter run --dart-define=FOSS_BUILD=true
 ```
 
+The FOSS build includes the live soundboard and all room themes for free, and
+uses only a TURN server you configure yourself. Store builds optionally sell
+the **WhoTook Party Pass** (one-time, `whotook_party_pass`) for the hosted 5G
+relay, the soundboard and shared themes. Local P2P play is free in every build.
+Receipts are verified by the private backend; the app never contains the
+verification secret. Details are in [SELF_HOSTING.md](SELF_HOSTING.md).
+
 Shipping, signing and store steps are in [docs/PRODUCTION.md](docs/PRODUCTION.md).
 
 The code is [AGPLv3](LICENSE). The **WhoTook** name and the viewfinder logo are

@@ -9,6 +9,7 @@ import 'package:photo_manager/photo_manager.dart' show PermissionState;
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../core/audio/game_audio_service.dart';
+import '../core/audio/soundboard_service.dart';
 import '../core/constants.dart';
 import '../core/media/photo_service.dart';
 import '../core/models/models.dart';
@@ -16,6 +17,9 @@ import '../core/avatars.dart';
 import '../core/storage/last_room_repository.dart';
 import '../l10n/generated/app_localizations.dart';
 import '../core/platform/screenshot_detector.dart';
+import '../core/party_pass/room_theme.dart';
+import '../core/party_pass/sound_effect.dart';
+import '../core/party_pass/turn_relay_client.dart';
 import '../core/protocol/wire_message.dart';
 import '../core/qr/invite_codec.dart';
 import '../core/storage/settings_repository.dart';
@@ -206,6 +210,10 @@ class MatchUiState {
     this.versionWarningDismissed = false,
     this.reconnecting = false,
     this.reconnectSecondsLeft = 0,
+    this.roomThemeId = kDefaultRoomThemeId,
+    this.lastSoundEffect,
+    this.firewallPrompt = false,
+    this.firewallRelayAttempted = false,
   });
 
   final bool isHosting;
@@ -271,6 +279,16 @@ class MatchUiState {
   final bool versionWarningDismissed;
   final bool reconnecting;
   final int reconnectSecondsLeft;
+
+  /// Shared premium theme selected by a Party Pass holder. Applies to every
+  /// phone for the duration of the match.
+  final String roomThemeId;
+  final SoundEffectEvent? lastSoundEffect;
+
+  /// A direct connection failed and no relay was available. The UI explains
+  /// the free Wi-Fi/hotspot route and the Party Pass relay.
+  final bool firewallPrompt;
+  final bool firewallRelayAttempted;
 
   /// True when the host has to choose between the podium and `+5` rounds.
   final bool hostDeciding;
@@ -343,6 +361,10 @@ class MatchUiState {
     bool? versionWarningDismissed,
     bool? reconnecting,
     int? reconnectSecondsLeft,
+    String? roomThemeId,
+    SoundEffectEvent? lastSoundEffect,
+    bool? firewallPrompt,
+    bool? firewallRelayAttempted,
     bool clearVersionWarning = false,
     bool clearError = false,
     bool clearLoading = false,
@@ -459,6 +481,11 @@ class MatchUiState {
         versionWarningDismissed ?? this.versionWarningDismissed,
     reconnecting: reconnecting ?? this.reconnecting,
     reconnectSecondsLeft: reconnectSecondsLeft ?? this.reconnectSecondsLeft,
+    roomThemeId: roomThemeId ?? this.roomThemeId,
+    lastSoundEffect: lastSoundEffect ?? this.lastSoundEffect,
+    firewallPrompt: firewallPrompt ?? this.firewallPrompt,
+    firewallRelayAttempted:
+        firewallRelayAttempted ?? this.firewallRelayAttempted,
   );
 }
 
@@ -475,6 +502,7 @@ class MatchCoordinator {
     ScreenshotDetector? screenshots,
     this.random,
     this.includeOnlineTransport = true,
+    this.turnRelay,
     this.wakeLock,
     this.planterOverride,
     this.appVersion = kAppVersion,
@@ -490,7 +518,7 @@ class MatchCoordinator {
     this.extendWindow = const Duration(seconds: 10),
   }) : _settings = settings ?? SettingsRepository(),
        _lastRooms = lastRooms ?? LastRoomRepository(),
-       _connector = connector ?? HybridConnector(),
+       _connector = connector ?? HybridConnector(turnRelay: turnRelay),
        _screenshots = screenshots ?? ScreenshotDetector(),
        _roundDurationOverride = roundDuration;
 
@@ -505,6 +533,9 @@ class MatchCoordinator {
 
   /// Off for tests and offline rehearsals; a LAN match never needs the relay.
   final bool includeOnlineTransport;
+
+  /// Supplies verified Party Pass relay credentials when one is available.
+  final Future<TurnRelayAttempt> Function()? turnRelay;
 
   /// Injectable in tests so a widget test does not wait on a platform channel.
   final Future<void> Function(bool awake)? wakeLock;
@@ -612,6 +643,10 @@ class MatchCoordinator {
   int _seq = 0;
   bool _disposed = false;
   bool _roundFinishing = false;
+  bool _partyPassActive = false;
+  final Set<String> _partyPassPlayers = <String>{};
+  final SoundboardGate _localSoundGate = SoundboardGate();
+  final SoundboardGate _remoteSoundGate = SoundboardGate();
 
   Stream<MatchUiState> get states => _states.stream;
 
@@ -644,6 +679,29 @@ class MatchCoordinator {
     _settingsValue = settings;
   }
 
+  /// The local Party Pass decides whether this phone may start sound effects
+  /// and premium themes. The relay is still verified server-side per request.
+  void updatePartyPass({required bool active}) {
+    final wasActive = _partyPassActive;
+    _partyPassActive = active;
+    if (wasActive && !active) {
+      _localSoundGate.clear();
+      _remoteSoundGate.clear();
+      if (_state.roomThemeId != RoomThemeIds.classicParty && _state.isHosting) {
+        unawaited(
+          _applyRoomTheme(RoomThemeId.classicParty, broadcast: true),
+        );
+      }
+    }
+  }
+
+  bool get partyPassActive => _partyPassActive;
+
+  void dismissFirewallPrompt() {
+    if (!_state.firewallPrompt) return;
+    _emit(_state.copyWith(firewallPrompt: false));
+  }
+
   /// Keeps coordinator errors in the same language as the interface. A
   /// message already on screen is cleared so it cannot stay in the old
   /// language after a switch.
@@ -657,6 +715,7 @@ class MatchCoordinator {
   }
 
   Future<void> hostMatch({MatchConfig config = const MatchConfig()}) async {
+    _partyPassPlayers.clear();
     _clientPlayerIds.clear();
     _playerClientIds.clear();
     _playerTokens.clear();
@@ -730,6 +789,7 @@ class MatchCoordinator {
                 invite: invite,
                 iceClient: SignalingIceClient(
                   signalingUrl: invite.signalingUrl!,
+                  turnRelay: turnRelay,
                 ),
                 settings: _settingsValue,
               ),
@@ -880,6 +940,7 @@ class MatchCoordinator {
           .map((banner) => banner.toJson())
           .toList(),
       'extensionSecondsLeft': _state.extensionSecondsLeft,
+      'roomThemeId': _state.roomThemeId,
       'rejoined': true,
     };
     await _hostTransport?.sendToClient(
@@ -980,6 +1041,7 @@ class MatchCoordinator {
             : requestedId;
         final token = (payload['playerToken'] as String?)?.trim() ?? '';
         final avatarPhoto = payload['avatarPhoto'] as String?;
+        final claimsPartyPass = payload['partyPass'] == true;
         final build = payload['appBuild'];
         final version = payload['appVersion'] as String? ?? '';
         if (_blockedPlayers.contains(playerId)) {
@@ -1026,6 +1088,11 @@ class MatchCoordinator {
           existing.avatar = normalizeAvatar(payload['avatar'] as String?);
           if (avatarPhoto != null && avatarPhoto.isNotEmpty) {
             _avatarPhotos[playerId] = avatarPhoto;
+          }
+          if (claimsPartyPass) {
+            _partyPassPlayers.add(playerId);
+          } else {
+            _partyPassPlayers.remove(playerId);
           }
           if (build is int) {
             _clientBuilds[playerId] = build;
@@ -1076,6 +1143,11 @@ class MatchCoordinator {
         if (token.isNotEmpty) _playerTokens[playerId] = token;
         if (avatarPhoto != null && avatarPhoto.isNotEmpty) {
           _avatarPhotos[playerId] = avatarPhoto;
+        }
+        if (claimsPartyPass) {
+          _partyPassPlayers.add(playerId);
+        } else {
+          _partyPassPlayers.remove(playerId);
         }
         if (build is int) {
           _clientBuilds[playerId] = build;
@@ -1202,6 +1274,38 @@ class MatchCoordinator {
         await _syncGuesses();
       case WireType.screenshotTaken:
         _onRemoteScreenshot(_playerIdFor(clientId), payload);
+      case WireType.roomTheme:
+        final playerId = _playerIdFor(clientId);
+        final theme = RoomThemeId.fromWire(payload['themeId'] as String?);
+        if (theme.premium && !_partyPassPlayers.contains(playerId)) {
+          return;
+        }
+        await _applyRoomTheme(theme, broadcast: true);
+      case WireType.soundEffect:
+        final playerId = _playerIdFor(clientId);
+        if (!_partyPassPlayers.contains(playerId)) return;
+        final incoming = SoundEffectEvent.fromJson(
+          payload,
+          atMs: DateTime.now().millisecondsSinceEpoch,
+        );
+        if (!_remoteSoundGate.tryPlay(playerId)) return;
+        final event = SoundEffectEvent(
+          playerId: playerId,
+          playerName: engine.player(playerId)?.name ?? incoming.playerName,
+          sound: incoming.sound,
+          atMs: incoming.atMs,
+        );
+        unawaited(SoundboardService.instance.play(event.sound));
+        _emit(_state.copyWith(lastSoundEffect: event));
+        unawaited(
+          _hostTransport?.broadcast(
+            WireMessage(
+              type: WireType.soundEffect,
+              seq: _nextSeq(),
+              payload: event.toJson(),
+            ),
+          ),
+        );
       case WireType.extendSubmit:
         final playerId = _playerIdFor(clientId);
         final photos = <PhotoCandidate>[];
@@ -2354,6 +2458,7 @@ class MatchCoordinator {
     _blockedPlayers.add(playerId);
     _playerTokens.remove(playerId);
     _avatarPhotos.remove(playerId);
+    _partyPassPlayers.remove(playerId);
     final clientId = _playerClientIds.remove(playerId);
     if (clientId != null) _clientPlayerIds.remove(clientId);
     engine.removePlayer(playerId);
@@ -2904,6 +3009,7 @@ class MatchCoordinator {
         avatarPhotos: Map<String, String>.unmodifiable(_avatarPhotos),
         config: config,
         connectionMode: _state.connectionMode,
+        roomThemeId: _state.roomThemeId,
       ),
     );
     await _broadcastLobby();
@@ -2921,6 +3027,7 @@ class MatchCoordinator {
           'config': engine.config.toJson(),
           'phase': engine.phase.name,
           'avatarPhotos': _avatarPhotos,
+          'roomThemeId': _state.roomThemeId,
         },
       ),
     );
@@ -2987,6 +3094,16 @@ class MatchCoordinator {
         ),
       );
       return;
+    } on RelayRequiredException catch (error) {
+      _emit(
+        _state.copyWith(
+          firewallPrompt: true,
+          firewallRelayAttempted: error.passActive,
+          errorMessage: error.passActive ? _l10n.errorRelayUnavailable : null,
+          clearLoading: true,
+        ),
+      );
+      return;
     } on Object {
       _emit(
         _state.copyWith(errorMessage: _l10n.errorReachHost, clearLoading: true),
@@ -3021,6 +3138,7 @@ class MatchCoordinator {
           'playerToken': _pendingPlayerToken,
           'appVersion': appVersion,
           'appBuild': appBuild,
+          'partyPass': _partyPassActive,
         },
       ),
     );
@@ -3149,6 +3267,7 @@ class MatchCoordinator {
             'playerToken': playerToken,
             'appVersion': appVersion,
             'appBuild': appBuild,
+            'partyPass': _partyPassActive,
           },
         ),
       );
@@ -3352,6 +3471,9 @@ class MatchCoordinator {
             extensionSecondsLeft: payload['extensionSecondsLeft'] as int? ?? 0,
             reconnecting: false,
             reconnectSecondsLeft: 0,
+            roomThemeId: RoomThemeId.fromWire(
+              payload['roomThemeId'] as String?,
+            ).wireId,
             clearError: true,
           ),
         );
@@ -3407,6 +3529,18 @@ class MatchCoordinator {
             },
           ),
         );
+      case WireType.roomTheme:
+        final theme = RoomThemeId.fromWire(payload['themeId'] as String?);
+        _emit(_state.copyWith(roomThemeId: theme.wireId));
+      case WireType.soundEffect:
+        final event = SoundEffectEvent.fromJson(
+          payload,
+          atMs: DateTime.now().millisecondsSinceEpoch,
+        );
+        if (event.playerId == (_state.localPlayerId ?? '')) return;
+        if (!_remoteSoundGate.tryPlay(event.playerId)) return;
+        unawaited(SoundboardService.instance.play(event.sound));
+        _emit(_state.copyWith(lastSoundEffect: event));
       case WireType.lobbyState:
         final players = <Player>[
           for (final entry
@@ -3444,6 +3578,9 @@ class MatchCoordinator {
             phase: parsedPhase,
             plantUnlocked: plantUnlocked,
             avatarPhotos: avatarPhotos,
+            roomThemeId: RoomThemeId.fromWire(
+              payload['roomThemeId'] as String?,
+            ).wireId,
           ),
         );
       case WireType.startPrepare:
@@ -4057,6 +4194,68 @@ class MatchCoordinator {
 
   /// The host keeps the socket alive only while the screen stays on, so the
   /// wake lock is part of the transport contract, not a nicety.
+  /// A Party Pass holder can share a premium theme with the whole room. The
+  /// host is authoritative and re-broadcasts it; a client only sends an intent.
+  Future<void> setRoomTheme(RoomThemeId theme) async {
+    if (theme.premium && !_partyPassActive) return;
+    if (_state.roomId == null) return;
+    if (!_state.isHosting) {
+      _emit(_state.copyWith(roomThemeId: theme.wireId));
+      await _clientTransport?.send(
+        WireMessage(
+          type: WireType.roomTheme,
+          seq: _nextSeq(),
+          payload: <String, dynamic>{'themeId': theme.wireId},
+        ),
+      );
+      return;
+    }
+    await _applyRoomTheme(theme, broadcast: true);
+  }
+
+  Future<void> _applyRoomTheme(
+    RoomThemeId theme, {
+    required bool broadcast,
+  }) async {
+    _emit(_state.copyWith(roomThemeId: theme.wireId));
+    if (!broadcast) return;
+    await _hostTransport?.broadcast(
+      WireMessage(
+        type: WireType.roomTheme,
+        seq: _nextSeq(),
+        payload: <String, dynamic>{'themeId': theme.wireId},
+      ),
+    );
+  }
+
+  /// Buyer-only live soundboard. Plays locally first, then broadcasts the
+  /// lightweight event so every phone in the room hears it.
+  void playSoundEffect(PartySound sound) {
+    if (!_partyPassActive) return;
+    final playerId = _state.isHosting
+        ? 'host'
+        : (_state.localPlayerId ?? 'local');
+    if (!_localSoundGate.tryPlay(playerId)) return;
+    final event = SoundEffectEvent(
+      playerId: playerId,
+      playerName: _displayName,
+      sound: sound,
+      atMs: DateTime.now().millisecondsSinceEpoch,
+    );
+    unawaited(SoundboardService.instance.play(sound));
+    _emit(_state.copyWith(lastSoundEffect: event));
+    final message = WireMessage(
+      type: WireType.soundEffect,
+      seq: _nextSeq(),
+      payload: event.toJson(),
+    );
+    if (_state.isHosting) {
+      unawaited(_hostTransport?.broadcast(message));
+    } else {
+      unawaited(_clientTransport?.send(message));
+    }
+  }
+
   Future<void> _setAwake(bool awake) async {
     final override = wakeLock;
     if (override != null) {
@@ -4150,6 +4349,9 @@ class MatchCoordinator {
     _playerTokens.clear();
     _blockedPlayers.clear();
     _avatarPhotos.clear();
+    _partyPassPlayers.clear();
+    _localSoundGate.clear();
+    _remoteSoundGate.clear();
     if (forgetRoom) {
       await _lastRooms.forget();
     }

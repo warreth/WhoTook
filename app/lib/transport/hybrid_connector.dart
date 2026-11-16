@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import '../core/models/models.dart';
+import '../core/party_pass/turn_relay_client.dart';
 import '../core/qr/invite_codec.dart';
 import '../core/storage/settings_repository.dart';
 import 'game_transport.dart';
@@ -25,6 +26,7 @@ class HybridConnector {
     LocalClientFactory? localClientFactory,
     OnlineClientFactory? onlineClientFactory,
     this._iceClient,
+    this._turnRelay,
     this.localProbeTimeout = const Duration(milliseconds: 800),
   }) : _localFactory =
            localClientFactory ??
@@ -35,6 +37,7 @@ class HybridConnector {
   final LocalClientFactory _localFactory;
   final OnlineClientFactory? _onlineFactory;
   final SignalingIceClient? _iceClient;
+  final Future<TurnRelayAttempt> Function()? _turnRelay;
   final Duration localProbeTimeout;
 
   /// Connects with the first transport that succeeds. Throws
@@ -57,7 +60,10 @@ class HybridConnector {
     if (injected != null) return injected();
     final ice =
         _iceClient ??
-        SignalingIceClient(signalingUrl: _signalingUrl(invite, settings));
+        SignalingIceClient(
+          signalingUrl: _signalingUrl(invite, settings),
+          turnRelay: _turnRelay,
+        );
     return WebRtcClientTransport(
       invite: invite,
       iceClient: ice,

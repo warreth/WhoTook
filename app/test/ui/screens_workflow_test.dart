@@ -164,9 +164,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Signaling URL'), findsOneWidget);
-    expect(find.text('Custom TURN URL'), findsOneWidget);
-    expect(find.text('TURN username'), findsOneWidget);
-    expect(find.text('TURN credential'), findsOneWidget);
+    expect(find.text('TURN URI'), findsOneWidget);
+    expect(find.text('Username'), findsOneWidget);
+    expect(find.text('Password'), findsOneWidget);
     expect(find.text('Save relay'), findsOneWidget);
     expect(find.text('Reset to default'), findsOneWidget);
   });

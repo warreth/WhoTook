@@ -265,10 +265,10 @@
   "selfHostedRelayBody": "Laat de app je eigen signalerings- en TURN-server gebruiken",
   "signalingUrl": "Signalerings-URL",
   "signalingUrlHelper": "Standaard: {url}",
-  "customTurnUrl": "Eigen TURN-URL",
+  "customTurnUrl": "TURN-URI",
   "customTurnHelper": "Optioneel, bijvoorbeeld turn:turn.example.org:3478",
-  "turnUsername": "TURN-gebruikersnaam",
-  "turnCredential": "TURN-wachtwoord",
+  "turnUsername": "Gebruikersnaam",
+  "turnCredential": "Wachtwoord",
   "resetToDefault": "Herstellen",
   "saveRelay": "Relay bewaren",
   "helpAndLegal": "Help en juridische info",
@@ -439,5 +439,134 @@
   "gameFeel": "Gamegevoel",
   "alsoInTheRoom": "Ook in de room",
   "finalTable": "Eindstand",
-  "memeNoMemes": "Geen memes deze ronde."
+  "memeNoMemes": "Geen memes deze ronde.",
+  "partyPassTitle": "WhoTook Party Pass",
+  "partyPassSubtitle": "Eén betaling. Alle feestfuncties, voor altijd.",
+  "partyPassPerkRelayTitle": "5G- en firewallrelay",
+  "partyPassPerkRelayBody": "Speel door strikte 5G- en providerfirewalls met onze versleutelde relay, met een eerlijk dagelijks gebruik.",
+  "partyPassPerkSoundboardTitle": "Live-soundboard",
+  "partyPassPerkSoundboardBody": "Laat Airhorn, Vine Boom en meer horen tijdens rondes. Iedereen in de kamer hoort het.",
+  "partyPassPerkThemesTitle": "Gedeelde kamerthema's",
+  "partyPassPerkThemesBody": "Kies een premium thema en elke telefoon van je vrienden schakelt mee voor de hele wedstrijd.",
+  "partyPassUnlockButton": "Voor altijd ontgrendelen — {price}",
+  "partyPassRestore": "Aankopen herstellen",
+  "partyPassRestoreHint": "Al gekocht? Herstel het op dit toestel.",
+  "partyPassActiveBadge": "Party Pass actief",
+  "partyPassActiveBody": "Relay, soundboard en gedeelde thema's zijn op dit toestel ontgrendeld.",
+  "partyPassFairUse": "{remaining} van {limit} relaywedstrijden vandaag over",
+  "partyPassFossIncluded": "Inbegrepen in deze FOSS-build",
+  "partyPassFossBody": "Geen winkel, geen tracking. Het soundboard en alle thema's zijn gratis, en je kunt de app op je eigen TURN-server richten.",
+  "partyPassCustomTurn": "Gebruik je eigen TURN-server",
+  "partyPassStoreUnavailable": "De winkel is niet beschikbaar in deze build. Herstel je aankopen na installatie via de App Store of Google Play.",
+  "partyPassPurchasePending": "Wachten op bevestiging van de winkel…",
+  "partyPassErrorCanceled": "Aankoop geannuleerd. Er is niets afgeschreven.",
+  "partyPassErrorUnavailable": "De winkel is nu niet beschikbaar. Probeer het zo opnieuw.",
+  "partyPassErrorProduct": "Het Party Pass-product is nog niet beschikbaar in deze winkel.",
+  "partyPassErrorRestoreEmpty": "Er is geen eerdere Party Pass-aankoop op dit account gevonden.",
+  "partyPassErrorGeneric": "Er ging iets mis. Probeer opnieuw of herstel je aankopen.",
+  "partyPassRelayError": "De relay kon deze aankoop nu niet verifiëren. Direct spelen werkt nog.",
+  "partyPassTerms": "Voorwaarden",
+  "partyPassPrivacy": "Privacy",
+  "partyPassLobbyButton": "Party Pass ({price})",
+  "partyPassLobbyActive": "Party Pass actief",
+  "partyPassLoading": "Je pass wordt gecontroleerd…",
+  "roomThemePickerTitle": "Kamerthema",
+  "roomThemePickerBody": "Het thema geldt op elke telefoon in deze lobby, voor de hele wedstrijd.",
+  "roomThemeClassicParty": "Klassiek feest",
+  "roomThemeMidnightArcade": "Midnight Arcade",
+  "roomThemeCyberNeon": "Cyber Neon",
+  "roomThemeRetroPolaroid": "Retro Polaroid 90s",
+  "roomThemePubKroeg": "Kroegmodus",
+  "roomThemePremium": "Party Pass",
+  "roomThemeSelected": "Geselecteerd",
+  "roomThemeLocked": "Ontgrendel de Party Pass om dit thema te delen",
+  "lobbyThemeLabel": "Thema",
+  "lobbySoundboardLabel": "Soundboard",
+  "lobbyRelayLabel": "Relay",
+  "lobbySoundboardOn": "Klaar",
+  "lobbySoundboardOff": "Alleen met pass",
+  "relayStatusLocal": "Zelfde wifi",
+  "relayStatusDirect": "Direct P2P",
+  "relayStatusRelay": "5G-relay",
+  "relayStatusCustom": "Eigen TURN",
+  "relayStatusOffline": "Niet verbonden",
+  "relayStatusFoss": "Self-host klaar",
+  "soundboardTitle": "Soundboard",
+  "soundboardHint": "Tik op een geluid. Iedereen hoort het.",
+  "soundboardCollapse": "Soundboard verbergen",
+  "soundboardExpand": "Soundboard tonen",
+  "soundboardCooldown": "Wacht {seconds}s",
+  "soundboardLocked": "Het live-soundboard hoort bij de Party Pass.",
+  "soundVineBoom": "Vine Boom",
+  "soundAirhorn": "Luchthoorn",
+  "soundCrickets": "Krekels",
+  "soundSadTrombone": "Treurige trombone",
+  "soundDrumroll": "Tromgeroffel",
+  "soundLaughTrack": "Lachband",
+  "soundPlayedToast": "{name} speelde {sound}",
+  "firewallTitle": "Strikte 5G-firewall gedetecteerd!",
+  "firewallBody": "Verbind met dezelfde wifi/hotspot om 100% gratis te spelen, of ontgrendel de WhoTook Party Pass (€2,99 eenmalig) voor onze snelle 5G-relayserver.",
+  "firewallWifiAction": "Speel via wifi/hotspot",
+  "firewallUnlockAction": "Party Pass ontgrendelen",
+  "firewallFossAction": "Eigen TURN instellen",
+  "firewallRelayDownTitle": "Relay kon niet verbinden",
+  "firewallRelayDownBody": "Je Party Pass is actief, maar de relay antwoordde niet. Controleer je verbinding en probeer opnieuw.",
+  "firewallRetryAction": "Opnieuw proberen",
+  "fossTurnTitle": "Eigen TURN-server (self-host)",
+  "fossTurnBody": "FOSS-builds gebruiken nooit de officiële relay. Richt de app op je eigen coturn-server voor strikte netwerken.",
+  "fossTurnSaved": "Eigen TURN opgeslagen",
+  "fossBuildBadge": "FOSS-build",
+  "fossBuildBody": "Geen betalingen, geen analytics, geen officiële relay.",
+  "settingsPartyPassTitle": "WhoTook Party Pass",
+  "settingsPartyPassActive": "Actief op dit toestel",
+  "settingsPartyPassInactive": "Relay, soundboard en gedeelde thema's",
+  "errorRelayUnavailable": "De relay is nu niet beschikbaar. Direct spelen werkt nog.",
+  "@partyPassUnlockButton": {
+    "description": "partyPassUnlockButton",
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "@partyPassFairUse": {
+    "description": "partyPassFairUse",
+    "placeholders": {
+      "remaining": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "@partyPassLobbyButton": {
+    "description": "partyPassLobbyButton",
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "@soundboardCooldown": {
+    "description": "soundboardCooldown",
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "@soundPlayedToast": {
+    "description": "soundPlayedToast",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "sound": {
+        "type": "String"
+      }
+    }
+  },
+  "roomThemeFree": "Gratis voor iedereen",
+  "turnCredentialPairError": "Vul zowel de TURN-gebruikersnaam als het wachtwoord in, of laat beide leeg."
 }
