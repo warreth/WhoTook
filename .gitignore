@@ -16,6 +16,9 @@ key.properties
 *.p8
 *.p12
 *.mobileprovision
+*.key
+*.cer
+*.certSigningRequest
 GoogleService-Info.plist
 google-services.json
 
