@@ -51,6 +51,7 @@ Thumbs.db
 cloudflare-signaling/
 tool/
 store/
+prototypes/
 app/tool/
 docs/PRODUCTION.md
 wrangler.jsonc

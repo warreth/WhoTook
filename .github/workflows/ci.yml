@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Refuse server code in the public repository
         run: |
-          for path in cloudflare-signaling tool store app/tool docs/PRODUCTION.md wrangler.jsonc wrangler.json wrangler.toml .dev.vars.example; do
+          for path in cloudflare-signaling tool store prototypes app/tool docs/PRODUCTION.md wrangler.jsonc wrangler.json wrangler.toml .dev.vars.example; do
             if [ -e "$path" ]; then
               echo "Private server, release or store material found in the public tree: $path" >&2
               exit 1
