@@ -353,10 +353,8 @@ jobs:
         working-directory: app
         env:
           FLUTTER_XCODE_DEVELOPMENT_TEAM: ${{ secrets.IOS_TEAM_ID }}
-          FLUTTER_XCODE_CODE_SIGN_STYLE: Manual
-          FLUTTER_XCODE_CODE_SIGN_IDENTITY: Apple Distribution
         run: |
-          FLUTTER_XCODE_PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+          FLUTTER_XCODE_WHOTOOK_PROFILE="$PROFILE_NAME" \
             flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
 
       - name: Upload to App Store Connect
