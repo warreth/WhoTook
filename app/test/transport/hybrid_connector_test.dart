@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:whotook/core/build_flavor.dart';
 import 'package:whotook/core/models/models.dart';
 import 'package:whotook/core/protocol/wire_message.dart';
 import 'package:whotook/core/qr/invite_codec.dart';
@@ -176,6 +177,25 @@ void main() {
       expect(config.usedToday, 1);
       expect(config.iceServers, hasLength(2));
       expect(config.iceServers.last.username, 'u');
+    });
+
+    test('official default ignores a server-issued TURN relay', () async {
+      if (BuildFlavor.foss) return;
+      final client = SignalingIceClient(
+        signalingUrl: 'https://signal.example',
+        httpClient: MockClient(
+          (_) async => http.Response(
+            '{"turnAllowed":true,'
+            '"iceServers":[{"urls":"stun:stun.cloudflare.com:3478"},'
+            '{"urls":"turn:free.example:3478","username":"u","credential":"c"}]}',
+            200,
+          ),
+        ),
+      );
+
+      final config = await client.fetch(roomId: 'room1234', token: 'secret');
+      expect(config.turnAllowed, isFalse);
+      expect(config.iceServers, hasLength(1));
     });
 
     test('a client that rejects server TURN keeps STUN only', () async {
