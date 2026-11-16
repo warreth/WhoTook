@@ -126,14 +126,9 @@ jobs:
             <key>method</key>
             <string>app-store-connect</string>
             <key>signingStyle</key>
-            <string>manual</string>
+            <string>automatic</string>
             <key>teamID</key>
             <string>$TEAM_ID</string>
-            <key>provisioningProfiles</key>
-            <dict>
-              <key>party.whotook.app</key>
-              <string>$PROFILE_NAME</string>
-            </dict>
             <key>uploadSymbols</key>
             <true/>
             <key>destination</key>
@@ -150,11 +145,9 @@ jobs:
         working-directory: app
         env:
           FLUTTER_XCODE_DEVELOPMENT_TEAM: ${{ secrets.IOS_TEAM_ID }}
-          FLUTTER_XCODE_CODE_SIGN_STYLE: Manual
-          FLUTTER_XCODE_CODE_SIGN_IDENTITY: Apple Distribution
+          FLUTTER_XCODE_CODE_SIGN_STYLE: Automatic
         run: |
-          FLUTTER_XCODE_PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
-            flutter build ipa --release \
+          flutter build ipa --release \
               --build-number "$BUILD" \
               --export-options-plist=ios/ExportOptions.plist
 
