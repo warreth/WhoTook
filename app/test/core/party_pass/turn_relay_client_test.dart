@@ -87,11 +87,7 @@ void main() {
               'code',
               TurnRelayErrorCode.fairUseLimit,
             )
-            .having(
-              (error) => error.remainingMatchesToday,
-              'remaining',
-              0,
-            ),
+            .having((error) => error.remainingMatchesToday, 'remaining', 0),
       ),
     );
   });

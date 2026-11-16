@@ -92,10 +92,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      _app(
-        const PartyPassLobbyBar(),
-        const PartyPassState(loading: false),
-      ),
+      _app(const PartyPassLobbyBar(), const PartyPassState(loading: false)),
     );
     await tester.pumpAndSettle();
 
@@ -184,10 +181,10 @@ void main() {
       _app(
         const SoundboardPill(),
         const PartyPassState(
-            active: true,
-            billingAvailable: true,
-            loading: false,
-          ),
+          active: true,
+          billingAvailable: true,
+          loading: false,
+        ),
         match: _round(),
       ),
     );
@@ -212,11 +209,7 @@ void main() {
 
   testWidgets('the soundboard is hidden without a pass', (tester) async {
     await tester.pumpWidget(
-      _app(
-        const SoundboardPill(),
-        const PartyPassState(),
-        match: _round(),
-      ),
+      _app(const SoundboardPill(), const PartyPassState(), match: _round()),
     );
     await tester.pumpAndSettle();
     expect(find.text('Soundboard'), findsNothing);
@@ -255,10 +248,7 @@ void main() {
     await tester.pumpWidget(
       _app(
         const SingleChildScrollView(child: CustomTurnSection()),
-        const PartyPassState(
-          active: true,
-          fossIncluded: true,
-        ),
+        const PartyPassState(active: true, fossIncluded: true),
       ),
     );
     await tester.pumpAndSettle();
@@ -274,10 +264,10 @@ void main() {
       _app(
         const PartyPassLobbyBar(),
         const PartyPassState(
-            active: true,
-            billingAvailable: true,
-            loading: false,
-          ),
+          active: true,
+          billingAvailable: true,
+          loading: false,
+        ),
       ),
     );
     await tester.pumpAndSettle();

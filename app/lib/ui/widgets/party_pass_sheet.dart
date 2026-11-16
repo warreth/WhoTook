@@ -61,9 +61,7 @@ class _PartyPassBottomSheetState extends ConsumerState<PartyPassBottomSheet> {
     Navigator.of(context).pop();
     unawaited(
       Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => const AdvancedSettingsScreen(),
-        ),
+        MaterialPageRoute<void>(builder: (_) => const AdvancedSettingsScreen()),
       ),
     );
   }
@@ -72,8 +70,7 @@ class _PartyPassBottomSheetState extends ConsumerState<PartyPassBottomSheet> {
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
     final l10n = context.l10n;
-    final pass =
-        ref.watch(partyPassProvider).value ?? const PartyPassState();
+    final pass = ref.watch(partyPassProvider).value ?? const PartyPassState();
     final busy = pass.purchasing;
 
     return SafeArea(
@@ -256,9 +253,7 @@ class _PartyPassBottomSheetState extends ConsumerState<PartyPassBottomSheet> {
                 ] else ...<Widget>[
                   if (!pass.billingAvailable)
                     Padding(
-                      padding: const EdgeInsets.only(
-                        bottom: AppSpacing.s12,
-                      ),
+                      padding: const EdgeInsets.only(bottom: AppSpacing.s12),
                       child: Text(
                         l10n.partyPassStoreUnavailable,
                         style: TextStyle(
@@ -300,10 +295,7 @@ class _PartyPassBottomSheetState extends ConsumerState<PartyPassBottomSheet> {
                         Flexible(
                           child: Text(
                             l10n.partyPassPurchasePending,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: colors.ink3,
-                            ),
+                            style: TextStyle(fontSize: 12, color: colors.ink3),
                           ),
                         ),
                       ],
@@ -315,7 +307,8 @@ class _PartyPassBottomSheetState extends ConsumerState<PartyPassBottomSheet> {
                   spacing: AppSpacing.s16,
                   children: <Widget>[
                     TextButton(
-                      onPressed: () => unawaited(openExternal(context, kTermsUrl)),
+                      onPressed: () =>
+                          unawaited(openExternal(context, kTermsUrl)),
                       child: Text(l10n.partyPassTerms),
                     ),
                     TextButton(
@@ -340,11 +333,7 @@ class _PartyPassBottomSheetState extends ConsumerState<PartyPassBottomSheet> {
 }
 
 class _Perk extends StatelessWidget {
-  const _Perk({
-    required this.icon,
-    required this.title,
-    required this.body,
-  });
+  const _Perk({required this.icon, required this.title, required this.body});
 
   final IconData icon;
   final String title;
@@ -512,11 +501,7 @@ class _FossNote extends StatelessWidget {
           const SizedBox(height: AppSpacing.s4),
           Text(
             l10n.partyPassFossBody,
-            style: TextStyle(
-              fontSize: 12,
-              height: 1.4,
-              color: colors.ink2,
-            ),
+            style: TextStyle(fontSize: 12, height: 1.4, color: colors.ink2),
           ),
         ],
       ),

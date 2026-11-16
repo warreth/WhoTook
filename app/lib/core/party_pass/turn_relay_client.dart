@@ -45,11 +45,7 @@ class TurnRelayGrant {
 /// One relay attempt. [passActive] lets the connection failure UI distinguish
 /// "buy the pass" from "the relay is temporarily unavailable".
 class TurnRelayAttempt {
-  const TurnRelayAttempt({
-    this.grant,
-    this.passActive = false,
-    this.errorCode,
-  });
+  const TurnRelayAttempt({this.grant, this.passActive = false, this.errorCode});
 
   final TurnRelayGrant? grant;
   final bool passActive;
@@ -131,8 +127,7 @@ class TurnRelayClient {
       iceServers: servers,
       ttlSeconds: ttl,
       expiresAtUtc: expiresAt.toUtc(),
-      remainingMatchesToday:
-          (json['remainingMatchesToday'] as int?) ?? 0,
+      remainingMatchesToday: (json['remainingMatchesToday'] as int?) ?? 0,
       dailyLimit: (json['dailyLimit'] as int?) ?? 0,
     );
   }
@@ -148,8 +143,7 @@ class TurnRelayClient {
     );
     return TurnRelayVerification(
       valid: json['valid'] as bool? ?? false,
-      remainingMatchesToday:
-          (json['remainingMatchesToday'] as int?) ?? 0,
+      remainingMatchesToday: (json['remainingMatchesToday'] as int?) ?? 0,
       dailyLimit: (json['dailyLimit'] as int?) ?? 0,
     );
   }
@@ -159,9 +153,7 @@ class TurnRelayClient {
     required String path,
     required PartyPassCredential credential,
   }) async {
-    final uri = Uri.parse(
-      '${baseUrl.replaceAll(RegExp(r'/+$'), '')}$path',
-    );
+    final uri = Uri.parse('${baseUrl.replaceAll(RegExp(r'/+$'), '')}$path');
     final http.Response response;
     try {
       response = await _http
@@ -208,9 +200,10 @@ class TurnRelayClient {
       400 => TurnRelayErrorCode.invalidRequest,
       401 || 403 => TurnRelayErrorCode.invalidReceipt,
       409 => TurnRelayErrorCode.productMismatch,
-      429 => serverCode == TurnRelayErrorCode.fairUseLimit
-          ? TurnRelayErrorCode.fairUseLimit
-          : TurnRelayErrorCode.rateLimited,
+      429 =>
+        serverCode == TurnRelayErrorCode.fairUseLimit
+            ? TurnRelayErrorCode.fairUseLimit
+            : TurnRelayErrorCode.rateLimited,
       503 => TurnRelayErrorCode.relayUnavailable,
       _ => TurnRelayErrorCode.network,
     };

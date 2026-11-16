@@ -93,9 +93,7 @@ Future<void> _capture(WidgetTester tester, GlobalKey key, String name) async {
     final data = await image.toByteData(format: ui.ImageByteFormat.png);
     final dir = Directory('../.private_prototypes/screens')
       ..createSync(recursive: true);
-    File('${dir.path}/$name.png').writeAsBytesSync(
-      data!.buffer.asUint8List(),
-    );
+    File('${dir.path}/$name.png').writeAsBytesSync(data!.buffer.asUint8List());
     image.dispose();
   });
 }
@@ -201,9 +199,7 @@ void main() {
         MaterialApp(
           theme: buildWhoTookTheme(
             theme.forcedBrightness ?? Brightness.light,
-            palette: theme.palette(
-              theme.forcedBrightness ?? Brightness.light,
-            ),
+            palette: theme.palette(theme.forcedBrightness ?? Brightness.light),
           ),
           locale: const Locale('en'),
           supportedLocales: AppLocalizations.supportedLocales,
@@ -215,7 +211,7 @@ void main() {
         ),
       );
       await tester.pump();
-    await tester.pump(const Duration(milliseconds: 350));
+      await tester.pump(const Duration(milliseconds: 350));
       await _capture(tester, key, 'theme_${theme.wireId}');
     }
   }, skip: !_enabled);
@@ -376,10 +372,7 @@ class _ThemeShowcase extends StatelessWidget {
                       const SizedBox(width: AppSpacing.s8),
                       Text(
                         l10n.shareInviteLink,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: colors.ink,
-                        ),
+                        style: TextStyle(fontSize: 14, color: colors.ink),
                       ),
                     ],
                   ),
@@ -435,10 +428,7 @@ class _ThemeShowcase extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: GamePalette.gold,
                       borderRadius: BorderRadius.circular(AppRadii.rControl),
-                      border: Border.all(
-                        color: GamePalette.onGold,
-                        width: 2.5,
-                      ),
+                      border: Border.all(color: GamePalette.onGold, width: 2.5),
                     ),
                     child: Row(
                       children: <Widget>[
@@ -484,10 +474,7 @@ class _ThemeShowcase extends StatelessWidget {
                       ),
                       trailing: Text(
                         player == 'Bram' ? l10n.hostLabel : l10n.ready,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: colors.ink2,
-                        ),
+                        style: TextStyle(fontSize: 12, color: colors.ink2),
                       ),
                     ),
                 ],
@@ -508,11 +495,7 @@ class _ThemeShowcase extends StatelessWidget {
 }
 
 class _Chip extends StatelessWidget {
-  const _Chip({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
+  const _Chip({required this.icon, required this.label, required this.value});
 
   final IconData icon;
   final String label;

@@ -86,9 +86,7 @@ class _CustomTurnSectionState extends ConsumerState<CustomTurnSection> {
   }
 
   Future<void> _reset() async {
-    await _settings.apply(
-      (current) => current.copyWith(clearTurn: true),
-    );
+    await _settings.apply((current) => current.copyWith(clearTurn: true));
     if (!mounted) return;
     final l10n = context.l10n;
     _url.clear();

@@ -78,10 +78,7 @@ class FirewallPromptOverlay extends ConsumerWidget {
                                 borderRadius: BorderRadius.circular(
                                   AppRadii.rSm,
                                 ),
-                                border: Border.all(
-                                  color: colors.ink,
-                                  width: 2,
-                                ),
+                                border: Border.all(color: colors.ink, width: 2),
                               ),
                               child: Icon(
                                 relayAttempted
@@ -164,10 +161,7 @@ class FirewallPromptOverlay extends ConsumerWidget {
                             ),
                         ],
                         const SizedBox(height: AppSpacing.s8),
-                        TextButton(
-                          onPressed: dismiss,
-                          child: Text(l10n.close),
-                        ),
+                        TextButton(onPressed: dismiss, child: Text(l10n.close)),
                       ],
                     ),
                   ),

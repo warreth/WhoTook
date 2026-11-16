@@ -122,7 +122,9 @@ void main() {
     expect(state.active, isTrue);
     expect(state.fossIncluded, isTrue);
 
-    final attempt = await container.read(partyPassProvider.notifier).relayAttempt();
+    final attempt = await container
+        .read(partyPassProvider.notifier)
+        .relayAttempt();
     expect(attempt.grant, isNull);
     expect(attempt.passActive, isFalse);
   });
@@ -189,38 +191,45 @@ void main() {
     await container.read(partyPassProvider.future);
     await container.read(partyPassProvider.notifier).unlock();
 
-    final first = await container.read(partyPassProvider.notifier).relayAttempt();
+    final first = await container
+        .read(partyPassProvider.notifier)
+        .relayAttempt();
     expect(first.passActive, isTrue);
     expect(first.grant, isNotNull);
     expect(relay.fetches, 1);
-    expect(
-      container.read(partyPassProvider).value!.remainingMatchesToday,
-      14,
-    );
+    expect(container.read(partyPassProvider).value!.remainingMatchesToday, 14);
 
-    final second = await container.read(partyPassProvider.notifier).relayAttempt();
+    final second = await container
+        .read(partyPassProvider.notifier)
+        .relayAttempt();
     expect(second.grant, isNotNull);
     expect(relay.fetches, 1, reason: 'the short-lived grant is reused');
   });
 
-  test('verification reports the remaining allowance without spending it', () async {
-    final purchase = _FakePurchaseService();
-    final relay = _FakeRelayClient();
-    final container = ProviderContainer(
-      overrides: [
-        partyPassProvider.overrideWith(_OfficialPartyPassController.new),
-        partyPassPurchaseServiceProvider.overrideWithValue(purchase),
-        turnRelayClientProvider.overrideWithValue(relay),
-      ],
-    );
-    addTearDown(container.dispose);
-    addTearDown(purchase.dispose);
-    await container.read(partyPassProvider.future);
-    await container.read(partyPassProvider.notifier).unlock();
+  test(
+    'verification reports the remaining allowance without spending it',
+    () async {
+      final purchase = _FakePurchaseService();
+      final relay = _FakeRelayClient();
+      final container = ProviderContainer(
+        overrides: [
+          partyPassProvider.overrideWith(_OfficialPartyPassController.new),
+          partyPassPurchaseServiceProvider.overrideWithValue(purchase),
+          turnRelayClientProvider.overrideWithValue(relay),
+        ],
+      );
+      addTearDown(container.dispose);
+      addTearDown(purchase.dispose);
+      await container.read(partyPassProvider.future);
+      await container.read(partyPassProvider.notifier).unlock();
 
-    final before = relay.verifies;
-    await container.read(partyPassProvider.notifier).verify();
-    expect(relay.verifies, before + 1);
-    expect(container.read(partyPassProvider).value!.remainingMatchesToday, 15);
-  });
+      final before = relay.verifies;
+      await container.read(partyPassProvider.notifier).verify();
+      expect(relay.verifies, before + 1);
+      expect(
+        container.read(partyPassProvider).value!.remainingMatchesToday,
+        15,
+      );
+    },
+  );
 }

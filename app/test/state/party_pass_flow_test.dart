@@ -70,15 +70,20 @@ void main() {
     expect(client.state.roomThemeId, RoomThemeIds.cyberNeon);
   });
 
-  test('a Party Pass holder on the client can change the shared theme', () async {
-    await client.setRoomTheme(RoomThemeId.pubKroeg);
-    await _waitFor(() => host.state.roomThemeId == RoomThemeIds.pubKroeg);
-    await _waitFor(() => client.state.roomThemeId == RoomThemeIds.pubKroeg);
-  });
+  test(
+    'a Party Pass holder on the client can change the shared theme',
+    () async {
+      await client.setRoomTheme(RoomThemeId.pubKroeg);
+      await _waitFor(() => host.state.roomThemeId == RoomThemeIds.pubKroeg);
+      await _waitFor(() => client.state.roomThemeId == RoomThemeIds.pubKroeg);
+    },
+  );
 
   test('a host sound reaches the client and is rate limited', () async {
     host.playSoundEffect(PartySound.airhorn);
-    await _waitFor(() => client.state.lastSoundEffect?.sound == PartySound.airhorn);
+    await _waitFor(
+      () => client.state.lastSoundEffect?.sound == PartySound.airhorn,
+    );
     final firstAt = host.state.lastSoundEffect!.atMs;
 
     host.playSoundEffect(PartySound.crickets);
@@ -99,9 +104,7 @@ void main() {
   test('a host without a pass keeps a client-selected shared theme', () async {
     host.updatePartyPass(active: false);
     await client.setRoomTheme(RoomThemeId.midnightArcade);
-    await _waitFor(
-      () => host.state.roomThemeId == RoomThemeIds.midnightArcade,
-    );
+    await _waitFor(() => host.state.roomThemeId == RoomThemeIds.midnightArcade);
 
     host.updatePartyPass(active: false);
     await Future<void>.delayed(const Duration(milliseconds: 60));

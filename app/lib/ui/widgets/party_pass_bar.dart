@@ -24,8 +24,7 @@ class PartyPassLobbyBar extends ConsumerWidget {
     final l10n = context.l10n;
     final coordinator = ref.read(matchCoordinatorProvider);
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
-    final pass =
-        ref.watch(partyPassProvider).value ?? const PartyPassState();
+    final pass = ref.watch(partyPassProvider).value ?? const PartyPassState();
     final theme = RoomThemeId.fromWire(state.roomThemeId);
     final customTurn = ref.watch(appSettingsProvider).value?.customTurnUrl;
     final shadow = Theme.of(context).brightness == Brightness.dark
@@ -169,9 +168,7 @@ class PartyPassLobbyBar extends ConsumerWidget {
       ConnectionMode.webrtcP2p => l10n.relayStatusDirect,
       ConnectionMode.webrtcTurn => l10n.relayStatusRelay,
       ConnectionMode.offlineLoopback => l10n.relayStatusOffline,
-      null => BuildFlavor.foss
-          ? l10n.relayStatusFoss
-          : l10n.relayStatusOffline,
+      null => BuildFlavor.foss ? l10n.relayStatusFoss : l10n.relayStatusOffline,
     };
   }
 }
@@ -206,14 +203,8 @@ class _StatusChip extends StatelessWidget {
         children: <Widget>[
           Icon(icon, size: 14, color: colors.ink2),
           const SizedBox(width: 5),
-          Text(
-            label,
-            style: TextStyle(fontSize: 11, color: colors.ink3),
-          ),
-          Text(
-            ':',
-            style: TextStyle(fontSize: 11, color: colors.ink3),
-          ),
+          Text(label, style: TextStyle(fontSize: 11, color: colors.ink3)),
+          Text(':', style: TextStyle(fontSize: 11, color: colors.ink3)),
           const SizedBox(width: 3),
           Flexible(
             child: Text(

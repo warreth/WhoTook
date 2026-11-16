@@ -5,8 +5,8 @@ import '../../l10n/l10n.dart';
 String partyPassErrorLabel(AppLocalizations l10n, String? code) {
   return switch (code) {
     'purchase_canceled' => l10n.partyPassErrorCanceled,
-    'billing_unavailable' || 'billing_disabled' =>
-      l10n.partyPassErrorUnavailable,
+    'billing_unavailable' ||
+    'billing_disabled' => l10n.partyPassErrorUnavailable,
     'product_unavailable' => l10n.partyPassErrorProduct,
     'restore_empty' => l10n.partyPassErrorRestoreEmpty,
     'purchase_pending' => l10n.partyPassPurchasePending,

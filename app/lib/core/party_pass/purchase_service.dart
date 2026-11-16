@@ -95,7 +95,8 @@ class StorePartyPassPurchaseService implements PartyPassPurchaseService {
   bool _initialized = false;
   bool _available = false;
 
-  InAppPurchase get _iap => _resolvedBilling ??= billing ?? InAppPurchase.instance;
+  InAppPurchase get _iap =>
+      _resolvedBilling ??= billing ?? InAppPurchase.instance;
 
   @override
   Stream<PartyPassPurchaseEvent> get events => _events.stream;
@@ -117,9 +118,9 @@ class StorePartyPassPurchaseService implements PartyPassPurchaseService {
         _onPurchases,
         onError: (Object _) {},
       );
-      final response = await _iap.queryProductDetails(
-        <String>{kPartyPassProductId},
-      );
+      final response = await _iap.queryProductDetails(<String>{
+        kPartyPassProductId,
+      });
       if (response.productDetails.isNotEmpty) {
         _product = response.productDetails.firstWhere(
           (product) => product.id == kPartyPassProductId,
@@ -137,9 +138,9 @@ class StorePartyPassPurchaseService implements PartyPassPurchaseService {
 
   Future<void> _ensureProduct() async {
     if (_product != null) return;
-    final response = await _iap.queryProductDetails(
-      <String>{kPartyPassProductId},
-    );
+    final response = await _iap.queryProductDetails(<String>{
+      kPartyPassProductId,
+    });
     for (final product in response.productDetails) {
       if (product.id == kPartyPassProductId) {
         _product = product;

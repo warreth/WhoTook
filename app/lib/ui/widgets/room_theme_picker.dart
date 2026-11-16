@@ -26,8 +26,7 @@ class RoomThemePickerSheet extends ConsumerWidget {
     final l10n = context.l10n;
     final coordinator = ref.read(matchCoordinatorProvider);
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
-    final pass =
-        ref.watch(partyPassProvider).value ?? const PartyPassState();
+    final pass = ref.watch(partyPassProvider).value ?? const PartyPassState();
     final selected = RoomThemeId.fromWire(state.roomThemeId);
 
     Future<void> choose(RoomThemeId theme) async {
@@ -150,10 +149,7 @@ class _ThemeChoice extends StatelessWidget {
               ),
               boxShadow: selected
                   ? <BoxShadow>[
-                      BoxShadow(
-                        color: shadow,
-                        offset: const Offset(0, 3),
-                      ),
+                      BoxShadow(color: shadow, offset: const Offset(0, 3)),
                     ]
                   : null,
             ),

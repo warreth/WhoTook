@@ -61,8 +61,7 @@ class SoundEffectEvent {
   }) => SoundEffectEvent(
     playerId: json['playerId'] as String? ?? '',
     playerName: json['playerName'] as String? ?? '',
-    sound:
-        PartySound.fromWire(json['id'] as String?) ?? PartySound.vineBoom,
+    sound: PartySound.fromWire(json['id'] as String?) ?? PartySound.vineBoom,
     atMs: atMs,
   );
 

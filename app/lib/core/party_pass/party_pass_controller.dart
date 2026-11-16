@@ -67,8 +67,7 @@ class PartyPassState {
     relayErrorCode: clearRelayError
         ? null
         : (relayErrorCode ?? this.relayErrorCode),
-    remainingMatchesToday:
-        remainingMatchesToday ?? this.remainingMatchesToday,
+    remainingMatchesToday: remainingMatchesToday ?? this.remainingMatchesToday,
     dailyLimit: dailyLimit ?? this.dailyLimit,
   );
 }
@@ -183,9 +182,7 @@ class PartyPassController extends AsyncNotifier<PartyPassState> {
       PartyPassPurchaseStatus.pending => 'purchase_pending',
       _ => event.code ?? 'purchase_failed',
     };
-    state = AsyncData(
-      current.copyWith(purchasing: false, errorCode: code),
-    );
+    state = AsyncData(current.copyWith(purchasing: false, errorCode: code));
   }
 
   /// Verifies the receipt without spending a relay match. Called once after a
@@ -266,8 +263,7 @@ class PartyPassController extends AsyncNotifier<PartyPassState> {
           current.copyWith(
             relayErrorCode: error.code,
             remainingMatchesToday:
-                error.remainingMatchesToday ??
-                current.remainingMatchesToday,
+                error.remainingMatchesToday ?? current.remainingMatchesToday,
           ),
         );
       }

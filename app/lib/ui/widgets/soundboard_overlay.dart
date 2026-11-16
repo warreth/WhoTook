@@ -53,8 +53,7 @@ class _SoundboardPillState extends ConsumerState<SoundboardPill> {
 
   @override
   Widget build(BuildContext context) {
-    final pass =
-        ref.watch(partyPassProvider).value ?? const PartyPassState();
+    final pass = ref.watch(partyPassProvider).value ?? const PartyPassState();
     final state = ref.watch(matchStateProvider).value;
     if (!pass.active ||
         state == null ||
