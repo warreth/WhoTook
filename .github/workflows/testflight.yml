@@ -1,0 +1,155 @@
+name: TestFlight
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: "Optional build number; leave empty to use 1000 + the workflow run number"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  ios:
+    name: Build and upload to TestFlight
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.2
+          channel: stable
+          cache: true
+
+      - name: Check App Store secrets
+        env:
+          CERT_BASE64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+          PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          API_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+          API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+          API_ISSUER: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+          TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+        run: |
+          missing=0
+          for name in CERT_BASE64 CERT_PASSWORD PROFILE_BASE64 API_KEY API_KEY_ID API_ISSUER TEAM_ID; do
+            if [ -z "${!name}" ]; then
+              echo "Missing secret: $name" >&2
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - name: Read version and choose build number
+        env:
+          REQUESTED_BUILD: ${{ inputs.build_number }}
+        run: |
+          VERSION=$(awk '/^version:/ {print $2}' app/pubspec.yaml | cut -d+ -f1)
+          if [ -n "$REQUESTED_BUILD" ]; then
+            BUILD="$REQUESTED_BUILD"
+          else
+            BUILD=$((1000 + GITHUB_RUN_NUMBER))
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "BUILD=$BUILD" >> "$GITHUB_ENV"
+          echo "TestFlight build: $VERSION ($BUILD)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Import signing material
+        env:
+          CERT_BASE64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+          PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          API_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+          API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+          TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASS=$(openssl rand -hex 24)
+          security create-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN"
+          security set-keychain-settings -lut 1800 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASS" "$KEYCHAIN"
+          security default-keychain -s "$KEYCHAIN"
+
+          echo "$CERT_BASE64" | base64 -d > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASS" "$KEYCHAIN" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+
+          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILE_DIR"
+          PROFILE_PATH="$PROFILE_DIR/whotook.mobileprovision"
+          echo "$PROFILE_BASE64" | base64 -d > "$PROFILE_PATH"
+          PROFILE_NAME=$(security cms -D -i "$PROFILE_PATH" | /usr/libexec/PlistBuddy -c "Print :Name" /dev/stdin)
+          echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+          echo "TEAM_ID=$TEAM_ID" >> "$GITHUB_ENV"
+
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          echo "$API_KEY" > "$HOME/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8"
+
+          cat > app/ios/ExportOptions.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store-connect</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>teamID</key>
+            <string>$TEAM_ID</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>party.whotook.app</key>
+              <string>$PROFILE_NAME</string>
+            </dict>
+            <key>uploadSymbols</key>
+            <true/>
+            <key>destination</key>
+            <string>export</string>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Install dependencies
+        working-directory: app
+        run: flutter pub get
+
+      - name: Build signed IPA
+        working-directory: app
+        env:
+          FLUTTER_XCODE_DEVELOPMENT_TEAM: ${{ secrets.IOS_TEAM_ID }}
+          FLUTTER_XCODE_CODE_SIGN_STYLE: Manual
+        run: |
+          FLUTTER_XCODE_PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+            flutter build ipa --release \
+              --build-number "$BUILD" \
+              --export-options-plist=ios/ExportOptions.plist
+
+      - name: Upload to App Store Connect
+        env:
+          API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+          API_ISSUER: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+        run: |
+          IPA=$(find app/build/ios/ipa -name '*.ipa' | head -1)
+          if [ -z "$IPA" ]; then
+            echo "No IPA found" >&2
+            exit 1
+          fi
+          xcrun altool --upload-app \
+            --type ios \
+            --file "$IPA" \
+            --apiKey "$API_KEY_ID" \
+            --apiIssuer "$API_ISSUER" \
+            --show-progress
+          {
+            echo "### TestFlight upload complete"
+            echo ""
+            echo "- Version: **$VERSION**"
+            echo "- Build: **$BUILD**"
+            echo "- Open App Store Connect > TestFlight to wait for processing."
+            echo "- Internal testers need an App Store Connect user account."
+          } >> "$GITHUB_STEP_SUMMARY"

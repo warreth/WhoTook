@@ -38,11 +38,14 @@ device.
 2. **Google Play.** Create the developer account and app record for
    `party.whotook.app`. Add `PLAY_SERVICE_ACCOUNT_JSON` for the optional upload
    job. Upload the first AAB manually or let the workflow upload a draft.
-3. **App Store.** Create the App ID, distribution certificate, provisioning
-   profile and App Store Connect API key, then add
+3. **App Store and TestFlight.** Create the App ID, distribution certificate,
+   provisioning profile and App Store Connect API key, then add
    `IOS_DIST_CERT_P12_BASE64`, `IOS_DIST_CERT_PASSWORD`,
    `IOS_PROVISIONING_PROFILE_BASE64`, `APPSTORE_API_PRIVATE_KEY`,
    `APPSTORE_API_KEY_ID`, `APPSTORE_API_ISSUER_ID` and `IOS_TEAM_ID`.
+   `store/app-store-connect.md` has the exact portal steps and a field-by-field
+   listing sheet. Run the manual **TestFlight** workflow for easy updates; test
+   there before submitting the App Store build.
 4. **Deep links.** Put the release Android SHA-256 and the Apple Team ID into
    the Worker, then deploy:
    ```bash

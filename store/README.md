@@ -15,6 +15,8 @@ completed in Play Console and App Store Connect.
 
 - `listing.md`: listing copy, content declarations, age rating notes, review
   notes and Data safety / App Privacy drafts.
+- `app-store-connect.md`: step-by-step App Store Connect record, signing,
+  TestFlight, localization and field-by-field submission sheet.
 - `assets/play-icon-512.png`: Google Play store icon, generated from the app
   icon.
 - `assets/play-feature-graphic-1024x500.png`: Google Play feature graphic with
