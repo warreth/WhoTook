@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
 
 import 'party_pass_repository.dart';
 
@@ -78,7 +79,7 @@ class StorePartyPassPurchaseService implements PartyPassPurchaseService {
   StorePartyPassPurchaseService({
     this.billing,
     this.buyTimeout = const Duration(minutes: 2),
-    this.restoreTimeout = const Duration(seconds: 12),
+    this.restoreTimeout = const Duration(seconds: 60),
   });
 
   final InAppPurchase? billing;
@@ -212,6 +213,7 @@ class StorePartyPassPurchaseService implements PartyPassPurchaseService {
       );
     }
     try {
+      await _syncStoreIfNeeded();
       final pending = Completer<PartyPassPurchaseEvent>();
       _pending = pending;
       await _iap.restorePurchases();
@@ -228,6 +230,21 @@ class StorePartyPassPurchaseService implements PartyPassPurchaseService {
         status: PartyPassPurchaseStatus.error,
         code: 'restore_failed',
       );
+    }
+  }
+
+  /// StoreKit 2 reads `Transaction.currentEntitlements`; a fresh device can be
+  /// empty until the app explicitly syncs with the App Store. This call shows
+  /// the system account prompt and is a no-op outside iOS.
+  Future<void> _syncStoreIfNeeded() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) return;
+    try {
+      await _iap
+          .getPlatformAddition<InAppPurchaseStoreKitPlatformAddition>()
+          .sync();
+    } on Object {
+      // A cancelled or unavailable App Store prompt must still fall through to
+      // restorePurchases(), which may already have the entitlement cached.
     }
   }
 

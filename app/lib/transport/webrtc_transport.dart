@@ -5,6 +5,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:http/http.dart' as http;
 import 'package:web_socket_channel/web_socket_channel.dart';
 
+import '../core/build_flavor.dart';
 import '../core/models/models.dart';
 import '../core/party_pass/turn_relay_client.dart';
 import '../core/protocol/wire_message.dart';
@@ -122,7 +123,7 @@ class SignalingIceClient {
     http.Client? httpClient,
     this.timeout = const Duration(seconds: 6),
     this.turnRelay,
-    this.acceptServerTurn = true,
+    this.acceptServerTurn = !BuildFlavor.official,
   }) : _http = httpClient ?? http.Client();
 
   final String signalingUrl;
@@ -140,6 +141,20 @@ class SignalingIceClient {
     AppSettings settings = const AppSettings(),
   }) async {
     final custom = _customTurn(settings);
+    if (custom != null) {
+      // A self-hosted relay does not need our `/ice-config` contract, and a
+      // signaling-only server may not implement it. Use public STUN plus the
+      // operator's TURN entry directly.
+      return IceConfig(
+        turnAllowed: true,
+        iceServers: <IceServerConfig>[
+          const IceServerConfig(
+            urls: <String>['stun:stun.cloudflare.com:3478'],
+          ),
+          custom,
+        ],
+      );
+    }
     // A `wss://` custom URL is common, but ICE config is a plain HTTPS call.
     final origin = signalingUrl
         .replaceFirst(RegExp(r'^ws://'), 'http://')
@@ -186,17 +201,6 @@ class SignalingIceClient {
             usedToday: parsed.usedToday,
             retryAtUtc: parsed.retryAtUtc,
           );
-    if (custom != null) {
-      return IceConfig(
-        turnAllowed: true,
-        iceServers: <IceServerConfig>[...config.iceServers, custom],
-        reason: config.reason,
-        dailyLimit: config.dailyLimit,
-        usedToday: config.usedToday,
-        retryAtUtc: config.retryAtUtc,
-        remainingMatchesToday: config.remainingMatchesToday,
-      );
-    }
     final relay = turnRelay;
     if (relay == null) return config;
     final attempt = await relay();

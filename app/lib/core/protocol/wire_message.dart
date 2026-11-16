@@ -24,6 +24,7 @@ abstract final class WireType {
   static const String screenshotAlert = 'screenshot_alert';
   static const String soundEffect = 'sound_effect';
   static const String roomTheme = 'room_theme';
+  static const String partyPass = 'party_pass';
   static const String roundReveal = 'round_reveal';
   static const String captionSubmit = 'caption_submit';
   static const String captionOptions = 'caption_options';
@@ -66,6 +67,7 @@ abstract final class WireType {
     screenshotAlert,
     soundEffect,
     roomTheme,
+    partyPass,
     roundReveal,
     captionSubmit,
     captionOptions,

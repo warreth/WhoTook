@@ -1865,4 +1865,24 @@ class AppLocalizationsNl extends AppLocalizations {
   @override
   String get turnCredentialPairError =>
       'Vul zowel de TURN-gebruikersnaam als het wachtwoord in, of laat beide leeg.';
+
+  @override
+  String get firewallQuotaTitle => 'Daglimiet voor relay bereikt';
+
+  @override
+  String get firewallQuotaBody =>
+      'Je relaytegoed van de Party Pass is op. Het vernieuwt na een rollend venster van 24 uur. Speel via dezelfde wifi/hotspot of stel je eigen TURN-server in.';
+
+  @override
+  String get firewallVerificationTitle =>
+      'Deze aankoop kon niet worden geverifieerd';
+
+  @override
+  String get firewallVerificationBody =>
+      'Herstel je aankopen via het Party Pass-venster of neem contact op met support. Direct spelen werkt nog.';
+
+  @override
+  String firewallQuotaReset(String time) {
+    return 'Volgende tegoed: $time';
+  }
 }

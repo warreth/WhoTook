@@ -47,11 +47,16 @@ dist/
 .DS_Store
 Thumbs.db
 
-# Server code lives in the private repository, never here.
+# Server, release and store material live in the private repository.
 cloudflare-signaling/
-tool/prepare_app_links.py
-tool/store_assets.py
-tool/update_altstore.py
+tool/
+store/
+app/tool/
+docs/PRODUCTION.md
+wrangler.jsonc
+wrangler.json
+wrangler.toml
+.dev.vars.example
 
 # Private design prototypes and visual checks
 .private_prototypes/

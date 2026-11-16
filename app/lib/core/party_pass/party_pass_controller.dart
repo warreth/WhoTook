@@ -18,6 +18,7 @@ class PartyPassState {
     this.priceLabel,
     this.errorCode,
     this.relayErrorCode,
+    this.relayRetryAtUtc,
     this.remainingMatchesToday = 15,
     this.dailyLimit = 15,
   });
@@ -34,6 +35,7 @@ class PartyPassState {
   final String? priceLabel;
   final String? errorCode;
   final String? relayErrorCode;
+  final DateTime? relayRetryAtUtc;
   final int remainingMatchesToday;
   final int dailyLimit;
 
@@ -51,6 +53,7 @@ class PartyPassState {
     String? priceLabel,
     String? errorCode,
     String? relayErrorCode,
+    DateTime? relayRetryAtUtc,
     int? remainingMatchesToday,
     int? dailyLimit,
     bool clearError = false,
@@ -67,6 +70,9 @@ class PartyPassState {
     relayErrorCode: clearRelayError
         ? null
         : (relayErrorCode ?? this.relayErrorCode),
+    relayRetryAtUtc: clearRelayError
+        ? null
+        : (relayRetryAtUtc ?? this.relayRetryAtUtc),
     remainingMatchesToday: remainingMatchesToday ?? this.remainingMatchesToday,
     dailyLimit: dailyLimit ?? this.dailyLimit,
   );
@@ -80,6 +86,8 @@ class PartyPassController extends AsyncNotifier<PartyPassState> {
   StreamSubscription<PartyPassPurchaseEvent>? _subscription;
   TurnRelayGrant? _cachedGrant;
   String? _lastProcessedToken;
+  int _quotaRequestId = 0;
+  int _appliedQuotaRequestId = 0;
   bool _disposed = false;
 
   @override
@@ -141,8 +149,9 @@ class PartyPassController extends AsyncNotifier<PartyPassState> {
     _cachedGrant = null;
     await ref.read(partyPassRepositoryProvider).save(credential);
     if (_disposed) return;
+    final latest = state.value ?? current;
     state = AsyncData(
-      current.copyWith(
+      latest.copyWith(
         active: true,
         credential: credential,
         purchasing: false,
@@ -182,7 +191,8 @@ class PartyPassController extends AsyncNotifier<PartyPassState> {
       PartyPassPurchaseStatus.pending => 'purchase_pending',
       _ => event.code ?? 'purchase_failed',
     };
-    state = AsyncData(current.copyWith(purchasing: false, errorCode: code));
+    final latest = state.value ?? current;
+    state = AsyncData(latest.copyWith(purchasing: false, errorCode: code));
   }
 
   /// Verifies the receipt without spending a relay match. Called once after a
@@ -192,6 +202,7 @@ class PartyPassController extends AsyncNotifier<PartyPassState> {
     final current = state.value ?? const PartyPassState();
     final credential = current.credential;
     if (credential == null) return;
+    final requestId = ++_quotaRequestId;
     try {
       final result = await ref
           .read(turnRelayClientProvider)
@@ -200,9 +211,15 @@ class PartyPassController extends AsyncNotifier<PartyPassState> {
             credential: credential,
           );
       if (_disposed) return;
+      final latest = state.value ?? current;
+      if (latest.credential?.verificationToken != credential.verificationToken ||
+          requestId < _appliedQuotaRequestId) {
+        return;
+      }
+      _appliedQuotaRequestId = requestId;
       if (!result.valid) {
         state = AsyncData(
-          current.copyWith(
+          latest.copyWith(
             relayErrorCode: 'invalid_receipt',
             remainingMatchesToday: 0,
           ),
@@ -210,7 +227,7 @@ class PartyPassController extends AsyncNotifier<PartyPassState> {
         return;
       }
       state = AsyncData(
-        current.copyWith(
+        latest.copyWith(
           remainingMatchesToday: result.remainingMatchesToday,
           dailyLimit: result.dailyLimit,
           clearRelayError: true,
@@ -218,7 +235,18 @@ class PartyPassController extends AsyncNotifier<PartyPassState> {
       );
     } on TurnRelayException catch (error) {
       if (_disposed) return;
-      state = AsyncData(current.copyWith(relayErrorCode: error.code));
+      final latest = state.value ?? current;
+      if (latest.credential?.verificationToken != credential.verificationToken ||
+          requestId < _appliedQuotaRequestId) {
+        return;
+      }
+      _appliedQuotaRequestId = requestId;
+      state = AsyncData(
+        latest.copyWith(
+          relayErrorCode: error.code,
+          relayRetryAtUtc: error.retryAtUtc,
+        ),
+      );
     }
   }
 
@@ -231,6 +259,7 @@ class PartyPassController extends AsyncNotifier<PartyPassState> {
     if (!current.active || credential == null) {
       return const TurnRelayAttempt(passActive: false);
     }
+    final requestId = ++_quotaRequestId;
     final cached = _cachedGrant;
     if (cached != null &&
         cached.expiresAtUtc.isAfter(
@@ -245,10 +274,17 @@ class PartyPassController extends AsyncNotifier<PartyPassState> {
             baseUrl: TurnRelayClient.defaultBaseUrl,
             credential: credential,
           );
-      _cachedGrant = grant;
       if (!_disposed) {
+        final latest = state.value ?? current;
+        if (latest.credential?.verificationToken !=
+                credential.verificationToken ||
+            requestId < _appliedQuotaRequestId) {
+          return TurnRelayAttempt(grant: grant, passActive: true);
+        }
+        _appliedQuotaRequestId = requestId;
+        _cachedGrant = grant;
         state = AsyncData(
-          current.copyWith(
+          latest.copyWith(
             remainingMatchesToday: grant.remainingMatchesToday,
             dailyLimit: grant.dailyLimit,
             clearRelayError: true,
@@ -257,17 +293,29 @@ class PartyPassController extends AsyncNotifier<PartyPassState> {
       }
       return TurnRelayAttempt(grant: grant, passActive: true);
     } on TurnRelayException catch (error) {
-      _cachedGrant = null;
       if (!_disposed) {
-        state = AsyncData(
-          current.copyWith(
-            relayErrorCode: error.code,
-            remainingMatchesToday:
-                error.remainingMatchesToday ?? current.remainingMatchesToday,
-          ),
-        );
+        final latest = state.value ?? current;
+        if (latest.credential?.verificationToken ==
+                credential.verificationToken &&
+            requestId >= _appliedQuotaRequestId) {
+          _appliedQuotaRequestId = requestId;
+          _cachedGrant = null;
+          state = AsyncData(
+            latest.copyWith(
+              relayErrorCode: error.code,
+              relayRetryAtUtc: error.retryAtUtc,
+              remainingMatchesToday:
+                  error.remainingMatchesToday ??
+                  latest.remainingMatchesToday,
+            ),
+          );
+        }
       }
-      return TurnRelayAttempt(passActive: true, errorCode: error.code);
+      return TurnRelayAttempt(
+        passActive: true,
+        errorCode: error.code,
+        retryAtUtc: error.retryAtUtc,
+      );
     }
   }
 

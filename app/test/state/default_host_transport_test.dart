@@ -48,6 +48,26 @@ void main() {
     timeout: const Timeout(Duration(seconds: 30)),
   );
 
+  test('a slow online transport does not block starting the room', () async {
+    final gate = Completer<void>();
+    final inner = _SlowTransport(gate);
+    final wrapper = BestEffortHostTransport(inner);
+
+    await wrapper.start();
+    expect(inner.started.isCompleted, isTrue);
+    expect(gate.isCompleted, isFalse);
+
+    await wrapper.broadcast(WireMessage(type: WireType.ping, seq: 1));
+    expect(inner.sends, 0);
+
+    gate.complete();
+    await Future<void>.delayed(Duration.zero);
+    await wrapper.broadcast(WireMessage(type: WireType.ping, seq: 2));
+    expect(inner.sends, 1);
+
+    await wrapper.close();
+  });
+
   test('a failing online transport never blocks the local room', () async {
     final inner = _ExplodingTransport();
     final wrapper = BestEffortHostTransport(inner);
@@ -63,6 +83,46 @@ void main() {
 
     await wrapper.close();
   });
+}
+
+class _SlowTransport implements HostTransport {
+  _SlowTransport(this.gate);
+
+  final Completer<void> gate;
+  final Completer<void> started = Completer<void>();
+  int sends = 0;
+
+  @override
+  Stream<String> get clientConnected => const Stream<String>.empty();
+
+  @override
+  Stream<String> get clientDisconnected => const Stream<String>.empty();
+
+  @override
+  Stream<HostIncomingMessage> get messages =>
+      const Stream<HostIncomingMessage>.empty();
+
+  @override
+  String? get localLanEndpoint => null;
+
+  @override
+  Future<void> start() async {
+    if (!started.isCompleted) started.complete();
+    await gate.future;
+  }
+
+  @override
+  Future<void> sendToClient(String clientId, WireMessage message) async {
+    sends += 1;
+  }
+
+  @override
+  Future<void> broadcast(WireMessage message) async {
+    sends += 1;
+  }
+
+  @override
+  Future<void> close() async {}
 }
 
 class _ExplodingTransport implements HostTransport {

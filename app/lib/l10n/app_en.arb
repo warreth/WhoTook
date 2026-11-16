@@ -979,5 +979,18 @@
     }
   },
   "roomThemeFree": "Free for everyone",
-  "turnCredentialPairError": "Fill in both the TURN username and password, or leave both empty."
+  "turnCredentialPairError": "Fill in both the TURN username and password, or leave both empty.",
+  "firewallQuotaTitle": "Daily relay limit reached",
+  "firewallQuotaBody": "Your Party Pass relay allowance is used up. It resets on a rolling 24-hour window. Play on the same Wi-Fi/hotspot, or configure your own TURN server.",
+  "firewallVerificationTitle": "Could not verify this purchase",
+  "firewallVerificationBody": "Restore purchases from the Party Pass sheet, or contact support. Direct play still works.",
+  "firewallQuotaReset": "Next allowance: {time}",
+  "@firewallQuotaReset": {
+    "description": "Reset time for the daily relay allowance",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  }
 }

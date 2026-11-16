@@ -214,6 +214,7 @@ class MatchUiState {
     this.lastSoundEffect,
     this.firewallPrompt = false,
     this.firewallRelayAttempted = false,
+    this.firewallRelayErrorCode,
   });
 
   final bool isHosting;
@@ -289,6 +290,7 @@ class MatchUiState {
   /// the free Wi-Fi/hotspot route and the Party Pass relay.
   final bool firewallPrompt;
   final bool firewallRelayAttempted;
+  final String? firewallRelayErrorCode;
 
   /// True when the host has to choose between the podium and `+5` rounds.
   final bool hostDeciding;
@@ -365,6 +367,8 @@ class MatchUiState {
     SoundEffectEvent? lastSoundEffect,
     bool? firewallPrompt,
     bool? firewallRelayAttempted,
+    String? firewallRelayErrorCode,
+    bool clearFirewallError = false,
     bool clearVersionWarning = false,
     bool clearError = false,
     bool clearLoading = false,
@@ -486,6 +490,9 @@ class MatchUiState {
     firewallPrompt: firewallPrompt ?? this.firewallPrompt,
     firewallRelayAttempted:
         firewallRelayAttempted ?? this.firewallRelayAttempted,
+    firewallRelayErrorCode: clearFirewallError
+        ? null
+        : (firewallRelayErrorCode ?? this.firewallRelayErrorCode),
   );
 }
 
@@ -684,6 +691,9 @@ class MatchCoordinator {
   void updatePartyPass({required bool active}) {
     final wasActive = _partyPassActive;
     _partyPassActive = active;
+    if (wasActive != active) {
+      _sendPartyPassClaim();
+    }
     if (wasActive && !active) {
       _localSoundGate.clear();
       _remoteSoundGate.clear();
@@ -697,9 +707,41 @@ class MatchCoordinator {
 
   bool get partyPassActive => _partyPassActive;
 
+  /// Tells the host that this client's cosmetic pass state changed after the
+  /// initial handshake, for example when a purchase completes in the lobby.
+  void _sendPartyPassClaim() {
+    if (_state.isHosting || _clientTransport == null) return;
+    if (_state.localPlayerId == null) return;
+    unawaited(
+      _clientTransport!.send(
+        WireMessage(
+          type: WireType.partyPass,
+          seq: _nextSeq(),
+          payload: <String, dynamic>{'active': _partyPassActive},
+        ),
+      ),
+    );
+  }
+
   void dismissFirewallPrompt() {
-    if (!_state.firewallPrompt) return;
-    _emit(_state.copyWith(firewallPrompt: false));
+    if (!_state.firewallPrompt && _state.firewallRelayErrorCode == null) {
+      return;
+    }
+    _emit(
+      _state.copyWith(
+        firewallPrompt: false,
+        clearFirewallError: true,
+      ),
+    );
+  }
+
+  Future<void> retryPendingJoin() async {
+    final invite = _pendingInviteUrl;
+    if (invite == null) {
+      dismissFirewallPrompt();
+      return;
+    }
+    await joinMatch(invite);
   }
 
   /// Keeps coordinator errors in the same language as the interface. A
@@ -1007,6 +1049,7 @@ class MatchCoordinator {
         _playerClientIds.remove(playerId);
         _clientBuilds.remove(playerId);
         _clientVersions.remove(playerId);
+        _partyPassPlayers.remove(playerId);
         _engine?.removePlayer(playerId);
         final latestBuild = <int>[
           appBuild,
@@ -1274,6 +1317,14 @@ class MatchCoordinator {
         await _syncGuesses();
       case WireType.screenshotTaken:
         _onRemoteScreenshot(_playerIdFor(clientId), payload);
+      case WireType.partyPass:
+        if (!_clientPlayerIds.containsKey(clientId)) return;
+        final playerId = _playerIdFor(clientId);
+        if (payload['active'] == true) {
+          _partyPassPlayers.add(playerId);
+        } else {
+          _partyPassPlayers.remove(playerId);
+        }
       case WireType.roomTheme:
         final playerId = _playerIdFor(clientId);
         final theme = RoomThemeId.fromWire(payload['themeId'] as String?);
@@ -3046,7 +3097,12 @@ class MatchCoordinator {
     _pendingPlayerId = null;
     _pendingPlayerToken = null;
     _emit(
-      _state.copyWith(loadingMessage: _l10n.loadingJoining, clearError: true),
+      _state.copyWith(
+        loadingMessage: _l10n.loadingJoining,
+        firewallPrompt: false,
+        clearFirewallError: true,
+        clearError: true,
+      ),
     );
     final InvitePayload invite;
     try {
@@ -3099,6 +3155,7 @@ class MatchCoordinator {
         _state.copyWith(
           firewallPrompt: true,
           firewallRelayAttempted: error.passActive,
+          firewallRelayErrorCode: error.relayErrorCode,
           errorMessage: error.passActive ? _l10n.errorRelayUnavailable : null,
           clearLoading: true,
         ),
@@ -3321,6 +3378,7 @@ class MatchCoordinator {
           );
         }
         _emit(_state.copyWith(localPlayerId: _currentPlayerId));
+        _sendPartyPassClaim();
       case WireType.stateSync:
         _reconnectAck?.complete();
         final phaseName = payload['phase'] as String?;
@@ -4399,12 +4457,14 @@ class BestEffortHostTransport implements HostTransport {
     _subscriptions.add(_inner.clientConnected.listen(_connected.add));
     _subscriptions.add(_inner.clientDisconnected.listen(_disconnected.add));
     _subscriptions.add(_inner.messages.listen(_messages.add));
-    try {
-      await _inner.start();
-      _started = true;
-    } on Object {
-      _started = false;
-    }
+    // The LAN side is already listening; a slow relay fetch must not hold the
+    // lobby behind it. The online side becomes usable when it finishes.
+    unawaited(
+      _inner.start().then(
+        (_) => _started = true,
+        onError: (Object _) => _started = false,
+      ),
+    );
   }
 
   @override

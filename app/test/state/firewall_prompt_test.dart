@@ -16,12 +16,14 @@ class _RelayFailingConnector extends HybridConnector {
   _RelayFailingConnector({required this.passActive});
 
   final bool passActive;
+  int calls = 0;
 
   @override
   Future<ClientTransport> connect({
     required InvitePayload invite,
     required AppSettings settings,
   }) async {
+    calls += 1;
     throw RelayRequiredException(
       passActive: passActive,
       relayErrorCode: passActive ? 'relay_unavailable' : null,
@@ -77,6 +79,26 @@ void main() {
     expect(coordinator.state.firewallPrompt, isTrue);
     expect(coordinator.state.firewallRelayAttempted, isTrue);
     expect(coordinator.state.errorMessage, isNotNull);
+  });
+
+  test('a relay error keeps its code and retry re-runs the join', () async {
+    final connector = _RelayFailingConnector(passActive: true);
+    final coordinator = MatchCoordinator(
+      photos: TestPhotoLibrary(seed: 1),
+      settings: SettingsRepository(),
+      connector: connector,
+      includeOnlineTransport: false,
+    );
+    addTearDown(coordinator.dispose);
+    await coordinator.loadSettings();
+    await coordinator.joinMatch(_invite());
+
+    expect(coordinator.state.firewallRelayErrorCode, 'relay_unavailable');
+    expect(connector.calls, 1);
+
+    await coordinator.retryPendingJoin();
+    expect(connector.calls, 2);
+    expect(coordinator.state.firewallPrompt, isTrue);
   });
 
   test('dismissing the prompt clears it', () async {

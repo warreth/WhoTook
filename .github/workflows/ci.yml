@@ -19,11 +19,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Refuse server code in the public repository
         run: |
-          if [ -e cloudflare-signaling ]; then
-            echo "Server code belongs in the private repository." >&2
-            exit 1
-          fi
-          echo "No server tree in the public repository."
+          for path in cloudflare-signaling tool store app/tool docs/PRODUCTION.md wrangler.jsonc wrangler.json wrangler.toml .dev.vars.example; do
+            if [ -e "$path" ]; then
+              echo "Private server, release or store material found in the public tree: $path" >&2
+              exit 1
+            fi
+          done
+          echo "Public tree has no server, release or store material."
 
   android:
     name: Android build and tests
@@ -52,6 +54,24 @@ jobs:
       - name: Build debug APK
         working-directory: app
         run: flutter build apk --debug --target-platform android-arm64
+
+  foss:
+    name: FOSS build without billing
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.2
+          channel: stable
+          cache: true
+      - name: Test and build the dependency-clean FOSS flavor
+        run: bash app/foss/build.sh
 
   ios:
     name: iOS build without signing

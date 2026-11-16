@@ -66,6 +66,22 @@ class _FakePurchaseService implements PartyPassPurchaseService {
   }
 }
 
+class _DelayedVerifyRelayClient extends _FakeRelayClient {
+  final Completer<void> started = Completer<void>();
+  final Completer<TurnRelayVerification> gate =
+      Completer<TurnRelayVerification>();
+
+  @override
+  Future<TurnRelayVerification> verify({
+    required String baseUrl,
+    required PartyPassCredential credential,
+  }) {
+    verifies += 1;
+    if (!started.isCompleted) started.complete();
+    return gate.future;
+  }
+}
+
 class _FakeRelayClient extends TurnRelayClient {
   int fetches = 0;
   int verifies = 0;
@@ -204,6 +220,39 @@ void main() {
         .relayAttempt();
     expect(second.grant, isNotNull);
     expect(relay.fetches, 1, reason: 'the short-lived grant is reused');
+  });
+
+  test('a newer relay grant is not overwritten by a slow verify', () async {
+    final purchase = _FakePurchaseService();
+    final relay = _DelayedVerifyRelayClient();
+    final container = ProviderContainer(
+      overrides: [
+        partyPassProvider.overrideWith(_OfficialPartyPassController.new),
+        partyPassPurchaseServiceProvider.overrideWithValue(purchase),
+        turnRelayClientProvider.overrideWithValue(relay),
+      ],
+    );
+    addTearDown(container.dispose);
+    addTearDown(purchase.dispose);
+    await container.read(partyPassProvider.future);
+    await container.read(partyPassProvider.notifier).unlock();
+    await relay.started.future;
+
+    final attempt = await container
+        .read(partyPassProvider.notifier)
+        .relayAttempt();
+    expect(attempt.grant, isNotNull);
+    expect(container.read(partyPassProvider).value!.remainingMatchesToday, 14);
+
+    relay.gate.complete(
+      const TurnRelayVerification(
+        valid: true,
+        remainingMatchesToday: 15,
+        dailyLimit: 15,
+      ),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    expect(container.read(partyPassProvider).value!.remainingMatchesToday, 14);
   });
 
   test(

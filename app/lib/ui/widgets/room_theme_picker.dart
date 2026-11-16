@@ -48,7 +48,6 @@ class RoomThemePickerSheet extends ConsumerWidget {
           AppSpacing.s12,
           AppSpacing.s12,
         ),
-        padding: const EdgeInsets.all(AppSpacing.s20),
         decoration: BoxDecoration(
           color: colors.card,
           borderRadius: BorderRadius.circular(AppRadii.rModal),
@@ -57,46 +56,58 @@ class RoomThemePickerSheet extends ConsumerWidget {
             BoxShadow(color: colors.ink, offset: const Offset(0, 5)),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            Row(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.88,
+          ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppSpacing.s20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                Expanded(
-                  child: Text(
-                    l10n.roomThemePickerTitle,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.5,
-                      color: colors.ink,
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        l10n.roomThemePickerTitle,
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.5,
+                          color: colors.ink,
+                        ),
+                      ),
                     ),
+                    IconButton(
+                      tooltip: l10n.close,
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close, size: 22),
+                    ),
+                  ],
+                ),
+                Text(
+                  l10n.roomThemePickerBody,
+                  style: TextStyle(
+                    fontSize: 13,
+                    height: 1.4,
+                    color: colors.ink2,
                   ),
                 ),
-                IconButton(
-                  tooltip: l10n.close,
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.close, size: 22),
-                ),
+                const SizedBox(height: AppSpacing.s16),
+                for (final theme in RoomThemeId.values) ...<Widget>[
+                  _ThemeChoice(
+                    theme: theme,
+                    selected: theme == selected,
+                    unlocked: !theme.premium || pass.active,
+                    onTap: () => choose(theme),
+                  ),
+                  if (theme != RoomThemeId.values.last)
+                    const SizedBox(height: AppSpacing.s8),
+                ],
               ],
             ),
-            Text(
-              l10n.roomThemePickerBody,
-              style: TextStyle(fontSize: 13, height: 1.4, color: colors.ink2),
-            ),
-            const SizedBox(height: AppSpacing.s16),
-            for (final theme in RoomThemeId.values) ...<Widget>[
-              _ThemeChoice(
-                theme: theme,
-                selected: theme == selected,
-                unlocked: !theme.premium || pass.active,
-                onTap: () => choose(theme),
-              ),
-              if (theme != RoomThemeId.values.last)
-                const SizedBox(height: AppSpacing.s8),
-            ],
-          ],
+          ),
         ),
       ),
     );

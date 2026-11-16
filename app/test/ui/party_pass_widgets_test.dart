@@ -15,6 +15,7 @@ import 'package:whotook/ui/widgets/custom_turn_section.dart';
 import 'package:whotook/ui/widgets/firewall_prompt.dart';
 import 'package:whotook/ui/widgets/party_pass_bar.dart';
 import 'package:whotook/ui/widgets/party_pass_sheet.dart';
+import 'package:whotook/ui/widgets/room_theme_picker.dart';
 import 'package:whotook/ui/widgets/soundboard_overlay.dart';
 
 class _FixedSettings extends AppSettingsController {
@@ -242,6 +243,37 @@ void main() {
     }
   });
 
+  testWidgets('a fair-use denial shows the quota copy and reset time', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      _app(
+        const Stack(children: <Widget>[FirewallPromptOverlay()]),
+        PartyPassState(
+          active: true,
+          loading: false,
+          relayErrorCode: 'fair_use_limit_reached',
+          relayRetryAtUtc: DateTime.utc(2026, 11, 17, 12),
+          remainingMatchesToday: 0,
+        ),
+        match: _lobby().copyWith(
+          firewallPrompt: true,
+          firewallRelayAttempted: true,
+          firewallRelayErrorCode: 'fair_use_limit_reached',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Daily relay limit reached'), findsOneWidget);
+    expect(find.textContaining('Next allowance:'), findsOneWidget);
+  });
+
   testWidgets('the FOSS self-host form has URI, username and password', (
     tester,
   ) async {
@@ -257,6 +289,33 @@ void main() {
     expect(find.text('TURN URI'), findsOneWidget);
     expect(find.text('Username'), findsOneWidget);
     expect(find.text('Password'), findsOneWidget);
+  });
+
+  testWidgets('the theme picker scrolls at large text on a small phone', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+    await tester.pumpWidget(
+      _app(
+        const RoomThemePickerSheet(),
+        const PartyPassState(
+          active: true,
+          billingAvailable: true,
+          loading: false,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Room theme'), findsOneWidget);
+    expect(find.byType(SingleChildScrollView), findsWidgets);
   });
 
   testWidgets('the lobby bar opens the theme picker', (tester) async {

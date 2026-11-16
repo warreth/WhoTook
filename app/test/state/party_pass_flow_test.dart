@@ -101,6 +101,24 @@ void main() {
     expect(client.state.lastSoundEffect!.sound, PartySound.sadTrombone);
   });
 
+  test('a purchase after joining updates the host claim', () async {
+    client.updatePartyPass(active: false);
+    await Future<void>.delayed(const Duration(milliseconds: 60));
+    client.updatePartyPass(active: true);
+    await Future<void>.delayed(const Duration(milliseconds: 60));
+
+    await client.setRoomTheme(RoomThemeId.midnightArcade);
+    await _waitFor(
+      () => host.state.roomThemeId == RoomThemeIds.midnightArcade,
+    );
+
+    client.playSoundEffect(PartySound.airhorn);
+    await _waitFor(
+      () => host.state.lastSoundEffect?.sound == PartySound.airhorn,
+    );
+    expect(host.state.lastSoundEffect!.playerId, 'p2');
+  });
+
   test('a host without a pass keeps a client-selected shared theme', () async {
     host.updatePartyPass(active: false);
     await client.setRoomTheme(RoomThemeId.midnightArcade);

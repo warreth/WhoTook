@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/build_flavor.dart';
+import '../../core/party_pass/party_pass_controller.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
@@ -22,14 +23,35 @@ class FirewallPromptOverlay extends ConsumerWidget {
     final colors = WhoTookColors.of(context);
     final l10n = context.l10n;
     final relayAttempted = state.firewallRelayAttempted;
-    final title = relayAttempted
-        ? l10n.firewallRelayDownTitle
-        : l10n.firewallTitle;
-    final body = relayAttempted
-        ? l10n.firewallRelayDownBody
-        : BuildFlavor.foss
-        ? l10n.partyPassFossBody
-        : l10n.firewallBody;
+    final pass = ref.watch(partyPassProvider).value;
+    final relayCode = state.firewallRelayErrorCode ?? pass?.relayErrorCode;
+    final quotaReached =
+        relayCode == 'fair_use_limit_reached' || relayCode == 'rate_limited';
+    final invalidReceipt =
+        relayCode == 'invalid_receipt' || relayCode == 'product_mismatch';
+    final title = !relayAttempted
+        ? l10n.firewallTitle
+        : quotaReached
+        ? l10n.firewallQuotaTitle
+        : invalidReceipt
+        ? l10n.firewallVerificationTitle
+        : l10n.firewallRelayDownTitle;
+    final body = !relayAttempted
+        ? BuildFlavor.foss
+              ? l10n.partyPassFossBody
+              : l10n.firewallBody
+        : quotaReached
+        ? l10n.firewallQuotaBody
+        : invalidReceipt
+        ? l10n.firewallVerificationBody
+        : l10n.firewallRelayDownBody;
+    final retryAt = pass?.relayRetryAtUtc;
+    final resetTime = quotaReached && retryAt != null
+        ? MaterialLocalizations.of(context).formatTimeOfDay(
+            TimeOfDay.fromDateTime(retryAt.toLocal()),
+            alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
+          )
+        : null;
 
     void dismiss() => coordinator.dismissFirewallPrompt();
 
@@ -81,7 +103,11 @@ class FirewallPromptOverlay extends ConsumerWidget {
                                 border: Border.all(color: colors.ink, width: 2),
                               ),
                               child: Icon(
-                                relayAttempted
+                                quotaReached
+                                    ? Icons.timer_off_outlined
+                                    : invalidReceipt
+                                    ? Icons.verified_user_outlined
+                                    : relayAttempted
                                     ? Icons.cloud_off
                                     : Icons.wifi_tethering_error,
                                 size: 22,
@@ -114,6 +140,17 @@ class FirewallPromptOverlay extends ConsumerWidget {
                             color: colors.ink2,
                           ),
                         ),
+                        if (resetTime != null) ...<Widget>[
+                          const SizedBox(height: AppSpacing.s8),
+                          Text(
+                            l10n.firewallQuotaReset(resetTime),
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: colors.ink,
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: AppSpacing.s20),
                         if (BuildFlavor.foss)
                           GameButton(
@@ -142,11 +179,20 @@ class FirewallPromptOverlay extends ConsumerWidget {
                           const SizedBox(height: AppSpacing.s8),
                           if (relayAttempted)
                             GameButton(
-                              label: l10n.firewallRetryAction,
-                              icon: Icons.refresh,
+                              label: invalidReceipt
+                                  ? l10n.partyPassRestore
+                                  : l10n.firewallRetryAction,
+                              icon: invalidReceipt
+                                  ? Icons.restore
+                                  : Icons.refresh,
                               variant: GameButtonVariant.primary,
                               fullWidth: true,
-                              onPressed: dismiss,
+                              onPressed: invalidReceipt
+                                  ? () {
+                                      dismiss();
+                                      showPartyPassSheet(context);
+                                    }
+                                  : () => coordinator.retryPendingJoin(),
                             )
                           else
                             GameButton(

@@ -3240,6 +3240,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Fill in both the TURN username and password, or leave both empty.'**
   String get turnCredentialPairError;
+
+  /// No description provided for @firewallQuotaTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily relay limit reached'**
+  String get firewallQuotaTitle;
+
+  /// No description provided for @firewallQuotaBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Party Pass relay allowance is used up. It resets on a rolling 24-hour window. Play on the same Wi-Fi/hotspot, or configure your own TURN server.'**
+  String get firewallQuotaBody;
+
+  /// No description provided for @firewallVerificationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not verify this purchase'**
+  String get firewallVerificationTitle;
+
+  /// No description provided for @firewallVerificationBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore purchases from the Party Pass sheet, or contact support. Direct play still works.'**
+  String get firewallVerificationBody;
+
+  /// Reset time for the daily relay allowance
+  ///
+  /// In en, this message translates to:
+  /// **'Next allowance: {time}'**
+  String firewallQuotaReset(String time);
 }
 
 class _AppLocalizationsDelegate

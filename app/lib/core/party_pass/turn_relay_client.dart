@@ -45,11 +45,17 @@ class TurnRelayGrant {
 /// One relay attempt. [passActive] lets the connection failure UI distinguish
 /// "buy the pass" from "the relay is temporarily unavailable".
 class TurnRelayAttempt {
-  const TurnRelayAttempt({this.grant, this.passActive = false, this.errorCode});
+  const TurnRelayAttempt({
+    this.grant,
+    this.passActive = false,
+    this.errorCode,
+    this.retryAtUtc,
+  });
 
   final TurnRelayGrant? grant;
   final bool passActive;
   final String? errorCode;
+  final DateTime? retryAtUtc;
 }
 
 class TurnRelayVerification {
@@ -78,10 +84,15 @@ abstract final class TurnRelayErrorCode {
 }
 
 class TurnRelayException implements Exception {
-  const TurnRelayException(this.code, {this.remainingMatchesToday});
+  const TurnRelayException(
+    this.code, {
+    this.remainingMatchesToday,
+    this.retryAtUtc,
+  });
 
   final String code;
   final int? remainingMatchesToday;
+  final DateTime? retryAtUtc;
 
   @override
   String toString() => 'TurnRelayException($code)';
@@ -192,6 +203,9 @@ class TurnRelayClient {
     throw TurnRelayException(
       code,
       remainingMatchesToday: decoded?['remainingMatchesToday'] as int?,
+      retryAtUtc: DateTime.tryParse(
+        decoded?['retryAtUtc'] as String? ?? '',
+      )?.toUtc(),
     );
   }
 

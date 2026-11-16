@@ -1856,4 +1856,23 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get turnCredentialPairError =>
       'Fill in both the TURN username and password, or leave both empty.';
+
+  @override
+  String get firewallQuotaTitle => 'Daily relay limit reached';
+
+  @override
+  String get firewallQuotaBody =>
+      'Your Party Pass relay allowance is used up. It resets on a rolling 24-hour window. Play on the same Wi-Fi/hotspot, or configure your own TURN server.';
+
+  @override
+  String get firewallVerificationTitle => 'Could not verify this purchase';
+
+  @override
+  String get firewallVerificationBody =>
+      'Restore purchases from the Party Pass sheet, or contact support. Direct play still works.';
+
+  @override
+  String firewallQuotaReset(String time) {
+    return 'Next allowance: $time';
+  }
 }

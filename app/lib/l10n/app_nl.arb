@@ -568,5 +568,18 @@
     }
   },
   "roomThemeFree": "Gratis voor iedereen",
-  "turnCredentialPairError": "Vul zowel de TURN-gebruikersnaam als het wachtwoord in, of laat beide leeg."
+  "turnCredentialPairError": "Vul zowel de TURN-gebruikersnaam als het wachtwoord in, of laat beide leeg.",
+  "firewallQuotaTitle": "Daglimiet voor relay bereikt",
+  "firewallQuotaBody": "Je relaytegoed van de Party Pass is op. Het vernieuwt na een rollend venster van 24 uur. Speel via dezelfde wifi/hotspot of stel je eigen TURN-server in.",
+  "firewallVerificationTitle": "Deze aankoop kon niet worden geverifieerd",
+  "firewallVerificationBody": "Herstel je aankopen via het Party Pass-venster of neem contact op met support. Direct spelen werkt nog.",
+  "firewallQuotaReset": "Volgende tegoed: {time}",
+  "@firewallQuotaReset": {
+    "description": "Reset time for the daily relay allowance",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  }
 }

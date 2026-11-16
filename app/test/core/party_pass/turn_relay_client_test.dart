@@ -69,6 +69,7 @@ void main() {
             'error': 'fair_use_limit_reached',
             'remainingMatchesToday': 0,
             'dailyLimit': 15,
+            'retryAtUtc': '2026-11-17T12:00:00.000Z',
           }),
           429,
         ),
