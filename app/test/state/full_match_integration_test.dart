@@ -744,6 +744,10 @@ void main() {
     await _waitFor(() => host.state.phase == RoundPhase.captionVoting);
     await _waitFor(() => clientOne.state.memeCards.isNotEmpty);
     await _waitFor(() => clientTwo.state.memeCards.isNotEmpty);
+    expect(host.state.memeFocusId, isNotNull);
+    expect(clientOne.state.memeFocusId, host.state.memeFocusId);
+    expect(clientTwo.state.memeFocusId, host.state.memeFocusId);
+    expect(clientOne.state.memeFocusEligible, greaterThanOrEqualTo(2));
     expect(host.state.memeCards, hasLength(3));
     expect(clientOne.state.memeCards.where((card) => card.isOwn), hasLength(1));
     expect(

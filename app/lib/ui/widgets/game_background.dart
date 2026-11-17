@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/models/models.dart';
@@ -33,13 +35,26 @@ class _GameBackdropState extends State<GameBackdrop>
     with SingleTickerProviderStateMixin {
   late final AnimationController _drift = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 250),
+    duration: const Duration(seconds: 18),
   );
+
+  bool get _inWidgetTest =>
+      !kIsWeb && Platform.environment['FLUTTER_TEST'] == 'true';
 
   @override
   void initState() {
     super.initState();
-    _drift.forward();
+    if (_inWidgetTest) {
+      // Golden tests must settle; the production backdrop keeps drifting.
+      _drift.value = 1;
+      return;
+    }
+    final reduce = WidgetsBinding
+        .instance
+        .platformDispatcher
+        .accessibilityFeatures
+        .disableAnimations;
+    if (!reduce) _drift.repeat();
   }
 
   @override
