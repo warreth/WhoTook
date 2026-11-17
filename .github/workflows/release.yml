@@ -33,9 +33,6 @@ jobs:
           IOS_CERT: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
           IOS_CERT_PASS: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
           IOS_PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
-          IOS_API_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
-          IOS_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
-          IOS_ISSUER: ${{ secrets.APPSTORE_API_ISSUER_ID }}
           IOS_TEAM: ${{ secrets.IOS_TEAM_ID }}
         run: |
           if [ -n "$PLAY_JSON" ]; then
@@ -44,7 +41,7 @@ jobs:
             echo "play=false" >> "$GITHUB_OUTPUT"
             echo "No Play service account. The Play upload will be skipped." >> "$GITHUB_STEP_SUMMARY"
           fi
-          if [ -n "$IOS_CERT" ] && [ -n "$IOS_CERT_PASS" ] && [ -n "$IOS_PROFILE" ] && [ -n "$IOS_API_KEY" ] && [ -n "$IOS_KEY_ID" ] && [ -n "$IOS_ISSUER" ] && [ -n "$IOS_TEAM" ]; then
+          if [ -n "$IOS_CERT" ] && [ -n "$IOS_CERT_PASS" ] && [ -n "$IOS_PROFILE" ] && [ -n "$IOS_TEAM" ]; then
             echo "ios=true" >> "$GITHUB_OUTPUT"
           else
             echo "ios=false" >> "$GITHUB_OUTPUT"
@@ -289,8 +286,6 @@ jobs:
           CERT_BASE64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
           CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
           PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
-          API_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
-          API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
           TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
         run: |
           umask 077
@@ -324,8 +319,6 @@ jobs:
           echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
           echo "TEAM_ID=$TEAM_ID" >> "$GITHUB_ENV"
 
-          mkdir -p "$HOME/.appstoreconnect/private_keys"
-          echo "$API_KEY" > "$HOME/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8"
 
           cat > app/ios/ExportOptions.plist <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
