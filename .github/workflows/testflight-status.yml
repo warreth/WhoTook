@@ -58,4 +58,8 @@ jobs:
           groups = get(f'/betaGroups?filter[app]={app_id}&limit=20')['data']
           for group in groups:
               print('group:', group['attributes'].get('name'), 'internal=', group['attributes'].get('isInternalGroup'))
+          if builds:
+              latest = builds[0]['id']
+              assigned = get(f'/builds/{latest}/betaGroups?limit=20')['data']
+              print('assigned groups:', [g['attributes'].get('name') for g in assigned])
           PY
