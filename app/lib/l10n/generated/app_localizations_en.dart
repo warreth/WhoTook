@@ -1611,9 +1611,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gameFeel => 'Game feel';
 
   @override
-  String get alsoInTheRoom => 'Also in the room';
-
-  @override
   String get finalTable => 'Final table';
 
   @override

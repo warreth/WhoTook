@@ -2791,12 +2791,6 @@ abstract class AppLocalizations {
   /// **'Game feel'**
   String get gameFeel;
 
-  /// No description provided for @alsoInTheRoom.
-  ///
-  /// In en, this message translates to:
-  /// **'Also in the room'**
-  String get alsoInTheRoom;
-
   /// No description provided for @finalTable.
   ///
   /// In en, this message translates to:

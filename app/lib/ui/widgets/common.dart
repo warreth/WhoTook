@@ -322,8 +322,14 @@ class PlayerAvatar extends StatelessWidget {
           if (crown)
             Positioned(
               top: 0,
-              child: Transform.rotate(
-                angle: 0.22,
+              child: TweenAnimationBuilder<double>(
+                tween: Tween<double>(begin: 0.55, end: 1),
+                duration: const Duration(milliseconds: 900),
+                curve: Curves.elasticOut,
+                builder: (context, value, child) => Transform.rotate(
+                  angle: 0.22 + (1 - value) * 0.30,
+                  child: Transform.scale(scale: value, child: child),
+                ),
                 child: SizedBox(
                   width: size * 0.54,
                   height: size * 0.30,

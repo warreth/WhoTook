@@ -32,7 +32,6 @@ class PodiumScreen extends ConsumerWidget {
     final top = board.take(3).toList();
     final champion = top.isEmpty ? null : top.first;
     final runners = top.skip(1).toList();
-    final rest = board.skip(3).toList();
     final skin = state.topMemes.isNotEmpty
         ? GameModeSkin.meme
         : GameModeSkin.forMode(state.config.mode);
@@ -82,7 +81,6 @@ class PodiumScreen extends ConsumerWidget {
                           child: _PodiumStage(
                             champion: champion,
                             runners: runners,
-                            rest: const <Player>[],
                             state: state,
                             l10n: l10n,
                             colors: colors,
@@ -101,25 +99,6 @@ class PodiumScreen extends ConsumerWidget {
                                 SectionLabel(l10n.matchAwards),
                                 for (final award in state.awards)
                                   _AwardRow(award: award),
-                              ],
-                            ),
-                          ),
-                        ],
-                        if (rest.isNotEmpty) ...<Widget>[
-                          const SizedBox(height: AppSpacing.s12),
-                          SurfaceCard(
-                            padding: EdgeInsets.zero,
-                            child: Column(
-                              children: <Widget>[
-                                for (var i = 3; i < board.length; i++)
-                                  ScoreRow(
-                                    position: i + 1,
-                                    player: board[i],
-                                    photoBase64:
-                                        state.avatarPhotos[board[i].id],
-                                    score: board[i].score,
-                                    maxScore: board.first.score,
-                                  ),
                               ],
                             ),
                           ),
@@ -163,7 +142,6 @@ class _PodiumStage extends StatelessWidget {
   const _PodiumStage({
     required this.champion,
     required this.runners,
-    required this.rest,
     required this.state,
     required this.l10n,
     required this.colors,
@@ -171,7 +149,6 @@ class _PodiumStage extends StatelessWidget {
 
   final Player? champion;
   final List<Player> runners;
-  final List<Player> rest;
   final MatchUiState state;
   final AppLocalizations l10n;
   final WhoTookColors colors;
@@ -262,57 +239,6 @@ class _PodiumStage extends StatelessWidget {
                       ),
                     ),
                   ),
-                if (rest.isNotEmpty) ...<Widget>[
-                  const SizedBox(height: AppSpacing.s12),
-                  Row(
-                    children: <Widget>[
-                      Text(
-                        l10n.alsoInTheRoom.toUpperCase(),
-                        style: TextStyle(
-                          fontFamily: 'JetBrainsMono',
-                          fontSize: 8,
-                          letterSpacing: 0.8,
-                          color: colors.ink,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 5),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: <Widget>[
-                      for (final player in rest)
-                        Container(
-                          padding: const EdgeInsets.fromLTRB(4, 4, 9, 4),
-                          decoration: BoxDecoration(
-                            color: colors.raised,
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: colors.hairline),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: <Widget>[
-                              PlayerAvatar(
-                                initial: player.name,
-                                avatar: player.avatar,
-                                photoBase64: state.avatarPhotos[player.id],
-                                size: 24,
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                '${player.name} · ${player.score}',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: colors.ink2,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ],
               ],
             ),
           ),
