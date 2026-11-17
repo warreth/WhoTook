@@ -666,6 +666,59 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('1024 desktop holds the wide home and party screens', (
+    tester,
+  ) async {
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.implicitView!;
+    view.physicalSize = const Size(1024, 768);
+    view.devicePixelRatio = 1;
+    final photo = _fixturePhoto('party-dog');
+    final hamster = _fixturePhoto('party-hamster');
+    await _precacheHomePhotos(tester);
+    await _precachePhoto(tester, photo);
+    await _precachePhoto(tester, hamster);
+
+    await _pump(tester, const HomeScreen(), _settings());
+    expect(tester.takeException(), isNull);
+
+    await _pump(tester, const LobbyScreen(), _settings(), state: _lobbyState());
+    expect(tester.takeException(), isNull);
+
+    await _pump(
+      tester,
+      const RoundScreen(),
+      _settings(),
+      state: _roundState(photo),
+    );
+    expect(tester.takeException(), isNull);
+
+    await _pump(
+      tester,
+      const MemeScreen(),
+      _settings(),
+      state: _memeVoteState(photo),
+    );
+    expect(tester.takeException(), isNull);
+
+    await _pump(
+      tester,
+      const TimelineScreen(),
+      _settings(),
+      state: _timelineRevealState(hamster),
+    );
+    expect(tester.takeException(), isNull);
+
+    await _pump(
+      tester,
+      const PodiumScreen(),
+      _settings(),
+      state: _podiumState(),
+    );
+    await tester.pump(const Duration(milliseconds: 900));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('large text keeps the party screens usable', (tester) async {
     tester.platformDispatcher.textScaleFactorTestValue = 1.6;
     addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
