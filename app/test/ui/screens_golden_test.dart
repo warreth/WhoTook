@@ -572,6 +572,33 @@ void main() {
     );
   });
 
+  testWidgets('only the host gets the meme skip button after the grace', (
+    tester,
+  ) async {
+    final photo = _fixturePhoto('party-cat');
+    await _precachePhoto(tester, photo);
+    await _pump(
+      tester,
+      const MemeScreen(),
+      _settings(),
+      state: _memeVoteState(photo),
+    );
+    expect(find.text('Waiting for votes: 2/3 voted'), findsWidgets);
+    await tester.pump(const Duration(seconds: 13));
+    await tester.pump();
+    expect(find.text('End voting / Skip AFK'), findsOneWidget);
+
+    await _pump(
+      tester,
+      const MemeScreen(),
+      _settings(),
+      state: _memeVoteState(photo).copyWith(isHosting: false),
+    );
+    await tester.pump(const Duration(seconds: 13));
+    await tester.pump();
+    expect(find.text('End voting / Skip AFK'), findsNothing);
+  });
+
   testWidgets('412 wide phone holds every party screen', (tester) async {
     final view =
         TestWidgetsFlutterBinding.instance.platformDispatcher.implicitView!;
