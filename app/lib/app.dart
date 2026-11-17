@@ -166,6 +166,12 @@ class _MatchRootState extends ConsumerState<_MatchRoot> {
     if (settings != null) {
       coordinator.updateSettings(settings);
       GameAudioService.instance.enabled = settings.soundEnabled;
+      unawaited(
+        GameAudioService.instance.configure(
+          sfx: settings.soundEnabled,
+          music: settings.musicEnabled,
+        ),
+      );
       SoundboardService.instance.enabled = settings.soundEnabled;
       GameHaptics.instance.enabled = settings.hapticsEnabled;
     }

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/models/models.dart';
 import '../../core/avatars.dart';
+import '../../core/theme/responsive_game_layout.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../l10n/l10n.dart';
 import 'game_background.dart';
@@ -28,8 +29,9 @@ class PrimaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final layout = ResponsiveGameLayout.of(context);
     return SizedBox(
-      height: 52,
+      height: layout.controlHeight,
       child: FilledButton(
         onPressed: busy ? null : onPressed,
         style: FilledButton.styleFrom(
@@ -40,9 +42,9 @@ class PrimaryButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadii.rControl),
           ),
-          textStyle: const TextStyle(
+          textStyle: TextStyle(
             fontFamily: 'Fredoka',
-            fontSize: 16,
+            fontSize: layout.isCompactHeight ? 14 : 16,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -85,8 +87,9 @@ class SecondaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final layout = ResponsiveGameLayout.of(context);
     return SizedBox(
-      height: 52,
+      height: layout.controlHeight,
       child: OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
@@ -96,9 +99,9 @@ class SecondaryButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadii.rControl),
           ),
-          textStyle: const TextStyle(
+          textStyle: TextStyle(
             fontFamily: 'Fredoka',
-            fontSize: 16,
+            fontSize: layout.isCompactHeight ? 14 : 16,
             fontWeight: FontWeight.w600,
           ),
         ),

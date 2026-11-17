@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import '../core/models/models.dart';
+import 'mixed_party_shuffle.dart';
 
 class EngineException implements Exception {
   const EngineException(this.code, this.message);
@@ -85,7 +86,7 @@ class HostGameEngine {
   final List<MemeEntry> _memeHistory = <MemeEntry>[];
   int _memeSerial = 0;
   MemeReveal? _lastMemeReveal;
-  final List<GameMode> _mixedCycle = <GameMode>[];
+  final List<GameMode> _mixedModes = <GameMode>[];
   final Map<String, List<PhotoCandidate>> _pendingExtension =
       <String, List<PhotoCandidate>>{};
 
@@ -450,11 +451,17 @@ class HostGameEngine {
     }
     final order = _players.keys.toList();
     final startRound = _deck.length + 1;
-    if (_mode == GameMode.mixedParty && _mixedCycle.isEmpty) {
-      _mixedCycle.addAll(
-        <GameMode>[GameMode.classic, GameMode.makeItMeme, GameMode.timeTraveler]
-          ..shuffle(_random),
-      );
+    if (_mode == GameMode.mixedParty) {
+      final needed = startRound - 1 + rounds;
+      while (_mixedModes.length < needed) {
+        _mixedModes.addAll(
+          balancedMixedPartyModes(
+            needed - _mixedModes.length,
+            _random,
+            previous: _mixedModes.isEmpty ? null : _mixedModes.last,
+          ),
+        );
+      }
     }
     var previousLast = _deck.isEmpty ? null : _deck.last.ownerId;
     final neededCycles = (rounds / order.length).ceil();
@@ -476,7 +483,7 @@ class HostGameEngine {
         }
         final roundIndex = startRound - 1 + entries.length;
         var mode = _mode == GameMode.mixedParty
-            ? _mixedCycle[roundIndex % _mixedCycle.length]
+            ? _mixedModes[roundIndex]
             : _mode;
         if (mode == GameMode.timeTraveler && !photo.hasCaptureDate) {
           mode = GameMode.classic;

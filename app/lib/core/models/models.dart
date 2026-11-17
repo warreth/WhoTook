@@ -922,6 +922,7 @@ class AppSettings {
     this.avatarPhoto,
     this.onboardingCompleted = false,
     this.soundEnabled = true,
+    this.musicEnabled = true,
     this.hapticsEnabled = true,
     this.customSignalingUrl,
     this.customTurnUrl,
@@ -941,6 +942,7 @@ class AppSettings {
   final String? avatarPhoto;
   final bool onboardingCompleted;
   final bool soundEnabled;
+  final bool musicEnabled;
   final bool hapticsEnabled;
   final String? customSignalingUrl;
   final String? customTurnUrl;
@@ -957,6 +959,7 @@ class AppSettings {
     String? avatarPhoto,
     bool? onboardingCompleted,
     bool? soundEnabled,
+    bool? musicEnabled,
     bool? hapticsEnabled,
     bool clearAvatarPhoto = false,
     String? customSignalingUrl,
@@ -975,6 +978,7 @@ class AppSettings {
     avatarPhoto: clearAvatarPhoto ? null : (avatarPhoto ?? this.avatarPhoto),
     onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
     soundEnabled: soundEnabled ?? this.soundEnabled,
+    musicEnabled: musicEnabled ?? this.musicEnabled,
     hapticsEnabled: hapticsEnabled ?? this.hapticsEnabled,
     customSignalingUrl: clearCustomSignalingUrl
         ? null
@@ -998,6 +1002,7 @@ class AppSettings {
     'avatarPhoto': avatarPhoto,
     'onboardingCompleted': onboardingCompleted,
     'soundEnabled': soundEnabled,
+    'musicEnabled': musicEnabled,
     'hapticsEnabled': hapticsEnabled,
     'customSignalingUrl': customSignalingUrl,
     'customTurnUrl': customTurnUrl,
@@ -1023,6 +1028,7 @@ class AppSettings {
     avatarPhoto: json['avatarPhoto'] as String?,
     onboardingCompleted: (json['onboardingCompleted'] as bool?) ?? false,
     soundEnabled: (json['soundEnabled'] as bool?) ?? true,
+    musicEnabled: (json['musicEnabled'] as bool?) ?? true,
     hapticsEnabled: (json['hapticsEnabled'] as bool?) ?? true,
     customSignalingUrl: json['customSignalingUrl'] as String?,
     customTurnUrl: json['customTurnUrl'] as String?,

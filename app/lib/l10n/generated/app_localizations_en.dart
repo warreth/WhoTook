@@ -1250,6 +1250,14 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get syncingVaults => 'Syncing vaults';
+
+  @override
+  String syncingVaultsProgress(int received, int total) {
+    return '$received of $total photos ready';
+  }
+
+  @override
   String get loadingStartingMatch => 'Starting match';
 
   @override
@@ -1517,10 +1525,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get memeWriteSomething => 'Write something first.';
 
   @override
-  String get memeSound => 'Sound';
+  String get music => 'Music';
 
   @override
-  String get memeSoundBody => 'Ticks, votes and the podium fanfare';
+  String get musicBody => 'Party loop for the lobby and rounds';
+
+  @override
+  String get soundEffects => 'Sound effects';
+
+  @override
+  String get soundEffectsBody => 'Buttons, votes and reveals';
 
   @override
   String get memeHaptics => 'Haptics';

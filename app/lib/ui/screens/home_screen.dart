@@ -11,6 +11,7 @@ import '../../core/theme/whotook_theme.dart';
 import '../../state/match_coordinator.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
+import '../widgets/audio_toggle_buttons.dart';
 import '../widgets/game_background.dart';
 import 'join_screen.dart';
 import 'settings_screen.dart';
@@ -109,6 +110,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                           ),
                         ),
+                        const AudioToggleButtons(),
                         IconButton(
                           onPressed: () => Navigator.of(context).push(
                             MaterialPageRoute<void>(

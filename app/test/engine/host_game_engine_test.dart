@@ -386,7 +386,7 @@ void main() {
   });
 
   group('Mixed Party', () {
-    test('rotates through all three modes and repeats the cycle', () {
+    test('balances every mode and never repeats a neighbour', () {
       final engine = readyEngine(
         players: 3,
         roundsK: 6,
@@ -396,12 +396,14 @@ void main() {
       );
       engine.startGame();
       final modes = engine.deck.map((entry) => entry.mode).toList();
-      final firstCycle = modes.take(3).toSet();
-      expect(firstCycle, hasLength(3));
-      expect(firstCycle, isNot(contains(GameMode.mixedParty)));
-      expect(modes[3], modes[0]);
-      expect(modes[4], modes[1]);
-      expect(modes[5], modes[2]);
+      expect(modes, hasLength(6));
+      expect(modes.toSet(), hasLength(3));
+      expect(modes.where((m) => m == GameMode.classic), hasLength(2));
+      expect(modes.where((m) => m == GameMode.makeItMeme), hasLength(2));
+      expect(modes.where((m) => m == GameMode.timeTraveler), hasLength(2));
+      for (var i = 1; i < modes.length; i++) {
+        expect(modes[i], isNot(modes[i - 1]));
+      }
     });
   });
 

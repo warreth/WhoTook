@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/audio/game_audio_service.dart';
 import '../../core/models/models.dart';
 import '../../core/theme/game_skin.dart';
+import '../../core/theme/responsive_game_layout.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
@@ -24,6 +25,7 @@ class RoundScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = WhoTookColors.of(context);
+    final layout = ResponsiveGameLayout.of(context);
     final l10n = context.l10n;
     final coordinator = ref.read(matchCoordinatorProvider);
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
@@ -39,11 +41,11 @@ class RoundScreen extends ConsumerWidget {
         child: SafeArea(
           child: ScreenBody(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.s20,
-                AppSpacing.s12,
-                AppSpacing.s20,
-                AppSpacing.s16,
+              padding: EdgeInsets.fromLTRB(
+                layout.pagePadding,
+                layout.sectionGap,
+                layout.pagePadding,
+                layout.isCompactHeight ? 8 : AppSpacing.s16,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -55,7 +57,10 @@ class RoundScreen extends ConsumerWidget {
                           showingReveal || showingCountdown
                               ? l10n.roundOf(roundNumber, state.totalRounds)
                               : l10n.whoTookThis,
-                          style: gameDisplay(size: 28, color: colors.ink),
+                          style: gameDisplay(
+                            size: layout.titleSize,
+                            color: colors.ink,
+                          ),
                         ),
                       ),
                       const HostControlsButton(),
@@ -81,6 +86,8 @@ class RoundScreen extends ConsumerWidget {
                           1,
                           9,
                         ),
+                        syncReceived: state.vaultSyncReceived,
+                        syncTotal: state.vaultSyncTotal,
                       ),
                     )
                   else ...<Widget>[
@@ -118,6 +125,7 @@ class RoundScreen extends ConsumerWidget {
                         options: state.activeRoundOptions,
                         avatarPhotos: state.avatarPhotos,
                         lockedOwnerId: state.lockedGuessOwnerId,
+                        buttonHeight: layout.controlHeight,
                         onGuess: (ownerId) {
                           unawaited(GameHaptics.instance.selection());
                           unawaited(GameAudioService.instance.tap());
@@ -151,19 +159,28 @@ class RoundScreen extends ConsumerWidget {
 /// The gap between "photos are ready" and the first frame. A calm numeral, no
 /// empty photo box and no ticking timer that is not running yet.
 class _CountdownView extends StatelessWidget {
-  const _CountdownView({required this.seconds});
+  const _CountdownView({
+    required this.seconds,
+    this.syncReceived = 0,
+    this.syncTotal = 0,
+  });
 
   final int seconds;
+  final int syncReceived;
+  final int syncTotal;
 
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
     final l10n = context.l10n;
+    final syncing = syncTotal > 0;
     return Center(
       child: Semantics(
         liveRegion: true,
-        label: l10n.countdown,
-        value: l10n.countdownSeconds(seconds),
+        label: syncing ? l10n.syncingVaults : l10n.countdown,
+        value: syncing
+            ? l10n.syncingVaultsProgress(syncReceived, syncTotal)
+            : l10n.countdownSeconds(seconds),
         child: SurfaceCard(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.s24,
@@ -173,32 +190,59 @@ class _CountdownView extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               Text(
-                l10n.getReady,
+                syncing ? l10n.syncingVaults : l10n.getReady,
                 style: TextStyle(fontSize: 15, color: colors.ink2),
               ),
               const SizedBox(height: AppSpacing.s8),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 180),
-                transitionBuilder: (child, animation) => ScaleTransition(
-                  scale: Tween<double>(begin: 0.88, end: 1).animate(
-                    CurvedAnimation(parent: animation, curve: Curves.easeOut),
+              if (syncing) ...<Widget>[
+                SizedBox(
+                  width: 180,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(
+                      value: syncTotal == 0 ? null : syncReceived / syncTotal,
+                      minHeight: 10,
+                      backgroundColor: colors.raised,
+                      color: colors.accent,
+                    ),
                   ),
-                  child: FadeTransition(opacity: animation, child: child),
                 ),
-                child: Text(
-                  '$seconds',
-                  key: ValueKey<int>(seconds),
+                const SizedBox(height: AppSpacing.s12),
+                Text(
+                  l10n.syncingVaultsProgress(syncReceived, syncTotal),
+                  textAlign: TextAlign.center,
                   style: tabularFigures(
                     TextStyle(
                       fontFamily: 'JetBrainsMono',
-                      fontSize: 48,
+                      fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      height: 1.1,
                       color: colors.ink,
                     ),
                   ),
                 ),
-              ),
+              ] else
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  transitionBuilder: (child, animation) => ScaleTransition(
+                    scale: Tween<double>(begin: 0.88, end: 1).animate(
+                      CurvedAnimation(parent: animation, curve: Curves.easeOut),
+                    ),
+                    child: FadeTransition(opacity: animation, child: child),
+                  ),
+                  child: Text(
+                    '$seconds',
+                    key: ValueKey<int>(seconds),
+                    style: tabularFigures(
+                      TextStyle(
+                        fontFamily: 'JetBrainsMono',
+                        fontSize: 48,
+                        fontWeight: FontWeight.w500,
+                        height: 1.1,
+                        color: colors.ink,
+                      ),
+                    ),
+                  ),
+                ),
               const SizedBox(height: AppSpacing.s12),
               Text(
                 l10n.tapWhoTook,
@@ -281,12 +325,14 @@ class _GuessGrid extends StatelessWidget {
     required this.avatarPhotos,
     required this.lockedOwnerId,
     required this.onGuess,
+    required this.buttonHeight,
   });
 
   final List<Player> options;
   final Map<String, String> avatarPhotos;
   final String? lockedOwnerId;
   final ValueChanged<String> onGuess;
+  final double buttonHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -324,7 +370,7 @@ class _GuessGrid extends StatelessWidget {
         onTap: lockedOwnerId == null ? () => onGuess(player.id) : null,
         borderRadius: BorderRadius.circular(AppRadii.rControl),
         child: Container(
-          height: 52,
+          height: buttonHeight,
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s12),
           decoration: BoxDecoration(
             color: picked ? colors.ink : (dimmed ? colors.raised : colors.card),

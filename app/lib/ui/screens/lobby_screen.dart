@@ -9,10 +9,12 @@ import '../../core/avatars.dart';
 import '../../core/media/avatar_photo_service.dart';
 import '../../core/models/models.dart';
 import '../../core/theme/game_skin.dart';
+import '../../core/theme/responsive_game_layout.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../l10n/l10n.dart';
 import '../../state/match_coordinator.dart';
 import '../../state/providers.dart';
+import '../widgets/audio_toggle_buttons.dart';
 import '../widgets/avatar_editor.dart';
 import '../widgets/common.dart';
 import '../widgets/game_background.dart';
@@ -31,6 +33,7 @@ class LobbyScreen extends ConsumerWidget {
     final coordinator = ref.read(matchCoordinatorProvider);
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
     final isHost = state.isHosting;
+    final layout = ResponsiveGameLayout.of(context);
     final l10n = context.l10n;
 
     return Scaffold(
@@ -73,6 +76,7 @@ class LobbyScreen extends ConsumerWidget {
           style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
         ),
         actions: <Widget>[
+          const AudioToggleButtons(),
           IconButton(
             tooltip: l10n.leaveMatch,
             onPressed: () => unawaited(coordinator.leaveMatch()),
@@ -100,7 +104,7 @@ class LobbyScreen extends ConsumerWidget {
                     Text(
                       l10n.scanToJoin,
                       style: gameDisplay(
-                        size: 34,
+                        size: layout.isCompactHeight ? 28 : 34,
                         height: 1.02,
                         color: colors.ink,
                         letterSpacing: -1,
@@ -189,7 +193,7 @@ class LobbyScreen extends ConsumerWidget {
                     Text(
                       l10n.youreIn,
                       style: gameDisplay(
-                        size: 34,
+                        size: layout.isCompactHeight ? 28 : 34,
                         height: 1.02,
                         color: colors.ink,
                         letterSpacing: -1,

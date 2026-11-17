@@ -269,11 +269,6 @@ class PhotoChunkAssembler {
       _pending.remove(chunk.photoId);
       throw const PhotoAssemblyException('chunk metadata mismatch');
     }
-    if (pending.chunks.containsKey(chunk.index)) {
-      throw PhotoAssemblyException(
-        'duplicate chunk ${chunk.index} for ${chunk.photoId}',
-      );
-    }
     final Uint8List slice;
     try {
       slice = base64Decode(chunk.data);
@@ -284,6 +279,17 @@ class PhotoChunkAssembler {
     if (slice.length > PhotoChunker.chunkSize) {
       _pending.remove(chunk.photoId);
       throw const PhotoAssemblyException('chunk exceeds 16 KB');
+    }
+    final duplicate = pending.chunks[chunk.index];
+    if (duplicate != null) {
+      // Retransmits are common on a flaky link. The same bytes are already in
+      // the buffer, so dropping the copy keeps the transfer alive instead of
+      // discarding every chunk received so far.
+      if (_sameBytes(duplicate, slice)) return null;
+      _pending.remove(chunk.photoId);
+      throw PhotoAssemblyException(
+        'chunk ${chunk.index} changed for ${chunk.photoId}',
+      );
     }
     pending.chunks[chunk.index] = slice;
     if (pending.receivedBytes > PhotoChunker.maxPhotoBytes) {
@@ -324,4 +330,12 @@ class _PendingPhoto {
 
   int get receivedBytes =>
       chunks.values.fold(0, (sum, chunk) => sum + chunk.length);
+}
+
+bool _sameBytes(Uint8List a, Uint8List b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
 }

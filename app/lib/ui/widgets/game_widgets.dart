@@ -9,8 +9,10 @@ import 'package:gal/gal.dart';
 
 import '../../core/audio/game_audio_service.dart';
 import '../../core/constants.dart';
+import '../../core/media/photo_memory_cache.dart';
 import '../../core/models/models.dart';
 import '../../core/theme/game_skin.dart';
+import '../../core/theme/responsive_game_layout.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../l10n/l10n.dart';
 
@@ -69,6 +71,7 @@ class _GameButtonState extends State<GameButton> {
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final layout = ResponsiveGameLayout.of(context);
     final shadow = dark ? Colors.black : colors.ink;
     final background = switch (widget.variant) {
       GameButtonVariant.primary => colors.accent,
@@ -84,19 +87,32 @@ class _GameButtonState extends State<GameButton> {
       GameButtonVariant.teal => Colors.white,
       GameButtonVariant.ghost => colors.ink,
     };
-    final height = widget.small ? 42.0 : 52.0;
+    final height = widget.small
+        ? layout.smallControlHeight
+        : layout.controlHeight;
     return Semantics(
       button: true,
       enabled: _enabled,
       label: widget.label,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTapDown: _enabled ? (_) => setState(() => _pressed = true) : null,
-        onTapUp: _enabled ? (_) => setState(() => _pressed = false) : null,
+        onTapDown: _enabled
+            ? (_) {
+                setState(() => _pressed = true);
+                if (widget.sound) {
+                  unawaited(GameAudioService.instance.tapDown());
+                }
+              }
+            : null,
+        onTapUp: _enabled
+            ? (_) {
+                setState(() => _pressed = false);
+                if (widget.sound) unawaited(GameAudioService.instance.tapUp());
+              }
+            : null,
         onTapCancel: _enabled ? () => setState(() => _pressed = false) : null,
         onTap: _enabled
             ? () {
-                if (widget.sound) unawaited(GameAudioService.instance.tap());
                 if (widget.haptic) unawaited(GameHaptics.instance.selection());
                 widget.onPressed!.call();
               }
@@ -122,7 +138,7 @@ class _GameButtonState extends State<GameButton> {
                 : <BoxShadow>[
                     BoxShadow(
                       color: shadow,
-                      offset: Offset(0, _pressed ? 0 : 5),
+                      offset: Offset(0, _pressed ? 0 : layout.shadowOffset),
                       blurRadius: 0,
                       spreadRadius: 0,
                     ),
@@ -270,17 +286,21 @@ class PolaroidPhotoCard extends StatelessWidget {
 }
 
 class _PhotoBytes extends StatelessWidget {
-  const _PhotoBytes({required this.bytes});
+  const _PhotoBytes({required this.bytes, this.photoId});
 
   final Uint8List? bytes;
+  final String? photoId;
 
   @override
   Widget build(BuildContext context) {
-    final data = bytes;
+    final id = photoId;
+    final cached = id == null ? null : PhotoMemoryCache.instance.bytesFor(id);
+    final current = bytes;
+    final data = (current == null || current.isEmpty) ? cached : current;
     if (data == null || data.isEmpty) {
       return const PhotoShimmer();
     }
-    return GamePhoto(bytes: data, fit: BoxFit.cover);
+    return GamePhoto(bytes: data, photoId: photoId, fit: BoxFit.cover);
   }
 }
 
@@ -291,19 +311,27 @@ class GamePhoto extends StatelessWidget {
   const GamePhoto({
     super.key,
     required this.bytes,
+    this.photoId,
     this.fit = BoxFit.cover,
     this.compact = false,
   });
 
   final Uint8List bytes;
+  final String? photoId;
   final BoxFit fit;
   final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
-    return Image.memory(
-      bytes,
+    final id = photoId;
+    final cached = id == null
+        ? null
+        : PhotoMemoryCache.instance.providerFor(id);
+    final provider = cached ?? MemoryImage(bytes);
+    return Image(
+      key: id == null ? null : ValueKey<String>('photo-$id'),
+      image: provider,
       fit: fit,
       gaplessPlayback: true,
       frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
@@ -444,6 +472,7 @@ class PanicTimerBar extends StatefulWidget {
 
 class _PanicTimerBarState extends State<PanicTimerBar> {
   bool _up = false;
+  bool _ducking = false;
   int? _lastTickSecond;
 
   @override
@@ -451,11 +480,20 @@ class _PanicTimerBarState extends State<PanicTimerBar> {
     super.didUpdateWidget(oldWidget);
     final seconds = (widget.remainingMs / 1000).ceil();
     final danger = widget.remainingMs <= widget.dangerThresholdMs;
-    if (danger && widget.remainingMs > 0) {
+    final panic = danger && widget.remainingMs > 0;
+    if (panic && !_ducking) {
+      _ducking = true;
+      unawaited(GameAudioService.instance.setDucking(true));
+    } else if (!panic && _ducking) {
+      _ducking = false;
+      unawaited(GameAudioService.instance.setDucking(false));
+    }
+    if (panic) {
       _up = !_up;
       if (seconds != _lastTickSecond) {
         _lastTickSecond = seconds;
         unawaited(GameAudioService.instance.tick());
+        if (seconds.isOdd) unawaited(GameAudioService.instance.heartbeat());
         unawaited(GameHaptics.instance.light());
       }
     } else {
@@ -464,8 +502,15 @@ class _PanicTimerBarState extends State<PanicTimerBar> {
   }
 
   @override
+  void dispose() {
+    if (_ducking) unawaited(GameAudioService.instance.setDucking(false));
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final layout = ResponsiveGameLayout.of(context);
     final total = math.max(1, widget.totalMs);
     final fraction = (widget.remainingMs / total).clamp(0.0, 1.0);
     final danger = widget.remainingMs <= widget.dangerThresholdMs;
@@ -485,7 +530,7 @@ class _PanicTimerBarState extends State<PanicTimerBar> {
           label: widget.label,
           value: '$seconds',
           child: SizedBox.square(
-            dimension: 66,
+            dimension: layout.timerSize,
             child: Stack(
               fit: StackFit.expand,
               children: <Widget>[
@@ -499,8 +544,8 @@ class _PanicTimerBarState extends State<PanicTimerBar> {
                 ),
                 Center(
                   child: Container(
-                    width: 44,
-                    height: 44,
+                    width: layout.timerInnerSize,
+                    height: layout.timerInnerSize,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: danger ? colors.negative : colors.ink,
@@ -623,6 +668,7 @@ class MemeCanvas extends StatelessWidget {
   const MemeCanvas({
     super.key,
     required this.bytes,
+    this.photoId,
     required this.template,
     required this.topText,
     required this.bottomText,
@@ -632,6 +678,7 @@ class MemeCanvas extends StatelessWidget {
   });
 
   final Uint8List? bytes;
+  final String? photoId;
   final MemeTemplate template;
   final String topText;
   final String bottomText;
@@ -667,7 +714,7 @@ class MemeCanvas extends StatelessWidget {
               children: <Widget>[
                 if (template != MemeTemplate.poster &&
                     template != MemeTemplate.split)
-                  _PhotoBytes(bytes: bytes),
+                  _PhotoBytes(bytes: bytes, photoId: photoId),
                 if (template == MemeTemplate.classic) ...<Widget>[
                   Positioned(
                     left: 10,
@@ -814,7 +861,10 @@ class MemeCanvas extends StatelessWidget {
                             bottom: 84,
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(2),
-                              child: _PhotoBytes(bytes: bytes),
+                              child: _PhotoBytes(
+                                bytes: bytes,
+                                photoId: photoId,
+                              ),
                             ),
                           ),
                           Positioned(
@@ -916,7 +966,7 @@ class MemeCanvas extends StatelessWidget {
                           child: Stack(
                             fit: StackFit.expand,
                             children: <Widget>[
-                              _PhotoBytes(bytes: bytes),
+                              _PhotoBytes(bytes: bytes, photoId: photoId),
                               if (bottomText.isNotEmpty)
                                 Positioned(
                                   left: 8,
@@ -1030,8 +1080,9 @@ class MemeTemplatePicker extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final l10n = context.l10n;
     final scale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.8);
+    final compact = ResponsiveGameLayout.of(context).isCompactHeight;
     return SizedBox(
-      height: 58 * scale,
+      height: (compact ? 48 : 58) * scale,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: MemeTemplate.values.length,

@@ -1257,6 +1257,14 @@ class AppLocalizationsNl extends AppLocalizations {
   }
 
   @override
+  String get syncingVaults => 'Foto\'s synchroniseren';
+
+  @override
+  String syncingVaultsProgress(int received, int total) {
+    return '$received van $total foto\'s klaar';
+  }
+
+  @override
   String get loadingStartingMatch => 'Spel starten';
 
   @override
@@ -1524,10 +1532,16 @@ class AppLocalizationsNl extends AppLocalizations {
   String get memeWriteSomething => 'Schrijf eerst iets.';
 
   @override
-  String get memeSound => 'Geluid';
+  String get music => 'Muziek';
 
   @override
-  String get memeSoundBody => 'Tikken, stemmen en de podiumfanfare';
+  String get musicBody => 'Partyloop voor de lobby en rondes';
+
+  @override
+  String get soundEffects => 'Geluidseffecten';
+
+  @override
+  String get soundEffectsBody => 'Knoppen, stemmen en onthullingen';
 
   @override
   String get memeHaptics => 'Trilfeedback';

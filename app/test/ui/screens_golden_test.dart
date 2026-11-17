@@ -666,6 +666,95 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('iPhone 8 compact gameplay keeps actions on screen', (
+    tester,
+  ) async {
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.implicitView!;
+    view.physicalSize = const Size(375, 667);
+    view.devicePixelRatio = 1;
+    final photo = _fixturePhoto('party-dog');
+    final hamster = _fixturePhoto('party-hamster');
+    await _precacheHomePhotos(tester);
+    await _precachePhoto(tester, photo);
+    await _precachePhoto(tester, hamster);
+
+    await _pump(
+      tester,
+      const RoundScreen(),
+      _settings(),
+      state: _roundState(photo),
+    );
+    expect(find.text('Bram').hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await _pump(
+      tester,
+      const MemeScreen(),
+      _settings(),
+      state: _memeEditorState(photo),
+    );
+    expect(find.text('Send meme').hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await _pump(
+      tester,
+      const MemeScreen(),
+      _settings(),
+      state: _memeVoteState(photo),
+    );
+    expect(find.text('Upvote').hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await _pump(
+      tester,
+      const TimelineScreen(),
+      _settings(),
+      state: _timelineRevealState(hamster).copyWith(
+        phase: RoundPhase.timelineGuessing,
+        remainingMs: 22000,
+        phaseDurationMs: 30000,
+      ),
+    );
+    expect(find.textContaining('Lock in').hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await _pump(tester, const LobbyScreen(), _settings(), state: _lobbyState());
+    expect(find.text('Start photo check').hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await _pump(
+      tester,
+      const PodiumScreen(),
+      _settings(),
+      state: _podiumState(),
+    );
+    await tester.pump(const Duration(milliseconds: 900));
+    expect(find.text('One more round (5)').hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('countdown shows vault sync progress before a meme round', (
+    tester,
+  ) async {
+    final photo = _fixturePhoto('party-dog');
+    await _precachePhoto(tester, photo);
+    await _pump(
+      tester,
+      const RoundScreen(),
+      _settings(),
+      state: _roundState(photo).copyWith(
+        phase: RoundPhase.countdown,
+        remainingMs: 0,
+        vaultSyncReceived: 2,
+        vaultSyncTotal: 4,
+      ),
+    );
+    expect(find.text('Syncing vaults'), findsOneWidget);
+    expect(find.text('2 of 4 photos ready'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('1024 desktop holds the wide home and party screens', (
     tester,
   ) async {

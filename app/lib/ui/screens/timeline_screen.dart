@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import '../../core/audio/game_audio_service.dart';
 import '../../core/format/date_label.dart';
 import '../../core/models/models.dart';
 import '../../core/theme/game_skin.dart';
+import '../../core/theme/responsive_game_layout.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../l10n/l10n.dart';
 import '../../state/match_coordinator.dart';
@@ -68,6 +70,27 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
     final month = state.lockedTimelineMonth ?? _month;
     if (state.phase == RoundPhase.timelineReveal) {
       return _TimelineRevealView(state: state, coordinator: coordinator);
+    }
+    final layout = ResponsiveGameLayout.of(context);
+    if (layout.isCompactHeight) {
+      return Scaffold(
+        backgroundColor: Colors.transparent,
+        body: GameBackdrop(
+          mode: GameMode.timeTraveler,
+          child: SafeArea(
+            child: _buildCompact(
+              context,
+              state,
+              coordinator,
+              colors,
+              l10n,
+              year,
+              month,
+              submitted,
+            ),
+          ),
+        ),
+      );
     }
     final years = <int>[
       for (var value = _eraStart; value <= _eraEnd(_eraStart); value++) value,
@@ -213,6 +236,221 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
                   ),
                 ],
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompact(
+    BuildContext context,
+    MatchUiState state,
+    MatchCoordinator coordinator,
+    WhoTookColors colors,
+    AppLocalizations l10n,
+    int year,
+    int month,
+    bool submitted,
+  ) {
+    final years = <int>[
+      for (var value = _eraStart; value <= _eraEnd(_eraStart); value++) value,
+    ];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(13, 8, 13, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  l10n.modeTimeTraveler,
+                  style: gameDisplay(size: 21, color: colors.ink),
+                ),
+              ),
+              const HostControlsButton(),
+              FrameCounter(
+                current: state.currentRound,
+                total: state.totalRounds,
+                label: l10n.roundBadge(state.currentRound, state.totalRounds),
+              ),
+            ],
+          ),
+          const SizedBox(height: 3),
+          ProgressSegments(
+            current: state.currentRound,
+            total: state.totalRounds,
+          ),
+          const SizedBox(height: 5),
+          Row(
+            children: <Widget>[
+              SizedBox(
+                width: 108,
+                height: 82,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: colors.card,
+                      border: Border.all(color: colors.ink, width: 2),
+                    ),
+                    child: GamePhoto(
+                      bytes: state.activePhotoBytes ?? Uint8List(0),
+                      photoId: state.activePhotoId,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      submitted ? l10n.lockedIn : l10n.whenWasThisTaken,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 10, color: colors.ink2),
+                    ),
+                    Text(
+                      monthYear(l10n, year, month),
+                      style: gameDisplay(size: 21, color: colors.ink),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 3),
+          PanicTimerBar(
+            remainingMs: state.remainingMs,
+            totalMs: state.phaseDurationMs,
+            label: l10n.guessYearMonth,
+          ),
+          const SizedBox(height: 5),
+          Row(
+            children: <Widget>[
+              for (final start in _eraStarts)
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      right: start == _eraStarts.last ? 0 : 5,
+                    ),
+                    child: _CompactChoice(
+                      label: '${start}s',
+                      selected: start == _eraStart,
+                      onTap: () => _selectEra(start),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final width = (constraints.maxWidth - 20) / 5;
+              return Wrap(
+                spacing: 5,
+                runSpacing: 4,
+                children: <Widget>[
+                  for (final value in years)
+                    SizedBox(
+                      width: width,
+                      height: 29,
+                      child: _CompactChoice(
+                        label: '$value',
+                        selected: value == year,
+                        onTap: () => _selectYear(value),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 5),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final width = (constraints.maxWidth - 25) / 6;
+              return Wrap(
+                spacing: 5,
+                runSpacing: 4,
+                children: <Widget>[
+                  for (var value = 1; value <= 12; value++)
+                    SizedBox(
+                      width: width,
+                      height: 28,
+                      child: _CompactChoice(
+                        label: monthName(l10n, value),
+                        selected: value == month,
+                        onTap: () => _selectMonth(value),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 6),
+          if (submitted)
+            GameButton(
+              label: l10n.lockedDate(monthYear(l10n, year, month)),
+              onPressed: null,
+              fullWidth: true,
+              variant: GameButtonVariant.secondary,
+            )
+          else
+            GameButton(
+              label: l10n.lockInDate(monthYear(l10n, year, month)),
+              onPressed: () => unawaited(
+                state.isHosting
+                    ? coordinator.submitTimeline(year, month)
+                    : coordinator.clientSubmitTimeline(year, month),
+              ),
+              fullWidth: true,
+              icon: Icons.lock_outline,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactChoice extends StatelessWidget {
+  const _CompactChoice({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? colors.ink : colors.card,
+            borderRadius: BorderRadius.circular(7),
+            border: Border.all(color: selected ? colors.ink : colors.hairline),
+          ),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontFamily: 'JetBrainsMono',
+              fontSize: 9,
+              color: selected ? colors.bg : colors.ink2,
             ),
           ),
         ),

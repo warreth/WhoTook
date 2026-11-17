@@ -2119,6 +2119,18 @@ abstract class AppLocalizations {
   /// **'{count, plural, =1{1 second} other{{count} seconds}}'**
   String countdownSeconds(int count);
 
+  /// No description provided for @syncingVaults.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing vaults'**
+  String get syncingVaults;
+
+  /// No description provided for @syncingVaultsProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'{received} of {total} photos ready'**
+  String syncingVaultsProgress(int received, int total);
+
   /// No description provided for @loadingStartingMatch.
   ///
   /// In en, this message translates to:
@@ -2623,17 +2635,29 @@ abstract class AppLocalizations {
   /// **'Write something first.'**
   String get memeWriteSomething;
 
-  /// No description provided for @memeSound.
+  /// No description provided for @music.
   ///
   /// In en, this message translates to:
-  /// **'Sound'**
-  String get memeSound;
+  /// **'Music'**
+  String get music;
 
-  /// No description provided for @memeSoundBody.
+  /// No description provided for @musicBody.
   ///
   /// In en, this message translates to:
-  /// **'Ticks, votes and the podium fanfare'**
-  String get memeSoundBody;
+  /// **'Party loop for the lobby and rounds'**
+  String get musicBody;
+
+  /// No description provided for @soundEffects.
+  ///
+  /// In en, this message translates to:
+  /// **'Sound effects'**
+  String get soundEffects;
+
+  /// No description provided for @soundEffectsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Buttons, votes and reveals'**
+  String get soundEffectsBody;
 
   /// No description provided for @memeHaptics.
   ///

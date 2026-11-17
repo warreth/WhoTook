@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/audio/game_audio_service.dart';
 import '../../core/models/models.dart';
 import '../../core/theme/game_skin.dart';
+import '../../core/theme/responsive_game_layout.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../l10n/l10n.dart';
 import '../../state/match_coordinator.dart';
@@ -25,6 +26,7 @@ class PodiumScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = WhoTookColors.of(context);
+    final layout = ResponsiveGameLayout.of(context);
     final l10n = context.l10n;
     final coordinator = ref.read(matchCoordinatorProvider);
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
@@ -49,11 +51,11 @@ class PodiumScreen extends ConsumerWidget {
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 720),
                     child: ListView(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.s20,
-                        AppSpacing.s16,
-                        AppSpacing.s20,
-                        AppSpacing.s16,
+                      padding: EdgeInsets.fromLTRB(
+                        layout.pagePadding,
+                        layout.isCompactHeight ? 10 : 16,
+                        layout.pagePadding,
+                        layout.isCompactHeight ? 10 : 16,
                       ),
                       children: <Widget>[
                         Row(
@@ -62,7 +64,7 @@ class PodiumScreen extends ConsumerWidget {
                               child: Text(
                                 l10n.podium,
                                 style: gameDisplay(
-                                  size: 32,
+                                  size: layout.isCompactHeight ? 26 : 32,
                                   color: colors.ink,
                                   letterSpacing: -0.9,
                                 ),
@@ -399,6 +401,7 @@ class _WinningMemeCardState extends State<_WinningMemeCard> {
             key: _key,
             child: MemeCanvas(
               bytes: _decodeMeme(widget.meme.photoBase64),
+              photoId: widget.meme.photoId,
               template: meme.template,
               topText: meme.topText,
               bottomText: meme.bottomText,
@@ -447,6 +450,7 @@ class _Champion extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
+    final layout = ResponsiveGameLayout.of(context);
     final l10n = context.l10n;
     return Column(
       children: <Widget>[
@@ -471,7 +475,7 @@ class _Champion extends StatelessWidget {
                 avatar: player.avatar,
                 photoBase64: state.avatarPhotos[player.id],
                 isHost: player.isHost,
-                size: 116,
+                size: layout.isCompactHeight ? 92 : 116,
                 crown: true,
               ),
               Positioned(
@@ -532,13 +536,15 @@ class _Champion extends StatelessWidget {
           player.name,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 34,
-            fontWeight: FontWeight.w600,
-            letterSpacing: -1.4,
-            height: 0.98,
-            color: colors.ink,
-          ),
+          style: layout.isCompactHeight
+              ? gameDisplay(size: 28, color: colors.ink, letterSpacing: -1.4)
+              : TextStyle(
+                  fontSize: 34,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -1.4,
+                  height: 0.98,
+                  color: colors.ink,
+                ),
         ),
         const SizedBox(height: 3),
         TweenAnimationBuilder<double>(

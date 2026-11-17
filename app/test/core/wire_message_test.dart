@@ -291,11 +291,26 @@ void main() {
       );
     });
 
-    test('rejects duplicate chunks', () {
+    test('ignores an identical duplicate chunk', () {
+      final chunks = PhotoChunker.split('p', bytesOf(20 * 1024));
+      final assembler = PhotoChunkAssembler();
+      expect(assembler.add(chunks[0]), isNull);
+      expect(assembler.add(chunks[0]), isNull);
+      expect(assembler.add(chunks[1]), isNotNull);
+    });
+
+    test('rejects a conflicting duplicate chunk', () {
       final chunks = PhotoChunker.split('p', bytesOf(20 * 1024));
       final assembler = PhotoChunkAssembler()..add(chunks[0]);
+      final conflicting = PhotoChunk(
+        photoId: chunks[0].photoId,
+        index: chunks[0].index,
+        total: chunks[0].total,
+        data: base64Encode(bytesOf(1000, seed: 99)),
+        sha256: chunks[0].sha256,
+      );
       expect(
-        () => assembler.add(chunks[0]),
+        () => assembler.add(conflicting),
         throwsA(isA<PhotoAssemblyException>()),
       );
     });

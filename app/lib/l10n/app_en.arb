@@ -712,6 +712,18 @@
       }
     }
   },
+  "syncingVaults": "Syncing vaults",
+  "syncingVaultsProgress": "{received} of {total} photos ready",
+  "@syncingVaultsProgress": {
+    "placeholders": {
+      "received": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "loadingStartingMatch": "Starting match",
   "loadingReadingPhotos": "Reading your photos",
   "loadingJoining": "Joining match",
@@ -803,8 +815,10 @@
   "memeVotesMeh": "Meh",
   "memeVotesDown": "Down",
   "memeWriteSomething": "Write something first.",
-  "memeSound": "Sound",
-  "memeSoundBody": "Ticks, votes and the podium fanfare",
+  "music": "Music",
+  "musicBody": "Party loop for the lobby and rounds",
+  "soundEffects": "Sound effects",
+  "soundEffectsBody": "Buttons, votes and reveals",
   "memeHaptics": "Haptics",
   "memeHapticsBody": "A tap when a vote lands",
   "photoLoading": "Loading photo...",

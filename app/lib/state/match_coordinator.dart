@@ -11,6 +11,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../core/audio/game_audio_service.dart';
 import '../core/audio/soundboard_service.dart';
 import '../core/constants.dart';
+import '../core/media/photo_memory_cache.dart';
 import '../core/media/photo_service.dart';
 import '../core/models/models.dart';
 import '../core/avatars.dart';
@@ -185,6 +186,8 @@ class MatchUiState {
     this.extensionCandidates = const <PhotoCandidate>[],
     this.extensionApproved = false,
     this.loadingMessage,
+    this.vaultSyncReceived = 0,
+    this.vaultSyncTotal = 0,
     this.errorMessage,
     this.turnLimitNotice,
     this.hostDeciding = false,
@@ -267,6 +270,11 @@ class MatchUiState {
   final List<PhotoCandidate> extensionCandidates;
   final bool extensionApproved;
   final String? loadingMessage;
+
+  /// Non-zero while a Make It Meme round waits for every assigned vault photo.
+  final int vaultSyncReceived;
+  final int vaultSyncTotal;
+
   final String? errorMessage;
   final TurnLimitNotice? turnLimitNotice;
   final GameMode activeMode;
@@ -363,6 +371,8 @@ class MatchUiState {
     List<PhotoCandidate>? extensionCandidates,
     bool? extensionApproved,
     String? loadingMessage,
+    int? vaultSyncReceived,
+    int? vaultSyncTotal,
     String? errorMessage,
     TurnLimitNotice? turnLimitNotice,
     bool? hostDeciding,
@@ -452,6 +462,8 @@ class MatchUiState {
     loadingMessage: clearLoading
         ? null
         : (loadingMessage ?? this.loadingMessage),
+    vaultSyncReceived: vaultSyncReceived ?? this.vaultSyncReceived,
+    vaultSyncTotal: vaultSyncTotal ?? this.vaultSyncTotal,
     errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     turnLimitNotice: turnLimitNotice ?? this.turnLimitNotice,
     hostDeciding: hostDeciding ?? this.hostDeciding,
@@ -894,6 +906,7 @@ class MatchCoordinator {
   }
 
   Future<void> hostMatch({MatchConfig config = const MatchConfig()}) async {
+    PhotoMemoryCache.instance.clear();
     _partyPassPlayers.clear();
     _clientPlayerIds.clear();
     _playerClientIds.clear();
@@ -1470,6 +1483,8 @@ class MatchCoordinator {
         if (bytes != null) {
           _assembledHostBytes['$playerId:${chunk.photoId}'] = bytes;
           _memePhotoBytes[chunk.photoId] = bytes;
+          PhotoMemoryCache.instance.put(chunk.photoId, bytes);
+          _photoRequestAttempts.remove(chunk.photoId);
           final photos = _remotePhotos[playerId];
           if (photos != null) {
             for (var i = 0; i < photos.length; i++) {
@@ -1940,6 +1955,9 @@ class MatchCoordinator {
 
     final bytes = entry.photo.bytes;
     final isMemeRound = entry.mode == GameMode.makeItMeme;
+    if (isMemeRound) {
+      await _ensureMemePhotoBytes(engine, entry.roundNumber);
+    }
     if (!isMemeRound && bytes != null) {
       await _sendRoundPhoto(transport, entry.photo.photoId, bytes);
     }
@@ -1952,6 +1970,15 @@ class MatchCoordinator {
       GameMode.makeItMeme => Duration(seconds: pace.memeSeconds),
       GameMode.timeTraveler => Duration(seconds: pace.timelineSeconds),
     };
+    if (isMemeRound) {
+      // Deliver every assignment, photo included, before the round timer
+      // starts. Clients stay on the countdown until roundShow arrives, so no
+      // creation canvas can open without its photo.
+      for (final player in engine.players) {
+        if (!player.connected) continue;
+        await _sendMemeAssignment(player.id);
+      }
+    }
     await transport.broadcast(
       WireMessage(
         type: WireType.roundShow,
@@ -1980,6 +2007,10 @@ class MatchCoordinator {
         activeRoundOptions: engine.players,
         remainingMs: duration.inMilliseconds,
         phaseDurationMs: duration.inMilliseconds,
+        vaultSyncReceived: 0,
+        vaultSyncTotal: 0,
+        memeAssignment: isMemeRound ? _state.memeAssignment : null,
+        memePhotoBase64: isMemeRound ? _state.memePhotoBase64 : null,
         clearGuess: true,
         clearRoundInput: true,
         lockedGuessOwnerId: null,
@@ -2000,12 +2031,6 @@ class MatchCoordinator {
       }
     });
     _tickPhaseProgress(duration, engine.phase);
-    if (isMemeRound) {
-      for (final player in engine.players) {
-        if (!player.connected) continue;
-        await _sendMemeAssignment(player.id);
-      }
-    }
   }
 
   void _tickPhaseProgress(Duration duration, RoundPhase phase) {
@@ -2126,6 +2151,16 @@ class MatchCoordinator {
   Uint8List? _photoBytesFor(String photoId) {
     final cached = _memePhotoBytes[photoId];
     if (cached != null && cached.isNotEmpty) return cached;
+    for (final photo in <PhotoCandidate>[
+      ..._state.candidates,
+      ..._state.extensionCandidates,
+    ]) {
+      final bytes = photo.bytes;
+      if (photo.photoId == photoId && bytes != null && bytes.isNotEmpty) {
+        _memePhotoBytes[photoId] = bytes;
+        return bytes;
+      }
+    }
     final client = _clientRoundPhotos[photoId];
     if (client != null && client.isNotEmpty) {
       _memePhotoBytes[photoId] = client;
@@ -2164,7 +2199,10 @@ class MatchCoordinator {
     return List<MemeCard>.unmodifiable(
       engine.memeOptions.map((option) {
         final photo = _photoBytesFor(option.photoId);
-        if (photo != null) _memePhotoBytes[option.photoId] = photo;
+        if (photo != null) {
+          _memePhotoBytes[option.photoId] = photo;
+          PhotoMemoryCache.instance.put(option.photoId, photo);
+        }
         return MemeCard(
           id: option.id,
           photoBase64: photo == null ? '' : base64Encode(photo),
@@ -2186,7 +2224,10 @@ class MatchCoordinator {
     return List<MemeCard>.unmodifiable(
       reveal.entries.map((entry) {
         final photo = _photoBytesFor(entry.photoId);
-        if (photo != null) _memePhotoBytes[entry.photoId] = photo;
+        if (photo != null) {
+          _memePhotoBytes[entry.photoId] = photo;
+          PhotoMemoryCache.instance.put(entry.photoId, photo);
+        }
         return MemeCard(
           id: entry.id,
           photoBase64: photo == null ? '' : base64Encode(photo),
@@ -2213,7 +2254,10 @@ class MatchCoordinator {
     return List<MemeCard>.unmodifiable(
       engine.topMemes.map((entry) {
         final photo = _photoBytesFor(entry.photoId);
-        if (photo != null) _memePhotoBytes[entry.photoId] = photo;
+        if (photo != null) {
+          _memePhotoBytes[entry.photoId] = photo;
+          PhotoMemoryCache.instance.put(entry.photoId, photo);
+        }
         return MemeCard(
           id: entry.id,
           photoBase64: photo == null ? '' : base64Encode(photo),
@@ -2245,6 +2289,56 @@ class MatchCoordinator {
     }
   }
 
+  /// Make It Meme starts only after every assigned photo is in the host's
+  /// cache. Missing vault chunks are requested directly from their owner and
+  /// the countdown is held until every connected player's photo is present, so
+  /// no creation timer can start on a blank canvas.
+  Future<void> _ensureMemePhotoBytes(
+    HostGameEngine engine,
+    int roundNumber,
+  ) async {
+    final nextRequest = <String, DateTime>{};
+    while (!_disposed && !_leaving) {
+      var received = 0;
+      var total = 0;
+      for (final player in engine.players) {
+        if (!player.connected) continue;
+        final assignment = engine.memeAssignmentFor(player.id);
+        if (assignment == null) continue;
+        total++;
+        final bytes = _photoBytesFor(assignment.photoId);
+        if (bytes == null || bytes.isEmpty) {
+          final now = DateTime.now();
+          final due = nextRequest[assignment.photoId];
+          if (due == null || !now.isBefore(due)) {
+            nextRequest[assignment.photoId] = now.add(
+              const Duration(milliseconds: 700),
+            );
+            _photoRequestAttempts.remove(assignment.photoId);
+            _requestPhotoFromOwner(assignment.photoId, assignment.ownerId);
+          }
+        } else {
+          PhotoMemoryCache.instance.put(assignment.photoId, bytes);
+          if (PhotoMemoryCache.instance.hasPhoto(assignment.photoId)) {
+            received++;
+          }
+        }
+      }
+      if (received >= total) return;
+      _emit(
+        _state.copyWith(
+          phase: RoundPhase.countdown,
+          currentRound: roundNumber,
+          totalRounds: engine.totalRounds,
+          remainingMs: 0,
+          vaultSyncReceived: received,
+          vaultSyncTotal: total,
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+    }
+  }
+
   Future<void> _sendMemeAssignment(String playerId) async {
     final engine = _engine;
     if (engine == null) return;
@@ -2253,6 +2347,7 @@ class MatchCoordinator {
     var bytes = _photoBytesFor(assignment.photoId);
     if (bytes != null && bytes.isNotEmpty) {
       _memePhotoBytes[assignment.photoId] = bytes;
+      PhotoMemoryCache.instance.put(assignment.photoId, bytes);
     } else {
       bytes = null;
       _pendingMemeAssignments
@@ -2628,7 +2723,7 @@ class MatchCoordinator {
       return;
     }
     await _sendMemeAssignment('host');
-    unawaited(GameAudioService.instance.pop());
+    unawaited(GameAudioService.instance.swap());
     unawaited(GameHaptics.instance.selection());
   }
 
@@ -2636,7 +2731,7 @@ class MatchCoordinator {
     await _clientTransport?.send(
       WireMessage(type: WireType.memeSwap, seq: _nextSeq()),
     );
-    unawaited(GameAudioService.instance.pop());
+    unawaited(GameAudioService.instance.swap());
   }
 
   Future<void> voteMeme(String memeId, MemeVote vote) async {
@@ -2651,10 +2746,10 @@ class MatchCoordinator {
     final voted = <String>{..._state.memeVotedIds, memeId};
     unawaited(
       vote == MemeVote.up
-          ? GameAudioService.instance.ding()
+          ? GameAudioService.instance.voteUp()
           : vote == MemeVote.meh
-          ? GameAudioService.instance.meh()
-          : GameAudioService.instance.bad(),
+          ? GameAudioService.instance.voteMeh()
+          : GameAudioService.instance.voteDown(),
     );
     unawaited(GameHaptics.instance.selection());
     _emit(
@@ -2682,10 +2777,10 @@ class MatchCoordinator {
     );
     unawaited(
       vote == MemeVote.up
-          ? GameAudioService.instance.ding()
+          ? GameAudioService.instance.voteUp()
           : vote == MemeVote.meh
-          ? GameAudioService.instance.meh()
-          : GameAudioService.instance.bad(),
+          ? GameAudioService.instance.voteMeh()
+          : GameAudioService.instance.voteDown(),
     );
     unawaited(GameHaptics.instance.selection());
     _emit(
@@ -2791,6 +2886,7 @@ class MatchCoordinator {
                 .inMilliseconds,
     );
     unawaited(GameHaptics.instance.light());
+    unawaited(GameAudioService.instance.ding());
     await _hostTransport?.broadcast(
       WireMessage(
         type: WireType.timelineReveal,
@@ -3184,6 +3280,7 @@ class MatchCoordinator {
           capturedMonth: picked[i].capturedAt?.month,
         ),
     ];
+    unawaited(GameAudioService.instance.swap());
     _emit(
       _state.copyWith(
         candidates: candidates,
@@ -3217,6 +3314,7 @@ class MatchCoordinator {
       capturedMonth: picked.first.capturedAt?.month,
     );
     final next = List<PhotoCandidate>.of(current)..[index] = replacement;
+    unawaited(GameAudioService.instance.swap());
     _emit(_state.copyWith(candidates: next));
   }
 
@@ -3578,6 +3676,7 @@ class MatchCoordinator {
     _remotePhotos.clear();
     _assembledHostBytes.clear();
     _clientRoundPhotos.clear();
+    PhotoMemoryCache.instance.clear();
     _memeTallyTimer?.cancel();
     _memeFocusOrder = <String>[];
     _memeFocusIndex = 0;
@@ -3625,6 +3724,7 @@ class MatchCoordinator {
   }
 
   Future<void> joinMatch(String rawInvite) async {
+    PhotoMemoryCache.instance.clear();
     _pendingInviteUrl = null;
     _pendingRoomId = null;
     _pendingPlayerId = null;
@@ -4264,6 +4364,7 @@ class MatchCoordinator {
         if (bytes != null) {
           _clientRoundPhotos[chunk.photoId] = bytes;
           _memePhotoBytes[chunk.photoId] = bytes;
+          PhotoMemoryCache.instance.put(chunk.photoId, bytes);
           _photoRequestAttempts.remove(chunk.photoId);
           final encoded = base64Encode(bytes);
           final active = _state.activePhotoId;
@@ -4331,6 +4432,15 @@ class MatchCoordinator {
             activePhotoId: photoId,
             activePhotoIsPanorama: payload['isPanorama'] as bool? ?? false,
             activeRoundOptions: options,
+            memeAssignment: mode == GameMode.makeItMeme
+                ? _state.memeAssignment
+                : null,
+            memePhotoBase64: mode == GameMode.makeItMeme
+                ? _state.memePhotoBase64
+                : null,
+            memeSwapsLeft: mode == GameMode.makeItMeme
+                ? _state.memeSwapsLeft
+                : 5,
             clearGuess: true,
             clearRoundInput: true,
             lockedGuessOwnerId: null,
@@ -4401,7 +4511,9 @@ class MatchCoordinator {
           final assignment = MemeAssignment.fromJson(assignmentJson);
           final encoded = payload['photoBase64'] as String?;
           if (encoded != null && encoded.isNotEmpty) {
-            _memePhotoBytes[assignment.photoId] = base64Decode(encoded);
+            final decoded = base64Decode(encoded);
+            _memePhotoBytes[assignment.photoId] = decoded;
+            PhotoMemoryCache.instance.put(assignment.photoId, decoded);
           }
           _emit(
             _state.copyWith(
@@ -4488,6 +4600,7 @@ class MatchCoordinator {
       case WireType.timelineReveal:
         _stopClientPhaseTicker();
         unawaited(GameHaptics.instance.light());
+        unawaited(GameAudioService.instance.ding());
         final reveal = TimelineReveal.fromJson(payload);
         _emit(
           _state.copyWith(
@@ -4597,6 +4710,8 @@ class MatchCoordinator {
 
   Future<void> clientRerollAll() async {
     final drawn = await _drawClientCandidates(_state.photosNeeded);
+    if (drawn.isEmpty) return;
+    unawaited(GameAudioService.instance.swap());
     _emit(_state.copyWith(candidates: drawn));
   }
 
@@ -4621,6 +4736,7 @@ class MatchCoordinator {
         capturedYear: picked.first.capturedAt?.year,
         capturedMonth: picked.first.capturedAt?.month,
       );
+    unawaited(GameAudioService.instance.swap());
     _emit(_state.copyWith(candidates: next));
   }
 
@@ -5049,6 +5165,7 @@ class MatchCoordinator {
     if (forgetRoom) {
       await _lastRooms.forget();
     }
+    PhotoMemoryCache.instance.clear();
     _emit(const MatchUiState());
     _leaving = false;
   }

@@ -211,6 +211,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 child: Column(
                   children: <Widget>[
                     SwitchListTile(
+                      value: settings?.musicEnabled ?? true,
+                      onChanged: (value) {
+                        unawaited(
+                          _settings.apply(
+                            (current) => current.copyWith(musicEnabled: value),
+                          ),
+                        );
+                        unawaited(
+                          GameAudioService.instance.configure(
+                            sfx: settings?.soundEnabled ?? true,
+                            music: value,
+                          ),
+                        );
+                      },
+                      title: Text(
+                        l10n.music,
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      subtitle: Text(
+                        l10n.musicBody,
+                        style: TextStyle(fontSize: 12, color: colors.ink2),
+                      ),
+                    ),
+                    Divider(height: 1, color: colors.hairline),
+                    SwitchListTile(
                       value: settings?.soundEnabled ?? true,
                       onChanged: (value) {
                         unawaited(
@@ -218,14 +243,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             (current) => current.copyWith(soundEnabled: value),
                           ),
                         );
-                        if (value) unawaited(GameAudioService.instance.tap());
+                        GameAudioService.instance.enabled = value;
+                        if (value) {
+                          unawaited(GameAudioService.instance.tapUp());
+                        }
                       },
                       title: Text(
-                        l10n.memeSound,
+                        l10n.soundEffects,
                         style: const TextStyle(fontSize: 14),
                       ),
                       subtitle: Text(
-                        l10n.memeSoundBody,
+                        l10n.soundEffectsBody,
                         style: TextStyle(fontSize: 12, color: colors.ink2),
                       ),
                     ),

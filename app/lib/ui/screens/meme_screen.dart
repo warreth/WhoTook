@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/audio/game_audio_service.dart';
 import '../../core/models/models.dart';
 import '../../core/theme/game_skin.dart';
+import '../../core/theme/responsive_game_layout.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../l10n/l10n.dart';
 import '../../state/match_coordinator.dart';
@@ -234,6 +235,137 @@ class _MemeEditor extends StatelessWidget {
               .where((player) => player.id == assignment.ownerId)
               .firstOrNull;
     final fields = memeFieldLabels(l10n, template);
+    final layout = ResponsiveGameLayout.of(context);
+    if (layout.isCompactHeight) {
+      return Padding(
+        padding: EdgeInsets.fromLTRB(
+          layout.pagePadding,
+          layout.sectionGap,
+          layout.pagePadding,
+          layout.sectionGap,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    l10n.modeMakeItMeme,
+                    style: gameDisplay(size: 21, color: colors.ink),
+                  ),
+                ),
+                const HostControlsButton(),
+                FrameCounter(
+                  current: state.currentRound,
+                  total: state.totalRounds,
+                  label: l10n.roundBadge(state.currentRound, state.totalRounds),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            ProgressSegments(
+              current: state.currentRound,
+              total: state.totalRounds,
+            ),
+            const SizedBox(height: 5),
+            PanicTimerBar(
+              remainingMs: state.remainingMs,
+              totalMs: state.phaseDurationMs,
+              label: l10n.memeWritingLabel,
+            ),
+            const SizedBox(height: 5),
+            if (assignment == null)
+              const Expanded(
+                child: EmptyState(title: '…', body: ''),
+              )
+            else ...<Widget>[
+              Row(
+                children: <Widget>[
+                  PlayerAvatar(
+                    initial: owner?.name ?? assignment.ownerName,
+                    avatar: owner?.avatar ?? '',
+                    photoBase64: owner == null
+                        ? null
+                        : state.avatarPhotos[owner.id],
+                    size: 24,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      l10n.memePhotoFrom(owner?.name ?? assignment.ownerName),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 11, color: colors.ink2),
+                    ),
+                  ),
+                  _SwapBank(swaps: state.memeSwapsLeft, l10n: l10n),
+                ],
+              ),
+              const SizedBox(height: 5),
+              Expanded(
+                child: MemeCanvas(
+                  bytes: bytes,
+                  photoId: state.memeAssignment?.photoId,
+                  template: template,
+                  topText: topController.text,
+                  bottomText: bottomController.text,
+                  snapY: snapY,
+                  onSnapChanged: onSnap,
+                ),
+              ),
+              const SizedBox(height: 5),
+              MemeTemplatePicker(selected: template, onSelected: onTemplate),
+              const SizedBox(height: 5),
+              _MemeField(
+                controller: topController,
+                label: fields.$1,
+                hint: l10n.memeWritePrompt,
+                canvasUpdater: () {},
+                enabled: !state.memeSubmitted,
+              ),
+              if (fields.$2 != null) ...<Widget>[
+                const SizedBox(height: 4),
+                _MemeField(
+                  controller: bottomController,
+                  label: fields.$2!,
+                  canvasUpdater: () {},
+                  enabled: !state.memeSubmitted,
+                ),
+              ],
+              const SizedBox(height: 5),
+              if (state.memeSubmitted)
+                NoticeBanner(
+                  message: l10n.memeSentWaiting,
+                  icon: Icons.hourglass_empty,
+                )
+              else
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: GameButton(
+                        label: l10n.memeSwapPhoto,
+                        onPressed: state.memeSwapsLeft > 0 ? onSwap : null,
+                        variant: GameButtonVariant.secondary,
+                        small: true,
+                        icon: Icons.swap_horiz,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: GameButton(
+                        label: l10n.memeSend,
+                        onPressed: onSubmit,
+                        icon: Icons.arrow_upward,
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ],
+        ),
+      );
+    }
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.s20,
@@ -293,6 +425,7 @@ class _MemeEditor extends StatelessWidget {
           const SizedBox(height: AppSpacing.s12),
           MemeCanvas(
             bytes: bytes,
+            photoId: state.memeAssignment?.photoId,
             template: template,
             topText: topController.text,
             bottomText: bottomController.text,
@@ -498,6 +631,223 @@ class _MemeVoting extends StatelessWidget {
         onRequestPhoto(card.photoId);
       });
     }
+    final layout = ResponsiveGameLayout.of(context);
+    if (layout.isCompactHeight) {
+      return Padding(
+        padding: EdgeInsets.fromLTRB(
+          layout.pagePadding,
+          layout.sectionGap,
+          layout.pagePadding,
+          layout.sectionGap,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    l10n.modeMakeItMeme,
+                    style: gameDisplay(size: 21, color: colors.ink),
+                  ),
+                ),
+                const HostControlsButton(),
+                FrameCounter(
+                  current: state.currentRound,
+                  total: state.totalRounds,
+                  label: l10n.roundBadge(state.currentRound, state.totalRounds),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            ProgressSegments(
+              current: state.currentRound,
+              total: state.totalRounds,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              l10n.memeVoteTitle,
+              style: gameDisplay(size: 24, height: 0.98, color: colors.ink),
+            ),
+            Text(
+              l10n.memeVoteSubtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 11, color: colors.ink2),
+            ),
+            const SizedBox(height: 4),
+            Expanded(
+              child: Stack(
+                children: <Widget>[
+                  MemeCanvas(
+                    bytes: _decodeBytes(card.photoBase64),
+                    photoId: card.photoId,
+                    template: card.template,
+                    topText: card.topText,
+                    bottomText: card.bottomText,
+                    snapY: card.snapY,
+                    showWatermark: true,
+                  ),
+                  Positioned.fill(
+                    child: _ReactionBurst(
+                      kind: reactionKind,
+                      trigger: reactionTrigger,
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: _TallyBurst(active: state.memeTallying),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: <Widget>[
+                StickerBadge(
+                  label:
+                      '${index + 1}/${state.memeFocusCount <= 0 ? cards.length : state.memeFocusCount}',
+                  background: colors.raised,
+                  foreground: colors.ink,
+                  angle: 0.03,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    l10n.waitingForVotes(progress, eligible),
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: gameDisplay(
+                      size: 10,
+                      color: progress >= eligible
+                          ? colors.positive
+                          : colors.ink2,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: _VoteButton(
+                    icon: Icons.thumb_up_outlined,
+                    label: l10n.memeUpvote,
+                    points: '+100',
+                    color: GamePalette.tealSoft,
+                    enabled: !card.isOwn && !voted && !state.memeTallying,
+                    compact: true,
+                    onTap: () => onVote(card, MemeVote.up),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: _VoteButton(
+                    icon: Icons.remove_circle_outline,
+                    label: l10n.memeMeh,
+                    points: '0',
+                    color: colors.raised,
+                    enabled: !card.isOwn && !voted && !state.memeTallying,
+                    compact: true,
+                    onTap: () => onVote(card, MemeVote.meh),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: _VoteButton(
+                    icon: Icons.thumb_down_outlined,
+                    label: l10n.memeDownvote,
+                    points: '−50',
+                    color: Color.alphaBlend(
+                      colors.negative.withValues(alpha: 0.12),
+                      colors.card,
+                    ),
+                    enabled: !card.isOwn && !voted && !state.memeTallying,
+                    compact: true,
+                    onTap: () => onVote(card, MemeVote.down),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            SizedBox(
+              height: 32,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: state.players.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 6),
+                itemBuilder: (context, index) {
+                  final player = state.players[index];
+                  final didVote = state.memeFocusVoterIds.contains(player.id);
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: <Widget>[
+                      PlayerAvatar(
+                        initial: player.name,
+                        avatar: player.avatar,
+                        photoBase64: state.avatarPhotos[player.id],
+                        size: 28,
+                      ),
+                      if (didVote)
+                        Positioned(
+                          right: -2,
+                          bottom: -2,
+                          child: Container(
+                            width: 13,
+                            height: 13,
+                            decoration: BoxDecoration(
+                              color: colors.positive,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: colors.card, width: 2),
+                            ),
+                            child: const Icon(
+                              Icons.check,
+                              size: 8,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              card.isOwn
+                  ? l10n.memeYourMeme
+                  : voted
+                  ? l10n.memeVoteLocked
+                  : l10n.memeTapToVote,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 10,
+                color: voted || card.isOwn ? colors.positive : colors.ink2,
+              ),
+            ),
+            if (state.memeTallying)
+              Text(
+                l10n.countingVotes,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: colors.ink2,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            if (state.isHosting && skipReady && !state.memeTallying)
+              GameButton(
+                label: l10n.endVoting,
+                onPressed: onEndVoting,
+                variant: GameButtonVariant.secondary,
+                small: true,
+                fullWidth: true,
+              ),
+          ],
+        ),
+      );
+    }
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.s20,
@@ -544,6 +894,7 @@ class _MemeVoting extends StatelessWidget {
           children: <Widget>[
             MemeCanvas(
               bytes: _decodeBytes(card.photoBase64),
+              photoId: card.photoId,
               template: card.template,
               topText: card.topText,
               bottomText: card.bottomText,
@@ -884,6 +1235,7 @@ class _VoteButton extends StatelessWidget {
     required this.color,
     required this.enabled,
     required this.onTap,
+    this.compact = false,
   });
 
   final IconData icon;
@@ -892,6 +1244,7 @@ class _VoteButton extends StatelessWidget {
   final Color color;
   final bool enabled;
   final VoidCallback onTap;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -918,8 +1271,8 @@ class _VoteButton extends StatelessWidget {
         child: Opacity(
           opacity: enabled ? 1 : 0.45,
           child: Container(
-            constraints: const BoxConstraints(minHeight: 65),
-            padding: const EdgeInsets.symmetric(vertical: 4),
+            constraints: BoxConstraints(minHeight: compact ? 48 : 65),
+            padding: EdgeInsets.symmetric(vertical: compact ? 2 : 4),
             decoration: BoxDecoration(
               color: color,
               borderRadius: BorderRadius.circular(11),
@@ -935,7 +1288,7 @@ class _VoteButton extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                Icon(icon, size: 20, color: onColor),
+                Icon(icon, size: compact ? 17 : 20, color: onColor),
                 Text(
                   label,
                   maxLines: 1,
@@ -1173,6 +1526,7 @@ class _MemeReveal extends StatelessWidget {
           key: winnerKey,
           child: MemeCanvas(
             bytes: _decodeBytes(winner.photoBase64),
+            photoId: winner.photoId,
             template: winner.template,
             topText: winner.topText,
             bottomText: winner.bottomText,
