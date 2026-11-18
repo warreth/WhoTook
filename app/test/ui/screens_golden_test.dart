@@ -18,6 +18,7 @@ import 'package:whotook/core/theme/whotook_theme.dart';
 import 'package:whotook/state/match_coordinator.dart';
 import 'package:whotook/state/providers.dart';
 import 'package:whotook/ui/screens/advanced_settings_screen.dart';
+import 'package:whotook/ui/screens/demo_screen.dart';
 import 'package:whotook/ui/screens/home_screen.dart';
 import 'package:whotook/ui/screens/lobby_screen.dart';
 import 'package:whotook/ui/screens/meme_screen.dart';
@@ -30,8 +31,10 @@ import 'package:whotook/ui/screens/timeline_screen.dart';
 import 'package:whotook/ui/screens/setup/mode_setup_screen.dart';
 import 'package:whotook/ui/screens/setup/rounds_setup_screen.dart';
 import 'package:whotook/ui/screens/setup/speed_setup_screen.dart';
+import 'package:whotook/ui/widgets/host_controls.dart';
 import 'package:whotook/ui/widgets/version_warning_card.dart';
 
+import '../support/fonts.dart';
 import '../support/test_photo_library.dart';
 
 /// Store captures are opt-in because they are large and only needed when the
@@ -53,7 +56,7 @@ void main() {
   setUpAll(() async {
     SharedPreferencesAsyncPlatform.instance =
         InMemorySharedPreferencesAsync.empty();
-    await _loadFonts();
+    await loadTestFonts();
   });
 
   setUp(() {
@@ -722,6 +725,12 @@ void main() {
     await _pump(tester, const LobbyScreen(), _settings(), state: _lobbyState());
     expect(find.text('Start photo check').hitTestable(), findsOneWidget);
     expect(tester.takeException(), isNull);
+    if (!BuildFlavor.foss) {
+      await expectLater(
+        find.byType(LobbyScreen),
+        matchesGoldenFile('goldens/lobby-compact.png'),
+      );
+    }
 
     await _pump(
       tester,
@@ -753,6 +762,141 @@ void main() {
     expect(find.text('Syncing vaults'), findsOneWidget);
     expect(find.text('2 of 4 photos ready'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('demo launcher explains the real game', (tester) async {
+    await _pump(tester, const DemoScreen(), _settings());
+    expect(find.text('A real game, without the setup'), findsOneWidget);
+    expect(find.text('Start demo'), findsOneWidget);
+    expect(find.text('Try the demo'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('key actions stay on screen at every phone and tablet size', (
+    tester,
+  ) async {
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.implicitView!;
+    final dog = _fixturePhoto('party-dog');
+    final cat = _fixturePhoto('party-cat');
+    final hamster = _fixturePhoto('party-hamster');
+    await _precacheHomePhotos(tester);
+    await _precachePhoto(tester, dog);
+    await _precachePhoto(tester, cat);
+    await _precachePhoto(tester, hamster);
+
+    Future<void> check(
+      Size size,
+      Widget screen,
+      MatchUiState? state,
+      String action, {
+      bool hostControls = false,
+    }) async {
+      view.physicalSize = size;
+      view.devicePixelRatio = 1;
+      await _pump(tester, screen, _settings(), state: state);
+      final actionFinder =
+          action.startsWith('Lock in') || action.startsWith('End voting')
+          ? find.textContaining(action)
+          : find.text(action);
+      expect(
+        actionFinder.hitTestable(),
+        findsOneWidget,
+        reason: '$action missing at ${size.width}x${size.height}',
+      );
+      if (hostControls) {
+        expect(
+          find.byType(HostControlsButton).hitTestable(),
+          findsOneWidget,
+          reason: 'host controls missing at ${size.width}x${size.height}',
+        );
+      }
+      expect(tester.takeException(), isNull);
+    }
+
+    for (final size in <Size>[
+      const Size(375, 667),
+      const Size(393, 852),
+      const Size(412, 915),
+      const Size(430, 932),
+      const Size(768, 1024),
+      const Size(1024, 768),
+    ]) {
+      await check(size, const HomeScreen(), null, 'Host a game');
+      await check(
+        size,
+        const LobbyScreen(),
+        _lobbyState(),
+        'Start photo check',
+      );
+      await check(
+        size,
+        const PrepareScreen(),
+        _prepareState(_fixturePhotosSix(), count: 6, needed: 6),
+        'Ready',
+        hostControls: true,
+      );
+      await check(
+        size,
+        const PrepareScreen(),
+        _prepareState(_fixturePhotosSix(), count: 12, needed: 12),
+        'Ready',
+        hostControls: true,
+      );
+      await check(
+        size,
+        const RoundScreen(),
+        _roundState(dog),
+        'Bram',
+        hostControls: true,
+      );
+      await check(
+        size,
+        const MemeScreen(),
+        _memeEditorState(dog),
+        'Send meme',
+        hostControls: true,
+      );
+      await check(
+        size,
+        const MemeScreen(),
+        _memeVoteState(cat),
+        'Upvote',
+        hostControls: true,
+      );
+      await check(size, const MemeScreen(), _memeVoteState(cat), 'End voting');
+      await check(
+        size,
+        const MemeScreen(),
+        _memeRevealState(cat),
+        'Next Round',
+      );
+      await check(
+        size,
+        const TimelineScreen(),
+        _timelineRevealState(hamster).copyWith(
+          phase: RoundPhase.timelineGuessing,
+          remainingMs: 22000,
+          phaseDurationMs: 30000,
+        ),
+        'Lock in',
+        hostControls: true,
+      );
+      await check(
+        size,
+        const TimelineScreen(),
+        _timelineRevealState(hamster),
+        'Next Round',
+      );
+      await check(
+        size,
+        const PodiumScreen(),
+        _podiumState(),
+        'One more round (5)',
+      );
+    }
+    view.resetPhysicalSize();
+    view.resetDevicePixelRatio();
   });
 
   testWidgets('1024 desktop holds the wide home and party screens', (
@@ -1087,7 +1231,8 @@ void main() {
   testWidgets('store play screenshots', (tester) async {
     final view =
         TestWidgetsFlutterBinding.instance.platformDispatcher.implicitView!;
-    view.physicalSize = const Size(390, 844);
+    // 375 x 667 is 9:16, the ratio Google Play expects for phone shots.
+    view.physicalSize = const Size(375, 667);
     view.devicePixelRatio = 1;
     final dog = _fixturePhoto('party-dog');
     final cat = _fixturePhoto('party-cat');
@@ -2014,29 +2159,6 @@ Future<void> _precacheHomePhotos(WidgetTester tester) async {
       stream.addListener(listener);
       await done.future;
     });
-  }
-}
-
-Future<void> _loadFonts() async {
-  final dmSans = FontLoader('DMSans')
-    ..addFont(rootBundle.load('assets/fonts/DMSans.ttf'));
-  final mono = FontLoader('JetBrainsMono')
-    ..addFont(rootBundle.load('assets/fonts/JetBrainsMono.ttf'));
-  final display = FontLoader('Fredoka')
-    ..addFont(rootBundle.load('assets/fonts/Fredoka.ttf'));
-  await Future.wait(<Future<void>>[dmSans.load(), mono.load(), display.load()]);
-  final iconFont = File(
-    '${Platform.environment['FLUTTER_ROOT'] ?? '/opt/flutter'}'
-    '/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf',
-  );
-  if (iconFont.existsSync()) {
-    final loader = FontLoader('MaterialIcons')
-      ..addFont(
-        Future<ByteData>.value(
-          ByteData.sublistView(iconFont.readAsBytesSync()),
-        ),
-      );
-    await loader.load();
   }
 }
 

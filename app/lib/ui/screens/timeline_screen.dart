@@ -72,7 +72,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
       return _TimelineRevealView(state: state, coordinator: coordinator);
     }
     final layout = ResponsiveGameLayout.of(context);
-    if (layout.isCompactHeight) {
+    if (layout.isCompactGameplay || layout.isCompactHeight || layout.isTablet) {
       return Scaffold(
         backgroundColor: Colors.transparent,
         body: GameBackdrop(
@@ -101,6 +101,7 @@ class _TimelineScreenState extends ConsumerState<TimelineScreen> {
         mode: GameMode.timeTraveler,
         child: SafeArea(
           child: ScreenBody(
+            maxWidth: layout.isTablet ? 560 : 720,
             child: ListView(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.s20,

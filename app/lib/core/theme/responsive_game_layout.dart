@@ -9,6 +9,12 @@ class ResponsiveGameLayout {
 
   bool get isCompactHeight => size.height < 720;
   bool get isUltraCompact => size.height < 680;
+  bool get isTablet => size.width >= 600;
+
+  /// Phones use the compact timeline composition at every height. The meme
+  /// editor keeps its existing tall layout on phones and switches separately
+  /// when a tablet needs the narrower column.
+  bool get isCompactGameplay => size.width < 600;
 
   double get pagePadding => isCompactHeight ? 13 : 20;
   double get sectionGap => isCompactHeight ? 8 : 12;

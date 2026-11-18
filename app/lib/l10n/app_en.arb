@@ -202,6 +202,7 @@
   "modeMixedParty": "Mixed Party",
   "rerollAll": "Reroll all",
   "waitingForPlayersButton": "Waiting for players",
+  "forceStartMatch": "Force start match",
   "checkYourPhotos": "Check your photos",
   "photosAllHere": "All {count} photos for this match are here. Reroll all for a different set.",
   "@photosAllHere": {
@@ -507,22 +508,26 @@
   "pickingExtraPhotos": "Picking extra photos",
   "freshFrames": "Fresh frames are coming from your albums. This stays on your device.",
   "approve": "Approve",
-  "reviewDemo": "Review demo",
+  "reviewDemo": "Game demo",
   "closeDemo": "Close demo",
-  "demoFake": "Demo with fake players. No network and no real photos.",
-  "allDemoPhotos": "All 4 demo photos are here. Reroll all for a different set.",
-  "startDemoRound": "Start demo round",
-  "timerRanOut": "The timer ran out.",
-  "youGuessed": "You guessed {name}. Next time.",
-  "@youGuessed": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "seePodium": "See the podium",
-  "restartDemo": "Restart demo",
+  "tryDemo": "Try the demo",
+  "tryDemoBody": "Play the real game with three bots and twelve bundled photos.",
+  "demoIntroTitle": "A real game, without the setup",
+  "demoIntroBody": "This demo runs the same host, rules and screens as a live room. Three bots join with twelve bundled photos. Your gallery, camera and network are not used.",
+  "demoIntroNotice": "Everything here is simulated. Nothing leaves this phone.",
+  "demoLineup": "Your table",
+  "demoBotRoles": "You are the host. Lotte, Sam and Noor answer automatically, but you still get to play every round.",
+  "demoTryModes": "Change the mode in the lobby to try Classic, Make It Meme, Time Traveler or Mixed Party.",
+  "startDemo": "Start demo",
+  "demoLobbyTitle": "Your demo table",
+  "demoLobbyBody": "Three bots are ready. Start the photo check when you want to play.",
+  "demoPreparing": "Setting up the demo table",
+  "demoFailed": "The demo could not start. Close it and try again.",
+  "endDemoTitle": "End demo?",
+  "endDemoBody": "The bots and this room will be removed. Your real rooms are not affected.",
+  "endDemo": "End demo",
+  "demoEndedTitle": "Demo ended",
+  "demoEndedBody": "You can close this screen and start a real room, or play the demo again.",
   "placeFirst": "1st",
   "placeSecond": "2nd",
   "placeThird": "3rd",
@@ -760,9 +765,9 @@
   "paceFastMeme": "A quick meme.",
   "paceNormalMeme": "Time to build the joke.",
   "paceSlowMeme": "No rush, make it good.",
-  "memeVaultTitle": "Your six photos.",
+  "memeVaultTitle": "Your photos.",
   "memeVaultBody": "Reroll the whole set if something should not be in the game.",
-  "memeVaultOnly": "Only these six photos enter the game.",
+  "memeVaultOnly": "Only these photos enter the game.",
   "memeVaultReady": "Ready",
   "memeVaultReroll": "Reroll all",
   "memeWritingLabel": "Build the meme",
@@ -863,6 +868,38 @@
         "type": "int"
       },
       "down": {
+        "type": "int"
+      }
+    }
+  },
+  "roundReadyPrompt": "Round {round}: get ready!",
+  "@roundReadyPrompt": {
+    "placeholders": {
+      "round": {
+        "type": "int"
+      }
+    }
+  },
+  "roundEyesPrompt": "Round {round}: eyes on the screen!",
+  "@roundEyesPrompt": {
+    "placeholders": {
+      "round": {
+        "type": "int"
+      }
+    }
+  },
+  "roundGuessPrompt": "Round {round}: guess the photo!",
+  "@roundGuessPrompt": {
+    "placeholders": {
+      "round": {
+        "type": "int"
+      }
+    }
+  },
+  "roundWhoPrompt": "Round {round}: whose camera roll?",
+  "@roundWhoPrompt": {
+    "placeholders": {
+      "round": {
         "type": "int"
       }
     }

@@ -457,6 +457,9 @@ class AppLocalizationsNl extends AppLocalizations {
   String get waitingForPlayersButton => 'Wachten';
 
   @override
+  String get forceStartMatch => 'Start toch';
+
+  @override
   String get checkYourPhotos => 'Controleer je foto\'s';
 
   @override
@@ -856,35 +859,73 @@ class AppLocalizationsNl extends AppLocalizations {
   String get approve => 'Goedkeuren';
 
   @override
-  String get reviewDemo => 'Demo bekijken';
+  String get reviewDemo => 'Speldemo';
 
   @override
   String get closeDemo => 'Demo sluiten';
 
   @override
-  String get demoFake =>
-      'Demo met nepspelers. Geen netwerk en geen echte foto\'s.';
+  String get tryDemo => 'Demo proberen';
 
   @override
-  String get allDemoPhotos =>
-      'Alle 4 demofoto\'s staan klaar. Tik op Nieuwe foto\'s voor een andere set.';
+  String get tryDemoBody =>
+      'Speel het echte spel met drie bots en twaalf meegeleverde foto\'s.';
 
   @override
-  String get startDemoRound => 'Demo-ronde starten';
+  String get demoIntroTitle => 'Een echt spel, zonder gedoe';
 
   @override
-  String get timerRanOut => 'De tijd is op.';
+  String get demoIntroBody =>
+      'Deze demo gebruikt dezelfde host, regels en schermen als een echte kamer. Drie bots doen mee met twaalf meegeleverde foto\'s. Je galerij, camera en netwerk worden niet gebruikt.';
 
   @override
-  String youGuessed(String name) {
-    return 'Je gokte $name. Volgende keer beter.';
-  }
+  String get demoIntroNotice =>
+      'Alles hier is gesimuleerd. Er verlaat niets je telefoon.';
 
   @override
-  String get seePodium => 'Naar het podium';
+  String get demoLineup => 'Jullie tafel';
 
   @override
-  String get restartDemo => 'Demo opnieuw starten';
+  String get demoBotRoles =>
+      'Jij bent de host. Lotte, Sam en Noor antwoorden automatisch, maar je speelt elke ronde zelf mee.';
+
+  @override
+  String get demoTryModes =>
+      'Kies in de lobby een andere modus om Classic, Make It Meme, Time Traveler of Mixed Party te proberen.';
+
+  @override
+  String get startDemo => 'Demo starten';
+
+  @override
+  String get demoLobbyTitle => 'Jouw demotafel';
+
+  @override
+  String get demoLobbyBody =>
+      'De drie bots staan klaar. Start de fotocheck wanneer je wilt spelen.';
+
+  @override
+  String get demoPreparing => 'Demotafel klaarzetten';
+
+  @override
+  String get demoFailed =>
+      'De demo kon niet starten. Sluit hem en probeer opnieuw.';
+
+  @override
+  String get endDemoTitle => 'Demo beëindigen?';
+
+  @override
+  String get endDemoBody =>
+      'De bots en deze kamer verdwijnen. Je echte kamers blijven ongewijzigd.';
+
+  @override
+  String get endDemo => 'Demo beëindigen';
+
+  @override
+  String get demoEndedTitle => 'Demo afgelopen';
+
+  @override
+  String get demoEndedBody =>
+      'Je kunt dit scherm sluiten en een echte kamer starten, of de demo opnieuw spelen.';
 
   @override
   String get placeFirst => '1e';
@@ -1356,14 +1397,14 @@ class AppLocalizationsNl extends AppLocalizations {
   String get paceSlowMeme => 'Geen haast, maak het goed.';
 
   @override
-  String get memeVaultTitle => 'Je zes foto\'s.';
+  String get memeVaultTitle => 'Je foto\'s.';
 
   @override
   String get memeVaultBody =>
       'Reroll de hele set als er iets niet in het spel mag.';
 
   @override
-  String get memeVaultOnly => 'Alleen deze zes foto\'s komen in het spel.';
+  String get memeVaultOnly => 'Alleen deze foto\'s komen in het spel.';
 
   @override
   String get memeVaultReady => 'Klaar';
@@ -1583,6 +1624,26 @@ class AppLocalizationsNl extends AppLocalizations {
   @override
   String memeVoteTally(int up, int meh, int down) {
     return '$up op · $meh meh · $down neer';
+  }
+
+  @override
+  String roundReadyPrompt(int round) {
+    return 'Ronde $round: maak je klaar!';
+  }
+
+  @override
+  String roundEyesPrompt(int round) {
+    return 'Ronde $round: kijk goed!';
+  }
+
+  @override
+  String roundGuessPrompt(int round) {
+    return 'Ronde $round: raad de foto!';
+  }
+
+  @override
+  String roundWhoPrompt(int round) {
+    return 'Ronde $round: van wie is deze camera-rol?';
   }
 
   @override

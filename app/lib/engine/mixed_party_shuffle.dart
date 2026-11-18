@@ -34,9 +34,9 @@ List<GameMode> balancedMixedPartyModes(
   final counts = <GameMode, int>{
     for (final mode in core) mode: rounds ~/ core.length,
   };
-  final remainder = List<GameMode>.of(core)..shuffle(random);
+  // Remainders go to Classic first, then Make It Meme, then Time Traveler.
   for (var i = 0; i < rounds % core.length; i++) {
-    counts[remainder[i]] = counts[remainder[i]]! + 1;
+    counts[core[i]] = counts[core[i]]! + 1;
   }
 
   final result = <GameMode>[];

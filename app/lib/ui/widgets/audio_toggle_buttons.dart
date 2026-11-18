@@ -45,7 +45,7 @@ class AudioToggleButtons extends ConsumerWidget {
                   .read(appSettingsProvider.notifier)
                   .apply((value) => value.copyWith(soundEnabled: next)),
             );
-            GameAudioService.instance.enabled = next;
+            GameAudioService.instance.isSfxMuted = !next;
             if (next) unawaited(GameAudioService.instance.tapUp());
           },
           icon: Icon(

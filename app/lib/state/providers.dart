@@ -16,6 +16,10 @@ final photoLibraryProvider = Provider<PhotoLibraryService>(
   (ref) => DevicePhotoLibraryService(),
 );
 
+/// True inside the offline demo. Screens use it to hide real invites, billing
+/// and the gallery editor, while every game screen stays the production one.
+final demoModeProvider = Provider<bool>((ref) => false);
+
 final lastRoomRepositoryProvider = Provider<LastRoomRepository>(
   (ref) => LastRoomRepository(),
 );
@@ -48,8 +52,7 @@ final matchCoordinatorProvider = Provider<MatchCoordinator>((ref) {
     settings: ref.watch(settingsRepositoryProvider),
     appVersion: info.version,
     appBuild: info.build,
-    turnRelay: () =>
-        ref.read(partyPassProvider.notifier).relayAttempt(),
+    turnRelay: () => ref.read(partyPassProvider.notifier).relayAttempt(),
   );
   ref.onDispose(coordinator.dispose);
   return coordinator;

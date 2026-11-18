@@ -76,12 +76,37 @@ void playAllCorrect(HostGameEngine engine, {int elapsedMs = 2000}) {
 
 void main() {
   group('lobby and preparation', () {
-    test('photosNeeded is max(3, ceil(K / n) + 1)', () {
-      expect(HostGameEngine.computePhotosNeeded(10, 4), 4);
-      expect(HostGameEngine.computePhotosNeeded(10, 3), 5);
-      expect(HostGameEngine.computePhotosNeeded(2, 6), 3);
-      expect(HostGameEngine.computePhotosNeeded(20, 2), 11);
-      expect(HostGameEngine.computePhotosNeeded(10, 0), 3);
+    test('photosNeeded keeps a six-photo floor and a twelve-photo cap', () {
+      expect(HostGameEngine.computePhotosNeeded(10, 4), 6);
+      expect(HostGameEngine.computePhotosNeeded(10, 3), 6);
+      expect(HostGameEngine.computePhotosNeeded(2, 6), 6);
+      expect(HostGameEngine.computePhotosNeeded(20, 2), 10);
+      expect(HostGameEngine.computePhotosNeeded(10, 0), 6);
+      expect(
+        HostGameEngine.computePhotosNeeded(10, 4, mode: GameMode.mixedParty),
+        12,
+      );
+      expect(
+        HostGameEngine.computePhotosNeeded(5, 4, mode: GameMode.makeItMeme),
+        12,
+      );
+    });
+
+    test('forceStartGame bypasses a lost ready packet', () {
+      final engine = HostGameEngine(
+        config: const MatchConfig(roundsK: 3),
+        random: Random(7),
+      );
+      engine.addPlayer(id: 'p0', name: 'P0', isHost: true);
+      engine.addPlayer(id: 'p1', name: 'P1');
+      engine.startPrepare();
+      engine.submitInitialPhotos('p0', photos('p0', 6));
+      engine.submitInitialPhotos('p1', photos('p1', 6));
+      engine.markReady('p0');
+      expect(engine.startGame, throwsA(isA<EngineException>()));
+      engine.forceStartGame();
+      expect(engine.phase, RoundPhase.countdown);
+      expect(engine.deck, isNotEmpty);
     });
 
     test('startPrepare exposes photosNeeded to the clients', () {
@@ -91,7 +116,7 @@ void main() {
       }
       engine.startPrepare();
       expect(engine.phase, RoundPhase.preparing);
-      expect(engine.photosNeeded, 4);
+      expect(engine.photosNeeded, 6);
     });
 
     test('cannot start the match before every player is ready', () {
@@ -390,7 +415,6 @@ void main() {
       final engine = readyEngine(
         players: 3,
         roundsK: 6,
-        photosPerPlayer: 3,
         mode: GameMode.mixedParty,
         datedPhotos: true,
       );
@@ -405,6 +429,65 @@ void main() {
         expect(modes[i], isNot(modes[i - 1]));
       }
     });
+
+    test('10 rounds give Classic the remainder', () {
+      final engine = readyEngine(
+        players: 4,
+        roundsK: 10,
+        mode: GameMode.mixedParty,
+        datedPhotos: true,
+      );
+      engine.startGame();
+      final modes = engine.deck.map((entry) => entry.mode).toList();
+      expect(modes, hasLength(10));
+      expect(modes.where((m) => m == GameMode.classic), hasLength(4));
+      expect(modes.where((m) => m == GameMode.makeItMeme), hasLength(3));
+      expect(modes.where((m) => m == GameMode.timeTraveler), hasLength(3));
+      for (var i = 1; i < modes.length; i++) {
+        expect(modes[i], isNot(modes[i - 1]));
+      }
+    });
+
+    test('a match never draws the same photo twice', () {
+      final engine = readyEngine(
+        players: 4,
+        roundsK: 10,
+        mode: GameMode.classic,
+        datedPhotos: true,
+      );
+      engine.startGame();
+      final ids = engine.deck.map((entry) => entry.photo.photoId).toList();
+      expect(ids.toSet(), hasLength(ids.length));
+      expect(engine.usedPhotoIds.length, ids.length);
+    });
+  });
+
+  test('meme assignments and swaps never reuse a photo', () {
+    final engine = readyEngine(
+      players: 3,
+      roundsK: 3,
+      mode: GameMode.makeItMeme,
+      datedPhotos: true,
+    );
+    engine.startGame();
+    final deckIds = engine.deck.map((entry) => entry.photo.photoId).toSet();
+    expect(engine.usedPhotoIds, containsAll(deckIds));
+    engine.startRound();
+    final assigned = <String>{
+      for (final player in engine.players)
+        engine.memeAssignmentFor(player.id)!.photoId,
+    };
+    expect(assigned, hasLength(3));
+    expect(assigned.intersection(deckIds), isEmpty);
+    final first = engine.players.first;
+    final swapped = <String>{};
+    for (var i = 0; i < 5; i++) {
+      final next = engine.swapMemePhoto(first.id);
+      expect(swapped.add(next.photoId), isTrue);
+      expect(assigned.add(next.photoId), isTrue);
+    }
+    expect(engine.usedPhotoIds, containsAll(swapped));
+    expect(engine.usedPhotoIds, containsAll(deckIds));
   });
 
   group('scoring', () {
@@ -750,7 +833,7 @@ void main() {
         expect(ownEntries.where((e) => e.photo.isPlanted).length, 1);
         expect(
           ownEntries.firstWhere((e) => e.photo.isPlanted).photo.photoId,
-          'planted-p0',
+          startsWith('planted-'),
         );
       },
     );
@@ -1068,14 +1151,14 @@ void main() {
     );
   });
   group('Make It Meme', () {
-    test('builds a six-photo vault and assigns another player', () {
+    test('builds a dynamic vault and assigns another player', () {
       final engine = readyEngine(
         players: 3,
         roundsK: 2,
         mode: GameMode.makeItMeme,
-        photosPerPlayer: 6,
+        photosPerPlayer: 8,
       );
-      expect(engine.photosNeeded, 6);
+      expect(engine.photosNeeded, 8);
       engine.startGame();
       engine.startRound();
       expect(engine.phase, RoundPhase.captionWriting);

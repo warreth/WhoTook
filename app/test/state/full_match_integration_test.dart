@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
+import 'package:whotook/core/media/photo_memory_cache.dart';
 import 'package:whotook/core/media/photo_service.dart';
 import 'package:whotook/core/models/models.dart';
 import 'package:whotook/core/storage/last_room_repository.dart';
@@ -33,6 +34,7 @@ void main() {
       planterOverride: 'host',
       roundDuration: const Duration(milliseconds: 900),
       countdownDuration: Duration.zero,
+      vaultFallbackDelay: const Duration(milliseconds: 250),
       revealDuration: const Duration(milliseconds: 40),
       extendWindow: const Duration(milliseconds: 300),
     );
@@ -378,10 +380,22 @@ void main() {
 
     await plantClient.clientMarkReady();
     await _waitFor(() => plantClient.state.plantUnlocked);
+    await _waitFor(
+      () => plantHost.state.players
+          .where((player) => player.id == plantClient.state.localPlayerId)
+          .every((player) => player.ready),
+    );
     await plantClient.clientPlantPickedPhoto(
       plantClient.state.candidates.first,
     );
     await _waitFor(() => plantClient.state.plantUsed);
+    await _waitFor(
+      () =>
+          plantHost.engine!
+              .player(plantClient.state.localPlayerId!)
+              ?.plantUsed ==
+          true,
+    );
 
     await plantHost.markLocalReady();
     await _waitFor(() => plantHost.state.phase == RoundPhase.guessing);
@@ -584,8 +598,8 @@ void main() {
       connector: HybridConnector(
         onlineClientFactory: () => LoopbackClientTransport(hub),
       ),
-      appVersion: '1.9.2',
-      appBuild: 15,
+      appVersion: '1.9.3',
+      appBuild: 16,
       roundDuration: const Duration(milliseconds: 900),
       countdownDuration: Duration.zero,
       revealDuration: const Duration(milliseconds: 40),
@@ -598,9 +612,9 @@ void main() {
     await _waitFor(() => host.state.versionWarning != null);
     await _waitFor(() => clientOne.state.versionWarning != null);
 
-    expect(host.state.versionWarning!.latestBuild, 15);
-    expect(host.state.versionWarning!.ownBuild, 14);
-    expect(clientOne.state.versionWarning!.latestVersion, '1.9.2');
+    expect(host.state.versionWarning!.latestBuild, 16);
+    expect(host.state.versionWarning!.ownBuild, 15);
+    expect(clientOne.state.versionWarning!.latestVersion, '1.9.3');
     expect(newer.state.versionWarning, isNull);
 
     host.dismissVersionWarning();
@@ -711,17 +725,44 @@ void main() {
     await clientOne.clientMarkReady();
     await clientTwo.clientMarkReady();
     await _waitFor(() => host.state.phase == RoundPhase.captionWriting);
+    for (final photo in host.state.candidates) {
+      expect(
+        PhotoMemoryCache.instance.hasPhoto(photo.photoId),
+        isTrue,
+        reason: 'host photo ${photo.photoId} was not preloaded',
+      );
+      expect(
+        PhotoMemoryCache.instance.hasPhoto(photo.photoId) ||
+            clientOne.state.candidates.any(
+              (candidate) => candidate.photoId == photo.photoId,
+            ),
+        isTrue,
+      );
+    }
     await _waitFor(() => host.state.memeAssignment != null);
     await _waitFor(() => clientOne.state.memeAssignment != null);
     await _waitFor(() => clientTwo.state.memeAssignment != null);
-    expect(host.state.memePhotoBase64, isNotEmpty);
-    expect(clientOne.state.memePhotoBase64, isNotEmpty);
+    expect(
+      PhotoMemoryCache.instance.hasPhoto(host.state.memeAssignment!.photoId),
+      isTrue,
+    );
+    expect(
+      PhotoMemoryCache.instance.hasPhoto(
+        clientOne.state.memeAssignment!.photoId,
+      ),
+      isTrue,
+    );
     expect(host.state.memeSwapsLeft, 5);
 
     await clientOne.clientSwapMemePhoto();
     await _waitFor(() => clientOne.state.memeSwapsLeft == 4);
     expect(clientOne.state.memeAssignment?.photoId, isNotEmpty);
-    expect(clientOne.state.memePhotoBase64, isNotEmpty);
+    expect(
+      PhotoMemoryCache.instance.hasPhoto(
+        clientOne.state.memeAssignment!.photoId,
+      ),
+      isTrue,
+    );
 
     await host.submitMeme(
       template: MemeTemplate.classic,
@@ -744,6 +785,14 @@ void main() {
     await _waitFor(() => host.state.phase == RoundPhase.captionVoting);
     await _waitFor(() => clientOne.state.memeCards.isNotEmpty);
     await _waitFor(() => clientTwo.state.memeCards.isNotEmpty);
+    expect(
+      host.state.memeCards.every((card) => card.photoBase64.isEmpty),
+      isTrue,
+    );
+    expect(
+      clientOne.state.memeCards.every((card) => card.photoBase64.isEmpty),
+      isTrue,
+    );
     expect(host.state.memeFocusId, isNotNull);
     expect(clientOne.state.memeFocusId, host.state.memeFocusId);
     expect(clientTwo.state.memeFocusId, host.state.memeFocusId);
@@ -778,6 +827,23 @@ void main() {
     expect(host.state.memeRevealCards.first.authorName, isNotNull);
     expect(host.state.topMemes, isNotEmpty);
   }, timeout: const Timeout(Duration(seconds: 45)));
+
+  test('host fallback unlocks a vault missing one ready', () async {
+    await host.startPrepare();
+    await _waitFor(() => host.state.candidates.isNotEmpty);
+    await _waitFor(() => clientOne.state.candidates.isNotEmpty);
+    await _waitFor(() => clientTwo.state.candidates.isNotEmpty);
+    await host.markLocalReady();
+    await clientOne.clientMarkReady();
+    await _waitFor(() => host.state.forceStartAvailable);
+    expect(host.state.phase, RoundPhase.preparing);
+    expect(clientTwo.state.localReady, isFalse);
+
+    await host.forceStartMatch();
+    await _waitFor(() => host.state.phase != RoundPhase.preparing);
+    expect(host.state.currentRound, 1);
+    expect(host.state.phase, anyOf(RoundPhase.countdown, RoundPhase.guessing));
+  }, timeout: const Timeout(Duration(seconds: 30)));
 
   test('host leaving ends the client room', () async {
     await host.leaveMatch();

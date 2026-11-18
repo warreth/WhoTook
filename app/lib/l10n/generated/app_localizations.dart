@@ -896,6 +896,12 @@ abstract class AppLocalizations {
   /// **'Waiting for players'**
   String get waitingForPlayersButton;
 
+  /// No description provided for @forceStartMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Force start match'**
+  String get forceStartMatch;
+
   /// No description provided for @checkYourPhotos.
   ///
   /// In en, this message translates to:
@@ -1463,7 +1469,7 @@ abstract class AppLocalizations {
   /// No description provided for @reviewDemo.
   ///
   /// In en, this message translates to:
-  /// **'Review demo'**
+  /// **'Game demo'**
   String get reviewDemo;
 
   /// No description provided for @closeDemo.
@@ -1472,47 +1478,113 @@ abstract class AppLocalizations {
   /// **'Close demo'**
   String get closeDemo;
 
-  /// No description provided for @demoFake.
+  /// No description provided for @tryDemo.
   ///
   /// In en, this message translates to:
-  /// **'Demo with fake players. No network and no real photos.'**
-  String get demoFake;
+  /// **'Try the demo'**
+  String get tryDemo;
 
-  /// No description provided for @allDemoPhotos.
+  /// No description provided for @tryDemoBody.
   ///
   /// In en, this message translates to:
-  /// **'All 4 demo photos are here. Reroll all for a different set.'**
-  String get allDemoPhotos;
+  /// **'Play the real game with three bots and twelve bundled photos.'**
+  String get tryDemoBody;
 
-  /// No description provided for @startDemoRound.
+  /// No description provided for @demoIntroTitle.
   ///
   /// In en, this message translates to:
-  /// **'Start demo round'**
-  String get startDemoRound;
+  /// **'A real game, without the setup'**
+  String get demoIntroTitle;
 
-  /// No description provided for @timerRanOut.
+  /// No description provided for @demoIntroBody.
   ///
   /// In en, this message translates to:
-  /// **'The timer ran out.'**
-  String get timerRanOut;
+  /// **'This demo runs the same host, rules and screens as a live room. Three bots join with twelve bundled photos. Your gallery, camera and network are not used.'**
+  String get demoIntroBody;
 
-  /// No description provided for @youGuessed.
+  /// No description provided for @demoIntroNotice.
   ///
   /// In en, this message translates to:
-  /// **'You guessed {name}. Next time.'**
-  String youGuessed(String name);
+  /// **'Everything here is simulated. Nothing leaves this phone.'**
+  String get demoIntroNotice;
 
-  /// No description provided for @seePodium.
+  /// No description provided for @demoLineup.
   ///
   /// In en, this message translates to:
-  /// **'See the podium'**
-  String get seePodium;
+  /// **'Your table'**
+  String get demoLineup;
 
-  /// No description provided for @restartDemo.
+  /// No description provided for @demoBotRoles.
   ///
   /// In en, this message translates to:
-  /// **'Restart demo'**
-  String get restartDemo;
+  /// **'You are the host. Lotte, Sam and Noor answer automatically, but you still get to play every round.'**
+  String get demoBotRoles;
+
+  /// No description provided for @demoTryModes.
+  ///
+  /// In en, this message translates to:
+  /// **'Change the mode in the lobby to try Classic, Make It Meme, Time Traveler or Mixed Party.'**
+  String get demoTryModes;
+
+  /// No description provided for @startDemo.
+  ///
+  /// In en, this message translates to:
+  /// **'Start demo'**
+  String get startDemo;
+
+  /// No description provided for @demoLobbyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your demo table'**
+  String get demoLobbyTitle;
+
+  /// No description provided for @demoLobbyBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Three bots are ready. Start the photo check when you want to play.'**
+  String get demoLobbyBody;
+
+  /// No description provided for @demoPreparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Setting up the demo table'**
+  String get demoPreparing;
+
+  /// No description provided for @demoFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The demo could not start. Close it and try again.'**
+  String get demoFailed;
+
+  /// No description provided for @endDemoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'End demo?'**
+  String get endDemoTitle;
+
+  /// No description provided for @endDemoBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The bots and this room will be removed. Your real rooms are not affected.'**
+  String get endDemoBody;
+
+  /// No description provided for @endDemo.
+  ///
+  /// In en, this message translates to:
+  /// **'End demo'**
+  String get endDemo;
+
+  /// No description provided for @demoEndedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Demo ended'**
+  String get demoEndedTitle;
+
+  /// No description provided for @demoEndedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You can close this screen and start a real room, or play the demo again.'**
+  String get demoEndedBody;
 
   /// No description provided for @placeFirst.
   ///
@@ -2308,7 +2380,7 @@ abstract class AppLocalizations {
   /// No description provided for @memeVaultTitle.
   ///
   /// In en, this message translates to:
-  /// **'Your six photos.'**
+  /// **'Your photos.'**
   String get memeVaultTitle;
 
   /// No description provided for @memeVaultBody.
@@ -2320,7 +2392,7 @@ abstract class AppLocalizations {
   /// No description provided for @memeVaultOnly.
   ///
   /// In en, this message translates to:
-  /// **'Only these six photos enter the game.'**
+  /// **'Only these photos enter the game.'**
   String get memeVaultOnly;
 
   /// No description provided for @memeVaultReady.
@@ -2730,6 +2802,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{up} up · {meh} meh · {down} down'**
   String memeVoteTally(int up, int meh, int down);
+
+  /// No description provided for @roundReadyPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Round {round}: get ready!'**
+  String roundReadyPrompt(int round);
+
+  /// No description provided for @roundEyesPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Round {round}: eyes on the screen!'**
+  String roundEyesPrompt(int round);
+
+  /// No description provided for @roundGuessPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Round {round}: guess the photo!'**
+  String roundGuessPrompt(int round);
+
+  /// No description provided for @roundWhoPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Round {round}: whose camera roll?'**
+  String roundWhoPrompt(int round);
 
   /// Full-screen arcade transition between rounds
   ///

@@ -50,7 +50,8 @@ class HostGameEngine {
        _random = random ?? Random(),
        _clock = clock ?? DateTime.now;
 
-  static const int minPhotosNeeded = 3;
+  static const int minPhotosNeeded = 6;
+  static const int maxPhotosNeeded = 12;
   static const int mysteryBonusPerFooledOpponent = 150;
   static const int streakBonusCap = 400;
   static const int streakBonusStep = 100;
@@ -68,6 +69,7 @@ class HostGameEngine {
   final Map<String, List<PhotoCandidate>> _photoQueue =
       <String, List<PhotoCandidate>>{};
   final Map<String, int> _photoCursor = <String, int>{};
+  final Set<String> _usedPhotoIds = <String>{};
   final Map<String, int> _roundDeltas = <String, int>{};
   final Map<String, GuessRecord> _guesses = <String, GuessRecord>{};
   final Map<String, String> _captions = <String, String>{};
@@ -183,6 +185,10 @@ class HostGameEngine {
   int get totalRounds => _deck.length;
   int get playerCount => _players.length;
   bool get plantAvailable => _isPlantWindowOpen;
+
+  bool get allConnectedPlayersReady => _players.values
+      .where((player) => player.connected)
+      .every((player) => player.ready);
   MicroAward? get lastMicroAward => _lastMicroAward;
   RoundReveal? get lastReveal => _lastReveal;
   int get extendDeadlineMs => _extendDeadlineMs;
@@ -205,6 +211,7 @@ class HostGameEngine {
   }
 
   List<DeckEntry> get deck => List<DeckEntry>.unmodifiable(_deck);
+  Set<String> get usedPhotoIds => Set<String>.unmodifiable(_usedPhotoIds);
 
   Player addPlayer({
     required String id,
@@ -302,9 +309,8 @@ class HostGameEngine {
     if (_players.isEmpty) {
       throw const EngineException('no_players', 'need at least one player');
     }
-    _photosNeeded = _mode == GameMode.makeItMeme
-        ? 6
-        : computePhotosNeeded(_roundsK, _players.length);
+    _usedPhotoIds.clear();
+    _photosNeeded = computePhotosNeeded(_roundsK, _players.length, mode: _mode);
     _planterId = _players.isEmpty
         ? null
         : (planterOverride ??
@@ -312,13 +318,26 @@ class HostGameEngine {
     _phase = RoundPhase.preparing;
   }
 
-  /// `max(3, ceil(K / playerCount) + 1)`.
-  static int computePhotosNeeded(int roundsK, int playerCount) {
+  /// A match must never run out of unique photos. The deck consumes one photo
+  /// per round, meme rounds consume one assignment per player, and swaps need
+  /// a small reserve. Six photos per player is the floor, twelve the ceiling.
+  static int computePhotosNeeded(
+    int roundsK,
+    int playerCount, {
+    GameMode mode = GameMode.classic,
+  }) {
     if (playerCount <= 0) {
       return minPhotosNeeded;
     }
-    final perPlayer = (roundsK / playerCount).ceil() + 1;
-    return max(minPhotosNeeded, perPlayer);
+    final deckShare = (roundsK / playerCount).ceil();
+    final memeRounds = switch (mode) {
+      GameMode.makeItMeme => roundsK,
+      GameMode.mixedParty => (roundsK / 3).ceil(),
+      _ => 0,
+    };
+    final swapReserve = memeRounds > 0 ? 5 : 0;
+    final perPlayer = deckShare + memeRounds + swapReserve;
+    return perPlayer.clamp(minPhotosNeeded, maxPhotosNeeded);
   }
 
   void submitInitialPhotos(String playerId, List<PhotoCandidate> photos) {
@@ -326,6 +345,9 @@ class HostGameEngine {
     if (_phase != RoundPhase.preparing) {
       throw const EngineException('wrong_phase', 'not preparing');
     }
+    // READY retries can arrive concurrently. Replacing the queue would wipe a
+    // planted photo, so the first verified submission wins.
+    if (_photoQueue.containsKey(playerId)) return;
     if (photos.length > _photosNeeded) {
       throw EngineException(
         'too_many_photos',
@@ -427,7 +449,7 @@ class HostGameEngine {
     final cursor = _photoCursor[playerId] ?? 0;
     final unplayed = <int>[];
     for (var i = cursor; i < queue.length; i++) {
-      unplayed.add(i);
+      if (!_usedPhotoIds.contains(queue[i].photoId)) unplayed.add(i);
     }
     if (unplayed.isEmpty) {
       throw const EngineException(
@@ -436,7 +458,12 @@ class HostGameEngine {
       );
     }
     final target = unplayed[_random.nextInt(unplayed.length)];
-    queue[target] = photo.copyWith(ownerId: playerId, isPlanted: true);
+    queue[target] = photo.copyWith(
+      photoId:
+          'planted-${photo.photoId}-${DateTime.now().microsecondsSinceEpoch}',
+      ownerId: playerId,
+      isPlanted: true,
+    );
     player.plantUsed = true;
     _plantedThisGame = true;
     _plantedOwnerId = playerId;
@@ -477,6 +504,7 @@ class HostGameEngine {
         cycleOrder[swapAt] = first;
       }
       for (final ownerId in cycleOrder) {
+        if (entries.length >= rounds) break;
         final photo = _drawPhoto(ownerId);
         if (photo == null) {
           continue;
@@ -511,23 +539,39 @@ class HostGameEngine {
       return null;
     }
     var cursor = _photoCursor[ownerId] ?? 0;
+    while (cursor < queue.length &&
+        _usedPhotoIds.contains(queue[cursor].photoId)) {
+      cursor++;
+    }
     if (cursor < queue.length) {
       final photo = queue[cursor];
       _photoCursor[ownerId] = cursor + 1;
+      _usedPhotoIds.add(photo.photoId);
       return photo;
     }
     _photoCursor[ownerId] = cursor;
     return null;
   }
 
+  void forceStartGame() {
+    if (_phase != RoundPhase.preparing) {
+      throw const EngineException('wrong_phase', 'not preparing');
+    }
+    for (final player in _players.values) {
+      player.ready = true;
+    }
+    startGame();
+  }
+
   void startGame() {
     if (_phase != RoundPhase.preparing) {
       throw const EngineException('wrong_phase', 'not preparing');
     }
-    if (_players.length < 2) {
+    final connected = _players.values.where((p) => p.connected).toList();
+    if (connected.length < 2) {
       throw const EngineException('too_few_players', 'need at least 2 players');
     }
-    final notReady = _players.values.where((p) => !p.ready).toList();
+    final notReady = connected.where((p) => !p.ready).toList();
     if (notReady.isNotEmpty) {
       throw const EngineException(
         'players_not_ready',
@@ -537,6 +581,7 @@ class HostGameEngine {
     _memeSwaps
       ..clear()
       ..addEntries(_players.keys.map((id) => MapEntry(id, 5)));
+    _usedPhotoIds.clear();
     _buildDeck(_roundsK);
     if (_deck.isEmpty) {
       throw const EngineException('empty_deck', 'no photos to play');
@@ -826,13 +871,20 @@ class HostGameEngine {
       final pool = <PhotoCandidate>[];
       for (final other in connected) {
         if (other.id == player.id) continue;
-        pool.addAll(_photoQueue[other.id] ?? const <PhotoCandidate>[]);
+        for (final photo in _photoQueue[other.id] ?? const <PhotoCandidate>[]) {
+          if (!_usedPhotoIds.contains(photo.photoId)) pool.add(photo);
+        }
       }
       if (pool.isEmpty) {
-        pool.addAll(_photoQueue[player.id] ?? const <PhotoCandidate>[]);
+        for (final photo
+            in _photoQueue[player.id] ?? const <PhotoCandidate>[]) {
+          if (!_usedPhotoIds.contains(photo.photoId)) pool.add(photo);
+        }
       }
       if (pool.isEmpty) continue;
-      _memeAssignments[player.id] = pool[_random.nextInt(pool.length)];
+      final next = pool[_random.nextInt(pool.length)];
+      _usedPhotoIds.add(next.photoId);
+      _memeAssignments[player.id] = next;
       _memeSwaps[player.id] = _memeSwaps[player.id] ?? 5;
     }
   }
@@ -934,13 +986,17 @@ class HostGameEngine {
     for (final player in _players.values) {
       if (player.id == playerId || !player.connected) continue;
       for (final photo in _photoQueue[player.id] ?? const <PhotoCandidate>[]) {
-        if (photo.photoId != current.photoId) pool.add(photo);
+        if (photo.photoId != current.photoId &&
+            !_usedPhotoIds.contains(photo.photoId)) {
+          pool.add(photo);
+        }
       }
     }
     if (pool.isEmpty) {
       throw const EngineException('no_swap_photo', 'no other photo available');
     }
     final next = pool[_random.nextInt(pool.length)];
+    _usedPhotoIds.add(next.photoId);
     _memeAssignments[playerId] = next;
     _memeSwaps[playerId] = left - 1;
     return next;

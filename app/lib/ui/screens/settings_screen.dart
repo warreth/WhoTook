@@ -38,7 +38,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   String? _pendingName;
   List<AlbumSummary>? _albums;
   bool _albumError = false;
-  int _demoTaps = 0;
 
   @override
   void initState() {
@@ -91,10 +90,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     super.dispose();
   }
 
-  void _onAboutTap() {
-    _demoTaps += 1;
-    if (_demoTaps < 7) return;
-    _demoTaps = 0;
+  void _openDemo() {
     Navigator.of(context)
         .push(MaterialPageRoute<void>(builder: (_) => const DemoScreen()));
   }
@@ -155,6 +151,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 onChanged: _onNameChanged,
                 onSubmitted: (value) => unawaited(_saveName(value)),
+              ),
+              const SizedBox(height: AppSpacing.s12),
+              SurfaceCard(
+                padding: EdgeInsets.zero,
+                child: ListTile(
+                  minTileHeight: 60,
+                  leading: const Icon(Icons.smart_toy_outlined, size: 20),
+                  title: Text(
+                    l10n.tryDemo,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  subtitle: Text(
+                    l10n.tryDemoBody,
+                    style: TextStyle(fontSize: 12, color: colors.ink2),
+                  ),
+                  trailing: const Icon(Icons.chevron_right, size: 18),
+                  onTap: _openDemo,
+                ),
               ),
               const SizedBox(height: AppSpacing.s24),
               SectionLabel(l10n.avatar),
@@ -243,7 +260,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             (current) => current.copyWith(soundEnabled: value),
                           ),
                         );
-                        GameAudioService.instance.enabled = value;
+                        GameAudioService.instance.isSfxMuted = !value;
                         if (value) {
                           unawaited(GameAudioService.instance.tapUp());
                         }
@@ -558,17 +575,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
               const SizedBox(height: AppSpacing.s8),
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: _onAboutTap,
-                child: Text(
-                  l10n.trademark,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: colors.ink3,
-                    height: 1.4,
-                  ),
-                ),
+              Text(
+                l10n.trademark,
+                style: TextStyle(fontSize: 12, color: colors.ink3, height: 1.4),
               ),
             ],
           ),

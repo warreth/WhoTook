@@ -15,6 +15,8 @@ abstract final class WireType {
   static const String photoComplete = 'photo_complete';
   static const String photoRequest = 'photo_request';
   static const String playerReady = 'player_ready';
+  static const String vaultPreloaded = 'vault_preloaded';
+  static const String musicSync = 'music_sync';
   static const String plantPhoto = 'plant_photo';
   static const String plantAssignment = 'plant_assignment';
   static const String versionWarning = 'version_warning';
@@ -62,6 +64,8 @@ abstract final class WireType {
     photoComplete,
     photoRequest,
     playerReady,
+    vaultPreloaded,
+    musicSync,
     plantPhoto,
     plantAssignment,
     versionWarning,

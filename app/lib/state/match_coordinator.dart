@@ -166,6 +166,7 @@ class MatchUiState {
     this.photosNeeded = 0,
     this.candidates = const <PhotoCandidate>[],
     this.localReady = false,
+    this.forceStartAvailable = false,
     this.plantUsed = false,
     this.plantUnlocked = false,
     this.plantEligible = false,
@@ -247,6 +248,7 @@ class MatchUiState {
   final int photosNeeded;
   final List<PhotoCandidate> candidates;
   final bool localReady;
+  final bool forceStartAvailable;
   final bool plantUsed;
   final bool plantUnlocked;
   final bool plantEligible;
@@ -351,6 +353,7 @@ class MatchUiState {
     int? photosNeeded,
     List<PhotoCandidate>? candidates,
     bool? localReady,
+    bool? forceStartAvailable,
     bool? plantUsed,
     bool? plantUnlocked,
     bool? plantEligible,
@@ -438,6 +441,7 @@ class MatchUiState {
     photosNeeded: photosNeeded ?? this.photosNeeded,
     candidates: candidates ?? this.candidates,
     localReady: localReady ?? this.localReady,
+    forceStartAvailable: forceStartAvailable ?? this.forceStartAvailable,
     plantUsed: plantUsed ?? this.plantUsed,
     plantUnlocked: plantUnlocked ?? this.plantUnlocked,
     plantEligible: plantEligible ?? this.plantEligible,
@@ -596,6 +600,7 @@ class MatchCoordinator {
     ScreenshotDetector? screenshots,
     this.random,
     this.includeOnlineTransport = true,
+    this.audioSync = true,
     this.turnRelay,
     this.wakeLock,
     this.planterOverride,
@@ -607,6 +612,7 @@ class MatchCoordinator {
     this.reconnectAttemptDelay = Duration.zero,
     Duration? roundDuration,
     this.countdownDuration = const Duration(seconds: 3),
+    this.vaultFallbackDelay = const Duration(seconds: 10),
     this.revealDuration = const Duration(seconds: 6),
     this.captionRevealDuration = const Duration(seconds: 10),
     this.timelineRevealDuration = const Duration(seconds: 10),
@@ -628,6 +634,9 @@ class MatchCoordinator {
 
   /// Off for tests and offline rehearsals; a LAN match never needs the relay.
   final bool includeOnlineTransport;
+
+  /// Off for demo bots, which share one audio engine with the demo host.
+  final bool audioSync;
 
   /// Supplies verified Party Pass relay credentials when one is available.
   final Future<TurnRelayAttempt> Function()? turnRelay;
@@ -654,6 +663,7 @@ class MatchCoordinator {
   final Duration reconnectAttemptDelay;
   final Duration? _roundDurationOverride;
   final Duration countdownDuration;
+  final Duration vaultFallbackDelay;
   final Duration revealDuration;
   final Duration captionRevealDuration;
   final Duration timelineRevealDuration;
@@ -715,6 +725,13 @@ class MatchCoordinator {
 
   Timer? _roundTimer;
   Timer? _countdownTicker;
+  Timer? _vaultWatchdog;
+  Timer? _clientReadyRetry;
+  Timer? _clockPingTimer;
+  DateTime? _preparingSince;
+  bool _startingMatch = false;
+  bool _vaultPreloaded = false;
+  int _hostTimeOffsetMs = 0;
   Timer? _extendTicker;
   Timer? _captionRevealTimer;
   Timer? _timelineRevealTimer;
@@ -907,6 +924,7 @@ class MatchCoordinator {
 
   Future<void> hostMatch({MatchConfig config = const MatchConfig()}) async {
     PhotoMemoryCache.instance.clear();
+    _vaultPreloaded = false;
     _partyPassPlayers.clear();
     _clientPlayerIds.clear();
     _playerClientIds.clear();
@@ -1017,6 +1035,71 @@ class MatchCoordinator {
       ),
     );
     await _broadcastLobby();
+    if (audioSync) {
+      GameAudioService.instance.onHostTrackStarted = (track) {
+        unawaited(_broadcastMusicTrack(track));
+      };
+      unawaited(_broadcastMusicSync());
+    }
+  }
+
+  Future<void> _broadcastMusicSync() async {
+    if (!_state.isHosting) return;
+    final track = await GameAudioService.instance.startHostTrack();
+    await _broadcastMusicTrack(track);
+  }
+
+  Future<void> _broadcastMusicTrack(GameMusicTrack track) async {
+    if (!_state.isHosting) return;
+    await _hostTransport?.broadcast(
+      WireMessage(
+        type: WireType.musicSync,
+        seq: _nextSeq(),
+        payload: track.toJson(),
+      ),
+    );
+  }
+
+  void _startClockPing() {
+    _clockPingTimer?.cancel();
+    void ping() {
+      final transport = _clientTransport;
+      if (_disposed || _leaving || transport == null || _state.roomId == null) {
+        _clockPingTimer?.cancel();
+        _clockPingTimer = null;
+        return;
+      }
+      unawaited(
+        transport.send(
+          WireMessage(
+            type: WireType.ping,
+            seq: _nextSeq(),
+            payload: <String, dynamic>{
+              't0': DateTime.now().millisecondsSinceEpoch,
+            },
+          ),
+        ),
+      );
+    }
+
+    ping();
+    _clockPingTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => ping(),
+    );
+  }
+
+  void _applyPong(Map<String, dynamic> payload) {
+    final t0 = payload['t0'] as int?;
+    final t1 = payload['t1'] as int?;
+    final t2 = payload['t2'] as int?;
+    if (t0 == null || t1 == null || t2 == null) return;
+    final t3 = DateTime.now().millisecondsSinceEpoch;
+    final sample = ((t1 - t0) + (t2 - t3)) ~/ 2;
+    _hostTimeOffsetMs = _hostTimeOffsetMs == 0
+        ? sample
+        : ((_hostTimeOffsetMs * 4 + sample) / 5).round();
+    GameAudioService.instance.setHostOffsetMs(_hostTimeOffsetMs);
   }
 
   final List<String> _lanAddresses = const <String>[];
@@ -1458,7 +1541,11 @@ class MatchCoordinator {
           WireMessage(
             type: WireType.joinAck,
             seq: _nextSeq(),
-            payload: <String, dynamic>{'playerId': playerId, 'resumed': false},
+            payload: <String, dynamic>{
+              'playerId': playerId,
+              'resumed': false,
+              'music': GameAudioService.instance.hostTrackInfo().toJson(),
+            },
           ),
         );
         await _broadcastLobby();
@@ -1497,6 +1584,11 @@ class MatchCoordinator {
         }
       case WireType.playerReady:
         final playerId = _playerIdFor(clientId);
+        if (engine.phase != RoundPhase.preparing) return;
+        if (engine.player(playerId)?.ready == true) {
+          await _afterReadinessChanged();
+          return;
+        }
         final approved = _remotePhotos[playerId];
         if (approved == null || approved.isEmpty) {
           await _hostTransport?.sendToClient(
@@ -1526,6 +1618,9 @@ class MatchCoordinator {
           engine.submitInitialPhotos(playerId, hydrated);
           engine.markReady(playerId);
         } on EngineException {
+          if (engine.player(playerId)?.ready == true) {
+            await _afterReadinessChanged();
+          }
           return;
         }
         await _afterReadinessChanged();
@@ -1815,9 +1910,16 @@ class MatchCoordinator {
           await _finishTimelineRound();
         }
       case WireType.ping:
+        final t0 = payload['t0'] as int?;
+        final t1 = DateTime.now().millisecondsSinceEpoch;
+        final t2 = DateTime.now().millisecondsSinceEpoch;
         await _hostTransport?.sendToClient(
           clientId,
-          WireMessage(type: WireType.pong, seq: _nextSeq()),
+          WireMessage(
+            type: WireType.pong,
+            seq: _nextSeq(),
+            payload: <String, dynamic>{'t0': t0, 't1': t1, 't2': t2},
+          ),
         );
     }
   }
@@ -1865,23 +1967,169 @@ class MatchCoordinator {
 
   Future<void> _maybeStartMatch() async {
     final engine = _engine;
-    if (engine == null) return;
-    _emit(_state.copyWith(players: engine.players));
-    final everyoneReady = engine.players.every((p) => p.ready);
-    if (!everyoneReady) return;
+    if (engine == null || _startingMatch) return;
+    if (engine.phase != RoundPhase.preparing) return;
+    _startingMatch = true;
     try {
-      engine.startGame();
-    } on EngineException catch (error) {
-      _emit(_state.copyWith(errorMessage: _engineError(error)));
+      _emit(_state.copyWith(players: engine.players));
+      if (!engine.allConnectedPlayersReady) return;
+      _stopVaultWatchdog();
+      await _preloadVaultToClients().timeout(
+        const Duration(seconds: 8),
+        onTimeout: () {},
+      );
+      if (_disposed || engine.phase != RoundPhase.preparing) return;
+      try {
+        engine.startGame();
+      } on EngineException catch (error) {
+        _emit(_state.copyWith(errorMessage: _engineError(error)));
+        return;
+      }
+      _emit(
+        _state.copyWith(
+          phase: RoundPhase.countdown,
+          totalRounds: engine.totalRounds,
+          forceStartAvailable: false,
+        ),
+      );
+      await _enterRoundCountdown();
+    } finally {
+      _startingMatch = false;
+    }
+  }
+
+  /// Sends every approved vault photo to every other phone once, before the
+  /// first round. Meme payloads can then stay tiny for the rest of the match.
+  Future<void> _preloadVaultToClients() async {
+    if (_vaultPreloaded) return;
+    final transport = _hostTransport;
+    final engine = _engine;
+    if (transport == null || engine == null) return;
+    _vaultPreloaded = true;
+    final photos = <String, Uint8List>{};
+    for (final candidate in <PhotoCandidate>[
+      ..._state.candidates,
+      ..._state.extensionCandidates,
+    ]) {
+      final bytes = candidate.bytes;
+      if (bytes != null && bytes.isNotEmpty) photos[candidate.photoId] = bytes;
+    }
+    for (final entries in _remotePhotos.values) {
+      for (final photo in entries) {
+        final bytes = photo.bytes;
+        if (bytes != null && bytes.isNotEmpty) photos[photo.photoId] = bytes;
+      }
+    }
+    for (final entry in _assembledHostBytes.entries) {
+      final separator = entry.key.indexOf(':');
+      if (separator < 0 || entry.value.isEmpty) continue;
+      photos[entry.key.substring(separator + 1)] = entry.value;
+    }
+    for (final entry in _memePhotoBytes.entries) {
+      if (entry.value.isNotEmpty) photos[entry.key] = entry.value;
+    }
+    for (final entry in photos.entries) {
+      PhotoMemoryCache.instance.put(entry.key, entry.value);
+    }
+    final sends = <(String, String, Uint8List)>[];
+    for (final player in engine.players) {
+      if (!player.connected || player.id == 'host') continue;
+      final clientId = _clientIdFor(player.id);
+      if (!transport.clientIds.contains(clientId)) continue;
+      final own = <String>{
+        for (final photo
+            in _remotePhotos[player.id] ?? const <PhotoCandidate>[])
+          photo.photoId,
+      };
+      for (final entry in photos.entries) {
+        if (own.contains(entry.key)) continue;
+        sends.add((clientId, entry.key, entry.value));
+      }
+    }
+    if (sends.isEmpty) return;
+    var sent = 0;
+    _emit(_state.copyWith(vaultSyncReceived: 0, vaultSyncTotal: sends.length));
+    for (final send in sends) {
+      if (_disposed || _leaving) return;
+      await _sendPhotoChunks(send.$1, send.$2, send.$3);
+      sent++;
+      _emit(_state.copyWith(vaultSyncReceived: sent));
+    }
+    _emit(_state.copyWith(vaultSyncReceived: 0, vaultSyncTotal: 0));
+    await _hostTransport?.broadcast(
+      WireMessage(type: WireType.vaultPreloaded, seq: _nextSeq()),
+    );
+  }
+
+  void _startVaultWatchdog() {
+    _vaultWatchdog?.cancel();
+    _preparingSince = DateTime.now();
+    _emit(_state.copyWith(forceStartAvailable: false));
+    _vaultWatchdog = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+      final engine = _engine;
+      if (_disposed ||
+          _leaving ||
+          engine == null ||
+          engine.phase != RoundPhase.preparing ||
+          _state.phase != RoundPhase.preparing) {
+        timer.cancel();
+        return;
+      }
+      final connected = engine.players.where((p) => p.connected).toList();
+      final allReady = connected.isNotEmpty && connected.every((p) => p.ready);
+      final waited = DateTime.now().difference(_preparingSince!);
+      if ((allReady || waited >= vaultFallbackDelay) &&
+          !_state.forceStartAvailable &&
+          !_startingMatch) {
+        _emit(
+          _state.copyWith(forceStartAvailable: true, players: engine.players),
+        );
+      }
+      unawaited(_maybeStartMatch());
+    });
+  }
+
+  void _stopVaultWatchdog() {
+    _vaultWatchdog?.cancel();
+    _vaultWatchdog = null;
+    _preparingSince = null;
+  }
+
+  /// Host escape hatch for a lost READY packet. It marks every connected
+  /// player ready and starts with the photos already received.
+  Future<void> forceStartMatch() async {
+    final engine = _engine;
+    if (engine == null ||
+        !_state.isHosting ||
+        _startingMatch ||
+        engine.phase != RoundPhase.preparing) {
       return;
     }
-    _emit(
-      _state.copyWith(
-        phase: RoundPhase.countdown,
-        totalRounds: engine.totalRounds,
-      ),
-    );
-    await _enterRoundCountdown();
+    _startingMatch = true;
+    try {
+      _stopVaultWatchdog();
+      try {
+        engine.forceStartGame();
+      } on EngineException catch (error) {
+        _emit(
+          _state.copyWith(
+            errorMessage: _engineError(error),
+            forceStartAvailable: true,
+          ),
+        );
+        return;
+      }
+      _emit(
+        _state.copyWith(
+          phase: RoundPhase.countdown,
+          totalRounds: engine.totalRounds,
+          forceStartAvailable: false,
+        ),
+      );
+      await _enterRoundCountdown();
+    } finally {
+      _startingMatch = false;
+    }
   }
 
   /// Shows the between-round countdown, or starts the round at once when the
@@ -1889,6 +2137,7 @@ class MatchCoordinator {
   Future<void> _enterRoundCountdown() async {
     final engine = _engine;
     if (engine == null) return;
+    _stopVaultWatchdog();
     if (countdownDuration <= Duration.zero) {
       await _beginRound();
       return;
@@ -1899,12 +2148,16 @@ class MatchCoordinator {
     final total = engine.totalRounds;
     final ms = countdownDuration.inMilliseconds;
 
+    final nextMode = engine.deck.length > engine.currentRound
+        ? engine.deck[engine.currentRound].mode
+        : _state.activeMode;
     _emit(
       _state.copyWith(
         phase: RoundPhase.countdown,
         currentRound: nextRound,
         totalRounds: total,
         remainingMs: ms,
+        activeMode: nextMode,
         clearGuess: true,
         lockedGuessOwnerId: null,
       ),
@@ -1917,6 +2170,7 @@ class MatchCoordinator {
           'roundNumber': nextRound,
           'totalRounds': total,
           'durationMs': ms,
+          'mode': nextMode.name,
         },
       ),
     );
@@ -2120,7 +2374,8 @@ class MatchCoordinator {
   /// a short gap; the UI keeps showing the photo shimmer while it waits.
   void requestPhoto(String photoId) {
     if (_state.isHosting || photoId.isEmpty) return;
-    if (_clientRoundPhotos.containsKey(photoId) ||
+    if (PhotoMemoryCache.instance.hasPhoto(photoId) ||
+        _clientRoundPhotos.containsKey(photoId) ||
         _memePhotoBytes.containsKey(photoId)) {
       return;
     }
@@ -2205,7 +2460,7 @@ class MatchCoordinator {
         }
         return MemeCard(
           id: option.id,
-          photoBase64: photo == null ? '' : base64Encode(photo),
+          photoBase64: '',
           photoId: option.photoId,
           template: option.template,
           topText: option.topText,
@@ -2230,7 +2485,7 @@ class MatchCoordinator {
         }
         return MemeCard(
           id: entry.id,
-          photoBase64: photo == null ? '' : base64Encode(photo),
+          photoBase64: '',
           photoId: entry.photoId,
           template: entry.template,
           topText: entry.topText,
@@ -2260,7 +2515,7 @@ class MatchCoordinator {
         }
         return MemeCard(
           id: entry.id,
-          photoBase64: photo == null ? '' : base64Encode(photo),
+          photoBase64: '',
           photoId: entry.photoId,
           template: entry.template,
           topText: entry.topText,
@@ -2357,14 +2612,16 @@ class MatchCoordinator {
     }
     final payload = <String, dynamic>{
       'assignment': assignment.toJson(),
-      'photoBase64': bytes == null ? '' : base64Encode(bytes),
+      // The vault preload already put every photo in PhotoMemoryCache. Keep
+      // this payload light so state sync can never re-send binary data.
+      'photoBase64': '',
       'swapsLeft': engine.memeSwapsLeft(playerId),
     };
     if (playerId == 'host') {
       _emit(
         _state.copyWith(
           memeAssignment: assignment,
-          memePhotoBase64: bytes == null ? null : base64Encode(bytes),
+          memePhotoBase64: null,
           memeSwapsLeft: engine.memeSwapsLeft(playerId),
           memeSubmitted: engine.hasMeme(playerId),
           memeSubmissions: engine.memeCount,
@@ -2651,11 +2908,16 @@ class MatchCoordinator {
         remainingMs: 0,
       ),
     );
+    // Meme reveals wait for the host. Everyone gets time to laugh at the
+    // winning meme, and the host decides when the room moves on.
     _captionRevealTimer?.cancel();
-    _captionRevealTimer = Timer(
-      captionRevealDuration,
-      () => unawaited(_advanceAfterReveal()),
-    );
+  }
+
+  /// Host-only: move from the meme reveal to the next round or the podium.
+  Future<void> advanceMemeReveal() async {
+    if (!_state.isHosting || _state.phase != RoundPhase.captionReveal) return;
+    _captionRevealTimer?.cancel();
+    await _advanceAfterReveal();
   }
 
   Future<void> submitMeme({
@@ -3171,6 +3433,7 @@ class MatchCoordinator {
       _emit(_state.copyWith(errorMessage: _l10n.errorPhotoAccessHost));
       return;
     }
+    _vaultPreloaded = false;
     try {
       engine.startPrepare();
     } on EngineException catch (error) {
@@ -3183,9 +3446,13 @@ class MatchCoordinator {
         photosNeeded: engine.photosNeeded,
         plantEligible: engine.isPlanter('host'),
         loadingMessage: _l10n.loadingReadingPhotos,
+        forceStartAvailable: false,
         clearError: true,
       ),
     );
+    if (engine.players.any((p) => p.id != 'host')) {
+      _startVaultWatchdog();
+    }
     await _hostTransport?.broadcast(
       WireMessage(
         type: WireType.startPrepare,
@@ -3378,6 +3645,12 @@ class MatchCoordinator {
   Future<void> markLocalReady() async {
     final engine = _engine;
     if (engine == null) return;
+    for (final candidate in _state.candidates) {
+      final bytes = candidate.bytes;
+      if (bytes != null) {
+        PhotoMemoryCache.instance.put(candidate.photoId, bytes);
+      }
+    }
     try {
       engine.submitInitialPhotos('host', _state.candidates);
       engine.markReady('host');
@@ -4025,6 +4298,18 @@ class MatchCoordinator {
           );
         }
         _emit(_state.copyWith(localPlayerId: _currentPlayerId));
+        if (audioSync) {
+          final music = payload['music'];
+          if (music is Map<String, dynamic>) {
+            unawaited(
+              GameAudioService.instance.syncToTrack(
+                GameMusicTrack.fromJson(music),
+                offsetMs: _hostTimeOffsetMs,
+              ),
+            );
+          }
+          _startClockPing();
+        }
         _sendPartyPassClaim();
       case WireType.stateSync:
         _reconnectAck?.complete();
@@ -4389,17 +4674,44 @@ class MatchCoordinator {
           );
         }
       case WireType.roundCountdown:
+        final countdownMode = GameMode.values.firstWhere(
+          (value) => value.name == payload['mode'],
+          orElse: () => _state.activeMode,
+        );
         _emit(
           _state.copyWith(
             phase: RoundPhase.countdown,
             currentRound: payload['roundNumber'] as int? ?? 0,
             totalRounds: payload['totalRounds'] as int? ?? _state.totalRounds,
             remainingMs: payload['durationMs'] as int? ?? 0,
+            activeMode: countdownMode,
             clearGuess: true,
             lockedGuessOwnerId: null,
           ),
         );
         _startClientPhaseTicker(payload['durationMs'] as int? ?? 0);
+      case WireType.pong:
+        if (audioSync) _applyPong(payload);
+      case WireType.musicSync:
+        if (audioSync) {
+          final track = GameMusicTrack.fromJson(payload);
+          unawaited(
+            GameAudioService.instance.syncToTrack(
+              track,
+              offsetMs: _hostTimeOffsetMs,
+            ),
+          );
+        }
+      case WireType.vaultPreloaded:
+        // Every vault photo is now in PhotoMemoryCache. Rebuild once so the
+        // prepare screen can decode the photos before the first round.
+        _emit(
+          _state.copyWith(
+            candidates: List<PhotoCandidate>.of(_state.candidates),
+            vaultSyncReceived: 0,
+            vaultSyncTotal: 0,
+          ),
+        );
       case WireType.roundShow:
         final options = <Player>[
           for (final entry
@@ -4417,6 +4729,8 @@ class MatchCoordinator {
           GameMode.makeItMeme => RoundPhase.captionWriting,
           GameMode.timeTraveler => RoundPhase.timelineGuessing,
         };
+        _clientReadyRetry?.cancel();
+        _clientReadyRetry = null;
         _roundStartMs = DateTime.now().millisecondsSinceEpoch;
         _emit(
           _state.copyWith(
@@ -4525,7 +4839,8 @@ class MatchCoordinator {
               clearError: true,
             ),
           );
-          if (encoded == null || encoded.isEmpty) {
+          if ((encoded == null || encoded.isEmpty) &&
+              !PhotoMemoryCache.instance.hasPhoto(assignment.photoId)) {
             requestPhoto(assignment.photoId);
           }
         }
@@ -4813,6 +5128,7 @@ class MatchCoordinator {
     for (final candidate in _state.candidates) {
       final bytes = candidate.bytes;
       if (bytes == null) continue;
+      PhotoMemoryCache.instance.put(candidate.photoId, bytes);
       final payload = transport.usesRelay
           ? await _compressPhoto(
               bytes,
@@ -4834,6 +5150,40 @@ class MatchCoordinator {
     await transport.send(
       WireMessage(type: WireType.playerReady, seq: _nextSeq()),
     );
+    _startClientReadyRetry();
+  }
+
+  void _startClientReadyRetry() {
+    _clientReadyRetry?.cancel();
+    _clientReadyRetry = Timer.periodic(const Duration(milliseconds: 1500), (
+      timer,
+    ) async {
+      if (_disposed ||
+          _leaving ||
+          _state.phase != RoundPhase.preparing ||
+          _state.roomId == null ||
+          _clientTransport == null) {
+        timer.cancel();
+        _clientReadyRetry = null;
+        return;
+      }
+      try {
+        await _clientTransport!.send(
+          WireMessage(
+            type: WireType.submitPhotoMeta,
+            seq: _nextSeq(),
+            payload: <String, dynamic>{
+              'photos': _state.candidates.map((c) => c.toJson()).toList(),
+            },
+          ),
+        );
+        await _clientTransport!.send(
+          WireMessage(type: WireType.playerReady, seq: _nextSeq()),
+        );
+      } on Object {
+        // A retry is best-effort; the host watchdog covers the ACK.
+      }
+    });
   }
 
   Future<void> clientPlantPhoto(int index) async {
@@ -5100,6 +5450,15 @@ class MatchCoordinator {
   Future<void> leaveMatch() async {
     if (_leaving) return;
     _leaving = true;
+    _vaultWatchdog?.cancel();
+    _vaultWatchdog = null;
+    _clientReadyRetry?.cancel();
+    _clientReadyRetry = null;
+    _clockPingTimer?.cancel();
+    _clockPingTimer = null;
+    if (audioSync) {
+      GameAudioService.instance.onHostTrackStarted = null;
+    }
     if (_state.isHosting && _hostTransport != null) {
       try {
         await _hostTransport?.broadcast(
@@ -5120,6 +5479,13 @@ class MatchCoordinator {
     _timers.clear();
     _roundTimer?.cancel();
     _countdownTicker?.cancel();
+    _vaultWatchdog?.cancel();
+    _vaultWatchdog = null;
+    _vaultPreloaded = false;
+    _clientReadyRetry?.cancel();
+    _clientReadyRetry = null;
+    _clockPingTimer?.cancel();
+    _clockPingTimer = null;
     _clientPhaseTicker?.cancel();
     _extendTicker?.cancel();
     _captionRevealTimer?.cancel();
@@ -5171,8 +5537,11 @@ class MatchCoordinator {
   }
 
   Future<void> dispose() async {
-    await leaveMatch();
     _disposed = true;
+    _vaultWatchdog?.cancel();
+    _clientReadyRetry?.cancel();
+    _clockPingTimer?.cancel();
+    await leaveMatch();
     await _states.close();
   }
 }

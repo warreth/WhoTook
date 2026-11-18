@@ -154,11 +154,12 @@ void main() {
 
     expect(find.byType(PrepareScreen), findsOneWidget);
     expect(find.text('Check your photos'), findsOneWidget);
-    expect(coordinator.state.candidates, hasLength(11));
-    expect(find.byType(NumberTag), findsNWidgets(11));
+    final expectedPhotos = coordinator.state.photosNeeded;
+    expect(coordinator.state.candidates, hasLength(expectedPhotos));
+    expect(find.byType(NumberTag), findsNWidgets(expectedPhotos));
     expect(
       find.text(
-        'All 11 photos for this match are here. Reroll all for a different set.',
+        'All $expectedPhotos photos for this match are here. Reroll all for a different set.',
       ),
       findsOneWidget,
     );

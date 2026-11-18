@@ -49,7 +49,9 @@ class PodiumScreen extends ConsumerWidget {
               Expanded(
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 720),
+                    constraints: BoxConstraints(
+                      maxWidth: layout.isTablet ? 560 : 720,
+                    ),
                     child: ListView(
                       padding: EdgeInsets.fromLTRB(
                         layout.pagePadding,

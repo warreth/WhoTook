@@ -40,6 +40,7 @@ class RoundScreen extends ConsumerWidget {
         mode: state.activeMode,
         child: SafeArea(
           child: ScreenBody(
+            maxWidth: layout.isTablet ? 560 : 720,
             child: Padding(
               padding: EdgeInsets.fromLTRB(
                 layout.pagePadding,

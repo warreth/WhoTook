@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/media/photo_service.dart';
 import '../../core/models/models.dart';
 import '../../core/theme/game_skin.dart';
+import '../../core/theme/responsive_game_layout.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../l10n/l10n.dart';
 import '../../state/match_coordinator.dart';
@@ -15,6 +16,7 @@ import '../widgets/common.dart';
 import '../widgets/game_background.dart';
 import '../widgets/game_widgets.dart';
 import '../widgets/host_controls.dart';
+import '../widgets/photo_precache.dart';
 import 'settings_screen.dart';
 
 /// Contact sheet: every player approves their own photos and can reroll as
@@ -28,53 +30,75 @@ class PrepareScreen extends ConsumerWidget {
     final coordinator = ref.read(matchCoordinatorProvider);
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
     final isHost = state.isHosting;
+    final layout = ResponsiveGameLayout.of(context);
     final l10n = context.l10n;
+    final skin = GameModeSkin.forMode(state.config.mode);
+    final barColor = Theme.of(context).brightness == Brightness.dark
+        ? Color.alphaBlend(Colors.black.withValues(alpha: 0.42), skin.deep)
+        : skin.base;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.fromLTRB(
-          AppSpacing.s20,
-          AppSpacing.s8,
-          AppSpacing.s20,
-          AppSpacing.s16,
-        ),
-        child: Row(
-          children: <Widget>[
-            Expanded(
-              child: GameButton(
-                label: state.config.mode == GameMode.makeItMeme
-                    ? l10n.memeVaultReroll
-                    : l10n.rerollAll,
-                icon: Icons.refresh,
-                variant: GameButtonVariant.secondary,
-                onPressed: () => unawaited(
-                  isHost
-                      ? coordinator.rerollCandidates()
-                      : coordinator.clientRerollAll(),
+      bottomNavigationBar: ColoredBox(
+        color: barColor,
+        child: SafeArea(
+          minimum: const EdgeInsets.fromLTRB(
+            AppSpacing.s20,
+            AppSpacing.s8,
+            AppSpacing.s20,
+            AppSpacing.s16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              if (isHost && state.forceStartAvailable) ...<Widget>[
+                GameButton(
+                  label: l10n.forceStartMatch,
+                  icon: Icons.arrow_forward_rounded,
+                  fullWidth: true,
+                  onPressed: () => unawaited(coordinator.forceStartMatch()),
                 ),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.s12),
-            Expanded(
-              child: GameButton(
-                label: state.localReady
-                    ? (state.isHosting
-                          ? l10n.waitingForPlayersButton
-                          : l10n.ready)
-                    : state.config.mode == GameMode.makeItMeme
-                    ? l10n.memeVaultReady
-                    : l10n.ready,
-                onPressed: state.localReady || state.candidates.isEmpty
-                    ? null
-                    : () => unawaited(
+                const SizedBox(height: AppSpacing.s8),
+              ],
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: GameButton(
+                      label: state.config.mode == GameMode.makeItMeme
+                          ? l10n.memeVaultReroll
+                          : l10n.rerollAll,
+                      icon: Icons.refresh,
+                      variant: GameButtonVariant.secondary,
+                      onPressed: () => unawaited(
                         isHost
-                            ? coordinator.markLocalReady()
-                            : coordinator.clientMarkReady(),
+                            ? coordinator.rerollCandidates()
+                            : coordinator.clientRerollAll(),
                       ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.s12),
+                  Expanded(
+                    child: GameButton(
+                      label: state.localReady
+                          ? (state.isHosting
+                                ? l10n.waitingForPlayersButton
+                                : l10n.ready)
+                          : state.config.mode == GameMode.makeItMeme
+                          ? l10n.memeVaultReady
+                          : l10n.ready,
+                      onPressed: state.localReady || state.candidates.isEmpty
+                          ? null
+                          : () => unawaited(
+                              isHost
+                                  ? coordinator.markLocalReady()
+                                  : coordinator.clientMarkReady(),
+                            ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
       body: GameBackdrop(
@@ -82,7 +106,9 @@ class PrepareScreen extends ConsumerWidget {
         child: SafeArea(
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 840),
+              constraints: BoxConstraints(
+                maxWidth: layout.isTablet ? 560 : 840,
+              ),
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.s20,
@@ -127,6 +153,23 @@ class PrepareScreen extends ConsumerWidget {
                       height: 1.4,
                     ),
                   ),
+                  PhotoPrecache(
+                    photoIds: <String>[
+                      for (final candidate in state.candidates)
+                        candidate.photoId,
+                    ],
+                    includeCached: true,
+                  ),
+                  if (state.vaultSyncTotal > 0) ...<Widget>[
+                    const SizedBox(height: AppSpacing.s12),
+                    NoticeBanner(
+                      message: l10n.syncingVaultsProgress(
+                        state.vaultSyncReceived,
+                        state.vaultSyncTotal,
+                      ),
+                      icon: Icons.cloud_sync_outlined,
+                    ),
+                  ],
                   const SizedBox(height: AppSpacing.s16),
                   if (state.candidates.isNotEmpty &&
                       state.photosNeeded > 0 &&

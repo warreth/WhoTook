@@ -50,6 +50,20 @@ class PhotoMemoryCache {
     }
   }
 
+  Iterable<String> get photoIds => _providers.keys;
+
+  /// Warms Flutter's decoded-image cache while the vault is still on screen.
+  /// The same providers are reused by every later round and reveal.
+  Future<void> precacheAll(BuildContext context) async {
+    for (final provider in List<MemoryImage>.of(_providers.values)) {
+      try {
+        await precacheImage(provider, context);
+      } on Object {
+        // One bad photo must not stop the rest of the vault.
+      }
+    }
+  }
+
   void clear() {
     _bytes.clear();
     _providers.clear();

@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 import 'package:audioplayers/audioplayers.dart';
 
 import '../party_pass/sound_effect.dart';
+import 'audio_contexts.dart';
 
 /// Buyer-only soundboard playback. Like [GameAudioService], every call is
 /// fire-and-forget and a missing audio plugin never breaks a match.
@@ -11,6 +12,7 @@ class SoundboardService {
 
   static final SoundboardService instance = SoundboardService._();
   final Map<PartySound, AudioPlayer> _players = <PartySound, AudioPlayer>{};
+  final Set<PartySound> _configured = <PartySound>{};
   bool enabled = true;
 
   static final bool _isTest = Platform.environment.containsKey('FLUTTER_TEST');
@@ -22,6 +24,10 @@ class SoundboardService {
         sound,
         () => AudioPlayer(playerId: 'whotook-${sound.wireId}'),
       );
+      if (_configured.add(sound)) {
+        await player.setAudioContext(gameSfxContext());
+        await player.setPlayerMode(PlayerMode.lowLatency);
+      }
       await player.stop();
       await player.play(AssetSource('audio/${sound.asset}.wav'));
     } on Object {

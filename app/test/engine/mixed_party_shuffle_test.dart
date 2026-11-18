@@ -37,6 +37,17 @@ void main() {
     }
   });
 
+  test('remainders go to Classic first', () {
+    final ten = balancedMixedPartyModes(10, Random(3));
+    expect(ten.where((mode) => mode == GameMode.classic), hasLength(4));
+    expect(ten.where((mode) => mode == GameMode.makeItMeme), hasLength(3));
+    expect(ten.where((mode) => mode == GameMode.timeTraveler), hasLength(3));
+    final eleven = balancedMixedPartyModes(11, Random(4));
+    expect(eleven.where((mode) => mode == GameMode.classic), hasLength(4));
+    expect(eleven.where((mode) => mode == GameMode.makeItMeme), hasLength(4));
+    expect(eleven.where((mode) => mode == GameMode.timeTraveler), hasLength(3));
+  });
+
   test('short queues use distinct modes when possible', () {
     expect(balancedMixedPartyModes(1, Random(1)), hasLength(1));
     final two = balancedMixedPartyModes(2, Random(2));

@@ -459,6 +459,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get waitingForPlayersButton => 'Waiting for players';
 
   @override
+  String get forceStartMatch => 'Force start match';
+
+  @override
   String get checkYourPhotos => 'Check your photos';
 
   @override
@@ -853,35 +856,72 @@ class AppLocalizationsEn extends AppLocalizations {
   String get approve => 'Approve';
 
   @override
-  String get reviewDemo => 'Review demo';
+  String get reviewDemo => 'Game demo';
 
   @override
   String get closeDemo => 'Close demo';
 
   @override
-  String get demoFake =>
-      'Demo with fake players. No network and no real photos.';
+  String get tryDemo => 'Try the demo';
 
   @override
-  String get allDemoPhotos =>
-      'All 4 demo photos are here. Reroll all for a different set.';
+  String get tryDemoBody =>
+      'Play the real game with three bots and twelve bundled photos.';
 
   @override
-  String get startDemoRound => 'Start demo round';
+  String get demoIntroTitle => 'A real game, without the setup';
 
   @override
-  String get timerRanOut => 'The timer ran out.';
+  String get demoIntroBody =>
+      'This demo runs the same host, rules and screens as a live room. Three bots join with twelve bundled photos. Your gallery, camera and network are not used.';
 
   @override
-  String youGuessed(String name) {
-    return 'You guessed $name. Next time.';
-  }
+  String get demoIntroNotice =>
+      'Everything here is simulated. Nothing leaves this phone.';
 
   @override
-  String get seePodium => 'See the podium';
+  String get demoLineup => 'Your table';
 
   @override
-  String get restartDemo => 'Restart demo';
+  String get demoBotRoles =>
+      'You are the host. Lotte, Sam and Noor answer automatically, but you still get to play every round.';
+
+  @override
+  String get demoTryModes =>
+      'Change the mode in the lobby to try Classic, Make It Meme, Time Traveler or Mixed Party.';
+
+  @override
+  String get startDemo => 'Start demo';
+
+  @override
+  String get demoLobbyTitle => 'Your demo table';
+
+  @override
+  String get demoLobbyBody =>
+      'Three bots are ready. Start the photo check when you want to play.';
+
+  @override
+  String get demoPreparing => 'Setting up the demo table';
+
+  @override
+  String get demoFailed => 'The demo could not start. Close it and try again.';
+
+  @override
+  String get endDemoTitle => 'End demo?';
+
+  @override
+  String get endDemoBody =>
+      'The bots and this room will be removed. Your real rooms are not affected.';
+
+  @override
+  String get endDemo => 'End demo';
+
+  @override
+  String get demoEndedTitle => 'Demo ended';
+
+  @override
+  String get demoEndedBody =>
+      'You can close this screen and start a real room, or play the demo again.';
 
   @override
   String get placeFirst => '1st';
@@ -1349,14 +1389,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get paceSlowMeme => 'No rush, make it good.';
 
   @override
-  String get memeVaultTitle => 'Your six photos.';
+  String get memeVaultTitle => 'Your photos.';
 
   @override
   String get memeVaultBody =>
       'Reroll the whole set if something should not be in the game.';
 
   @override
-  String get memeVaultOnly => 'Only these six photos enter the game.';
+  String get memeVaultOnly => 'Only these photos enter the game.';
 
   @override
   String get memeVaultReady => 'Ready';
@@ -1576,6 +1616,26 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String memeVoteTally(int up, int meh, int down) {
     return '$up up · $meh meh · $down down';
+  }
+
+  @override
+  String roundReadyPrompt(int round) {
+    return 'Round $round: get ready!';
+  }
+
+  @override
+  String roundEyesPrompt(int round) {
+    return 'Round $round: eyes on the screen!';
+  }
+
+  @override
+  String roundGuessPrompt(int round) {
+    return 'Round $round: guess the photo!';
+  }
+
+  @override
+  String roundWhoPrompt(int round) {
+    return 'Round $round: whose camera roll?';
   }
 
   @override

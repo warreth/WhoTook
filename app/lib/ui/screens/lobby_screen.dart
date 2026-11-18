@@ -35,6 +35,7 @@ class LobbyScreen extends ConsumerWidget {
     final isHost = state.isHosting;
     final layout = ResponsiveGameLayout.of(context);
     final l10n = context.l10n;
+    final demo = ref.watch(demoModeProvider);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -51,7 +52,9 @@ class LobbyScreen extends ConsumerWidget {
                 children: <Widget>[
                   Flexible(
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 720),
+                      constraints: BoxConstraints(
+                        maxWidth: layout.isTablet ? 560 : 720,
+                      ),
                       child: SizedBox(
                         width: double.infinity,
                         child: GameButton(
@@ -78,8 +81,10 @@ class LobbyScreen extends ConsumerWidget {
         actions: <Widget>[
           const AudioToggleButtons(),
           IconButton(
-            tooltip: l10n.leaveMatch,
-            onPressed: () => unawaited(coordinator.leaveMatch()),
+            tooltip: demo ? l10n.closeDemo : l10n.leaveMatch,
+            onPressed: demo
+                ? () => Navigator.of(context).maybePop()
+                : () => unawaited(coordinator.leaveMatch()),
             icon: const Icon(Icons.close),
           ),
         ],
@@ -100,7 +105,31 @@ class LobbyScreen extends ConsumerWidget {
                   112,
                 ),
                 children: <Widget>[
-                  if (isHost && state.inviteUrl != null) ...<Widget>[
+                  if (demo) ...<Widget>[
+                    Text(
+                      l10n.demoLobbyTitle,
+                      style: gameDisplay(
+                        size: layout.isCompactHeight ? 28 : 34,
+                        height: 1.02,
+                        color: colors.ink,
+                        letterSpacing: -1,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.s4),
+                    Text(
+                      l10n.demoLobbyBody,
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.4,
+                        color: colors.ink2,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.s12),
+                    NoticeBanner(
+                      message: l10n.demoIntroNotice,
+                      icon: Icons.smart_toy_outlined,
+                    ),
+                  ] else if (isHost && state.inviteUrl != null) ...<Widget>[
                     Text(
                       l10n.scanToJoin,
                       style: gameDisplay(
@@ -119,8 +148,13 @@ class LobbyScreen extends ConsumerWidget {
                         color: colors.ink2,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.s16),
+                    SizedBox(
+                      height: layout.isCompactHeight ? 8 : AppSpacing.s16,
+                    ),
                     SurfaceCard(
+                      padding: EdgeInsets.all(
+                        layout.isCompactHeight ? 10 : AppSpacing.s16,
+                      ),
                       child: Column(
                         children: <Widget>[
                           Row(
@@ -160,7 +194,9 @@ class LobbyScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: AppSpacing.s16),
                           Container(
-                            padding: const EdgeInsets.all(AppSpacing.s12),
+                            padding: EdgeInsets.all(
+                              layout.isCompactHeight ? 8 : AppSpacing.s12,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(AppRadii.rSm),
@@ -168,7 +204,7 @@ class LobbyScreen extends ConsumerWidget {
                             child: QrImageView(
                               data: state.inviteUrl!,
                               version: QrVersions.auto,
-                              size: 160,
+                              size: layout.qrSize,
                               backgroundColor: Colors.white,
                               eyeStyle: const QrEyeStyle(
                                 eyeShape: QrEyeShape.square,
@@ -228,9 +264,11 @@ class LobbyScreen extends ConsumerWidget {
                         ? () => unawaited(_openSetupEditor(context))
                         : null,
                   ),
-                  const SizedBox(height: AppSpacing.s12),
-                  const PartyPassLobbyBar(),
-                  const SizedBox(height: AppSpacing.s12),
+                  if (!demo) ...<Widget>[
+                    const SizedBox(height: AppSpacing.s12),
+                    const PartyPassLobbyBar(),
+                  ],
+                  SizedBox(height: layout.isCompactHeight ? 8 : AppSpacing.s12),
                   SurfaceCard(
                     padding: const EdgeInsets.fromLTRB(
                       AppSpacing.s16,
@@ -262,8 +300,10 @@ class LobbyScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.s16),
-                  _LobbyAvatarCard(state: state),
-                  const SizedBox(height: AppSpacing.s16),
+                  if (!demo) ...<Widget>[
+                    _LobbyAvatarCard(state: state),
+                    const SizedBox(height: AppSpacing.s16),
+                  ],
                   SurfaceCard(
                     padding: EdgeInsets.zero,
                     child: Column(

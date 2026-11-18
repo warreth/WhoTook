@@ -483,10 +483,10 @@ class _PanicTimerBarState extends State<PanicTimerBar> {
     final panic = danger && widget.remainingMs > 0;
     if (panic && !_ducking) {
       _ducking = true;
-      unawaited(GameAudioService.instance.setDucking(true));
+      unawaited(GameAudioService.instance.setPanic(true));
     } else if (!panic && _ducking) {
       _ducking = false;
-      unawaited(GameAudioService.instance.setDucking(false));
+      unawaited(GameAudioService.instance.setPanic(false));
     }
     if (panic) {
       _up = !_up;
@@ -503,7 +503,7 @@ class _PanicTimerBarState extends State<PanicTimerBar> {
 
   @override
   void dispose() {
-    if (_ducking) unawaited(GameAudioService.instance.setDucking(false));
+    if (_ducking) unawaited(GameAudioService.instance.setPanic(false));
     super.dispose();
   }
 
