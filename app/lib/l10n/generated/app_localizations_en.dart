@@ -1102,6 +1102,39 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get reportIssue => 'Report this issue';
+
+  @override
+  String reportIssueBody(String email) {
+    return 'Send diagnostics and recent errors to $email';
+  }
+
+  @override
+  String get reportBodyIntro =>
+      'What went wrong? (Type your explanation above)';
+
+  @override
+  String get reportDiagnostics => 'Diagnostics (do not remove)';
+
+  @override
+  String get reportRecentLogs => 'Recent logs';
+
+  @override
+  String reportNoMailApp(String email) {
+    return 'No mail app found. The report was copied to the clipboard. Mail it to $email.';
+  }
+
+  @override
+  String get reportCopyFailed =>
+      'Could not open a mail app or copy the report.';
+
+  @override
+  String get demoTakingLong => 'This is taking longer than expected.';
+
+  @override
+  String get demoRetry => 'Try again';
+
+  @override
   String get termsAndRules => 'Terms and community rules';
 
   @override

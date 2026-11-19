@@ -7,14 +7,22 @@ import 'app.dart';
 import 'core/app_info.dart';
 import 'core/audio/game_audio_service.dart';
 import 'core/constants.dart';
+import 'core/diagnostics/bug_report_service.dart';
 import 'core/distribution.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  BugReportService.instance.installErrorHooks();
   await detectAppDistribution();
   await initializeDateFormatting('en');
   await initializeDateFormatting('nl');
-  await GameAudioService.instance.initialize();
+  try {
+    await GameAudioService.instance.initialize().timeout(
+      const Duration(seconds: 4),
+    );
+  } on Object {
+    // Audio setup is optional; the demo and match must still open.
+  }
   var info = const AppInfo(version: kAppVersion, build: kAppBuildNumber);
   try {
     final package = await PackageInfo.fromPlatform();
@@ -26,6 +34,7 @@ Future<void> main() async {
     // A missing platform channel must not stop the app; the release constants
     // remain as the fallback.
   }
+  BugReportService.instance.configure(version: info.version, build: info.build);
   runApp(
     ProviderScope(
       overrides: [appInfoProvider.overrideWithValue(info)],

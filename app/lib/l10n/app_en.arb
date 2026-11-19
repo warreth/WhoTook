@@ -632,6 +632,29 @@
       }
     }
   },
+  "reportIssue": "Report this issue",
+  "reportIssueBody": "Send diagnostics and recent errors to {email}",
+  "@reportIssueBody": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "reportBodyIntro": "What went wrong? (Type your explanation above)",
+  "reportDiagnostics": "Diagnostics (do not remove)",
+  "reportRecentLogs": "Recent logs",
+  "reportNoMailApp": "No mail app found. The report was copied to the clipboard. Mail it to {email}.",
+  "@reportNoMailApp": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "reportCopyFailed": "Could not open a mail app or copy the report.",
+  "demoTakingLong": "This is taking longer than expected.",
+  "demoRetry": "Try again",
   "termsAndRules": "Terms and community rules",
   "openSource": "Open source under the AGPLv3. Photos stay on your phone.",
   "trademark": "WhoTook™ is a trademark of the project owner.",

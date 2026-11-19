@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/audio/game_audio_service.dart';
+import '../core/diagnostics/bug_report_service.dart';
 import '../core/audio/soundboard_service.dart';
 import '../core/models/models.dart';
 import '../core/party_pass/party_pass_controller.dart';
@@ -24,6 +25,7 @@ import 'screens/timeline_screen.dart';
 import 'widgets/firewall_prompt.dart';
 import 'widgets/screenshot_alert_toast.dart';
 import 'widgets/soundboard_overlay.dart';
+import 'widgets/report_issue_button.dart';
 import 'widgets/version_warning_card.dart';
 
 /// Switches between the lobby, preparation, rounds and podium from the single
@@ -83,6 +85,15 @@ class _MatchRootState extends ConsumerState<MatchRoot> {
   Widget build(BuildContext context) {
     final coordinator = ref.read(matchCoordinatorProvider);
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
+    BugReportService.instance
+      ..updateGame(
+        mode: _diagnosticMode(state.config.mode),
+        role: state.isHosting ? 'Host' : 'Guest',
+        phase: _diagnosticPhase(state.phase),
+        connection: _diagnosticConnection(state.connectionMode, widget.demo),
+        demo: widget.demo,
+      )
+      ..updateScreen(MediaQuery.sizeOf(context));
     final settings = ref.watch(appSettingsProvider).value;
     if (settings != null) {
       coordinator.updateSettings(settings);
@@ -242,6 +253,40 @@ class _MatchRootState extends ConsumerState<MatchRoot> {
       await coordinator.leaveMatch();
     }
   }
+}
+
+String _diagnosticMode(GameMode mode) => switch (mode) {
+  GameMode.classic => 'Classic',
+  GameMode.captionThis => 'Caption This',
+  GameMode.makeItMeme => 'Make It Meme',
+  GameMode.timeTraveler => 'Time Traveler',
+  GameMode.mixedParty => 'Mixed Party',
+};
+
+String _diagnosticPhase(RoundPhase phase) => switch (phase) {
+  RoundPhase.lobby => 'Lobby',
+  RoundPhase.preparing => 'Vault',
+  RoundPhase.countdown => 'Countdown',
+  RoundPhase.guessing => 'Round',
+  RoundPhase.reveal => 'Reveal',
+  RoundPhase.captionWriting => 'Caption writing',
+  RoundPhase.captionVoting => 'Caption voting',
+  RoundPhase.captionReveal => 'Caption reveal',
+  RoundPhase.timelineGuessing => 'Time Traveler',
+  RoundPhase.timelineReveal => 'Timeline reveal',
+  RoundPhase.extendPrompt => 'Extra photos',
+  RoundPhase.podium => 'Podium',
+};
+
+String _diagnosticConnection(ConnectionMode? mode, bool demo) {
+  if (demo) return 'Demo';
+  return switch (mode) {
+    ConnectionMode.localLan => 'Local Wi-Fi',
+    ConnectionMode.webrtcP2p => 'Direct P2P',
+    ConnectionMode.webrtcTurn => 'TURN',
+    ConnectionMode.offlineLoopback => 'Offline',
+    null => '-',
+  };
 }
 
 class _DemoEndedScreen extends StatelessWidget {
@@ -457,13 +502,20 @@ class _ReconnectOverlay extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.s20),
-                  TextButton(
-                    onPressed: onLeave,
-                    style: TextButton.styleFrom(
-                      foregroundColor: colors.ink2,
-                      minimumSize: const Size(0, 44),
-                    ),
-                    child: Text(l10n.leaveRoom),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: AppSpacing.s8,
+                    children: <Widget>[
+                      TextButton(
+                        onPressed: onLeave,
+                        style: TextButton.styleFrom(
+                          foregroundColor: colors.ink2,
+                          minimumSize: const Size(0, 44),
+                        ),
+                        child: Text(l10n.leaveRoom),
+                      ),
+                      const ReportIssueButton(screenLabel: 'Reconnect'),
+                    ],
                   ),
                 ],
               ),

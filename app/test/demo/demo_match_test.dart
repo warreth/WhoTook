@@ -40,6 +40,11 @@ void main() {
 
       await controller.start();
       expect(controller.host.platformServices, isFalse);
+      expect(
+        controller.botsForTesting.every((bot) => !bot.platformServices),
+        isTrue,
+        reason: 'demo bots must not touch screenshot or wake-lock channels',
+      );
       expect(controller.host.state.isHosting, isTrue);
       expect(controller.host.state.roomId, isNotNull);
       expect(controller.host.state.players, hasLength(4));

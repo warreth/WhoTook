@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:ui' show Locale;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/constants.dart';
+import '../core/diagnostics/bug_report_service.dart';
 import '../core/models/models.dart';
 import '../core/party_pass/party_pass_controller.dart';
 import '../core/storage/last_room_repository.dart';
@@ -58,64 +60,97 @@ class DemoMatchController {
   Future<void> start() async {
     if (_started) return;
     _started = true;
-    _hub = LoopbackHub();
-    hostPhotos = DemoPhotoLibrary();
-    settings = baseSettings.copyWith(
-      nickname: baseSettings.nickname.trim().isEmpty
-          ? 'Jij'
-          : baseSettings.nickname.trim(),
-      avatar: 'rocket',
-      clearAvatarPhoto: true,
-      onboardingCompleted: true,
-    );
-    host = MatchCoordinator(
-      photos: hostPhotos,
-      settings: SettingsRepository(),
-      lastRooms: _roomsFor('host'),
-      hostTransportFactory: (room, secret, lan) => LoopbackHostTransport(_hub),
-      includeOnlineTransport: false,
-      platformServices: false,
-      random: Random(7),
-      appVersion: kAppVersion,
-      appBuild: kAppBuildNumber,
-      countdownDuration: countdownDuration,
-      revealDuration: revealDuration,
-      captionRevealDuration: captionRevealDuration,
-      timelineRevealDuration: revealDuration,
-      roundDuration: roundDuration,
-    );
-    host.updateSettings(settings);
-    host.updateLocale(locale);
-    await host.hostMatch(config: config);
-    if (_disposed) return;
-    if (host.state.roomId == null || host.state.inviteUrl == null) {
-      throw StateError('demo room did not open');
-    }
-
-    const names = <String>['Lotte', 'Sam', 'Noor'];
-    const avatars = <String>['star', 'music', 'plant'];
-    for (var i = 0; i < names.length; i++) {
-      final bot = _DemoBot(
-        index: i + 1,
-        name: names[i],
-        avatar: avatars[i],
-        hub: _hub,
-        rooms: _roomsFor('bot-$i'),
-        locale: locale,
-        countdownDuration: countdownDuration,
+    BugReportService.instance.record('DEMO', 'Starting demo setup');
+    try {
+      _hub = LoopbackHub();
+      hostPhotos = DemoPhotoLibrary();
+      settings = baseSettings.copyWith(
+        nickname: baseSettings.nickname.trim().isEmpty
+            ? 'Jij'
+            : baseSettings.nickname.trim(),
+        avatar: 'rocket',
+        clearAvatarPhoto: true,
+        onboardingCompleted: true,
       );
-      _bots.add(bot);
-      await bot.start();
+      host = MatchCoordinator(
+        photos: hostPhotos,
+        settings: SettingsRepository(),
+        lastRooms: _roomsFor('host'),
+        hostTransportFactory: (room, secret, lan) => LoopbackHostTransport(_hub),
+        includeOnlineTransport: false,
+        platformServices: false,
+        random: Random(7),
+        appVersion: kAppVersion,
+        appBuild: kAppBuildNumber,
+        countdownDuration: countdownDuration,
+        revealDuration: revealDuration,
+        captionRevealDuration: captionRevealDuration,
+        timelineRevealDuration: revealDuration,
+        roundDuration: roundDuration,
+      );
+      host.updateSettings(settings);
+      host.updateLocale(locale);
+      await _guard('STEP_1 host', () => host.hostMatch(config: config));
       if (_disposed) return;
-      await bot.join(host.state.inviteUrl!);
+      if (host.state.roomId == null || host.state.inviteUrl == null) {
+        throw StateError('demo room did not open');
+      }
+
+      const names = <String>['Lotte', 'Sam', 'Noor'];
+      const avatars = <String>['star', 'music', 'plant'];
+      for (var i = 0; i < names.length; i++) {
+        final bot = _DemoBot(
+          index: i + 1,
+          name: names[i],
+          avatar: avatars[i],
+          hub: _hub,
+          rooms: _roomsFor('bot-$i'),
+          locale: locale,
+          countdownDuration: countdownDuration,
+        );
+        _bots.add(bot);
+        await _guard('STEP_2 bot ${i + 1} start', bot.start);
+        if (_disposed) return;
+        await _guard('STEP_3 bot ${i + 1} join', () => bot.join(host.state.inviteUrl!));
+        if (_disposed) return;
+      }
+      await _guard(
+        'STEP_4 ready',
+        () => _waitFor(() => _disposed || host.state.players.length >= 4),
+      );
       if (_disposed) return;
+      _driver = Timer.periodic(
+        const Duration(milliseconds: 300),
+        (_) => _driveBots(),
+      );
+      BugReportService.instance.record('DEMO', 'Demo setup ready');
+    } catch (error, stack) {
+      _started = false;
+      BugReportService.instance.recordError('DEMO', error, stack);
+      rethrow;
     }
-    await _waitFor(() => _disposed || host.state.players.length >= 4);
-    if (_disposed) return;
-    _driver = Timer.periodic(
-      const Duration(milliseconds: 300),
-      (_) => _driveBots(),
-    );
+  }
+
+  Future<T> _guard<T>(String step, Future<T> Function() action) async {
+    final watch = Stopwatch()..start();
+    final parts = step.split(' ');
+    final tag = 'DEMO_${parts.first}';
+    final label = parts.skip(1).join(' ');
+    BugReportService.instance.record(tag, '$label start');
+    try {
+      final result = await action().timeout(
+        const Duration(seconds: 4),
+        onTimeout: () => throw TimeoutException('$step timed out'),
+      );
+      BugReportService.instance.record(
+        tag,
+        '$label ok ${watch.elapsedMilliseconds}ms',
+      );
+      return result;
+    } catch (error, stack) {
+      BugReportService.instance.recordError(tag, error, stack);
+      rethrow;
+    }
   }
 
   LastRoomRepository _roomsFor(String id) {
@@ -126,7 +161,7 @@ class DemoMatchController {
 
   Future<void> _waitFor(
     bool Function() condition, {
-    Duration timeout = const Duration(seconds: 8),
+    Duration timeout = const Duration(seconds: 4),
   }) async {
     final deadline = DateTime.now().add(timeout);
     while (!condition()) {
@@ -279,17 +314,23 @@ class DemoMatchController {
     if (_disposed) return;
     _disposed = true;
     _driver?.cancel();
+    // The demo only owns memory and loopback objects. Tear them down without
+    // awaiting native channels: a user can leave while a bot is still joining.
     for (final bot in _bots) {
-      await bot.dispose();
+      unawaited(bot.dispose().catchError((Object _) {}));
     }
     _bots.clear();
-    await host.dispose();
-    await _hub.dispose();
+    unawaited(host.dispose().catchError((Object _) {}));
+    unawaited(_hub.dispose().catchError((Object _) {}));
     for (final room in _rooms) {
-      await room.forget();
+      unawaited(room.forget().catchError((Object _) {}));
     }
     _rooms.clear();
   }
+
+  @visibleForTesting
+  List<MatchCoordinator> get botsForTesting =>
+      List<MatchCoordinator>.unmodifiable(_bots.map((bot) => bot.coordinator));
 }
 
 class _DemoBot {

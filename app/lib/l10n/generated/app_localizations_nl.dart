@@ -1107,6 +1107,38 @@ class AppLocalizationsNl extends AppLocalizations {
   }
 
   @override
+  String get reportIssue => 'Meld dit probleem';
+
+  @override
+  String reportIssueBody(String email) {
+    return 'Stuur diagnostiek en recente fouten naar $email';
+  }
+
+  @override
+  String get reportBodyIntro => 'Wat ging er mis? (Typ hierboven je uitleg)';
+
+  @override
+  String get reportDiagnostics => 'Diagnostics (Niet verwijderen)';
+
+  @override
+  String get reportRecentLogs => 'Recente logs';
+
+  @override
+  String reportNoMailApp(String email) {
+    return 'Geen mail-app gevonden. Het foutrapport is naar het klembord gekopieerd. Mail het naar $email.';
+  }
+
+  @override
+  String get reportCopyFailed =>
+      'Kon geen mail-app openen of het rapport kopiëren.';
+
+  @override
+  String get demoTakingLong => 'Dit duurt langer dan verwacht.';
+
+  @override
+  String get demoRetry => 'Opnieuw proberen';
+
+  @override
   String get termsAndRules => 'Voorwaarden en spelregels';
 
   @override

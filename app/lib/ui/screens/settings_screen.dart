@@ -17,6 +17,7 @@ import '../widgets/avatar_editor.dart';
 import '../widgets/common.dart';
 import '../widgets/game_background.dart';
 import '../widgets/party_pass_sheet.dart';
+import '../widgets/report_issue_button.dart';
 import 'advanced_settings_screen.dart';
 import 'demo_screen.dart';
 
@@ -475,6 +476,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 padding: EdgeInsets.zero,
                 child: Column(
                   children: <Widget>[
+                    const ReportIssueButton(tile: true),
+                    Divider(height: 1, color: colors.hairline),
                     ListTile(
                       minTileHeight: 56,
                       leading: const Icon(Icons.outlined_flag, size: 20),

@@ -7,6 +7,7 @@ import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import 'game_widgets.dart';
 import 'party_pass_sheet.dart';
+import 'report_issue_button.dart';
 
 /// Explains a blocked network without blaming the player. The free same-Wi-Fi
 /// route is always first; Play Anywhere is the optional shortcut.
@@ -195,7 +196,19 @@ class FirewallPromptOverlay extends ConsumerWidget {
                             },
                           ),
                         const SizedBox(height: AppSpacing.s8),
-                        TextButton(onPressed: dismiss, child: Text(l10n.close)),
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: AppSpacing.s8,
+                          children: <Widget>[
+                            TextButton(
+                              onPressed: dismiss,
+                              child: Text(l10n.close),
+                            ),
+                            const ReportIssueButton(
+                              screenLabel: 'Connection prompt',
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),

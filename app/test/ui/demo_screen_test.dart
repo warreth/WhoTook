@@ -62,6 +62,9 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.byType(DemoGameScreen, skipOffstage: false), findsOneWidget);
+    // Let the in-process host and bots finish before disposing the screen;
+    // leaving setup futures running would leave test timers pending.
+    await tester.pump(const Duration(seconds: 5));
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();

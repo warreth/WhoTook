@@ -49,6 +49,18 @@ Useful variants:
 The web harness uses bundled sample photos with capture dates and never touches
 a real gallery. Keep `PLAYTEST_MODE` test-only; it is a compile-time flag.
 
+
+## Demo Mode
+
+The demo runs the real host and three real clients over the in-process
+loopback transport. Keep it fully in memory: no gallery permission, no network
+socket, and no platform services. The demo host and every bot use
+`platformServices: false`, because screenshot detection and the wake lock can
+wait forever on an iOS channel and leave "Demotafel klaarzetten" spinning.
+Every setup step is wrapped in a 4-second guard, and after 6 seconds the
+loading screen offers Retry and "Meld dit probleem".
+
+
 ## Releases
 
 When the user says **"maak een release"**, first ask with the OpenChamber

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'audio_contexts.dart';
+import '../diagnostics/bug_report_service.dart';
 
 /// Layered party audio: a fixed pool of tactile sound effects plus one looping
 /// music bed with panic ducking.
@@ -94,6 +95,7 @@ class GameAudioService {
       }
       _initialized = true;
     } on Object {
+      BugReportService.instance.record('AUDIO', 'initialize failed');
       // Audio is optional; a missing plugin must never stop the app.
       _initialized = true;
     } finally {

@@ -1874,6 +1874,60 @@ abstract class AppLocalizations {
   /// **'Send the room code and what happened to {email}'**
   String reportBody(String email);
 
+  /// No description provided for @reportIssue.
+  ///
+  /// In en, this message translates to:
+  /// **'Report this issue'**
+  String get reportIssue;
+
+  /// No description provided for @reportIssueBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Send diagnostics and recent errors to {email}'**
+  String reportIssueBody(String email);
+
+  /// No description provided for @reportBodyIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'What went wrong? (Type your explanation above)'**
+  String get reportBodyIntro;
+
+  /// No description provided for @reportDiagnostics.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostics (do not remove)'**
+  String get reportDiagnostics;
+
+  /// No description provided for @reportRecentLogs.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent logs'**
+  String get reportRecentLogs;
+
+  /// No description provided for @reportNoMailApp.
+  ///
+  /// In en, this message translates to:
+  /// **'No mail app found. The report was copied to the clipboard. Mail it to {email}.'**
+  String reportNoMailApp(String email);
+
+  /// No description provided for @reportCopyFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open a mail app or copy the report.'**
+  String get reportCopyFailed;
+
+  /// No description provided for @demoTakingLong.
+  ///
+  /// In en, this message translates to:
+  /// **'This is taking longer than expected.'**
+  String get demoTakingLong;
+
+  /// No description provided for @demoRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get demoRetry;
+
   /// No description provided for @termsAndRules.
   ///
   /// In en, this message translates to:

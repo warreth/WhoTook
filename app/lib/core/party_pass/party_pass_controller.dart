@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../diagnostics/bug_report_service.dart';
 import '../distribution.dart';
 import 'party_pass_repository.dart';
 import 'purchase_service.dart';
@@ -275,6 +276,10 @@ class PartyPassController extends AsyncNotifier<PartyPassState> {
       PartyPassPurchaseStatus.pending => 'purchase_pending',
       _ => event.code ?? 'purchase_failed',
     };
+    BugReportService.instance.record(
+      'IAP',
+      'purchase ${event.status.name}${event.code == null ? '' : ' ${event.code}'}',
+    );
     final latest = state.value ?? current;
     state = AsyncData(latest.copyWith(purchasing: false, errorCode: code));
   }
@@ -334,6 +339,7 @@ class PartyPassController extends AsyncNotifier<PartyPassState> {
         return;
       }
       _appliedQuotaRequestId = requestId;
+      BugReportService.instance.record('IAP', 'verify ${error.code}');
       if (error.code == TurnRelayErrorCode.invalidReceipt ||
           error.code == TurnRelayErrorCode.productMismatch) {
         _cachedGrant = null;

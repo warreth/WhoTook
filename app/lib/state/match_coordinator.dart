@@ -11,6 +11,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../core/audio/game_audio_service.dart';
 import '../core/audio/soundboard_service.dart';
 import '../core/constants.dart';
+import '../core/diagnostics/bug_report_service.dart';
 import '../core/media/photo_memory_cache.dart';
 import '../core/media/photo_service.dart';
 import '../core/models/models.dart';
@@ -4026,6 +4027,7 @@ class MatchCoordinator {
         settings: _settingsValue,
       );
     } on TurnQuotaBlockedException catch (error) {
+      BugReportService.instance.record('P2P', 'join quota blocked');
       _emit(
         _state.copyWith(
           turnLimitNotice: error.notice,
@@ -4035,6 +4037,7 @@ class MatchCoordinator {
       );
       return;
     } on RelayRequiredException catch (error) {
+      BugReportService.instance.record('P2P', 'join relay required');
       _emit(
         _state.copyWith(
           firewallPrompt: true,
@@ -4046,6 +4049,7 @@ class MatchCoordinator {
       );
       return;
     } on TransportException catch (error) {
+      BugReportService.instance.record('P2P', 'join ${error.code}');
       final message = switch (error.code) {
         'room_not_ready' => _l10n.errorHostStarting,
         'unauthorized' => _l10n.errorInviteExpired,
