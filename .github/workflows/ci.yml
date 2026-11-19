@@ -24,12 +24,17 @@ jobs:
           persist-credentials: false
       - name: Refuse server code in the public repository
         run: |
-          for path in cloudflare-signaling tool store prototypes app/tool docs/PRODUCTION.md wrangler.jsonc wrangler.json wrangler.toml .dev.vars.example; do
+          for path in cloudflare-signaling store prototypes app/tool docs/PRODUCTION.md wrangler.jsonc wrangler.json wrangler.toml .dev.vars.example; do
             if [ -e "$path" ]; then
               echo "Private server, release or store material found in the public tree: $path" >&2
               exit 1
             fi
           done
+          # The public playtest harness is allowed under tool/playtest only.
+          if [ -d tool ] && find tool -mindepth 1 -maxdepth 1 ! -name playtest -print -quit | grep -q .; then
+            echo "Unexpected tooling found in the public tree: tool" >&2
+            exit 1
+          fi
           echo "Public tree has no server, release or store material."
 
   android:

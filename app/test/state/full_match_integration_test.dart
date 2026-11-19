@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
+import 'package:whotook/core/constants.dart';
 import 'package:whotook/core/media/photo_memory_cache.dart';
 import 'package:whotook/core/media/photo_service.dart';
 import 'package:whotook/core/models/models.dart';
@@ -600,8 +601,8 @@ void main() {
         connector: HybridConnector(
           onlineClientFactory: () => LoopbackClientTransport(hub),
         ),
-        appVersion: '1.9.3',
-        appBuild: 16,
+        appVersion: '99.0.0',
+        appBuild: 999,
         roundDuration: const Duration(milliseconds: 900),
         countdownDuration: Duration.zero,
         revealDuration: const Duration(milliseconds: 40),
@@ -614,12 +615,12 @@ void main() {
       await _waitFor(() => host.state.versionWarning != null);
       await _waitFor(() => clientOne.state.versionWarning != null);
 
-      expect(host.state.versionWarning!.latestVersion, '1.9.3');
-      expect(host.state.versionWarning!.ownVersion, '1.9.2');
-      expect(clientOne.state.versionWarning!.latestVersion, '1.9.3');
+      expect(host.state.versionWarning!.latestVersion, '99.0.0');
+      expect(host.state.versionWarning!.ownVersion, kAppVersion);
+      expect(clientOne.state.versionWarning!.latestVersion, '99.0.0');
       expect(
         clientOne.state.versionWarning!.latestVersion.split('+').first,
-        '1.9.3',
+        '99.0.0',
       );
       expect(newer.state.versionWarning, isNull);
 
