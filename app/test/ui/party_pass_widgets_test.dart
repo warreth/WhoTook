@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -164,6 +165,34 @@ void main() {
     expect(find.text('Get the store version'), findsOneWidget);
     expect(find.text('Unlock Forever, €2.99'), findsNothing);
     expect(find.text('I have a license key'), findsNothing);
+  });
+
+  testWidgets('an iOS paywall never links to the website', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    try {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        _app(
+          const PartyPassBottomSheet(verifyOnOpen: false),
+          const PartyPassState(loading: false, billingAvailable: false),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining('The store is not available in this build'),
+        findsOneWidget,
+      );
+      // whotook.party sells the Party Pass through Paddle, so an App Store
+      // build must not offer that link from the paywall.
+      expect(find.text('Get the store version'), findsNothing);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
   });
 
   testWidgets(

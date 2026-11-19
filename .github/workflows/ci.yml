@@ -1,3 +1,6 @@
+# Continuous integration only: builds and tests pull requests and main, and
+# never publishes a Release. Release assets come from release.yml, which runs
+# only for a published GitHub Release.
 name: CI
 
 on:
@@ -36,6 +39,27 @@ jobs:
             exit 1
           fi
           echo "Public tree has no server, release or store material."
+
+      - name: Release workflow stays a single published-release pipeline
+        run: |
+          set -euo pipefail
+          file=.github/workflows/release.yml
+          grep -q '^on:' "$file"
+          grep -q 'release:' "$file"
+          grep -q 'types: \[published\]' "$file"
+          if grep -nE 'workflow_dispatch|schedule:|^[[:space:]]+push:|^[[:space:]]+tags:' "$file"; then
+            echo "release.yml may only run for a published GitHub Release." >&2
+            exit 1
+          fi
+          builds=$(grep -cE '^[[:space:]]*flutter build (ipa|ios)' "$file" || true)
+          if [ "${builds:-0}" -ne 1 ]; then
+            echo "iOS must compile exactly once per release, found $builds build commands." >&2
+            exit 1
+          fi
+          grep -q 'xcodebuild -exportArchive' "$file"
+          grep -q 'WhoTook-Android-FFOSS.apk' "$file"
+          grep -q 'WhoTook-iOS-FFOSS.ipa' "$file"
+          echo "Release workflow builds iOS once and runs only for a published release."
 
   android:
     name: Android build and tests

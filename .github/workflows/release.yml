@@ -203,6 +203,8 @@ jobs:
           ls -lh
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        # Keep the FFOSS APK on the release even when the Play AAB step fails.
+        if: always()
         with:
           name: android
           path: dist/*
@@ -260,6 +262,61 @@ jobs:
         working-directory: app
         run: flutter pub get
 
+      - name: Build the one iOS archive without codesigning
+        working-directory: app
+        run: |
+          # The single iOS compile of this release. `flutter build ipa` runs the
+          # same build as `flutter build ios --release --no-codesign` and keeps
+          # the finished Runner.app in an .xcarchive, so the signed export below
+          # re-signs this exact bundle instead of compiling anything again.
+          flutter build ipa --release --no-codesign \
+            --build-number "$BUILD" \
+            --dart-define=FFOSS_BUILD=true \
+            --dart-define=WHOTOOK_DISTRIBUTION=direct
+
+      - name: Package the unsigned FFOSS IPA
+        run: |
+          set -euo pipefail
+          ARCHIVE=$(find app/build/ios/archive -name '*.xcarchive' -type d | head -1)
+          if [ -z "$ARCHIVE" ]; then
+            echo "No iOS archive produced" >&2
+            exit 1
+          fi
+          APP="$ARCHIVE/Products/Applications/Runner.app"
+          test -d "$APP"
+          rm -rf dist/Payload
+          mkdir -p dist/Payload
+          cp -R "$APP" dist/Payload/
+          # Sideload tools re-sign the bundle themselves, so no App Store
+          # signature or profile may travel along in the FFOSS IPA.
+          find dist/Payload/Runner.app -name _CodeSignature -type d -prune -exec rm -rf {} +
+          find dist/Payload/Runner.app -name SC_Info -type d -prune -exec rm -rf {} +
+          rm -f dist/Payload/Runner.app/embedded.mobileprovision
+          find dist/Payload/Runner.app -type f -perm -111 -print0 |
+            xargs -0 -I{} codesign --remove-signature {} >/dev/null 2>&1 || true
+          cd dist
+          zip -qry WhoTook-iOS-FFOSS.ipa Payload
+          cp WhoTook-iOS-FFOSS.ipa WhoTook-unsigned.ipa
+          cp WhoTook-iOS-FFOSS.ipa "WhoTook-${VERSION}-unsigned.ipa"
+          rm -rf Payload
+          shasum -a 256 *.ipa > SHA256SUMS-ios.txt
+          ls -lh
+
+      - name: Keep the FFOSS IPA for the release
+        # The release job uploads this even when signing or the store upload
+        # fails later on.
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ios-unsigned
+          path: |
+            dist/WhoTook-iOS-FFOSS.ipa
+            dist/WhoTook-unsigned.ipa
+            dist/WhoTook-*-unsigned.ipa
+            dist/SHA256SUMS-ios.txt
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Import signing material
         if: needs.gate.outputs.ios_sign == 'true'
         env:
@@ -298,7 +355,7 @@ jobs:
           openssl cms -verify -noverify -inform DER -in "$PROFILE_PATH" -out "$PROFILE_PLIST"
           PROFILE_NAME=$(/usr/libexec/PlistBuddy -c "Print :Name" "$PROFILE_PLIST")
           echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
-          echo "TEAM_ID=$TEAM_ID" >> "$GITHUB_ENV"
+          echo "KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
 
           cat > app/ios/ExportOptions.plist <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
@@ -324,66 +381,59 @@ jobs:
           </plist>
           EOF
 
-      - name: Build the one iOS archive with the FFOSS flag
-        working-directory: app
-        env:
-          IOS_SIGN: ${{ needs.gate.outputs.ios_sign }}
-          FLUTTER_XCODE_DEVELOPMENT_TEAM: ${{ secrets.IOS_TEAM_ID }}
-        run: |
-          set -euo pipefail
-          FLAGS=(--release --build-number "$BUILD"
-            --dart-define=FFOSS_BUILD=true
-            --dart-define=WHOTOOK_DISTRIBUTION=direct)
-          if [ "$IOS_SIGN" = "true" ]; then
-            # One Xcode compile; the export step only re-signs the archive.
-            FLUTTER_XCODE_WHOTOOK_PROFILE="$PROFILE_NAME" flutter build ipa "${FLAGS[@]}" \
-              --export-options-plist=ios/ExportOptions.plist
-          else
-            flutter build ipa "${FLAGS[@]}" --no-codesign
-          fi
-
-      - name: Collect the signed App Store IPA
+      - name: Export the signed App Store IPA from the same archive
         id: sign
         if: needs.gate.outputs.ios_sign == 'true'
         run: |
           set -euo pipefail
-          SIGNED=$(find app/build/ios/ipa -maxdepth 1 -name '*.ipa' | head -1)
-          if [ -z "$SIGNED" ]; then
-            echo "Signing was configured but Flutter exported no IPA" >&2
-            exit 1
-          fi
+          ARCHIVE=$(find app/build/ios/archive -name '*.xcarchive' -type d | head -1)
+          test -n "$ARCHIVE"
           mkdir -p dist
-          cp "$SIGNED" dist/WhoTook-AppStore.ipa
+          rm -rf "$RUNNER_TEMP/ios-export"
+          if xcodebuild -exportArchive \
+              -archivePath "$ARCHIVE" \
+              -exportOptionsPlist app/ios/ExportOptions.plist \
+              -exportPath "$RUNNER_TEMP/ios-export"; then
+            SIGNED=$(find "$RUNNER_TEMP/ios-export" -name '*.ipa' | head -1)
+            test -n "$SIGNED"
+            cp "$SIGNED" dist/WhoTook-AppStore.ipa
+          else
+            # Some Xcode versions refuse to export an archive that was built
+            # without signing. Signing the same Runner.app in place costs
+            # seconds and never recompiles the app.
+            echo "::warning::exportArchive rejected the unsigned archive; signing the same Runner.app directly."
+            APP="$ARCHIVE/Products/Applications/Runner.app"
+            ENTITLEMENTS="$RUNNER_TEMP/entitlements.plist"
+            /usr/libexec/PlistBuddy -x -c 'Print :Entitlements' "$RUNNER_TEMP/profile.plist" > "$ENTITLEMENTS"
+            IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN" | awk '/\)/ {print $2; exit}')
+            test -n "$IDENTITY"
+            for framework in "$APP"/Frameworks/*.framework; do
+              if [ -d "$framework" ]; then
+                codesign --force --timestamp --sign "$IDENTITY" "$framework"
+              fi
+            done
+            for dylib in "$APP"/Frameworks/*.dylib; do
+              if [ -f "$dylib" ]; then
+                codesign --force --timestamp --sign "$IDENTITY" "$dylib"
+              fi
+            done
+            PROFILE_PATH="$HOME/Library/MobileDevice/Provisioning Profiles/whotook.mobileprovision"
+            cp "$PROFILE_PATH" "$APP/embedded.mobileprovision"
+            codesign --force --timestamp --sign "$IDENTITY" --entitlements "$ENTITLEMENTS" "$APP"
+            rm -rf dist/Payload
+            mkdir -p dist/Payload
+            ditto "$APP" dist/Payload/Runner.app
+            (cd dist && zip -qry WhoTook-AppStore.ipa Payload && rm -rf Payload)
+          fi
+          rm -rf "$RUNNER_TEMP/signed-check"
+          ditto -x -k dist/WhoTook-AppStore.ipa "$RUNNER_TEMP/signed-check"
+          if codesign --verify --deep --strict "$RUNNER_TEMP/signed-check/Payload/Runner.app"; then
+            echo "The App Store IPA carries a valid code signature."
+          else
+            echo "::warning::codesign --verify did not accept the exported bundle; altool will validate it during upload."
+          fi
           echo "present=true" >> "$GITHUB_OUTPUT"
           ls -lh dist/WhoTook-AppStore.ipa
-
-      - name: Package the unsigned FFOSS IPA from the same archive
-        run: |
-          set -euo pipefail
-          ARCHIVE=$(find app/build/ios/archive -maxdepth 1 -name '*.xcarchive' | head -1)
-          if [ -z "$ARCHIVE" ]; then
-            echo "No iOS archive produced" >&2
-            exit 1
-          fi
-          APP="$ARCHIVE/Products/Applications/Runner.app"
-          test -d "$APP"
-          rm -rf dist/Payload
-          mkdir -p dist/Payload
-          cp -R "$APP" dist/Payload/
-          # Sideload tools re-sign the bundle themselves, so the App Store
-          # signature and profile must not travel along in the FFOSS IPA.
-          find dist/Payload/Runner.app -name _CodeSignature -type d -prune -exec rm -rf {} +
-          find dist/Payload/Runner.app -name SC_Info -type d -prune -exec rm -rf {} +
-          rm -f dist/Payload/Runner.app/embedded.mobileprovision
-          find dist/Payload/Runner.app -type f -perm -111 -print0 |
-            xargs -0 -I{} sh -c 'codesign --remove-signature "{}" >/dev/null 2>&1 || true' || true
-          cd dist
-          zip -qry WhoTook-iOS-FFOSS.ipa Payload
-          cp WhoTook-iOS-FFOSS.ipa WhoTook-unsigned.ipa
-          cp WhoTook-iOS-FFOSS.ipa "WhoTook-${VERSION}-unsigned.ipa"
-          rm -rf Payload
-          sha256sum *.ipa > SHA256SUMS-ios.txt
-          ls -lh
 
       - name: Keep the signed IPA private
         if: needs.gate.outputs.ios_sign == 'true'
@@ -400,6 +450,7 @@ jobs:
           API_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
           API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
           API_ISSUER: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+          BETA: ${{ needs.gate.outputs.beta }}
         run: |
           set -euo pipefail
           API_KEY_ID=$(printf '%s' "$API_KEY_ID" | tr -d '\r\n')
@@ -412,22 +463,25 @@ jobs:
             --apiKey "$API_KEY_ID" \
             --apiIssuer "$API_ISSUER" \
             --show-progress
-
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: ios-unsigned
-          path: |
-            dist/WhoTook-iOS-FFOSS.ipa
-            dist/WhoTook-unsigned.ipa
-            dist/WhoTook-*-unsigned.ipa
-            dist/SHA256SUMS-ios.txt
-          if-no-files-found: error
+          {
+            if [ "$BETA" = "true" ]; then
+              echo "### TestFlight (beta)"
+              echo "- Build $VERSION ($BUILD) is uploading for internal testing."
+              echo "- Add it to the internal testers group in App Store Connect > TestFlight."
+            else
+              echo "### App Store Connect"
+              echo "- Build $VERSION ($BUILD) is uploading for the App Store."
+              echo "- Submit it for review in App Store Connect when you are ready."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
   release:
     name: Upload FFOSS assets to the GitHub release
     needs: [android, ios]
-    # A failed store build must not keep the FFOSS files off the release.
-    if: always() && (needs.android.result == 'success' || needs.ios.result == 'success')
+    # A failed store build must not keep the FFOSS files off the release: this
+    # job collects whatever artifact the build jobs produced and fails only if
+    # there is nothing to upload.
+    if: always()
     environment: production
     permissions:
       contents: write
@@ -520,6 +574,14 @@ jobs:
           PLAY_RESULT: ${{ needs.play.result }}
         run: |
           set -euo pipefail
+          join_list() {
+            local out=""
+            local item
+            for item in "$@"; do
+              out="${out:+$out, }$item"
+            done
+            printf '%s' "$out"
+          }
           missing=()
           [ "$ANDROID_SIGN" = "true" ] || missing+=("Android keystore")
           [ "$IOS_SIGN" = "true" ] || missing+=("iOS certificate or provisioning profile")
@@ -537,17 +599,21 @@ jobs:
             if [ ${#missing[@]} -eq 0 ]; then
               echo "- All release credentials were present."
             else
-              printf -- '- Missing: %s\n' "$(IFS=', '; echo "${missing[*]}")"
+              echo "- Missing: $(join_list "${missing[@]}")"
             fi
             if [ ${#failed[@]} -eq 0 ]; then
               echo "- Every required job succeeded."
             else
-              printf -- '- Failed: %s\n' "$(IFS=', '; echo "${failed[*]}")"
+              echo "- Failed: $(join_list "${failed[@]}")"
             fi
             echo "- FFOSS assets are uploaded before this check; store uploads may be skipped."
           } >> "$GITHUB_STEP_SUMMARY"
           if [ ${#missing[@]} -gt 0 ] || [ ${#failed[@]} -gt 0 ]; then
-            printf 'Missing credentials: %s\n' "$(IFS=', '; echo "${missing[*]}")" >&2
-            printf 'Failed jobs: %s\n' "$(IFS=', '; echo "${failed[*]}")" >&2
+            if [ ${#missing[@]} -gt 0 ]; then
+              printf 'Missing credentials: %s\n' "$(join_list "${missing[@]}")" >&2
+            fi
+            if [ ${#failed[@]} -gt 0 ]; then
+              printf 'Failed jobs: %s\n' "$(join_list "${failed[@]}")" >&2
+            fi
             exit 1
           fi

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -331,15 +332,21 @@ class _PartyPassBottomSheetState extends ConsumerState<PartyPassBottomSheet> {
                       color: colors.ink3,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.s12),
-                  GameButton(
-                    label: l10n.partyPassStoreButton,
-                    icon: Icons.open_in_new,
-                    variant: GameButtonVariant.secondary,
-                    onPressed: () =>
-                        unawaited(openExternal(context, appStoreUrl())),
-                    fullWidth: true,
-                  ),
+                  // Never send an iOS build to the website from the Party Pass
+                  // sheet: that page sells the pass outside Apple. Apple and
+                  // TestFlight builds must have no external purchase path.
+                  if (kIsWeb ||
+                      defaultTargetPlatform != TargetPlatform.iOS) ...[
+                    const SizedBox(height: AppSpacing.s12),
+                    GameButton(
+                      label: l10n.partyPassStoreButton,
+                      icon: Icons.open_in_new,
+                      variant: GameButtonVariant.secondary,
+                      onPressed: () =>
+                          unawaited(openExternal(context, appStoreUrl())),
+                      fullWidth: true,
+                    ),
+                  ],
                 ],
                 if (busy)
                   Padding(

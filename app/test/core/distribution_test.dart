@@ -2,7 +2,22 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:whotook/core/distribution.dart';
 
+const bool _ffossDefine = bool.fromEnvironment('FFOSS_BUILD');
+
 void main() {
+  test('the FFOSS dart-define reaches the app', () {
+    expect(kFfossBuild, isTrue);
+    expect(
+      resolveAppDistribution(
+        ffoss: kFfossBuild,
+        directFlag: false,
+        web: false,
+        platform: TargetPlatform.android,
+      ),
+      AppDistribution.direct,
+    );
+  }, skip: _ffossDefine ? false : 'run with --dart-define=FFOSS_BUILD=true');
+
   test('iOS receipts keep store billing, sideloaded builds get Paddle', () {
     expect(
       resolveAppDistribution(
