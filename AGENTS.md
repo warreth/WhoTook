@@ -68,3 +68,8 @@ question tool whether it is a prerelease/beta or a regular release. Do not
 guess from the version number. Write short, friendly release notes for players,
 not a commit dump or internal changelog. Release automation is triggered only by
 publishing a GitHub Release.
+
+For a beta, keep `app/pubspec.yaml` on a numeric version (`1.10.0+17`) and tag
+the release `v1.10.0-beta.1`. TestFlight needs a numeric
+`CFBundleShortVersionString`, and the release workflow matches the tag on its
+base version.
