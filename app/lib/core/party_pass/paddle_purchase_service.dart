@@ -93,13 +93,18 @@ class PaddlePartyPassPurchaseService implements PartyPassPurchaseService {
       }
 
       final checkoutUrl = checkout['checkoutUrl'];
-      if (checkoutUrl is! String || checkoutUrl.isEmpty) {
+      final checkoutUri = checkoutUrl is String
+          ? Uri.tryParse(checkoutUrl)
+          : null;
+      if (checkoutUri == null ||
+          checkoutUri.scheme != 'https' ||
+          checkoutUri.host != 'whotook.party') {
         return const PartyPassPurchaseEvent(
           status: PartyPassPurchaseStatus.error,
           code: 'checkout_unavailable',
         );
       }
-      final opened = await _openUrl(Uri.parse(checkoutUrl));
+      final opened = await _openUrl(checkoutUri);
       if (!opened) {
         return const PartyPassPurchaseEvent(
           status: PartyPassPurchaseStatus.error,

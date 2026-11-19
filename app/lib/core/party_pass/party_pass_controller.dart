@@ -3,9 +3,9 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../distribution.dart';
-import 'paddle_purchase_service.dart';
 import 'party_pass_repository.dart';
 import 'purchase_service.dart';
+import 'purchase_service_factory.dart';
 import 'turn_relay_client.dart';
 
 class PartyPassState {
@@ -449,11 +449,10 @@ final partyPassRepositoryProvider = Provider<PartyPassRepository>(
 final partyPassPurchaseServiceProvider = Provider<PartyPassPurchaseService>((
   ref,
 ) {
-  final service = isDirectBuild
-      ? PaddlePartyPassPurchaseService(
-          repository: ref.watch(partyPassRepositoryProvider),
-        )
-      : StorePartyPassPurchaseService();
+  final service = createPartyPassPurchaseService(
+    distribution: appDistribution,
+    repository: ref.watch(partyPassRepositoryProvider),
+  );
   ref.onDispose(service.dispose);
   return service;
 });

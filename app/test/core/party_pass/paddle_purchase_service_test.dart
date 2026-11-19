@@ -147,6 +147,21 @@ void main() {
     expect(invalid.code, 'invalid_license');
   });
 
+  test('refuses a checkout URL that is not the WhoTook site', () async {
+    final subject = service((request) async {
+      return json(<String, dynamic>{
+        'status': 'pending',
+        'transactionId': 'txn_01m7rj9000qq72v1zy0p5waczx',
+        'checkoutUrl': 'https://evil.example/party-pass?_ptxn=txn_1',
+        'expiresAt': '2030-01-01T00:00:00.000Z',
+      });
+    });
+    final event = await subject.buy();
+    expect(event.status, PartyPassPurchaseStatus.error);
+    expect(event.code, 'checkout_unavailable');
+    expect(opened, isEmpty);
+  });
+
   test('maps API failures to stable UI codes', () async {
     final subject = service((request) async {
       return json(<String, dynamic>{'error': 'checkout_unavailable'}, 503);
