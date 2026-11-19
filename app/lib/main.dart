@@ -7,9 +7,11 @@ import 'app.dart';
 import 'core/app_info.dart';
 import 'core/audio/game_audio_service.dart';
 import 'core/constants.dart';
+import 'core/distribution.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await detectAppDistribution();
   await initializeDateFormatting('en');
   await initializeDateFormatting('nl');
   await GameAudioService.instance.initialize();

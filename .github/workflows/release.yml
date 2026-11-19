@@ -1,61 +1,102 @@
 name: Release
 
+# Publish assets only after a GitHub Release is published. Beta versus regular
+# is decided from the release itself, so there is one path for every release.
 on:
-  push:
-    tags: ["v*"]
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: "Tag to publish, for example v1.0.0"
-        required: true
+  release:
+    types: [published]
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.event.release.tag_name }}
   cancel-in-progress: false
 
 jobs:
   gate:
-    name: Check optional store secrets
+    name: Check release credentials
     environment: production
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      play: ${{ steps.check.outputs.play }}
-      ios: ${{ steps.check.outputs.ios }}
+      beta: ${{ steps.flags.outputs.beta }}
+      android_sign: ${{ steps.flags.outputs.android_sign }}
+      ios_sign: ${{ steps.flags.outputs.ios_sign }}
+      ios_upload: ${{ steps.flags.outputs.ios_upload }}
+      play_upload: ${{ steps.flags.outputs.play_upload }}
     steps:
-      - name: Check secrets
-        id: check
+      - name: Decide beta routing and available credentials
+        id: flags
         env:
-          PLAY_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          RELEASE_NAME: ${{ github.event.release.name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_PRERELEASE: ${{ github.event.release.prerelease }}
+          ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           IOS_CERT: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
-          IOS_CERT_PASS: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+          IOS_CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
           IOS_PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
           IOS_TEAM: ${{ secrets.IOS_TEAM_ID }}
+          APPSTORE_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+          APPSTORE_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+          APPSTORE_ISSUER: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+          PLAY_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
         run: |
-          if [ -n "$PLAY_JSON" ]; then
-            echo "play=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "play=false" >> "$GITHUB_OUTPUT"
-            echo "No Play service account. The Play upload will be skipped." >> "$GITHUB_STEP_SUMMARY"
+          set -euo pipefail
+          LOWER_NAME=$(printf '%s' "${RELEASE_NAME:-}" | tr '[:upper:]' '[:lower:]')
+          LOWER_TAG=$(printf '%s' "${RELEASE_TAG:-}" | tr '[:upper:]' '[:lower:]')
+          BETA=false
+          if [ "${RELEASE_PRERELEASE:-false}" = "true" ] ||
+             [[ "$LOWER_NAME" == *beta* ]] ||
+             [[ "$LOWER_TAG" == *beta* ]]; then
+            BETA=true
           fi
-          if [ -n "$IOS_CERT" ] && [ -n "$IOS_CERT_PASS" ] && [ -n "$IOS_PROFILE" ] && [ -n "$IOS_TEAM" ]; then
-            echo "ios=true" >> "$GITHUB_OUTPUT"
+          echo "beta=$BETA" >> "$GITHUB_OUTPUT"
+
+          if [ -n "${ANDROID_KEYSTORE:-}" ] && [ -n "${ANDROID_KEYSTORE_PASSWORD:-}" ] &&
+             [ -n "${ANDROID_KEY_ALIAS:-}" ] && [ -n "${ANDROID_KEY_PASSWORD:-}" ]; then
+            echo "android_sign=true" >> "$GITHUB_OUTPUT"
           else
-            echo "ios=false" >> "$GITHUB_OUTPUT"
-            echo "No iOS distribution certificate, profile or API key. The App Store upload will be skipped." >> "$GITHUB_STEP_SUMMARY"
+            echo "android_sign=false" >> "$GITHUB_OUTPUT"
+            echo "Missing Android signing credentials; FFOSS APK will use debug signing." >> "$GITHUB_STEP_SUMMARY"
           fi
 
+          if [ -n "${IOS_CERT:-}" ] && [ -n "${IOS_CERT_PASSWORD:-}" ] &&
+             [ -n "${IOS_PROFILE:-}" ] && [ -n "${IOS_TEAM:-}" ]; then
+            echo "ios_sign=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ios_sign=false" >> "$GITHUB_OUTPUT"
+            echo "Missing iOS signing credentials; the unsigned FFOSS IPA still ships." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          if [ -n "${APPSTORE_KEY:-}" ] && [ -n "${APPSTORE_KEY_ID:-}" ] &&
+             [ -n "${APPSTORE_ISSUER:-}" ]; then
+            echo "ios_upload=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ios_upload=false" >> "$GITHUB_OUTPUT"
+            echo "Missing App Store Connect API key; TestFlight upload will be skipped." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          if [ -n "${PLAY_JSON:-}" ]; then
+            echo "play_upload=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "play_upload=false" >> "$GITHUB_OUTPUT"
+            echo "Missing Google Play service account; Play upload will be skipped." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "Beta routing: $BETA" >> "$GITHUB_STEP_SUMMARY"
+
   android:
-    name: Signed APK and AAB
+    name: FFOSS APK and Play AAB (Linux)
+    needs: gate
     environment: production
     runs-on: ubuntu-latest
     timeout-minutes: 30
     outputs:
       version: ${{ steps.version.outputs.version }}
-      signed: ${{ steps.signing.outputs.present }}
+      aab: ${{ steps.bundle.outputs.present }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -72,6 +113,12 @@ jobs:
           channel: stable
           cache: true
 
+      - uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('app/pubspec.lock') }}
+          restore-keys: pub-${{ runner.os }}-
+
       - name: Read version
         id: version
         run: |
@@ -79,63 +126,80 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Building WhoTook $VERSION" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Write signing config
-        id: signing
+      - name: Write signing config when available
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          umask 077
-          if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "No keystore secret. A release must be signed; refusing to publish a debug-signed APK." >> "$GITHUB_STEP_SUMMARY"
-            exit 1
+          set -euo pipefail
+          if [ -z "${KEYSTORE_BASE64:-}" ]; then
+            echo "No keystore secret; using the debug signing fallback for the FFOSS APK."
+            exit 0
           fi
-          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload-keystore.jks"
           umask 077
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload-keystore.jks"
           {
             printf 'storeFile=%s\n' "$RUNNER_TEMP/upload-keystore.jks"
             printf 'storePassword=%s\n' "$KEYSTORE_PASSWORD"
             printf 'keyAlias=%s\n' "$KEY_ALIAS"
             printf 'keyPassword=%s\n' "$KEY_PASSWORD"
           } > app/android/key.properties
-          echo "present=true" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
         working-directory: app
         run: flutter pub get
 
-      - name: Build release APK, split APKs and AAB
+      - name: Build FFOSS APK
         working-directory: app
         env:
           VERSION: ${{ steps.version.outputs.version }}
-          SIGNED: ${{ steps.signing.outputs.present }}
         run: |
           set -euo pipefail
           mkdir -p ../dist
-          flutter build apk --release --dart-define=WHOTOOK_DISTRIBUTION=direct
-          # Copy the universal APK before the split build replaces the shared
-          # flutter-apk outputs. Keep the stable alias for the website and
-          # Obtainium, plus a versioned name for the release page.
+          flutter build apk --release \
+            --dart-define=FFOSS_BUILD=true \
+            --dart-define=WHOTOOK_DISTRIBUTION=direct
+          cp build/app/outputs/flutter-apk/app-release.apk ../dist/WhoTook-Android-FFOSS.apk
           cp build/app/outputs/flutter-apk/app-release.apk ../dist/WhoTook.apk
-          cp build/app/outputs/flutter-apk/app-release.apk "../dist/WhoTook-${VERSION}-universal.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "../dist/WhoTook-${VERSION}-android-ffoss.apk"
 
-          flutter build apk --release --split-per-abi --dart-define=WHOTOOK_DISTRIBUTION=direct
-          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "../dist/WhoTook-${VERSION}-arm64-v8a.apk"
-          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk "../dist/WhoTook-${VERSION}-armeabi-v7a.apk"
-          cp build/app/outputs/flutter-apk/app-x86_64-release.apk "../dist/WhoTook-${VERSION}-x86_64.apk"
-
-          if [ "${SIGNED}" = "true" ]; then
-            flutter build appbundle --release
-            cp build/app/outputs/bundle/release/app-release.aab "../dist/WhoTook-${VERSION}.aab"
+          # The per-ABI copies are a convenience for the download page; a
+          # failure here must not hide the universal APK that already built.
+          if flutter build apk --release --split-per-abi \
+            --dart-define=FFOSS_BUILD=true \
+            --dart-define=WHOTOOK_DISTRIBUTION=direct; then
+            cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "../dist/WhoTook-${VERSION}-arm64-v8a.apk"
+            cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk "../dist/WhoTook-${VERSION}-armeabi-v7a.apk"
+            cp build/app/outputs/flutter-apk/app-x86_64-release.apk "../dist/WhoTook-${VERSION}-x86_64.apk"
+          else
+            echo "Per-ABI APKs were skipped; the universal APK is still on the release." >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      - name: Collect artifacts
+      - name: Build Play AAB when signed
+        id: bundle
+        working-directory: app
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          ANDROID_SIGN: ${{ needs.gate.outputs.android_sign }}
+        run: |
+          set -euo pipefail
+          if [ "${ANDROID_SIGN}" != "true" ]; then
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "No Android keystore; skipping the Play AAB." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          flutter build appbundle --release \
+            --dart-define=FFOSS_BUILD=false \
+            --dart-define=WHOTOOK_DISTRIBUTION=store
+          cp build/app/outputs/bundle/release/app-release.aab "../dist/WhoTook-${VERSION}.aab"
+          echo "present=true" >> "$GITHUB_OUTPUT"
+
+      - name: Checksums
         run: |
           cd dist
-          sha256sum *.apk *.aab 2>/dev/null > SHA256SUMS.txt || true
+          sha256sum * > SHA256SUMS.txt
           ls -lh
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -144,10 +208,14 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
-  ios-unsigned:
-    name: Unsigned IPA for SideStore
+  ios:
+    name: FFOSS IPA and signed TestFlight build (macOS, single compile)
+    needs: gate
+    environment: production
     runs-on: macos-latest
     timeout-minutes: 25
+    outputs:
+      signed: ${{ steps.sign.outputs.present }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -158,136 +226,49 @@ jobs:
           flutter-version: 3.47.2
           channel: stable
           cache: true
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('app/pubspec.lock') }}
+          restore-keys: pub-${{ runner.os }}-
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            app/ios/Pods
+            ~/Library/Caches/CocoaPods
+          key: pods-${{ runner.os }}-${{ hashFiles('app/ios/Podfile.lock') }}
+          restore-keys: pods-${{ runner.os }}-
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: derived-${{ runner.os }}-${{ hashFiles('app/ios/Podfile.lock', 'app/ios/Runner.xcodeproj/project.pbxproj') }}
+          restore-keys: derived-${{ runner.os }}-
+
+      - name: Read version and build number
+        run: |
+          set -euo pipefail
+          VERSION=$(awk '/^version:/ {print $2}' app/pubspec.yaml | cut -d+ -f1)
+          BUILD=$((1000 + GITHUB_RUN_NUMBER))
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "BUILD=$BUILD" >> "$GITHUB_ENV"
+          echo "iOS build: $VERSION ($BUILD)" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Install dependencies
         working-directory: app
         run: flutter pub get
 
-      - name: Build unsigned iOS app
-        working-directory: app
-        run: flutter build ios --release --no-codesign --dart-define=WHOTOOK_DISTRIBUTION=direct
-
-      - name: Package unsigned IPA
-        run: |
-          VERSION=$(awk '/^version:/ {print $2}' app/pubspec.yaml | cut -d+ -f1)
-          mkdir -p dist/Payload
-          cp -R app/build/ios/iphoneos/Runner.app dist/Payload/
-          cd dist
-          zip -qry "WhoTook-${VERSION}-unsigned.ipa" Payload
-          cp "WhoTook-${VERSION}-unsigned.ipa" WhoTook-unsigned.ipa
-          rm -rf Payload
-          sha256sum *.ipa > SHA256SUMS-ios.txt
-          ls -lh
-
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: ios-unsigned
-          path: dist/*
-          if-no-files-found: error
-
-  release:
-    name: GitHub release
-    needs: [android, ios-unsigned]
-    if: github.event_name == 'push' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
-    environment: production
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          name: android
-          path: dist
-
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          name: ios-unsigned
-          path: dist
-
-      - name: Rebuild checksums
-        run: |
-          rm -f dist/SHA256SUMS-ios.txt
-          cd dist
-          sha256sum *.apk *.aab *.ipa > SHA256SUMS.txt
-
-      - name: Publish
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-          VERSION: ${{ needs.android.outputs.version }}
-        run: |
-          case "$TAG" in
-            v[0-9]*.[0-9]*.[0-9]*) ;;
-            *) echo "Tag must look like v1.2.3" >&2; exit 1 ;;
-          esac
-          if [ "${TAG#v}" != "$VERSION" ]; then
-            echo "Tag $TAG does not match pubspec version $VERSION" >&2
-            exit 1
-          fi
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" dist/* --clobber
-            gh release edit "$TAG" \
-              --title "WhoTook $VERSION" \
-              --notes-file .github/release-notes.md
-          else
-            gh release create "$TAG" dist/* \
-              --title "WhoTook $VERSION" \
-              --notes-file .github/release-notes.md \
-              --latest
-          fi
-
-  play:
-    name: Google Play (optional)
-    needs: [gate, android]
-    if: needs.gate.outputs.play == 'true' && needs.android.outputs.signed == 'true'
-    environment: production
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          name: android
-          path: dist
-
-      - uses: r0adkll/upload-google-play@935ef9c68bb393a8e6116b1575626a7f5be3a7fb # v1.1.3
-        with:
-          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-          packageName: party.whotook.app
-          releaseFiles: dist/WhoTook-${{ needs.android.outputs.version }}.aab
-          track: internal
-          status: draft
-          releaseName: ${{ needs.android.outputs.version }}
-
-  ios:
-    name: Build and upload a signed IPA (optional)
-    needs: gate
-    if: needs.gate.outputs.ios == 'true'
-    environment: production
-    runs-on: macos-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
-        with:
-          flutter-version: 3.47.2
-          channel: stable
-          cache: true
-
       - name: Import signing material
+        if: needs.gate.outputs.ios_sign == 'true'
         env:
           CERT_BASE64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
           CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
           PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
           TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
         run: |
+          set -euo pipefail
           umask 077
           CERT_PASSWORD=$(printf '%s' "$CERT_PASSWORD" | tr -d '\r\n')
           TEAM_ID=$(printf '%s' "$TEAM_ID" | tr -d '\r\n')
@@ -319,7 +300,6 @@ jobs:
           echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
           echo "TEAM_ID=$TEAM_ID" >> "$GITHUB_ENV"
 
-
           cat > app/ios/ExportOptions.plist <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -344,25 +324,230 @@ jobs:
           </plist>
           EOF
 
-      - name: Install dependencies
-        working-directory: app
-        run: flutter pub get
-
-      - name: Build signed IPA
+      - name: Build the one iOS archive with the FFOSS flag
         working-directory: app
         env:
+          IOS_SIGN: ${{ needs.gate.outputs.ios_sign }}
           FLUTTER_XCODE_DEVELOPMENT_TEAM: ${{ secrets.IOS_TEAM_ID }}
         run: |
-          FLUTTER_XCODE_WHOTOOK_PROFILE="$PROFILE_NAME" \
-            flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+          set -euo pipefail
+          FLAGS=(--release --build-number "$BUILD"
+            --dart-define=FFOSS_BUILD=true
+            --dart-define=WHOTOOK_DISTRIBUTION=direct)
+          if [ "$IOS_SIGN" = "true" ]; then
+            # One Xcode compile; the export step only re-signs the archive.
+            FLUTTER_XCODE_WHOTOOK_PROFILE="$PROFILE_NAME" flutter build ipa "${FLAGS[@]}" \
+              --export-options-plist=ios/ExportOptions.plist
+          else
+            flutter build ipa "${FLAGS[@]}" --no-codesign
+          fi
 
-      # The App Store build is signed for Apple's distribution service. Do not
-      # publish it as a public release asset: SideStore and AltStore install the
-      # unsigned IPA and re-sign it on the device.
-      - name: Keep the signed IPA as a private CI artifact
+      - name: Collect the signed App Store IPA
+        id: sign
+        if: needs.gate.outputs.ios_sign == 'true'
+        run: |
+          set -euo pipefail
+          SIGNED=$(find app/build/ios/ipa -maxdepth 1 -name '*.ipa' | head -1)
+          if [ -z "$SIGNED" ]; then
+            echo "Signing was configured but Flutter exported no IPA" >&2
+            exit 1
+          fi
+          mkdir -p dist
+          cp "$SIGNED" dist/WhoTook-AppStore.ipa
+          echo "present=true" >> "$GITHUB_OUTPUT"
+          ls -lh dist/WhoTook-AppStore.ipa
+
+      - name: Package the unsigned FFOSS IPA from the same archive
+        run: |
+          set -euo pipefail
+          ARCHIVE=$(find app/build/ios/archive -maxdepth 1 -name '*.xcarchive' | head -1)
+          if [ -z "$ARCHIVE" ]; then
+            echo "No iOS archive produced" >&2
+            exit 1
+          fi
+          APP="$ARCHIVE/Products/Applications/Runner.app"
+          test -d "$APP"
+          rm -rf dist/Payload
+          mkdir -p dist/Payload
+          cp -R "$APP" dist/Payload/
+          # Sideload tools re-sign the bundle themselves, so the App Store
+          # signature and profile must not travel along in the FFOSS IPA.
+          find dist/Payload/Runner.app -name _CodeSignature -type d -prune -exec rm -rf {} +
+          find dist/Payload/Runner.app -name SC_Info -type d -prune -exec rm -rf {} +
+          rm -f dist/Payload/Runner.app/embedded.mobileprovision
+          find dist/Payload/Runner.app -type f -perm -111 -print0 |
+            xargs -0 -I{} sh -c 'codesign --remove-signature "{}" >/dev/null 2>&1 || true' || true
+          cd dist
+          zip -qry WhoTook-iOS-FFOSS.ipa Payload
+          cp WhoTook-iOS-FFOSS.ipa WhoTook-unsigned.ipa
+          cp WhoTook-iOS-FFOSS.ipa "WhoTook-${VERSION}-unsigned.ipa"
+          rm -rf Payload
+          sha256sum *.ipa > SHA256SUMS-ios.txt
+          ls -lh
+
+      - name: Keep the signed IPA private
+        if: needs.gate.outputs.ios_sign == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ios-signed
-          path: app/build/ios/ipa/*.ipa
+          path: dist/WhoTook-AppStore.ipa
           if-no-files-found: error
           retention-days: 7
+
+      - name: Upload to App Store Connect
+        if: needs.gate.outputs.ios_sign == 'true' && needs.gate.outputs.ios_upload == 'true'
+        env:
+          API_KEY: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
+          API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+          API_ISSUER: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          API_KEY_ID=$(printf '%s' "$API_KEY_ID" | tr -d '\r\n')
+          API_ISSUER=$(printf '%s' "$API_ISSUER" | tr -d '\r\n')
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          printf '%s' "$API_KEY" > "$HOME/.appstoreconnect/private_keys/AuthKey_${API_KEY_ID}.p8"
+          xcrun altool --upload-app \
+            --type ios \
+            --file dist/WhoTook-AppStore.ipa \
+            --apiKey "$API_KEY_ID" \
+            --apiIssuer "$API_ISSUER" \
+            --show-progress
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ios-unsigned
+          path: |
+            dist/WhoTook-iOS-FFOSS.ipa
+            dist/WhoTook-unsigned.ipa
+            dist/WhoTook-*-unsigned.ipa
+            dist/SHA256SUMS-ios.txt
+          if-no-files-found: error
+
+  release:
+    name: Upload FFOSS assets to the GitHub release
+    needs: [android, ios]
+    # A failed store build must not keep the FFOSS files off the release.
+    if: always() && (needs.android.result == 'success' || needs.ios.result == 'success')
+    environment: production
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        continue-on-error: true
+        with:
+          name: android
+          path: dist
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        continue-on-error: true
+        with:
+          name: ios-unsigned
+          path: dist
+
+      - name: Rebuild checksums
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cd dist
+          rm -f SHA256SUMS*.txt
+          if [ -z "$(ls -A)" ]; then
+            echo "No FFOSS assets were produced" >&2
+            exit 1
+          fi
+          sha256sum * > SHA256SUMS.txt
+          ls -lh
+
+      - name: Upload to the published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+          VERSION: ${{ needs.android.outputs.version }}
+        run: |
+          set -euo pipefail
+          if [ -z "$(ls -A dist)" ]; then
+            echo "No release assets were built" >&2
+            exit 1
+          fi
+          TAG_VERSION=${TAG#v}
+          TAG_BASE=${TAG_VERSION%%-*}
+          VERSION_BASE=${VERSION%%-*}
+          if [ -n "$VERSION" ] && [ "$TAG_VERSION" != "$VERSION" ] && [ "$TAG_BASE" != "$VERSION_BASE" ]; then
+            echo "Tag $TAG does not match pubspec version $VERSION" >&2
+            exit 1
+          fi
+          gh release upload "$TAG" dist/* --clobber --repo "${{ github.repository }}"
+
+  play:
+    name: Google Play upload
+    needs: [gate, android]
+    if: needs.gate.outputs.play_upload == 'true' && needs.android.outputs.aab == 'true'
+    environment: production
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: android
+          path: dist
+
+      - uses: r0adkll/upload-google-play@935ef9c68bb393a8e6116b1575626a7f5be3a7fb # v1.1.3
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: party.whotook.app
+          releaseFiles: dist/WhoTook-${{ needs.android.outputs.version }}.aab
+          track: ${{ needs.gate.outputs.beta == 'true' && 'internal' || 'production' }}
+          status: completed
+          releaseName: ${{ needs.android.outputs.version }}
+
+  finish:
+    name: Report missing release credentials
+    needs: [gate, android, ios, release, play]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail at the end if a release credential is missing
+        env:
+          ANDROID_SIGN: ${{ needs.gate.outputs.android_sign }}
+          IOS_SIGN: ${{ needs.gate.outputs.ios_sign }}
+          IOS_UPLOAD: ${{ needs.gate.outputs.ios_upload }}
+          PLAY_UPLOAD: ${{ needs.gate.outputs.play_upload }}
+          ANDROID_RESULT: ${{ needs.android.result }}
+          IOS_RESULT: ${{ needs.ios.result }}
+          RELEASE_RESULT: ${{ needs.release.result }}
+          PLAY_RESULT: ${{ needs.play.result }}
+        run: |
+          set -euo pipefail
+          missing=()
+          [ "$ANDROID_SIGN" = "true" ] || missing+=("Android keystore")
+          [ "$IOS_SIGN" = "true" ] || missing+=("iOS certificate or provisioning profile")
+          [ "$IOS_UPLOAD" = "true" ] || missing+=("App Store Connect API key")
+          [ "$PLAY_UPLOAD" = "true" ] || missing+=("Google Play service account")
+          failed=()
+          [ "$ANDROID_RESULT" = "success" ] || failed+=("android build")
+          [ "$IOS_RESULT" = "success" ] || failed+=("iOS build")
+          [ "$RELEASE_RESULT" = "success" ] || failed+=("GitHub asset upload")
+          if [ "$PLAY_UPLOAD" = "true" ]; then
+            [ "$PLAY_RESULT" = "success" ] || failed+=("Play upload")
+          fi
+          {
+            echo "### Release summary"
+            if [ ${#missing[@]} -eq 0 ]; then
+              echo "- All release credentials were present."
+            else
+              printf -- '- Missing: %s\n' "$(IFS=', '; echo "${missing[*]}")"
+            fi
+            if [ ${#failed[@]} -eq 0 ]; then
+              echo "- Every required job succeeded."
+            else
+              printf -- '- Failed: %s\n' "$(IFS=', '; echo "${failed[*]}")"
+            fi
+            echo "- FFOSS assets are uploaded before this check; store uploads may be skipped."
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ ${#missing[@]} -gt 0 ] || [ ${#failed[@]} -gt 0 ]; then
+            printf 'Missing credentials: %s\n' "$(IFS=', '; echo "${missing[*]}")" >&2
+            printf 'Failed jobs: %s\n' "$(IFS=', '; echo "${failed[*]}")" >&2
+            exit 1
+          fi

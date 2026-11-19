@@ -48,3 +48,11 @@ Useful variants:
 
 The web harness uses bundled sample photos with capture dates and never touches
 a real gallery. Keep `PLAYTEST_MODE` test-only; it is a compile-time flag.
+
+## Releases
+
+When the user says **"maak een release"**, first ask with the OpenChamber
+question tool whether it is a prerelease/beta or a regular release. Do not
+guess from the version number. Write short, friendly release notes for players,
+not a commit dump or internal changelog. Release automation is triggered only by
+publishing a GitHub Release.

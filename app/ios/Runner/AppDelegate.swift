@@ -35,6 +35,32 @@ import UIKit
     }
     screenshotStreamHandler = handler
     screenshotChannel = channel
+
+    FlutterMethodChannel(
+      name: "app.whotook/distribution",
+      binaryMessenger: messenger
+    ).setMethodCallHandler { [weak self] call, result in
+      guard call.method == "receiptEnvironment" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      result(self?.receiptEnvironment() ?? "sideloaded")
+    }
+  }
+
+  /// TestFlight installs carry a sandboxReceipt, App Store installs a receipt.
+  /// AltStore/SideStore/TrollStore re-signs have no App Store receipt.
+  private func receiptEnvironment() -> String {
+    guard let receipt = Bundle.main.appStoreReceiptURL else {
+      return "sideloaded"
+    }
+    if receipt.lastPathComponent == "sandboxReceipt" {
+      return "testflight"
+    }
+    if FileManager.default.fileExists(atPath: receipt.path) {
+      return "app_store"
+    }
+    return "sideloaded"
   }
 }
 
