@@ -31,9 +31,9 @@ void main() {
   test('keeps Paddle pending references out of the credential slot', () async {
     final storage = InMemoryPartyPassStorage();
     final repo = PartyPassRepository(storage: storage);
-    await repo.savePendingRef('ref-0123456789abcdef0123456789abcdef');
+    await repo.savePendingRef('ref-00000000000000000000000000000001');
 
-    expect(await repo.loadPendingRef(), 'ref-0123456789abcdef0123456789abcdef');
+    expect(await repo.loadPendingRef(), 'ref-00000000000000000000000000000001');
     expect(await repo.load(), isNull);
 
     await repo.clearPendingRef();

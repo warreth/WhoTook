@@ -11,7 +11,7 @@ import 'package:whotook/core/party_pass/turn_relay_client.dart';
 class _PaddleFake implements PartyPassPurchaseService {
   _PaddleFake();
 
-  final String validKey = 'WT-1234-5678-9ABC-DEF0-1234-5678-9ABC-DEF0';
+  final String validKey = 'WT-0000-0000-0000-0000-0000-0000-0000-0001';
   final StreamController<PartyPassPurchaseEvent> _events =
       StreamController<PartyPassPurchaseEvent>.broadcast();
 
@@ -124,7 +124,7 @@ void main() {
 
       await container
           .read(partyPassProvider.notifier)
-          .redeem('WT-1234-5678-9ABC-DEF0-1234-5678-9ABC-DEF0');
+          .redeem('WT-0000-0000-0000-0000-0000-0000-0000-0001');
 
       final state = container.read(partyPassProvider).value!;
       expect(state.active, isTrue);
@@ -168,7 +168,7 @@ void main() {
       PartyPassCredential(
         platform: StorePlatform.paddle,
         productId: kPartyPassProductId,
-        verificationToken: 'WT-1234-5678-9ABC-DEF0-1234-5678-9ABC-DEF0',
+        verificationToken: 'WT-0000-0000-0000-0000-0000-0000-0000-0001',
         savedAtUtc: DateTime.utc(2026, 11, 19),
       ),
     );
@@ -204,7 +204,7 @@ void main() {
     final credential = PartyPassCredential(
       platform: StorePlatform.paddle,
       productId: kPartyPassProductId,
-      verificationToken: 'WT-1234-5678-9ABC-DEF0-1234-5678-9ABC-DEF0',
+      verificationToken: 'WT-0000-0000-0000-0000-0000-0000-0000-0001',
       savedAtUtc: DateTime.utc(2026, 11, 19),
     );
     await repo.save(credential);

@@ -8,8 +8,8 @@ import 'package:whotook/core/party_pass/party_pass_repository.dart';
 import 'package:whotook/core/party_pass/party_pass_storage.dart';
 import 'package:whotook/core/party_pass/purchase_service.dart';
 
-const String _ref = '0123456789abcdef0123456789abcdef';
-const String _key = 'WT-1234-5678-9ABC-DEF0-1234-5678-9ABC-DEF0';
+const String _ref = '00000000000000000000000000000001';
+const String _key = 'WT-0000-0000-0000-0000-0000-0000-0000-0001';
 
 Map<String, dynamic> _json(Object value) => value as Map<String, dynamic>;
 
@@ -58,7 +58,7 @@ void main() {
         expect(body['purchaseRef'], matches(RegExp(r'^[0-9a-f]{32}$')));
         return json(<String, dynamic>{
           'status': 'pending',
-          'transactionId': 'txn_01m7rj9000qq72v1zy0p5waczx',
+          'transactionId': 'txn_00000000000000000000000001',
           'checkoutUrl': 'https://whotook.party/party-pass?_ptxn=txn_1',
           'expiresAt': '2030-01-01T00:00:00.000Z',
         });
@@ -99,7 +99,7 @@ void main() {
         if (request.url.path.endsWith('/checkout')) {
           return json(<String, dynamic>{
             'status': 'pending',
-            'transactionId': 'txn_01m7rj9000qq72v1zy0p5waczx',
+            'transactionId': 'txn_00000000000000000000000001',
             'checkoutUrl': 'https://whotook.party/party-pass?_ptxn=txn_1',
             'expiresAt': '2030-01-01T00:00:00.000Z',
           });
@@ -137,7 +137,7 @@ void main() {
     final subject = service((request) async => json(<String, dynamic>{}));
 
     final valid = await subject.redeem(
-      ' wt 1234 5678 9abc def0 1234 5678 9abc def0 ',
+      ' wt 0000 0000 0000 0000 0000 0000 0000 0001 ',
     );
     expect(valid.status, PartyPassPurchaseStatus.purchased);
     expect(valid.credential?.verificationToken, _key);
@@ -151,7 +151,7 @@ void main() {
     final subject = service((request) async {
       return json(<String, dynamic>{
         'status': 'pending',
-        'transactionId': 'txn_01m7rj9000qq72v1zy0p5waczx',
+        'transactionId': 'txn_00000000000000000000000001',
         'checkoutUrl': 'https://evil.example/party-pass?_ptxn=txn_1',
         'expiresAt': '2030-01-01T00:00:00.000Z',
       });
