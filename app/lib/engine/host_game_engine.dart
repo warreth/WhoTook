@@ -1311,6 +1311,7 @@ class HostGameEngine {
       }
     }
 
+    owner.wrongGuessCount += fooled;
     if (fooled > 0) {
       final bonus = mysteryBonusPerFooledOpponent * fooled;
       owner.mysteryPointsEarned += bonus;
@@ -1481,9 +1482,10 @@ class HostGameEngine {
     );
   }
 
-  /// Champion, Quickest Draw, Unstoppable, Master of Mystery, Paparazzi (only
-  /// when someone took a screenshot) and Smooth Planter (only when the planted
-  /// photo fooled at least one opponent).
+  /// Champion, Quickest Draw, Unstoppable, Unguessable Photo (the owner whose
+  /// photos drew the most wrong guesses), Paparazzi (only when someone took a
+  /// screenshot) and Smooth Planter (only when the planted photo fooled at
+  /// least one opponent).
   List<MatchAward> buildPodiumAwards() {
     final awards = <MatchAward>[];
     final all = _players.values.toList();
@@ -1535,8 +1537,8 @@ class HostGameEngine {
     }
 
     final mystery = _best(
-      all.where((p) => p.mysteryPointsEarned > 0).toList(),
-      (p) => p.mysteryPointsEarned,
+      all.where((p) => p.wrongGuessCount > 0).toList(),
+      (p) => p.wrongGuessCount,
     );
     if (mystery != null) {
       awards.add(
@@ -1544,7 +1546,7 @@ class HostGameEngine {
           kind: MatchAwardKind.masterOfMystery,
           playerId: mystery.id,
           playerName: mystery.name,
-          value: mystery.mysteryPointsEarned,
+          value: mystery.wrongGuessCount,
         ),
       );
     }

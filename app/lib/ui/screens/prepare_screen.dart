@@ -319,8 +319,9 @@ class PrepareScreen extends ConsumerWidget {
 
 int _photoColumns(double width, int count) {
   if (count <= 4) return 2;
-  if (count <= 9) return 3;
-  if (width < 330) return 3;
+  // Three large frames on a phone fill the contact sheet; four small ones
+  // leave the dramatic empty band this screen used to have.
+  if (width < 520) return 3;
   return 4;
 }
 

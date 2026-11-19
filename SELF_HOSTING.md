@@ -73,8 +73,8 @@ no-cli
 ```
 
 Open UDP/TCP 3478 and TCP 5349, and the relay port range you configure
-(`min-port`/`max-port`). Then install a FOSS build of WhoTook and open
-**Settings → Online relay → Self-hosted relay**:
+(`min-port`/`max-port`). Then open **Settings → Online relay → Self-hosted
+relay** in WhoTook:
 
 - **TURN URI**: one URL, for example
   `turn:turn.example.com:3478?transport=udp`. Use
@@ -92,33 +92,22 @@ settings are not propagated with the room.
 If you run a signaling server without a custom TURN entry, it may receive
 `POST /ice-config` with `{roomId, token}`; answer `200` with
 `{"turnAllowed":false,"iceServers":[{"urls":"stun:stun.cloudflare.com:3478"}]}`
-or `401` for a bad room token. Without a custom TURN URI, a FOSS build with the
-default signaling also calls this endpoint for STUN.
+or `401` for a bad room token. Without a custom TURN URI, the app calls this
+endpoint for STUN.
 
-Build the dependency-clean FOSS variant with:
+## 4. The Party Pass
 
-```bash
-bash app/foss/build.sh
-```
+Every build the project distributes is the same app. The **WhoTook Party Pass**
+is a one-time non-consumable in-app purchase. It unlocks Play Anywhere, the
+hosted TURN relay (fair-use limited per verified store transaction), the live
+soundboard and shared room themes. Receipt verification and relay credential
+issuance happen on the private server; they are deliberately absent from this
+repository.
 
-The script copies the app, removes the `in_app_purchase` dependencies, overlays
-the no-billing purchase service, runs the FOSS tests and builds the app: the
-Android debug APK on Linux/CI, or an unsigned iOS app on macOS. For a quick
-runtime check without the dependency-clean copy, `flutter run
---dart-define=FOSS_BUILD=true` still disables billing and the official relay.
-
-FOSS builds never initialize store billing or the official relay client. They
-include the local soundboard and all room themes for free.
-
-## 4. What the official build does differently
-
-The App Store and Play Store builds optionally sell the **WhoTook Party Pass**,
-a one-time non-consumable in-app purchase. It unlocks the hosted TURN relay
-(fair-use limited per verified store transaction), the live soundboard and
-shared room themes. Receipt verification and relay credential issuance happen
-on the private server; they are deliberately absent from this repository.
-
-The app still plays local P2P matches for free without a Party Pass, and the
-FOSS build never includes the purchase flow. The relay is server-enforced.
-Soundboard and theme entitlement is a local courtesy check, not a security
-boundary; a modified client could enable those cosmetics without buying.
+The app still plays local P2P matches for free without a Party Pass. Store
+builds buy and restore through Apple or Google. GitHub and SideStore builds use
+the online Paddle checkout and a license key instead, because those builds have
+no store purchase to restore. The relay is server-enforced for both. The app
+also verifies the stored receipt or license when it starts and clears it when
+the server reports it invalid; a modified client can still flip local cosmetic
+flags, so the relay remains the only hard entitlement.

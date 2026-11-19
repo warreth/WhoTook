@@ -280,8 +280,14 @@ class PolaroidPhotoCard extends StatelessWidget {
         ),
       ),
     );
-    if (onTap == null) return content;
-    return GestureDetector(onTap: onTap, child: content);
+    final labelled = Semantics(
+      container: true,
+      image: true,
+      label: context.l10n.gamePhoto,
+      child: content,
+    );
+    if (onTap == null) return labelled;
+    return GestureDetector(onTap: onTap, child: labelled);
   }
 }
 
@@ -301,6 +307,156 @@ class _PhotoBytes extends StatelessWidget {
       return const PhotoShimmer();
     }
     return GamePhoto(bytes: data, photoId: photoId, fit: BoxFit.cover);
+  }
+}
+
+/// Opens the photo edge-to-edge with pinch-to-zoom so players can inspect
+/// details in the background. Used by Classic and Time Traveler.
+Future<void> showPhotoLightbox(
+  BuildContext context, {
+  required Uint8List? bytes,
+  String? photoId,
+  String? caption,
+}) {
+  return showGeneralDialog<void>(
+    context: context,
+    barrierDismissible: true,
+    barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+    barrierColor: Colors.black.withValues(alpha: 0.92),
+    transitionDuration: const Duration(milliseconds: 180),
+    pageBuilder: (context, animation, secondaryAnimation) =>
+        _PhotoLightbox(bytes: bytes, photoId: photoId, caption: caption),
+    transitionBuilder: (context, animation, secondaryAnimation, child) =>
+        FadeTransition(opacity: animation, child: child),
+  );
+}
+
+class _PhotoLightbox extends StatelessWidget {
+  const _PhotoLightbox({required this.bytes, this.photoId, this.caption});
+
+  final Uint8List? bytes;
+  final String? photoId;
+  final String? caption;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final colors = WhoTookColors.of(context);
+    final cached = photoId == null
+        ? null
+        : PhotoMemoryCache.instance.providerFor(photoId!);
+    final data = bytes;
+    final provider =
+        cached ?? (data == null || data.isEmpty ? null : MemoryImage(data));
+    return Material(
+      key: const ValueKey<String>('photo-lightbox'),
+      color: Colors.black,
+      child: SafeArea(
+        child: Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            if (provider != null)
+              InteractiveViewer(
+                minScale: 1,
+                maxScale: 4,
+                clipBehavior: Clip.none,
+                child: SizedBox.expand(
+                  child: Image(image: provider, fit: BoxFit.contain),
+                ),
+              )
+            else
+              const Center(child: PhotoShimmer()),
+            Positioned(
+              top: AppSpacing.s12,
+              right: AppSpacing.s12,
+              child: Semantics(
+                button: true,
+                label: l10n.close,
+                child: GestureDetector(
+                  key: const ValueKey<String>('photo-lightbox-close'),
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.white, width: 2),
+                      boxShadow: const <BoxShadow>[
+                        BoxShadow(
+                          color: Colors.black,
+                          offset: Offset(0, 4),
+                          blurRadius: 0,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 26,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: AppSpacing.s16,
+              right: AppSpacing.s16,
+              bottom: AppSpacing.s16,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(
+                    l10n.tapToZoomBody,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                  if (caption != null && caption!.isNotEmpty) ...<Widget>[
+                    const SizedBox(height: 4),
+                    Text(
+                      caption!,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: colors.card,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The little "tap to zoom" affordance on a photo card.
+class TapToZoomBadge extends StatelessWidget {
+  const TapToZoomBadge({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.7)),
+      ),
+      child: Text(
+        l10n.tapToZoom,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
   }
 }
 
@@ -690,329 +846,336 @@ class MemeCanvas extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
     final l10n = context.l10n;
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.ink,
-        borderRadius: BorderRadius.circular(9),
-        border: Border.all(color: colors.ink, width: 2),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            offset: const Offset(0, 5),
-            blurRadius: 0,
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: AspectRatio(
-        aspectRatio: 1.06,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final h = constraints.maxHeight;
-            return Stack(
-              fit: StackFit.expand,
-              children: <Widget>[
-                if (template != MemeTemplate.poster &&
-                    template != MemeTemplate.split)
-                  _PhotoBytes(bytes: bytes, photoId: photoId),
-                if (template == MemeTemplate.classic) ...<Widget>[
-                  Positioned(
-                    left: 10,
-                    right: 10,
-                    top: 8,
-                    child: _ImpactText(topText),
-                  ),
-                  Positioned(
-                    left: 10,
-                    right: 10,
-                    bottom: 8,
-                    child: _ImpactText(bottomText),
-                  ),
-                ],
-                if (template == MemeTemplate.pov) ...<Widget>[
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    top: 0,
-                    child: Container(
-                      constraints: BoxConstraints(maxHeight: h * 0.35),
-                      color: Colors.white,
-                      padding: const EdgeInsets.fromLTRB(12, 11, 12, 10),
-                      child: Text(
-                        topText,
-                        maxLines: 4,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF111111),
-                          fontSize: 15,
-                          height: 1.25,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+    return Semantics(
+      container: true,
+      image: true,
+      label: l10n.gamePhoto,
+      child: Container(
+        decoration: BoxDecoration(
+          color: colors.ink,
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(color: colors.ink, width: 2),
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.18),
+              offset: const Offset(0, 5),
+              blurRadius: 0,
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: AspectRatio(
+          aspectRatio: 1.06,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final h = constraints.maxHeight;
+              return Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  if (template != MemeTemplate.poster &&
+                      template != MemeTemplate.split)
+                    _PhotoBytes(bytes: bytes, photoId: photoId),
+                  if (template == MemeTemplate.classic) ...<Widget>[
+                    Positioned(
+                      left: 10,
+                      right: 10,
+                      top: 8,
+                      child: _ImpactText(topText),
                     ),
-                  ),
-                  Positioned(
-                    left: 10,
-                    right: 10,
-                    bottom: 8,
-                    child: _ImpactText(bottomText),
-                  ),
-                ],
-                if (template == MemeTemplate.breaking)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: Container(
-                      color: const Color(0xFFC81E1E),
-                      padding: const EdgeInsets.fromLTRB(10, 7, 10, 9),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Text(
-                            l10n.breakingNews,
-                            style: const TextStyle(
-                              fontFamily: 'JetBrainsMono',
-                              fontSize: 8,
-                              letterSpacing: 1.1,
-                              color: Colors.white70,
-                            ),
-                          ),
-                          Text(
-                            topText,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 15,
-                              height: 1.15,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ],
-                      ),
+                    Positioned(
+                      left: 10,
+                      right: 10,
+                      bottom: 8,
+                      child: _ImpactText(bottomText),
                     ),
-                  ),
-                if (template == MemeTemplate.live) ...<Widget>[
-                  Positioned.fill(
-                    child: Container(
-                      margin: const EdgeInsets.all(9),
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: const Color(0xFFD21F1F),
-                          width: 4,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: 9,
-                    top: 9,
-                    child: ColoredBox(
-                      color: const Color(0xFFD21F1F),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 7,
-                          vertical: 4,
-                        ),
+                  ],
+                  if (template == MemeTemplate.pov) ...<Widget>[
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      top: 0,
+                      child: Container(
+                        constraints: BoxConstraints(maxHeight: h * 0.35),
+                        color: Colors.white,
+                        padding: const EdgeInsets.fromLTRB(12, 11, 12, 10),
                         child: Text(
-                          l10n.liveBadge,
+                          topText,
+                          maxLines: 4,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            color: Colors.white,
-                            fontFamily: 'JetBrainsMono',
-                            fontSize: 8,
+                            color: Color(0xFF111111),
+                            fontSize: 15,
+                            height: 1.25,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  Positioned(
-                    left: 14,
-                    right: 14,
-                    bottom: 14,
-                    child: Text(
-                      topText,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        height: 1.1,
-                        fontWeight: FontWeight.w800,
-                        shadows: <Shadow>[
-                          Shadow(color: Colors.black, blurRadius: 4),
-                        ],
-                      ),
+                    Positioned(
+                      left: 10,
+                      right: 10,
+                      bottom: 8,
+                      child: _ImpactText(bottomText),
                     ),
-                  ),
-                ],
-                if (template == MemeTemplate.poster)
-                  Positioned.fill(
-                    child: ColoredBox(
-                      color: const Color(0xFF111111),
-                      child: Stack(
-                        children: <Widget>[
-                          Positioned(
-                            left: 28,
-                            right: 28,
-                            top: 34,
-                            bottom: 84,
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(2),
-                              child: _PhotoBytes(
-                                bytes: bytes,
-                                photoId: photoId,
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            left: 20,
-                            right: 20,
-                            bottom: 44,
-                            child: Text(
-                              topText,
-                              textAlign: TextAlign.center,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontFamily: 'Fredoka',
-                                color: Color(0xFFF7F4EE),
-                                fontSize: 21,
-                                height: 1.05,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            left: 30,
-                            right: 30,
-                            bottom: 16,
-                            child: Text(
-                              bottomText,
-                              textAlign: TextAlign.center,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(0xFFB4ADA1),
-                                fontSize: 9,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                if (template == MemeTemplate.snap)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    top: (snapY / 100 * h).clamp(20, h - 70),
-                    child: GestureDetector(
-                      onVerticalDragUpdate: onSnapChanged == null
-                          ? null
-                          : (details) => onSnapChanged!(
-                              (snapY + details.delta.dy / h * 100).clamp(
-                                12,
-                                88,
-                              ),
-                            ),
+                  ],
+                  if (template == MemeTemplate.breaking)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
                       child: Container(
-                        color: Colors.black.withValues(alpha: 0.62),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 12,
-                        ),
-                        child: Text(
-                          topText,
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            height: 1.2,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                if (template == MemeTemplate.split)
-                  Positioned.fill(
-                    child: Column(
-                      children: <Widget>[
-                        Expanded(
-                          child: Container(
-                            width: double.infinity,
-                            color: GamePalette.blue,
-                            padding: const EdgeInsets.all(12),
-                            alignment: Alignment.center,
-                            child: Text(
+                        color: const Color(0xFFC81E1E),
+                        padding: const EdgeInsets.fromLTRB(10, 7, 10, 9),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Text(
+                              l10n.breakingNews,
+                              style: const TextStyle(
+                                fontFamily: 'JetBrainsMono',
+                                fontSize: 8,
+                                letterSpacing: 1.1,
+                                color: Colors.white70,
+                              ),
+                            ),
+                            Text(
                               topText,
-                              textAlign: TextAlign.center,
-                              maxLines: 3,
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 15,
-                                fontWeight: FontWeight.w700,
+                                height: 1.15,
+                                fontWeight: FontWeight.w800,
                               ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  if (template == MemeTemplate.live) ...<Widget>[
+                    Positioned.fill(
+                      child: Container(
+                        margin: const EdgeInsets.all(9),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: const Color(0xFFD21F1F),
+                            width: 4,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: 9,
+                      top: 9,
+                      child: ColoredBox(
+                        color: const Color(0xFFD21F1F),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 4,
+                          ),
+                          child: Text(
+                            l10n.liveBadge,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontFamily: 'JetBrainsMono',
+                              fontSize: 8,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
-                        Expanded(
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: <Widget>[
-                              _PhotoBytes(bytes: bytes, photoId: photoId),
-                              if (bottomText.isNotEmpty)
-                                Positioned(
-                                  left: 8,
-                                  bottom: 8,
-                                  child: Container(
-                                    color: Colors.black.withValues(alpha: 0.7),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 3,
-                                    ),
-                                    child: Text(
-                                      bottomText,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontFamily: 'JetBrainsMono',
-                                        fontSize: 8,
-                                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Positioned(
+                      left: 14,
+                      right: 14,
+                      bottom: 14,
+                      child: Text(
+                        topText,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          height: 1.1,
+                          fontWeight: FontWeight.w800,
+                          shadows: <Shadow>[
+                            Shadow(color: Colors.black, blurRadius: 4),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                  if (template == MemeTemplate.poster)
+                    Positioned.fill(
+                      child: ColoredBox(
+                        color: const Color(0xFF111111),
+                        child: Stack(
+                          children: <Widget>[
+                            Positioned(
+                              left: 28,
+                              right: 28,
+                              top: 34,
+                              bottom: 84,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(2),
+                                child: _PhotoBytes(
+                                  bytes: bytes,
+                                  photoId: photoId,
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              left: 20,
+                              right: 20,
+                              bottom: 44,
+                              child: Text(
+                                topText,
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontFamily: 'Fredoka',
+                                  color: Color(0xFFF7F4EE),
+                                  fontSize: 21,
+                                  height: 1.05,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              left: 30,
+                              right: 30,
+                              bottom: 16,
+                              child: Text(
+                                bottomText,
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Color(0xFFB4ADA1),
+                                  fontSize: 9,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  if (template == MemeTemplate.snap)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      top: (snapY / 100 * h).clamp(20, h - 70),
+                      child: GestureDetector(
+                        onVerticalDragUpdate: onSnapChanged == null
+                            ? null
+                            : (details) => onSnapChanged!(
+                                (snapY + details.delta.dy / h * 100).clamp(
+                                  12,
+                                  88,
+                                ),
+                              ),
+                        child: Container(
+                          color: Colors.black.withValues(alpha: 0.62),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 12,
+                          ),
+                          child: Text(
+                            topText,
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              height: 1.2,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (template == MemeTemplate.split)
+                    Positioned.fill(
+                      child: Column(
+                        children: <Widget>[
+                          Expanded(
+                            child: Container(
+                              width: double.infinity,
+                              color: GamePalette.blue,
+                              padding: const EdgeInsets.all(12),
+                              alignment: Alignment.center,
+                              child: Text(
+                                topText,
+                                textAlign: TextAlign.center,
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: <Widget>[
+                                _PhotoBytes(bytes: bytes, photoId: photoId),
+                                if (bottomText.isNotEmpty)
+                                  Positioned(
+                                    left: 8,
+                                    bottom: 8,
+                                    child: Container(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.7,
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 3,
+                                      ),
+                                      child: Text(
+                                        bottomText,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontFamily: 'JetBrainsMono',
+                                          fontSize: 8,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (showWatermark)
-                  Positioned(
-                    right: 8,
-                    top: 8,
-                    child: Text(
-                      kWatermark,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.58),
-                        fontFamily: 'JetBrainsMono',
-                        fontSize: 8,
-                        shadows: const <Shadow>[
-                          Shadow(color: Colors.black54, blurRadius: 3),
                         ],
                       ),
                     ),
-                  ),
-              ],
-            );
-          },
+                  if (showWatermark)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Text(
+                        kWatermark,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.58),
+                          fontFamily: 'JetBrainsMono',
+                          fontSize: 8,
+                          shadows: const <Shadow>[
+                            Shadow(color: Colors.black54, blurRadius: 3),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );

@@ -10,7 +10,13 @@ AudioContext gameSfxContext() => AudioContext(
     audioFocus: AndroidAudioFocus.none,
     stayAwake: false,
   ),
-  iOS: AudioContextIOS(category: AVAudioSessionCategory.ambient),
+  // iOS uses the same playback category as music: an ambient SFX session
+  // would silence the whole game when the Ring/Silent switch is on and can
+  // reconfigure AVAudioSession away from the music session.
+  iOS: AudioContextIOS(
+    category: AVAudioSessionCategory.playback,
+    options: <AVAudioSessionOptions>{AVAudioSessionOptions.mixWithOthers},
+  ),
 );
 
 AudioContext gameMusicContext() => AudioContext(

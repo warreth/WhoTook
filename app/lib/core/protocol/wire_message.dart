@@ -16,7 +16,6 @@ abstract final class WireType {
   static const String photoRequest = 'photo_request';
   static const String playerReady = 'player_ready';
   static const String vaultPreloaded = 'vault_preloaded';
-  static const String musicSync = 'music_sync';
   static const String plantPhoto = 'plant_photo';
   static const String plantAssignment = 'plant_assignment';
   static const String versionWarning = 'version_warning';
@@ -50,8 +49,6 @@ abstract final class WireType {
   static const String stateSync = 'state_sync';
   static const String roomClosed = 'room_closed';
   static const String errorNotice = 'error_notice';
-  static const String ping = 'ping';
-  static const String pong = 'pong';
 
   static const Set<String> all = <String>{
     joinReq,
@@ -65,7 +62,6 @@ abstract final class WireType {
     photoRequest,
     playerReady,
     vaultPreloaded,
-    musicSync,
     plantPhoto,
     plantAssignment,
     versionWarning,
@@ -99,8 +95,6 @@ abstract final class WireType {
     stateSync,
     roomClosed,
     errorNotice,
-    ping,
-    pong,
   };
 }
 

@@ -64,20 +64,14 @@ server and `coturn` relay, read [SELF_HOSTING.md](SELF_HOSTING.md). The official
 hosted signaling and relay deployment is maintained in a separate private
 repository.
 
-For a tracker-free build with no store billing and no official relay client:
-
-```bash
-bash app/foss/build.sh
-```
-
-For a quick runtime check, `cd app && flutter run --dart-define=FOSS_BUILD=true`
-also disables billing and the official relay; the script is the dependency-clean
-build. The FOSS build includes the live soundboard and all room themes for free, and
-uses only a TURN server you configure yourself. Store builds optionally sell
-the **WhoTook Party Pass** (one-time, `whotook_party_pass`) for the hosted 5G
-relay, the soundboard and shared themes. Local P2P play is free in every build.
-Receipts are verified by the private backend; the app never contains the
-verification secret. Details are in [SELF_HOSTING.md](SELF_HOSTING.md).
+Local play is free. The **WhoTook Party Pass** (one-time,
+`whotook_party_pass`) unlocks Play Anywhere, the live soundboard and shared room
+themes in every build. Store builds use the App Store or Google Play purchase.
+GitHub and SideStore builds use the online Paddle checkout and can restore the
+pass with a license key. Self-hosters can still use their own TURN server for
+online play. Receipts and licenses are verified by the private backend; the app
+never contains the verification secret. Details are in
+[SELF_HOSTING.md](SELF_HOSTING.md).
 
 The code is [AGPLv3](LICENSE). The **WhoTook** name and the viewfinder logo are
 trademarks: forks are welcome, but a distributed fork needs its own name and

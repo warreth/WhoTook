@@ -32,6 +32,7 @@ dependencies:
   gal: ^3.0.1
   in_app_purchase: ^3.3.1
   in_app_purchase_storekit: ^0.4.17
+  flutter_secure_storage: ^11.2.0
 
 dev_dependencies:
   flutter_test:

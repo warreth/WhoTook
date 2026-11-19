@@ -45,6 +45,7 @@ class _MatchRootState extends ConsumerState<MatchRoot> {
   GameMode? _splashMode;
   Timer? _splashTimer;
   bool _showSplash = false;
+  String? _audioRoomKey;
 
   @override
   void dispose() {
@@ -94,6 +95,18 @@ class _MatchRootState extends ConsumerState<MatchRoot> {
       );
       SoundboardService.instance.enabled = settings.soundEnabled;
       GameHaptics.instance.enabled = settings.hapticsEnabled;
+    }
+    final audioRoomKey = state.roomId == null
+        ? null
+        : '${state.roomId}:${state.isHosting}';
+    if (audioRoomKey != _audioRoomKey) {
+      _audioRoomKey = audioRoomKey;
+      unawaited(
+        GameAudioService.instance.applyRoomRole(
+          isHost: state.isHosting,
+          inRoom: state.roomId != null,
+        ),
+      );
     }
     _maybeSplash(state);
     final partyPass = ref.watch(partyPassProvider).value;
@@ -305,13 +318,28 @@ class _ArcadeSplash extends StatelessWidget {
       GameMode.timeTraveler => l10n.modeTimeTraveler,
       GameMode.mixedParty => l10n.modeMixedParty,
     };
+    final promptIndex = (round - 1) % 4;
     final title = mixed
         ? l10n.roundSplash(round, modeName)
-        : switch ((round - 1) % 4) {
-            0 => l10n.roundReadyPrompt(round),
-            1 => l10n.roundEyesPrompt(round),
-            2 => l10n.roundGuessPrompt(round),
-            _ => l10n.roundWhoPrompt(round),
+        : switch (mode) {
+            GameMode.makeItMeme => <String>[
+              l10n.memeSplashRoast,
+              l10n.memeSplashFunniest,
+              l10n.memeSplashRidicule,
+              l10n.memeSplashLaugh,
+            ][promptIndex],
+            GameMode.timeTraveler => <String>[
+              l10n.timeSplashMachine,
+              l10n.timeSplashYear,
+              l10n.timeSplashHair,
+              l10n.timeSplashBack,
+            ][promptIndex],
+            _ => <String>[
+              l10n.classicSplashPhotographer,
+              l10n.classicSplashGallery,
+              l10n.classicSplashDetails,
+              l10n.classicSplashWho,
+            ][promptIndex],
           };
     return IgnorePointer(
       child: ColoredBox(
@@ -346,6 +374,18 @@ class _ArcadeSplash extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
+                      if (!mixed)
+                        Text(
+                          l10n.roundSplashKicker(round),
+                          style: TextStyle(
+                            fontFamily: 'JetBrainsMono',
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 2,
+                            color: skin.accent.withValues(alpha: 0.75),
+                          ),
+                        ),
+                      if (!mixed) const SizedBox(height: 4),
                       Text(
                         title,
                         textAlign: TextAlign.center,

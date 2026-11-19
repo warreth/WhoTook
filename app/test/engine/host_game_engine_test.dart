@@ -1076,7 +1076,8 @@ void main() {
         (a) => a.kind == MatchAwardKind.masterOfMystery,
       );
       expect(mystery.playerId, ownerId);
-      expect(mystery.value, 150);
+      expect(mystery.value, 1);
+      expect(engine.player(ownerId)!.wrongGuessCount, 1);
 
       final champion = awards.firstWhere(
         (a) => a.kind == MatchAwardKind.champion,

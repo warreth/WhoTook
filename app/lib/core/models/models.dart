@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import '../version.dart';
+
 /// One participant in a match. Owned and mutated by the host engine.
 class Player {
   Player({
@@ -18,6 +20,7 @@ class Player {
     this.correctCount = 0,
     this.totalCorrectMs = 0,
     this.mysteryPointsEarned = 0,
+    this.wrongGuessCount = 0,
   });
 
   final String id;
@@ -35,6 +38,9 @@ class Player {
   int correctCount;
   int totalCorrectMs;
   int mysteryPointsEarned;
+
+  /// Wrong guesses other players made on this player's photos all match.
+  int wrongGuessCount;
 
   /// Average milliseconds per correct opponent guess, or null when none.
   int? get averageCorrectMs =>
@@ -56,6 +62,7 @@ class Player {
     'correctCount': correctCount,
     'totalCorrectMs': totalCorrectMs,
     'mysteryPointsEarned': mysteryPointsEarned,
+    'wrongGuessCount': wrongGuessCount,
   };
 
   factory Player.fromJson(Map<String, dynamic> json) => Player(
@@ -74,6 +81,7 @@ class Player {
     correctCount: (json['correctCount'] as int?) ?? 0,
     totalCorrectMs: (json['totalCorrectMs'] as int?) ?? 0,
     mysteryPointsEarned: (json['mysteryPointsEarned'] as int?) ?? 0,
+    wrongGuessCount: (json['wrongGuessCount'] as int?) ?? 0,
   );
 }
 
@@ -1082,5 +1090,5 @@ class VersionWarning {
   final String ownVersion;
   final int ownBuild;
 
-  bool get isNewer => latestBuild > ownBuild;
+  bool get isNewer => isNewerAppVersion(latestVersion, ownVersion);
 }

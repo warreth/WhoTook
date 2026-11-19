@@ -167,6 +167,20 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
     await _capture(tester, activeKey, 'party_pass_active');
 
+    final storeKey = GlobalKey();
+    await tester.pumpWidget(
+      _app(
+        RepaintBoundary(
+          key: storeKey,
+          child: const PartyPassBottomSheet(verifyOnOpen: false),
+        ),
+        pass: const PartyPassState(loading: false, billingAvailable: false),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    await _capture(tester, storeKey, 'party_pass_store_unavailable');
+
     final soundKey = GlobalKey();
     await tester.pumpWidget(
       _app(

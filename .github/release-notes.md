@@ -8,6 +8,8 @@
 
 **Play upload:** `WhoTook-1.9.2.aab`.
 
+**Party Pass:** GitHub and SideStore builds buy the Party Pass through the secure Paddle checkout and can restore it with a license key. Google Play and App Store builds keep using their store purchase.
+
 ## What is in this release
 
 - **The vault can no longer freeze.** Clients repeat their ready signal every 1.5 seconds until the round starts. The host checks readiness every 500 ms, and after 10 seconds a **Force start match** button appears so a lobby cannot stay stuck.
@@ -25,7 +27,7 @@
 
 - 356 Flutter tests, including the three-player Make It Meme flow, the 10-round Mixed Party schedule, unique photo assignments and swaps, the vault force-start fallback, meme payloads, the offline demo and six responsive viewport profiles.
 - `flutter analyze` clean.
-- Normal and FOSS builds pass the full suite.
+- The full test suite passes.
 - Marketing screenshots and store captures regenerated from the real widgets.
 
 `SHA256SUMS.txt` contains the checksum of every attached file.

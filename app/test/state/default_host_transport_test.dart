@@ -59,9 +59,9 @@ void main() {
 
     await wrapper.sendToClient(
       'p1',
-      WireMessage(type: WireType.ping, seq: 1),
+      WireMessage(type: WireType.lobbyState, seq: 1),
     );
-    await wrapper.broadcast(WireMessage(type: WireType.ping, seq: 2));
+    await wrapper.broadcast(WireMessage(type: WireType.lobbyState, seq: 2));
     await wrapper.broadcast(
       WireMessage(
         type: WireType.photoChunk,
@@ -94,7 +94,7 @@ void main() {
     await wrapper.start();
     await wrapper.sendToClient(
       'p1',
-      WireMessage(type: WireType.ping, seq: 1),
+      WireMessage(type: WireType.lobbyState, seq: 1),
     );
     await wrapper.close();
     await wrapper.close();
@@ -111,10 +111,10 @@ void main() {
     final wrapper = BestEffortHostTransport(inner);
 
     await wrapper.start();
-    await wrapper.broadcast(WireMessage(type: WireType.ping, seq: 1));
+    await wrapper.broadcast(WireMessage(type: WireType.lobbyState, seq: 1));
     await wrapper.sendToClient(
       'nobody',
-      WireMessage(type: WireType.ping, seq: 2),
+      WireMessage(type: WireType.lobbyState, seq: 2),
     );
     expect(inner.startAttempts, 1);
     expect(inner.sends, 0);

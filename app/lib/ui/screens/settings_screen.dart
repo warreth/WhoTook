@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/audio/game_audio_service.dart';
 import '../../core/avatars.dart';
-import '../../core/build_flavor.dart';
 import '../../core/party_pass/party_pass_controller.dart';
 import '../../core/constants.dart';
 import '../../core/links.dart';
@@ -17,7 +16,6 @@ import '../../state/providers.dart';
 import '../widgets/avatar_editor.dart';
 import '../widgets/common.dart';
 import '../widgets/game_background.dart';
-import '../widgets/custom_turn_section.dart';
 import '../widgets/party_pass_sheet.dart';
 import 'advanced_settings_screen.dart';
 import 'demo_screen.dart';
@@ -236,10 +234,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           ),
                         );
                         unawaited(
-                          GameAudioService.instance.configure(
-                            sfx: settings?.soundEnabled ?? true,
-                            music: value,
-                          ),
+                          GameAudioService.instance.setMusicEnabled(value),
                         );
                       },
                       title: Text(
@@ -474,20 +469,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   onTap: () => unawaited(showPartyPassSheet(context)),
                 ),
               ),
-              if (BuildFlavor.foss) ...<Widget>[
-                const SizedBox(height: AppSpacing.s24),
-                SectionLabel(l10n.fossBuildBadge),
-                Text(
-                  l10n.fossBuildBody,
-                  style: TextStyle(
-                    fontSize: 13,
-                    height: 1.4,
-                    color: colors.ink2,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.s12),
-                const CustomTurnSection(),
-              ],
               const SizedBox(height: AppSpacing.s24),
               SectionLabel(l10n.helpAndLegal),
               SurfaceCard(

@@ -115,14 +115,14 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p ../dist
-          flutter build apk --release
+          flutter build apk --release --dart-define=WHOTOOK_DISTRIBUTION=direct
           # Copy the universal APK before the split build replaces the shared
           # flutter-apk outputs. Keep the stable alias for the website and
           # Obtainium, plus a versioned name for the release page.
           cp build/app/outputs/flutter-apk/app-release.apk ../dist/WhoTook.apk
           cp build/app/outputs/flutter-apk/app-release.apk "../dist/WhoTook-${VERSION}-universal.apk"
 
-          flutter build apk --release --split-per-abi
+          flutter build apk --release --split-per-abi --dart-define=WHOTOOK_DISTRIBUTION=direct
           cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "../dist/WhoTook-${VERSION}-arm64-v8a.apk"
           cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk "../dist/WhoTook-${VERSION}-armeabi-v7a.apk"
           cp build/app/outputs/flutter-apk/app-x86_64-release.apk "../dist/WhoTook-${VERSION}-x86_64.apk"
@@ -165,7 +165,7 @@ jobs:
 
       - name: Build unsigned iOS app
         working-directory: app
-        run: flutter build ios --release --no-codesign
+        run: flutter build ios --release --no-codesign --dart-define=WHOTOOK_DISTRIBUTION=direct
 
       - name: Package unsigned IPA
         run: |

@@ -46,6 +46,8 @@
   "onlineRelayUsed": "Online relay is used up today. Use the same Wi-Fi to keep playing.",
   "guessWhosePhoto": "Guess whose photo it is",
   "onboardingTagline": "One photo. One guess. Tap who you think took it.",
+  "onboardingFreeTitle": "Same Wi-Fi is always free",
+  "onboardingFreeBody": "Play Anywhere is optional, for friends on mobile data or another Wi-Fi. It comes with the Party Pass.",
   "yourName": "Your name",
   "acceptTerms": "I agree to the Terms of use and Community rules.",
   "termsLink": "Terms and community rules",
@@ -453,7 +455,35 @@
   },
   "quickestDraw": "Quickest draw",
   "longestStreak": "Longest streak",
-  "masterOfMystery": "Master of mystery",
+  "masterOfMystery": "Unguessable Photo 🕵️",
+  "awardWrongGuesses": "{count, plural, =1{1 wrong guess} other{{count} wrong guesses}}",
+  "@awardWrongGuesses": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "itWasPhotoOf": "It was {name}'s photo!",
+  "@itWasPhotoOf": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "guessedWrong": "Guessed {name} ❌",
+  "@guessedWrong": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "guessedCorrectly": "Guessed right ✓",
+  "noGuessMade": "No guess ⏳",
+  "tapToZoom": "🔍 Tap to zoom",
+  "tapToZoomBody": "Pinch to inspect the details",
   "paparazzi": "Paparazzi",
   "smoothPlanter": "Smooth planter",
   "awardSeconds": "{seconds}s",
@@ -639,7 +669,7 @@
   "removeAPlayer": "Remove a player",
   "removePlayerMatchBody": "They leave this match. Their photo rounds stay in the game.",
   "differentVersions": "Different app versions",
-  "versionWarningBody": "Someone is on {latestVersion} (build {latestBuild}). You are on {ownVersion} (build {ownBuild}). Update so rounds and photos stay in sync.",
+  "versionWarningBody": "Someone is on {latestVersion}. You are on {ownVersion}. Update so rounds and photos stay in sync.",
   "@versionWarningBody": {
     "placeholders": {
       "latestVersion": {
@@ -872,7 +902,6 @@
       }
     }
   },
-  "roundReadyPrompt": "Round {round}: get ready!",
   "@roundReadyPrompt": {
     "placeholders": {
       "round": {
@@ -880,7 +909,6 @@
       }
     }
   },
-  "roundEyesPrompt": "Round {round}: eyes on the screen!",
   "@roundEyesPrompt": {
     "placeholders": {
       "round": {
@@ -888,7 +916,6 @@
       }
     }
   },
-  "roundGuessPrompt": "Round {round}: guess the photo!",
   "@roundGuessPrompt": {
     "placeholders": {
       "round": {
@@ -896,7 +923,6 @@
       }
     }
   },
-  "roundWhoPrompt": "Round {round}: whose camera roll?",
   "@roundWhoPrompt": {
     "placeholders": {
       "round": {
@@ -904,6 +930,26 @@
       }
     }
   },
+  "roundSplashKicker": "ROUND {round}",
+  "@roundSplashKicker": {
+    "placeholders": {
+      "round": {
+        "type": "int"
+      }
+    }
+  },
+  "classicSplashPhotographer": "Guess the photographer!",
+  "classicSplashGallery": "Whose gallery is this from?",
+  "classicSplashDetails": "Look closely at the details!",
+  "classicSplashWho": "Who took this shot?",
+  "memeSplashRoast": "Time to roast!",
+  "memeSplashFunniest": "Think of the funniest meme!",
+  "memeSplashRidicule": "Make your friends ridiculous!",
+  "memeSplashLaugh": "Make the room laugh!",
+  "timeSplashMachine": "Start the time machine!",
+  "timeSplashYear": "What year was this?!",
+  "timeSplashHair": "Check the haircuts and clothes!",
+  "timeSplashBack": "Travel back in time!",
   "roundSplash": "ROUND {round}: {mode}!",
   "@roundSplash": {
     "description": "Full-screen arcade transition between rounds",
@@ -953,7 +999,6 @@
       }
     }
   },
-  "yourGuess": "Your guess",
   "ownerLabel": "OWNER",
   "breakingNews": "BREAKING NEWS",
   "liveBadge": "● LIVE",
@@ -962,8 +1007,8 @@
   "memeNoMemes": "No memes this round.",
   "partyPassTitle": "WhoTook Party Pass",
   "partyPassSubtitle": "One payment. Every party feature, forever.",
-  "partyPassPerkRelayTitle": "5G & firewall relay",
-  "partyPassPerkRelayBody": "Play through strict 5G and carrier NATs with our encrypted relay, with a fair-use allowance every day.",
+  "partyPassPerkRelayTitle": "Play Anywhere",
+  "partyPassPerkRelayBody": "Friends on mobile data or another Wi-Fi join through our encrypted relay. Same Wi-Fi is always free. The relay has a daily limit.",
   "partyPassPerkSoundboardTitle": "Live soundboard",
   "partyPassPerkSoundboardBody": "Drop Airhorn, Vine Boom and more during rounds. Everyone in the room hears it.",
   "partyPassPerkThemesTitle": "Shared room themes",
@@ -972,18 +1017,32 @@
   "partyPassRestore": "Restore purchases",
   "partyPassRestoreHint": "Already bought it? Restore it on this device.",
   "partyPassActiveBadge": "Party Pass Active",
-  "partyPassActiveBody": "Relay, soundboard and shared themes are unlocked on this device.",
+  "partyPassActiveBody": "Play Anywhere, the soundboard and shared themes are unlocked on this device.",
   "partyPassFairUse": "{remaining} of {limit} relay matches left today",
-  "partyPassFossIncluded": "Included in this FOSS build",
-  "partyPassFossBody": "No store, no tracking. The soundboard and all themes are free, and you can point the app at your own TURN server.",
+  "partyPassStoreUnavailable": "The store is not available in this build. Install WhoTook from the App Store or Google Play to buy or restore the Party Pass.",
+  "partyPassStoreButton": "Get the store version",
+  "partyPassPaddleUnavailable": "Online checkout is unavailable right now. You can still enter a license key.",
+  "partyPassLicenseButton": "I have a license key",
+  "partyPassLicenseTitle": "Enter your Party Pass license",
+  "partyPassLicenseHint": "WT-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX",
+  "partyPassLicenseApply": "Unlock Party Pass",
+  "partyPassRestoreHintPaddle": "Already bought it? Restore the purchase or enter the license key.",
   "partyPassCustomTurn": "Use your own TURN server",
-  "partyPassStoreUnavailable": "The store is not available in this build. Restore purchases after installing from the App Store or Google Play.",
-  "partyPassPurchasePending": "Waiting for the store to confirm your purchase…",
+  "partyPassPurchasePending": "Waiting for the purchase to confirm…",
   "partyPassErrorCanceled": "Purchase canceled. Nothing was charged.",
   "partyPassErrorUnavailable": "The store is not available right now. Try again in a moment.",
   "partyPassErrorProduct": "The Party Pass product is not available in this store yet.",
   "partyPassErrorRestoreEmpty": "No previous Party Pass purchase was found on this account.",
+  "partyPassErrorRevoked": "This Party Pass is no longer valid. Restore purchases, or contact support if you think this is a mistake.",
   "partyPassErrorGeneric": "Something went wrong. Try again, or restore purchases.",
+  "partyPassErrorInvalidLicense": "That license key is not valid. Check the key and try again.",
+  "partyPassErrorLicenseMissing": "The purchase completed, but the license was not returned. Restore the purchase or contact support.",
+  "partyPassErrorPurchaseExpired": "This checkout expired. Start a new purchase.",
+  "partyPassErrorPurchaseNotFound": "No pending purchase was found. Start a new purchase.",
+  "partyPassErrorRateLimited": "Too many attempts. Wait a moment and try again.",
+  "partyPassErrorCheckoutUnavailable": "Checkout is not available right now. Try again later.",
+  "partyPassErrorCheckoutOpenFailed": "The checkout page could not open. Try again, or enter your license key.",
+  "partyPassErrorNetwork": "Could not reach the purchase service. Check your connection and try again.",
   "partyPassRelayError": "The relay could not verify this purchase right now. Direct play still works.",
   "partyPassTerms": "Terms",
   "partyPassPrivacy": "Privacy",
@@ -1007,10 +1066,9 @@
   "lobbySoundboardOff": "Pass only",
   "relayStatusLocal": "Same Wi-Fi",
   "relayStatusDirect": "Direct P2P",
-  "relayStatusRelay": "5G relay",
+  "relayStatusRelay": "Online relay",
   "relayStatusCustom": "Custom TURN",
   "relayStatusOffline": "Not connected",
-  "relayStatusFoss": "Self-host ready",
   "soundboardTitle": "Soundboard",
   "soundboardHint": "Tap a sound. Everyone hears it.",
   "soundboardCollapse": "Hide soundboard",
@@ -1024,22 +1082,16 @@
   "soundDrumroll": "Drumroll",
   "soundLaughTrack": "Laugh Track",
   "soundPlayedToast": "{name} played {sound}",
-  "firewallTitle": "Strict 5G firewall detected!",
-  "firewallBody": "Connect to the same Wi-Fi/Hotspot to play 100% free, or unlock the WhoTook Party Pass (€2.99 once) to use our high-speed 5G Relay Server.",
+  "firewallTitle": "This network blocks direct play",
+  "firewallBody": "Same Wi-Fi is always free. Connect to the same Wi-Fi or hotspot to play, or unlock Play Anywhere with the Party Pass.",
   "firewallWifiAction": "Play on Wi-Fi/Hotspot",
   "firewallUnlockAction": "Unlock Party Pass",
-  "firewallFossAction": "Set up custom TURN",
   "firewallRelayDownTitle": "Relay could not connect",
   "firewallRelayDownBody": "Your Party Pass is active, but the relay did not answer. Check your connection, then try again.",
   "firewallRetryAction": "Try again",
-  "fossTurnTitle": "Custom TURN Server (Self-Host)",
-  "fossTurnBody": "FOSS builds never use the official relay. Point the app at your own coturn server for strict networks.",
-  "fossTurnSaved": "Custom TURN saved",
-  "fossBuildBadge": "FOSS build",
-  "fossBuildBody": "No billing, no analytics, no official relay.",
   "settingsPartyPassTitle": "WhoTook Party Pass",
   "settingsPartyPassActive": "Active on this device",
-  "settingsPartyPassInactive": "Relay, soundboard and shared themes",
+  "settingsPartyPassInactive": "Play Anywhere, soundboard and shared themes",
   "errorRelayUnavailable": "The relay is unavailable right now. Direct play still works.",
   "@partyPassUnlockButton": {
     "description": "partyPassUnlockButton",
@@ -1088,7 +1140,26 @@
     }
   },
   "roomThemeFree": "Free for everyone",
-  "turnCredentialPairError": "Fill in both the TURN username and password, or leave both empty.",
+  "roomThemePreviewHint": "Tap a theme to preview it live on the lobby.",
+  "roomThemePreviewing": "👀 Previewing \"{theme}\"",
+  "@roomThemePreviewing": {
+    "placeholders": {
+      "theme": {
+        "type": "String"
+      }
+    }
+  },
+  "roomThemeApply": "✓ Apply Theme to Room",
+  "roomThemeUnlockPass": "🔓 Unlock Party Pass ({price}) to use in match",
+  "@roomThemeUnlockPass": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "roomThemeRevert": "Revert",
+  "roomThemeApplied": "Theme applied to the room",
   "firewallQuotaTitle": "Daily relay limit reached",
   "firewallQuotaBody": "Your Party Pass relay allowance is used up. It resets on a rolling 24-hour window. Play on the same Wi-Fi/hotspot, or configure your own TURN server.",
   "firewallVerificationTitle": "Could not verify this purchase",
@@ -1115,5 +1186,7 @@
   },
   "firewallRetryNow": "Retry now",
   "errorHostStarting": "The host is still opening the room. Try again in a moment.",
-  "errorInviteExpired": "This invite has expired. Ask the host for a new QR code."
+  "errorInviteExpired": "This invite has expired. Ask the host for a new QR code.",
+  "roomThemePreviewBadge": "PREVIEW",
+  "gamePhoto": "Game photo"
 }

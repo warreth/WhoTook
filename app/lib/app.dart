@@ -8,7 +8,8 @@ import '../l10n/l10n.dart';
 import '../core/theme/whotook_theme.dart';
 import '../state/providers.dart';
 import 'ui/deep_link_listener.dart';
-import 'ui/match_root.dart';
+import 'ui/playtest_bootstrap.dart';
+import '../core/playtest_config.dart';
 import 'ui/screens/onboarding_screen.dart';
 
 class WhoTookApp extends ConsumerWidget {
@@ -24,7 +25,8 @@ class WhoTookApp extends ConsumerWidget {
           matchStateProvider.select((value) => value.value?.roomThemeId),
         ) ??
         kDefaultRoomThemeId;
-    final roomTheme = RoomThemeId.fromWire(roomThemeId);
+    final preview = ref.watch(roomThemePreviewProvider);
+    final roomTheme = preview ?? RoomThemeId.fromWire(roomThemeId);
     final hasSharedTheme = !roomTheme.isClassic;
     final language = settings.value?.language ?? AppLanguage.system;
     final locale = switch (language) {
@@ -58,12 +60,14 @@ class WhoTookApp extends ConsumerWidget {
       },
       builder: (context, child) => child == null
           ? const SizedBox.shrink()
+          : PlaytestConfig.enabled
+          ? child
           : DeepLinkListener(child: child),
       home: settings.when(
         loading: () => const _BootScreen(),
         error: (error, stack) => const _BootScreen(),
-        data: (value) => value.onboardingCompleted
-            ? const MatchRoot()
+        data: (value) => value.onboardingCompleted || PlaytestConfig.enabled
+            ? const PlaytestBootstrap()
             : const OnboardingScreen(),
       ),
     );

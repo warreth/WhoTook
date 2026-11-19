@@ -12,3 +12,39 @@ public website/docs assets. Keep it user-facing.
   GitHub Actions Secrets.
 - Public documentation is `README.md` and `docs/screenshots` only.
 - Do not rewrite public git history or force-push without the maintainer.
+
+
+## Multiplayer playtest
+
+Playtesting is part of the public product workflow, not a release checklist.
+Use the reusable suite before shipping gameplay or layout changes:
+
+```bash
+./tool/playtest/run_full_playtest.sh
+```
+
+It runs the Dart 4–6 peer simulation in
+`app/test/multiplayer_simulation_test.dart`, builds a throwaway
+`PLAYTEST_MODE=true` web bundle under `/tmp/opencode`, and drives four isolated
+Playwright browser contexts at `375x667`, `393x852`, `412x915` and `768x1024`
+through Classic, Make It Meme, Time Traveler and Mixed Party. Screenshots and a
+structured report land in `.private_prototypes/auto_playtest/` (gitignored).
+
+Useful variants:
+
+- `./tool/playtest/run_full_playtest.sh --dart-only`
+- `./tool/playtest/run_full_playtest.sh --visual-only --skip-build --mode mixed`
+- `./tool/playtest/run_full_playtest.sh --mode meme-zero` for the 0-meme freeze
+  regression.
+- The local MCP tools `run_dart_multiplayer_sim` and `run_visual_bot_match`
+  (registered in `opencode.json` through `tool/playtest/mcp_playtest_server.mjs`)
+  expose the same runs to a future OpenChamber session.
+- `/playtest` runs the whole audit and asks a subagent for an independent
+  screenshot review.
+- To delegate it by hand, call the `subagent` tool with agent `general` and
+  ask it to read `.private_prototypes/auto_playtest/report.json` plus every
+  screenshot, and return only defects with screenshot names. Keep code fixes in
+  the main session.
+
+The web harness uses bundled sample photos with capture dates and never touches
+a real gallery. Keep `PLAYTEST_MODE` test-only; it is a compile-time flag.

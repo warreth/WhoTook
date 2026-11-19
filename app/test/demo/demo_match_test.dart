@@ -4,7 +4,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:whotook/core/models/models.dart';
+import 'package:whotook/core/storage/last_room_repository.dart';
+import 'package:whotook/core/storage/settings_repository.dart';
 import 'package:whotook/demo/demo_match_controller.dart';
+import 'package:whotook/state/match_coordinator.dart';
+import 'package:whotook/transport/game_transport.dart';
+
+import '../support/test_photo_library.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -33,6 +39,7 @@ void main() {
       addTearDown(controller.dispose);
 
       await controller.start();
+      expect(controller.host.platformServices, isFalse);
       expect(controller.host.state.isHosting, isTrue);
       expect(controller.host.state.roomId, isNotNull);
       expect(controller.host.state.players, hasLength(4));
@@ -57,6 +64,42 @@ void main() {
       expect(controller.host.state.players, hasLength(4));
     },
     timeout: const Timeout(Duration(seconds: 30)),
+  );
+
+  test(
+    'the demo host never waits for screenshot or wake-lock services',
+    () async {
+      var wakeCalls = 0;
+      final hub = LoopbackHub();
+      final host = MatchCoordinator(
+        photos: TestPhotoLibrary(seed: 4),
+        settings: SettingsRepository(),
+        lastRooms: LastRoomRepository.memory(),
+        hostTransportFactory: (room, secret, lan) => LoopbackHostTransport(hub),
+        includeOnlineTransport: false,
+        platformServices: false,
+        wakeLock: (awake) async {
+          wakeCalls += 1;
+        },
+      );
+      addTearDown(() async {
+        await host.dispose();
+        await hub.dispose();
+      });
+
+      await host.hostMatch(
+        config: const MatchConfig(
+          roundsK: 1,
+          roundSeconds: 4,
+          mode: GameMode.classic,
+          pace: GamePace.fast,
+        ),
+      );
+
+      expect(host.state.isHosting, isTrue);
+      expect(host.state.roomId, isNotNull);
+      expect(wakeCalls, 0);
+    },
   );
 
   test(

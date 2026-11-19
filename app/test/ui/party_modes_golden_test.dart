@@ -126,6 +126,16 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('eight player timeline reveal stacks every pin', (tester) async {
+    final photo = _photo('party-hamster');
+    await _precache(tester, photo);
+    await _pump(tester, const TimelineScreen(), _timelineRevealEight(photo));
+    expect(tester.takeException(), isNull);
+    await tester.drag(find.byType(TimelineScreen), const Offset(0, -260));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('mode selector', (tester) async {
     await _pump(tester, const ModeSetupScreen(), _lobbyModes());
     await expectLater(
@@ -372,6 +382,66 @@ MatchUiState _timelineReveal(Uint8List photo) => MatchUiState(
     furthestId: 'c2',
   ),
 );
+
+MatchUiState _timelineRevealEight(Uint8List photo) {
+  final players = <Player>[
+    Player(
+      id: 'host',
+      name: 'Bram',
+      avatar: 'rocket',
+      isHost: true,
+      score: 420,
+    ),
+    for (var i = 0; i < 7; i++)
+      Player(
+        id: 'p$i',
+        name: 'Player ${i + 2}',
+        avatar: 'star',
+        score: 500 + i * 40,
+      ),
+  ];
+  final entries = <TimelineEntry>[
+    for (var i = 0; i < 8; i++)
+      TimelineEntry(
+        playerId: players[i].id,
+        playerName: players[i].name,
+        year: 1990 + i * 3,
+        month: (i % 12) + 1,
+        monthsOff: 12 + i * 7,
+        points: 80 + i * 20,
+        isOwner: i == 7,
+      ),
+  ];
+  return MatchUiState(
+    isHosting: true,
+    roomId: 'k8m2p9x4',
+    localPlayerId: 'host',
+    players: players,
+    phase: RoundPhase.timelineReveal,
+    activeMode: GameMode.timeTraveler,
+    config: const MatchConfig(
+      roundsK: 6,
+      roundSeconds: 8,
+      mode: GameMode.timeTraveler,
+    ),
+    currentRound: 2,
+    totalRounds: 6,
+    activePhotoBytes: photo,
+    lastTimelineReveal: TimelineReveal(
+      roundNumber: 2,
+      photoId: 'p-hamster',
+      ownerId: 'p6',
+      actualYear: 2005,
+      actualMonth: 6,
+      entries: entries,
+      scoreDeltas: <String, int>{
+        for (final entry in entries) entry.playerId: entry.points,
+      },
+      closestId: 'p2',
+      furthestId: 'p7',
+    ),
+  );
+}
 
 MatchUiState _lobbyModes() => MatchUiState(
   isHosting: true,

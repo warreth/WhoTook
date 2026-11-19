@@ -4,16 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
-import 'package:whotook/core/build_flavor.dart';
 import 'package:whotook/core/party_pass/party_pass_controller.dart';
 import 'package:whotook/core/party_pass/party_pass_repository.dart';
 import 'package:whotook/core/party_pass/purchase_service.dart';
 import 'package:whotook/core/party_pass/turn_relay_client.dart';
-
-class _OfficialPartyPassController extends PartyPassController {
-  @override
-  bool get fossIncludedBuild => false;
-}
 
 class _FakePurchaseService implements PartyPassPurchaseService {
   final StreamController<PartyPassPurchaseEvent> _events =
@@ -38,7 +32,18 @@ class _FakePurchaseService implements PartyPassPurchaseService {
   bool get available => true;
 
   @override
+  PartyPassBillingKind get kind => PartyPassBillingKind.store;
+
+  @override
   Future<void> initialize() async {}
+
+  @override
+  Future<PartyPassPurchaseEvent> redeem(String licenseKey) async {
+    return const PartyPassPurchaseEvent(
+      status: PartyPassPurchaseStatus.error,
+      code: 'license_not_supported',
+    );
+  }
 
   @override
   Future<PartyPassPurchaseEvent> buy() async {
@@ -121,6 +126,21 @@ class _FakeRelayClient extends TurnRelayClient {
   }
 }
 
+class _RevokedRelayClient extends _FakeRelayClient {
+  @override
+  Future<TurnRelayVerification> verify({
+    required String baseUrl,
+    required PartyPassCredential credential,
+  }) async {
+    verifies += 1;
+    return const TurnRelayVerification(
+      valid: false,
+      remainingMatchesToday: 0,
+      dailyLimit: 0,
+    );
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -129,28 +149,12 @@ void main() {
         InMemorySharedPreferencesAsync.empty();
   });
 
-  test('a FOSS build includes cosmetics and has no official relay', () async {
-    if (!BuildFlavor.foss) return;
-    final container = ProviderContainer();
-    addTearDown(container.dispose);
-
-    final state = await container.read(partyPassProvider.future);
-    expect(state.active, isTrue);
-    expect(state.fossIncluded, isTrue);
-
-    final attempt = await container
-        .read(partyPassProvider.notifier)
-        .relayAttempt();
-    expect(attempt.grant, isNull);
-    expect(attempt.passActive, isFalse);
-  });
-
   test('an empty install starts locked and unlocks on purchase', () async {
     final purchase = _FakePurchaseService();
     final relay = _FakeRelayClient();
     final container = ProviderContainer(
       overrides: [
-        partyPassProvider.overrideWith(_OfficialPartyPassController.new),
+        partyPassProvider.overrideWith(PartyPassController.new),
         partyPassPurchaseServiceProvider.overrideWithValue(purchase),
         turnRelayClientProvider.overrideWithValue(relay),
       ],
@@ -177,7 +181,7 @@ void main() {
     final relay = _FakeRelayClient();
     final container = ProviderContainer(
       overrides: [
-        partyPassProvider.overrideWith(_OfficialPartyPassController.new),
+        partyPassProvider.overrideWith(PartyPassController.new),
         partyPassPurchaseServiceProvider.overrideWithValue(purchase),
         turnRelayClientProvider.overrideWithValue(relay),
       ],
@@ -197,7 +201,7 @@ void main() {
     final relay = _FakeRelayClient();
     final container = ProviderContainer(
       overrides: [
-        partyPassProvider.overrideWith(_OfficialPartyPassController.new),
+        partyPassProvider.overrideWith(PartyPassController.new),
         partyPassPurchaseServiceProvider.overrideWithValue(purchase),
         turnRelayClientProvider.overrideWithValue(relay),
       ],
@@ -227,7 +231,7 @@ void main() {
     final relay = _DelayedVerifyRelayClient();
     final container = ProviderContainer(
       overrides: [
-        partyPassProvider.overrideWith(_OfficialPartyPassController.new),
+        partyPassProvider.overrideWith(PartyPassController.new),
         partyPassPurchaseServiceProvider.overrideWithValue(purchase),
         turnRelayClientProvider.overrideWithValue(relay),
       ],
@@ -262,7 +266,7 @@ void main() {
       final relay = _FakeRelayClient();
       final container = ProviderContainer(
         overrides: [
-          partyPassProvider.overrideWith(_OfficialPartyPassController.new),
+          partyPassProvider.overrideWith(PartyPassController.new),
           partyPassPurchaseServiceProvider.overrideWithValue(purchase),
           turnRelayClientProvider.overrideWithValue(relay),
         ],
@@ -281,4 +285,38 @@ void main() {
       );
     },
   );
+
+  test('a revoked receipt locks the pass and clears the credential', () async {
+    final purchase = _FakePurchaseService();
+    final relay = _RevokedRelayClient();
+    final repo = PartyPassRepository();
+    await repo.save(
+      PartyPassCredential(
+        platform: StorePlatform.google,
+        productId: kPartyPassProductId,
+        verificationToken: 'revoked-token',
+        savedAtUtc: DateTime.utc(2026, 11, 16),
+      ),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        partyPassProvider.overrideWith(PartyPassController.new),
+        partyPassPurchaseServiceProvider.overrideWithValue(purchase),
+        turnRelayClientProvider.overrideWithValue(relay),
+        partyPassRepositoryProvider.overrideWithValue(repo),
+      ],
+    );
+    addTearDown(container.dispose);
+    addTearDown(purchase.dispose);
+
+    final initial = await container.read(partyPassProvider.future);
+    expect(initial.active, isTrue);
+
+    await container.read(partyPassProvider.notifier).verify();
+    final locked = container.read(partyPassProvider).value!;
+    expect(locked.active, isFalse);
+    expect(locked.credential, isNull);
+    expect(locked.errorCode, 'pass_revoked');
+    expect(await repo.load(), isNull);
+  });
 }

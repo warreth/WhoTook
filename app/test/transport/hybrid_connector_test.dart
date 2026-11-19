@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:whotook/core/build_flavor.dart';
 import 'package:whotook/core/models/models.dart';
 import 'package:whotook/core/party_pass/turn_relay_client.dart';
 import 'package:whotook/core/protocol/wire_message.dart';
@@ -184,7 +183,6 @@ void main() {
     });
 
     test('official default ignores a server-issued TURN relay', () async {
-      if (BuildFlavor.foss) return;
       final client = SignalingIceClient(
         signalingUrl: 'https://signal.example',
         httpClient: MockClient(

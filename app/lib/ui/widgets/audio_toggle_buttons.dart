@@ -30,9 +30,7 @@ class AudioToggleButtons extends ConsumerWidget {
                   .read(appSettingsProvider.notifier)
                   .apply((value) => value.copyWith(musicEnabled: next)),
             );
-            unawaited(
-              GameAudioService.instance.configure(sfx: sfx, music: next),
-            );
+            unawaited(GameAudioService.instance.setMusicEnabled(next));
           },
           icon: Icon(music ? Icons.music_note : Icons.music_off),
         ),

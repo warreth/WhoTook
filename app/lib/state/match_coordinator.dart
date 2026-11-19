@@ -21,7 +21,9 @@ import '../core/platform/screenshot_detector.dart';
 import '../core/party_pass/room_theme.dart';
 import '../core/party_pass/sound_effect.dart';
 import '../core/party_pass/turn_relay_client.dart';
+import '../core/playtest_config.dart';
 import '../core/protocol/wire_message.dart';
+import '../core/version.dart';
 import '../core/qr/invite_codec.dart';
 import '../core/storage/settings_repository.dart';
 import '../engine/host_game_engine.dart';
@@ -67,7 +69,9 @@ class MemeCard {
     required this.snapY,
     this.photoId = '',
     this.isOwn = false,
+    this.authorId,
     this.authorName,
+    this.photoOwnerId,
     this.photoOwnerName,
     this.upVotes = 0,
     this.mehVotes = 0,
@@ -84,7 +88,9 @@ class MemeCard {
   final String bottomText;
   final double snapY;
   final bool isOwn;
+  final String? authorId;
   final String? authorName;
+  final String? photoOwnerId;
   final String? photoOwnerName;
   final int upVotes;
   final int mehVotes;
@@ -102,7 +108,9 @@ class MemeCard {
         bottomText: bottomText,
         snapY: snapY,
         isOwn: isOwn ?? this.isOwn,
+        authorId: authorId,
         authorName: authorName,
+        photoOwnerId: photoOwnerId,
         photoOwnerName: photoOwnerName,
         upVotes: upVotes,
         mehVotes: mehVotes,
@@ -120,7 +128,9 @@ class MemeCard {
     'bottomText': bottomText,
     'snapY': snapY,
     'isOwn': isOwn,
+    'authorId': authorId,
     'authorName': authorName,
+    'photoOwnerId': photoOwnerId,
     'photoOwnerName': photoOwnerName,
     'upVotes': upVotes,
     'mehVotes': mehVotes,
@@ -141,7 +151,9 @@ class MemeCard {
     bottomText: json['bottomText'] as String? ?? '',
     snapY: (json['snapY'] as num?)?.toDouble() ?? 48,
     isOwn: json['isOwn'] as bool? ?? false,
+    authorId: json['authorId'] as String?,
     authorName: json['authorName'] as String?,
+    photoOwnerId: json['photoOwnerId'] as String?,
     photoOwnerName: json['photoOwnerName'] as String?,
     upVotes: json['upVotes'] as int? ?? 0,
     mehVotes: json['mehVotes'] as int? ?? 0,
@@ -600,7 +612,7 @@ class MatchCoordinator {
     ScreenshotDetector? screenshots,
     this.random,
     this.includeOnlineTransport = true,
-    this.audioSync = true,
+    this.platformServices = true,
     this.turnRelay,
     this.wakeLock,
     this.planterOverride,
@@ -615,6 +627,8 @@ class MatchCoordinator {
     this.vaultFallbackDelay = const Duration(seconds: 10),
     this.revealDuration = const Duration(seconds: 6),
     this.captionRevealDuration = const Duration(seconds: 10),
+    this.memeTallyDuration = const Duration(milliseconds: 2500),
+    this.emptyMemeAdvanceDuration = const Duration(milliseconds: 2500),
     this.timelineRevealDuration = const Duration(seconds: 10),
     this.extendWindow = const Duration(seconds: 10),
   }) : _settings = settings ?? SettingsRepository(),
@@ -635,8 +649,10 @@ class MatchCoordinator {
   /// Off for tests and offline rehearsals; a LAN match never needs the relay.
   final bool includeOnlineTransport;
 
-  /// Off for demo bots, which share one audio engine with the demo host.
-  final bool audioSync;
+  /// Off for the offline demo. Screenshot detection and the wake lock are
+  /// platform services that can stall on a device without the native bridge;
+  /// the demo must still open.
+  final bool platformServices;
 
   /// Supplies verified Party Pass relay credentials when one is available.
   final Future<TurnRelayAttempt> Function()? turnRelay;
@@ -666,6 +682,8 @@ class MatchCoordinator {
   final Duration vaultFallbackDelay;
   final Duration revealDuration;
   final Duration captionRevealDuration;
+  final Duration memeTallyDuration;
+  final Duration emptyMemeAdvanceDuration;
   final Duration timelineRevealDuration;
   final Duration extendWindow;
 
@@ -724,18 +742,18 @@ class MatchCoordinator {
   ClientTransport? _clientTransport;
 
   Timer? _roundTimer;
+  Timer? _revealAutoTimer;
   Timer? _countdownTicker;
   Timer? _vaultWatchdog;
   Timer? _clientReadyRetry;
-  Timer? _clockPingTimer;
   DateTime? _preparingSince;
   bool _startingMatch = false;
   bool _vaultPreloaded = false;
-  int _hostTimeOffsetMs = 0;
   Timer? _extendTicker;
   Timer? _captionRevealTimer;
   Timer? _timelineRevealTimer;
   Timer? _memeTallyTimer;
+  Timer? _memesEmptyAdvanceTimer;
   List<String> _memeFocusOrder = <String>[];
   int _memeFocusIndex = 0;
   bool _memeTallying = false;
@@ -951,28 +969,36 @@ class MatchCoordinator {
     _engine = engine;
 
     final injected = _hostTransportFactory?.call(roomId, secret, _lanAddresses);
+    final playtest = PlaytestConfig.enabled;
     final local =
         injected ??
-        LocalWsHostTransport(
-          roomId: roomId,
-          secret: secret,
-          advertiser: BonsoirMdnsAdvertiser(),
-        );
+        (playtest
+            ? null
+            : LocalWsHostTransport(
+                roomId: roomId,
+                secret: secret,
+                advertiser: BonsoirMdnsAdvertiser(),
+              ));
 
-    try {
-      await local.start();
-    } on Object {
-      _emit(
-        _state.copyWith(errorMessage: _l10n.errorOpenRoom, clearLoading: true),
-      );
-      return;
+    if (local != null) {
+      try {
+        await local.start();
+      } on Object {
+        _emit(
+          _state.copyWith(
+            errorMessage: _l10n.errorOpenRoom,
+            clearLoading: true,
+          ),
+        );
+        return;
+      }
     }
 
     final lanAddresses = local is LocalWsHostTransport
         ? await local.refreshLanAddresses()
         : const <String>[];
     final lan = <String>[
-      if (local.localLanEndpoint != null) local.localLanEndpoint!,
+      if (local?.localLanEndpoint != null) local!.localLanEndpoint!,
       ...(lanAddresses.isEmpty ? _lanAddresses : lanAddresses).map(
         (address) =>
             '$address:${local is LocalWsHostTransport ? local.port : 0}',
@@ -987,24 +1013,26 @@ class MatchCoordinator {
       signalingUrl: _settings.resolveSignalingUrl(_settingsValue),
     );
 
-    // Online players are optional: when the relay is unreachable or not
-    // configured the LAN room must still open.
+    // Online players are optional, except in the browser playtest, which has
+    // no LAN sockets and therefore uses the local signaling relay directly.
+    final online = includeOnlineTransport
+        ? WebRtcHostTransport(
+            invite: invite,
+            iceClient: SignalingIceClient(
+              signalingUrl: invite.signalingUrl!,
+              turnRelay: turnRelay,
+            ),
+            settings: _settingsValue,
+          )
+        : null;
     final transport =
         injected ??
-        CompositeHostTransport(<HostTransport>[
-          local,
-          if (includeOnlineTransport)
-            BestEffortHostTransport(
-              WebRtcHostTransport(
-                invite: invite,
-                iceClient: SignalingIceClient(
-                  signalingUrl: invite.signalingUrl!,
-                  turnRelay: turnRelay,
-                ),
-                settings: _settingsValue,
-              ),
-            ),
-        ]);
+        (playtest
+            ? (online ?? const _UnavailableHostTransport())
+            : CompositeHostTransport(<HostTransport>[
+                local!,
+                if (online != null) BestEffortHostTransport(online),
+              ]));
     _hostTransport = transport;
     _bindHostTransport(transport);
     if (injected == null) {
@@ -1017,8 +1045,7 @@ class MatchCoordinator {
       avatar: _settingsValue.avatar,
       isHost: true,
     );
-    await _startScreenshots();
-    await _setAwake(true);
+    await _startPlatformServices();
 
     _emit(
       _state.copyWith(
@@ -1035,71 +1062,6 @@ class MatchCoordinator {
       ),
     );
     await _broadcastLobby();
-    if (audioSync) {
-      GameAudioService.instance.onHostTrackStarted = (track) {
-        unawaited(_broadcastMusicTrack(track));
-      };
-      unawaited(_broadcastMusicSync());
-    }
-  }
-
-  Future<void> _broadcastMusicSync() async {
-    if (!_state.isHosting) return;
-    final track = await GameAudioService.instance.startHostTrack();
-    await _broadcastMusicTrack(track);
-  }
-
-  Future<void> _broadcastMusicTrack(GameMusicTrack track) async {
-    if (!_state.isHosting) return;
-    await _hostTransport?.broadcast(
-      WireMessage(
-        type: WireType.musicSync,
-        seq: _nextSeq(),
-        payload: track.toJson(),
-      ),
-    );
-  }
-
-  void _startClockPing() {
-    _clockPingTimer?.cancel();
-    void ping() {
-      final transport = _clientTransport;
-      if (_disposed || _leaving || transport == null || _state.roomId == null) {
-        _clockPingTimer?.cancel();
-        _clockPingTimer = null;
-        return;
-      }
-      unawaited(
-        transport.send(
-          WireMessage(
-            type: WireType.ping,
-            seq: _nextSeq(),
-            payload: <String, dynamic>{
-              't0': DateTime.now().millisecondsSinceEpoch,
-            },
-          ),
-        ),
-      );
-    }
-
-    ping();
-    _clockPingTimer = Timer.periodic(
-      const Duration(seconds: 10),
-      (_) => ping(),
-    );
-  }
-
-  void _applyPong(Map<String, dynamic> payload) {
-    final t0 = payload['t0'] as int?;
-    final t1 = payload['t1'] as int?;
-    final t2 = payload['t2'] as int?;
-    if (t0 == null || t1 == null || t2 == null) return;
-    final t3 = DateTime.now().millisecondsSinceEpoch;
-    final sample = ((t1 - t0) + (t2 - t3)) ~/ 2;
-    _hostTimeOffsetMs = _hostTimeOffsetMs == 0
-        ? sample
-        : ((_hostTimeOffsetMs * 4 + sample) / 5).round();
-    GameAudioService.instance.setHostOffsetMs(_hostTimeOffsetMs);
   }
 
   final List<String> _lanAddresses = const <String>[];
@@ -1315,27 +1277,24 @@ class MatchCoordinator {
     );
   }
 
-  /// Compares every phone's build with the newest one in the room. The host
-  /// warns older clients, and shows the same warning when the host is behind.
+  /// Compares every phone's semantic version (Major.Minor.Patch) with the
+  /// newest one in the room. Build numbers are deliberately ignored: iOS
+  /// TestFlight and Android bump `+N` independently for the same app release.
   Future<void> _sendVersionWarnings() async {
-    final builds = <int>[appBuild, ..._clientBuilds.values];
-    final latestBuild = builds.reduce(max);
     var latestVersion = appVersion;
-    for (final entry in _clientBuilds.entries) {
-      if (entry.value != latestBuild) continue;
-      final version = _clientVersions[entry.key];
-      if (version != null && version.isNotEmpty) {
+    for (final entry in _clientVersions.entries) {
+      final version = entry.value;
+      if (version.isNotEmpty && isNewerAppVersion(version, latestVersion)) {
         latestVersion = version;
-        break;
       }
     }
-    if (appBuild < latestBuild &&
-        _state.versionWarning?.latestBuild != latestBuild) {
+    final hostIsBehind = isNewerAppVersion(latestVersion, appVersion);
+    if (hostIsBehind && _state.versionWarning?.latestVersion != latestVersion) {
       _emit(
         _state.copyWith(
           versionWarning: VersionWarning(
             latestVersion: latestVersion,
-            latestBuild: latestBuild,
+            latestBuild: appBuild,
             ownVersion: appVersion,
             ownBuild: appBuild,
           ),
@@ -1345,8 +1304,11 @@ class MatchCoordinator {
     }
     final transport = _hostTransport;
     if (transport == null) return;
-    for (final entry in _clientBuilds.entries) {
-      if (entry.value >= latestBuild) continue;
+    for (final entry in _clientVersions.entries) {
+      final version = entry.value;
+      if (version.isEmpty || !isNewerAppVersion(latestVersion, version)) {
+        continue;
+      }
       await transport.sendToClient(
         _clientIdFor(entry.key),
         WireMessage(
@@ -1354,7 +1316,7 @@ class MatchCoordinator {
           seq: _nextSeq(),
           payload: <String, dynamic>{
             'latestVersion': latestVersion,
-            'latestBuild': latestBuild,
+            'latestBuild': _clientBuilds[entry.key] ?? 0,
           },
         ),
       );
@@ -1375,14 +1337,16 @@ class MatchCoordinator {
         _clientVersions.remove(playerId);
         _partyPassPlayers.remove(playerId);
         _engine?.removePlayer(playerId);
-        final latestBuild = <int>[
-          appBuild,
-          ..._clientBuilds.values,
-        ].reduce(max);
+        var newestVersion = appVersion;
+        for (final version in _clientVersions.values) {
+          if (version.isNotEmpty && isNewerAppVersion(version, newestVersion)) {
+            newestVersion = version;
+          }
+        }
         _emit(
           _state.copyWith(
             players: _engine?.players ?? _state.players,
-            clearVersionWarning: latestBuild <= appBuild,
+            clearVersionWarning: !isNewerAppVersion(newestVersion, appVersion),
           ),
         );
         final engine = _engine;
@@ -1541,11 +1505,7 @@ class MatchCoordinator {
           WireMessage(
             type: WireType.joinAck,
             seq: _nextSeq(),
-            payload: <String, dynamic>{
-              'playerId': playerId,
-              'resumed': false,
-              'music': GameAudioService.instance.hostTrackInfo().toJson(),
-            },
+            payload: <String, dynamic>{'playerId': playerId, 'resumed': false},
           ),
         );
         await _broadcastLobby();
@@ -1909,18 +1869,6 @@ class MatchCoordinator {
         if (engine.allTimelineGuessed) {
           await _finishTimelineRound();
         }
-      case WireType.ping:
-        final t0 = payload['t0'] as int?;
-        final t1 = DateTime.now().millisecondsSinceEpoch;
-        final t2 = DateTime.now().millisecondsSinceEpoch;
-        await _hostTransport?.sendToClient(
-          clientId,
-          WireMessage(
-            type: WireType.pong,
-            seq: _nextSeq(),
-            payload: <String, dynamic>{'t0': t0, 't1': t1, 't2': t2},
-          ),
-        );
     }
   }
 
@@ -2491,7 +2439,9 @@ class MatchCoordinator {
           topText: entry.topText,
           bottomText: entry.bottomText,
           snapY: entry.snapY,
+          authorId: entry.authorId,
           authorName: entry.authorName,
+          photoOwnerId: entry.photoOwnerId,
           photoOwnerName: entry.photoOwnerName,
           upVotes: entry.upVotes,
           mehVotes: entry.mehVotes,
@@ -2521,7 +2471,9 @@ class MatchCoordinator {
           topText: entry.topText,
           bottomText: entry.bottomText,
           snapY: entry.snapY,
+          authorId: entry.authorId,
           authorName: entry.authorName,
+          photoOwnerId: entry.photoOwnerId,
           photoOwnerName: entry.photoOwnerName,
           upVotes: entry.upVotes,
           mehVotes: entry.mehVotes,
@@ -2830,7 +2782,7 @@ class MatchCoordinator {
     unawaited(GameAudioService.instance.ding());
     unawaited(GameHaptics.instance.light());
     await _publishMemeFocus(tallying: true);
-    _memeTallyTimer = Timer(const Duration(milliseconds: 2500), () {
+    _memeTallyTimer = Timer(memeTallyDuration, () {
       unawaited(_advanceMemeFocus());
     });
   }
@@ -2909,8 +2861,16 @@ class MatchCoordinator {
       ),
     );
     // Meme reveals wait for the host. Everyone gets time to laugh at the
-    // winning meme, and the host decides when the room moves on.
+    // winning meme, and the host decides when the room moves on. A round with
+    // zero memes still moves on by itself: the host also gets a Next button,
+    // but this timer is the last line of defence against a frozen screen.
     _captionRevealTimer?.cancel();
+    if (cards.isEmpty) {
+      _memesEmptyAdvanceTimer?.cancel();
+      _memesEmptyAdvanceTimer = Timer(emptyMemeAdvanceDuration, () {
+        if (!_leaving && !_disposed) unawaited(advanceMemeReveal());
+      });
+    }
   }
 
   /// Host-only: move from the meme reveal to the next round or the podium.
@@ -3277,12 +3237,30 @@ class MatchCoordinator {
         activePhotoBytes: _state.activePhotoBytes,
       ),
     );
-    _timers.add(Timer(revealDuration, () => unawaited(_advanceAfterReveal())));
+    _revealAutoTimer?.cancel();
+    _revealAutoTimer = Timer(
+      revealDuration,
+      () => unawaited(_advanceAfterReveal()),
+    );
   }
 
   Future<void> _advanceAfterReveal() async {
     final engine = _engine;
     if (engine == null) return;
+    // A host tap and the reveal timer can race. Only the first one may move
+    // the match; a stale timer from the previous round must never advance the
+    // next round's reveal.
+    if (engine.phase != RoundPhase.reveal &&
+        engine.phase != RoundPhase.captionReveal &&
+        engine.phase != RoundPhase.timelineReveal) {
+      return;
+    }
+    _revealAutoTimer?.cancel();
+    _revealAutoTimer = null;
+    _captionRevealTimer?.cancel();
+    _captionRevealTimer = null;
+    _timelineRevealTimer?.cancel();
+    _timelineRevealTimer = null;
     engine.advanceAfterReveal();
     if (engine.phase == RoundPhase.podium) {
       final awards = engine.buildPodiumAwards();
@@ -4076,7 +4054,11 @@ class MatchCoordinator {
       };
       _emit(_state.copyWith(errorMessage: message, clearLoading: true));
       return;
-    } on Object {
+    } on Object catch (error, stack) {
+      if (PlaytestConfig.enabled) {
+        debugPrint('WhoTook playtest join failed: $error');
+        debugPrintStack(stackTrace: stack);
+      }
       _emit(
         _state.copyWith(errorMessage: _l10n.errorReachHost, clearLoading: true),
       );
@@ -4115,8 +4097,7 @@ class MatchCoordinator {
       ),
     );
     if (_state.roomId == null) return;
-    await _startScreenshots();
-    await _setAwake(true);
+    await _startPlatformServices();
   }
 
   void _startClientPhaseTicker(int durationMs) {
@@ -4298,18 +4279,6 @@ class MatchCoordinator {
           );
         }
         _emit(_state.copyWith(localPlayerId: _currentPlayerId));
-        if (audioSync) {
-          final music = payload['music'];
-          if (music is Map<String, dynamic>) {
-            unawaited(
-              GameAudioService.instance.syncToTrack(
-                GameMusicTrack.fromJson(music),
-                offsetMs: _hostTimeOffsetMs,
-              ),
-            );
-          }
-          _startClockPing();
-        }
         _sendPartyPassClaim();
       case WireType.stateSync:
         _reconnectAck?.complete();
@@ -4506,12 +4475,12 @@ class MatchCoordinator {
         }
       case WireType.versionWarning:
         final latestBuild = payload['latestBuild'] as int? ?? appBuild;
-        if (latestBuild > appBuild) {
+        final latestVersion = payload['latestVersion'] as String? ?? appVersion;
+        if (isNewerAppVersion(latestVersion, appVersion)) {
           _emit(
             _state.copyWith(
               versionWarning: VersionWarning(
-                latestVersion:
-                    payload['latestVersion'] as String? ?? appVersion,
+                latestVersion: latestVersion,
                 latestBuild: latestBuild,
                 ownVersion: appVersion,
                 ownBuild: appBuild,
@@ -4690,18 +4659,6 @@ class MatchCoordinator {
           ),
         );
         _startClientPhaseTicker(payload['durationMs'] as int? ?? 0);
-      case WireType.pong:
-        if (audioSync) _applyPong(payload);
-      case WireType.musicSync:
-        if (audioSync) {
-          final track = GameMusicTrack.fromJson(payload);
-          unawaited(
-            GameAudioService.instance.syncToTrack(
-              track,
-              offsetMs: _hostTimeOffsetMs,
-            ),
-          );
-        }
       case WireType.vaultPreloaded:
         // Every vault photo is now in PhotoMemoryCache. Rebuild once so the
         // prepare screen can decode the photos before the first round.
@@ -5328,6 +5285,21 @@ class MatchCoordinator {
     _emit(_state.copyWith(extensionApproved: true));
   }
 
+  /// Screenshot detection and the wake lock are conveniences, never a
+  /// precondition for opening a room. A platform channel that never answers
+  /// must not leave the demo or a real lobby on a spinner forever.
+  Future<void> _startPlatformServices() async {
+    if (!platformServices) return;
+    await _startScreenshots();
+    await _setAwake(true);
+  }
+
+  Future<void> _stopPlatformServices() async {
+    if (!platformServices) return;
+    await _stopScreenshots();
+    await _setAwake(false);
+  }
+
   Future<void> _startScreenshots() async {
     await _screenshots.start(() {
       unawaited(_onLocalScreenshot());
@@ -5427,6 +5399,8 @@ class MatchCoordinator {
       return;
     } on PlatformException {
       return;
+    } on Object {
+      return;
     }
   }
 
@@ -5454,11 +5428,6 @@ class MatchCoordinator {
     _vaultWatchdog = null;
     _clientReadyRetry?.cancel();
     _clientReadyRetry = null;
-    _clockPingTimer?.cancel();
-    _clockPingTimer = null;
-    if (audioSync) {
-      GameAudioService.instance.onHostTrackStarted = null;
-    }
     if (_state.isHosting && _hostTransport != null) {
       try {
         await _hostTransport?.broadcast(
@@ -5471,8 +5440,7 @@ class MatchCoordinator {
     final forgetRoom = !_state.isHosting && _state.roomId != null;
     _pendingInviteUrl = null;
     _pendingRoomId = null;
-    await _stopScreenshots();
-    await _setAwake(false);
+    await _stopPlatformServices();
     for (final timer in _timers) {
       timer.cancel();
     }
@@ -5484,11 +5452,11 @@ class MatchCoordinator {
     _vaultPreloaded = false;
     _clientReadyRetry?.cancel();
     _clientReadyRetry = null;
-    _clockPingTimer?.cancel();
-    _clockPingTimer = null;
     _clientPhaseTicker?.cancel();
     _extendTicker?.cancel();
     _captionRevealTimer?.cancel();
+    _revealAutoTimer?.cancel();
+    _memesEmptyAdvanceTimer?.cancel();
     _timelineRevealTimer?.cancel();
     _memeTallyTimer?.cancel();
     _roundTimer = null;
@@ -5538,9 +5506,9 @@ class MatchCoordinator {
 
   Future<void> dispose() async {
     _disposed = true;
+    _memesEmptyAdvanceTimer?.cancel();
     _vaultWatchdog?.cancel();
     _clientReadyRetry?.cancel();
-    _clockPingTimer?.cancel();
     await leaveMatch();
     await _states.close();
   }
@@ -5685,4 +5653,40 @@ class BestEffortHostTransport implements HostTransport {
     await _disconnected.close();
     await _messages.close();
   }
+}
+
+/// Used only by the web playtest when the online transport is disabled.
+class _UnavailableHostTransport implements HostTransport {
+  const _UnavailableHostTransport();
+
+  @override
+  Stream<String> get clientConnected => const Stream<String>.empty();
+
+  @override
+  Stream<String> get clientDisconnected => const Stream<String>.empty();
+
+  @override
+  Stream<HostIncomingMessage> get messages =>
+      const Stream<HostIncomingMessage>.empty();
+
+  @override
+  Set<String> get clientIds => const <String>{};
+
+  @override
+  String? get localLanEndpoint => null;
+
+  @override
+  bool isRelayed(String clientId) => false;
+
+  @override
+  Future<void> start() async {}
+
+  @override
+  Future<void> broadcast(WireMessage message) async {}
+
+  @override
+  Future<void> sendToClient(String clientId, WireMessage message) async {}
+
+  @override
+  Future<void> close() async {}
 }

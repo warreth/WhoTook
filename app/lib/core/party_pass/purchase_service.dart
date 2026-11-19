@@ -8,6 +8,9 @@ import 'party_pass_repository.dart';
 
 enum PartyPassPurchaseStatus { purchased, restored, canceled, pending, error }
 
+/// Which purchase surface a build is allowed to show.
+enum PartyPassBillingKind { store, paddle }
+
 class PartyPassPurchaseEvent {
   const PartyPassPurchaseEvent({
     required this.status,
@@ -24,8 +27,8 @@ class PartyPassPurchaseEvent {
       status == PartyPassPurchaseStatus.restored;
 }
 
-/// Store billing behind one seam. FOSS builds use [DisabledPurchaseService];
-/// tests use a fake so no platform channel is touched.
+/// Store billing behind one seam. Tests use a fake so no platform channel is
+/// touched.
 abstract class PartyPassPurchaseService {
   Stream<PartyPassPurchaseEvent> get events;
 
@@ -33,43 +36,24 @@ abstract class PartyPassPurchaseService {
 
   bool get available;
 
+  PartyPassBillingKind get kind;
+
   Future<void> initialize();
 
   Future<PartyPassPurchaseEvent> buy();
 
   Future<PartyPassPurchaseEvent> restore();
 
+  /// Manual redemption for a web/Paddle license key. Store builds reject this;
+  /// they only accept a store receipt from the platform purchase flow.
+  Future<PartyPassPurchaseEvent> redeem(String licenseKey) async {
+    return const PartyPassPurchaseEvent(
+      status: PartyPassPurchaseStatus.error,
+      code: 'license_not_supported',
+    );
+  }
+
   Future<void> dispose();
-}
-
-class DisabledPurchaseService implements PartyPassPurchaseService {
-  @override
-  Stream<PartyPassPurchaseEvent> get events => const Stream.empty();
-
-  @override
-  String? get priceLabel => null;
-
-  @override
-  bool get available => false;
-
-  @override
-  Future<void> initialize() async {}
-
-  @override
-  Future<PartyPassPurchaseEvent> buy() async => const PartyPassPurchaseEvent(
-    status: PartyPassPurchaseStatus.error,
-    code: 'billing_disabled',
-  );
-
-  @override
-  Future<PartyPassPurchaseEvent> restore() async =>
-      const PartyPassPurchaseEvent(
-        status: PartyPassPurchaseStatus.error,
-        code: 'billing_disabled',
-      );
-
-  @override
-  Future<void> dispose() async {}
 }
 
 /// Official App Store / Play Store billing for the non-consumable
@@ -107,6 +91,9 @@ class StorePartyPassPurchaseService implements PartyPassPurchaseService {
 
   @override
   bool get available => _available;
+
+  @override
+  PartyPassBillingKind get kind => PartyPassBillingKind.store;
 
   @override
   Future<void> initialize() async {
@@ -195,6 +182,14 @@ class StorePartyPassPurchaseService implements PartyPassPurchaseService {
         code: 'purchase_failed',
       );
     }
+  }
+
+  @override
+  Future<PartyPassPurchaseEvent> redeem(String licenseKey) async {
+    return const PartyPassPurchaseEvent(
+      status: PartyPassPurchaseStatus.error,
+      code: 'license_not_supported',
+    );
   }
 
   @override

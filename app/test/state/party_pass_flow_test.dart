@@ -108,9 +108,7 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 60));
 
     await client.setRoomTheme(RoomThemeId.midnightArcade);
-    await _waitFor(
-      () => host.state.roomThemeId == RoomThemeIds.midnightArcade,
-    );
+    await _waitFor(() => host.state.roomThemeId == RoomThemeIds.midnightArcade);
 
     client.playSoundEffect(PartySound.airhorn);
     await _waitFor(

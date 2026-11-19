@@ -332,6 +332,18 @@ abstract class AppLocalizations {
   /// **'One photo. One guess. Tap who you think took it.'**
   String get onboardingTagline;
 
+  /// No description provided for @onboardingFreeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Same Wi-Fi is always free'**
+  String get onboardingFreeTitle;
+
+  /// No description provided for @onboardingFreeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Play Anywhere is optional, for friends on mobile data or another Wi-Fi. It comes with the Party Pass.'**
+  String get onboardingFreeBody;
+
   /// No description provided for @yourName.
   ///
   /// In en, this message translates to:
@@ -1391,8 +1403,50 @@ abstract class AppLocalizations {
   /// No description provided for @masterOfMystery.
   ///
   /// In en, this message translates to:
-  /// **'Master of mystery'**
+  /// **'Unguessable Photo 🕵️'**
   String get masterOfMystery;
+
+  /// No description provided for @awardWrongGuesses.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 wrong guess} other{{count} wrong guesses}}'**
+  String awardWrongGuesses(int count);
+
+  /// No description provided for @itWasPhotoOf.
+  ///
+  /// In en, this message translates to:
+  /// **'It was {name}\'s photo!'**
+  String itWasPhotoOf(String name);
+
+  /// No description provided for @guessedWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'Guessed {name} ❌'**
+  String guessedWrong(String name);
+
+  /// No description provided for @guessedCorrectly.
+  ///
+  /// In en, this message translates to:
+  /// **'Guessed right ✓'**
+  String get guessedCorrectly;
+
+  /// No description provided for @noGuessMade.
+  ///
+  /// In en, this message translates to:
+  /// **'No guess ⏳'**
+  String get noGuessMade;
+
+  /// No description provided for @tapToZoom.
+  ///
+  /// In en, this message translates to:
+  /// **'🔍 Tap to zoom'**
+  String get tapToZoom;
+
+  /// No description provided for @tapToZoomBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinch to inspect the details'**
+  String get tapToZoomBody;
 
   /// No description provided for @paparazzi.
   ///
@@ -2003,7 +2057,7 @@ abstract class AppLocalizations {
   /// No description provided for @versionWarningBody.
   ///
   /// In en, this message translates to:
-  /// **'Someone is on {latestVersion} (build {latestBuild}). You are on {ownVersion} (build {ownBuild}). Update so rounds and photos stay in sync.'**
+  /// **'Someone is on {latestVersion}. You are on {ownVersion}. Update so rounds and photos stay in sync.'**
   String versionWarningBody(
     String latestVersion,
     int latestBuild,
@@ -2803,29 +2857,83 @@ abstract class AppLocalizations {
   /// **'{up} up · {meh} meh · {down} down'**
   String memeVoteTally(int up, int meh, int down);
 
-  /// No description provided for @roundReadyPrompt.
+  /// No description provided for @roundSplashKicker.
   ///
   /// In en, this message translates to:
-  /// **'Round {round}: get ready!'**
-  String roundReadyPrompt(int round);
+  /// **'ROUND {round}'**
+  String roundSplashKicker(int round);
 
-  /// No description provided for @roundEyesPrompt.
+  /// No description provided for @classicSplashPhotographer.
   ///
   /// In en, this message translates to:
-  /// **'Round {round}: eyes on the screen!'**
-  String roundEyesPrompt(int round);
+  /// **'Guess the photographer!'**
+  String get classicSplashPhotographer;
 
-  /// No description provided for @roundGuessPrompt.
+  /// No description provided for @classicSplashGallery.
   ///
   /// In en, this message translates to:
-  /// **'Round {round}: guess the photo!'**
-  String roundGuessPrompt(int round);
+  /// **'Whose gallery is this from?'**
+  String get classicSplashGallery;
 
-  /// No description provided for @roundWhoPrompt.
+  /// No description provided for @classicSplashDetails.
   ///
   /// In en, this message translates to:
-  /// **'Round {round}: whose camera roll?'**
-  String roundWhoPrompt(int round);
+  /// **'Look closely at the details!'**
+  String get classicSplashDetails;
+
+  /// No description provided for @classicSplashWho.
+  ///
+  /// In en, this message translates to:
+  /// **'Who took this shot?'**
+  String get classicSplashWho;
+
+  /// No description provided for @memeSplashRoast.
+  ///
+  /// In en, this message translates to:
+  /// **'Time to roast!'**
+  String get memeSplashRoast;
+
+  /// No description provided for @memeSplashFunniest.
+  ///
+  /// In en, this message translates to:
+  /// **'Think of the funniest meme!'**
+  String get memeSplashFunniest;
+
+  /// No description provided for @memeSplashRidicule.
+  ///
+  /// In en, this message translates to:
+  /// **'Make your friends ridiculous!'**
+  String get memeSplashRidicule;
+
+  /// No description provided for @memeSplashLaugh.
+  ///
+  /// In en, this message translates to:
+  /// **'Make the room laugh!'**
+  String get memeSplashLaugh;
+
+  /// No description provided for @timeSplashMachine.
+  ///
+  /// In en, this message translates to:
+  /// **'Start the time machine!'**
+  String get timeSplashMachine;
+
+  /// No description provided for @timeSplashYear.
+  ///
+  /// In en, this message translates to:
+  /// **'What year was this?!'**
+  String get timeSplashYear;
+
+  /// No description provided for @timeSplashHair.
+  ///
+  /// In en, this message translates to:
+  /// **'Check the haircuts and clothes!'**
+  String get timeSplashHair;
+
+  /// No description provided for @timeSplashBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Travel back in time!'**
+  String get timeSplashBack;
 
   /// Full-screen arcade transition between rounds
   ///
@@ -2938,13 +3046,13 @@ abstract class AppLocalizations {
   /// No description provided for @partyPassPerkRelayTitle.
   ///
   /// In en, this message translates to:
-  /// **'5G & firewall relay'**
+  /// **'Play Anywhere'**
   String get partyPassPerkRelayTitle;
 
   /// No description provided for @partyPassPerkRelayBody.
   ///
   /// In en, this message translates to:
-  /// **'Play through strict 5G and carrier NATs with our encrypted relay, with a fair-use allowance every day.'**
+  /// **'Friends on mobile data or another Wi-Fi join through our encrypted relay. Same Wi-Fi is always free. The relay has a daily limit.'**
   String get partyPassPerkRelayBody;
 
   /// No description provided for @partyPassPerkSoundboardTitle.
@@ -2998,7 +3106,7 @@ abstract class AppLocalizations {
   /// No description provided for @partyPassActiveBody.
   ///
   /// In en, this message translates to:
-  /// **'Relay, soundboard and shared themes are unlocked on this device.'**
+  /// **'Play Anywhere, the soundboard and shared themes are unlocked on this device.'**
   String get partyPassActiveBody;
 
   /// partyPassFairUse
@@ -3007,17 +3115,53 @@ abstract class AppLocalizations {
   /// **'{remaining} of {limit} relay matches left today'**
   String partyPassFairUse(int remaining, int limit);
 
-  /// No description provided for @partyPassFossIncluded.
+  /// No description provided for @partyPassStoreUnavailable.
   ///
   /// In en, this message translates to:
-  /// **'Included in this FOSS build'**
-  String get partyPassFossIncluded;
+  /// **'The store is not available in this build. Install WhoTook from the App Store or Google Play to buy or restore the Party Pass.'**
+  String get partyPassStoreUnavailable;
 
-  /// No description provided for @partyPassFossBody.
+  /// No description provided for @partyPassStoreButton.
   ///
   /// In en, this message translates to:
-  /// **'No store, no tracking. The soundboard and all themes are free, and you can point the app at your own TURN server.'**
-  String get partyPassFossBody;
+  /// **'Get the store version'**
+  String get partyPassStoreButton;
+
+  /// No description provided for @partyPassPaddleUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Online checkout is unavailable right now. You can still enter a license key.'**
+  String get partyPassPaddleUnavailable;
+
+  /// No description provided for @partyPassLicenseButton.
+  ///
+  /// In en, this message translates to:
+  /// **'I have a license key'**
+  String get partyPassLicenseButton;
+
+  /// No description provided for @partyPassLicenseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your Party Pass license'**
+  String get partyPassLicenseTitle;
+
+  /// No description provided for @partyPassLicenseHint.
+  ///
+  /// In en, this message translates to:
+  /// **'WT-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX'**
+  String get partyPassLicenseHint;
+
+  /// No description provided for @partyPassLicenseApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock Party Pass'**
+  String get partyPassLicenseApply;
+
+  /// No description provided for @partyPassRestoreHintPaddle.
+  ///
+  /// In en, this message translates to:
+  /// **'Already bought it? Restore the purchase or enter the license key.'**
+  String get partyPassRestoreHintPaddle;
 
   /// No description provided for @partyPassCustomTurn.
   ///
@@ -3025,16 +3169,10 @@ abstract class AppLocalizations {
   /// **'Use your own TURN server'**
   String get partyPassCustomTurn;
 
-  /// No description provided for @partyPassStoreUnavailable.
-  ///
-  /// In en, this message translates to:
-  /// **'The store is not available in this build. Restore purchases after installing from the App Store or Google Play.'**
-  String get partyPassStoreUnavailable;
-
   /// No description provided for @partyPassPurchasePending.
   ///
   /// In en, this message translates to:
-  /// **'Waiting for the store to confirm your purchase…'**
+  /// **'Waiting for the purchase to confirm…'**
   String get partyPassPurchasePending;
 
   /// No description provided for @partyPassErrorCanceled.
@@ -3061,11 +3199,65 @@ abstract class AppLocalizations {
   /// **'No previous Party Pass purchase was found on this account.'**
   String get partyPassErrorRestoreEmpty;
 
+  /// No description provided for @partyPassErrorRevoked.
+  ///
+  /// In en, this message translates to:
+  /// **'This Party Pass is no longer valid. Restore purchases, or contact support if you think this is a mistake.'**
+  String get partyPassErrorRevoked;
+
   /// No description provided for @partyPassErrorGeneric.
   ///
   /// In en, this message translates to:
   /// **'Something went wrong. Try again, or restore purchases.'**
   String get partyPassErrorGeneric;
+
+  /// No description provided for @partyPassErrorInvalidLicense.
+  ///
+  /// In en, this message translates to:
+  /// **'That license key is not valid. Check the key and try again.'**
+  String get partyPassErrorInvalidLicense;
+
+  /// No description provided for @partyPassErrorLicenseMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'The purchase completed, but the license was not returned. Restore the purchase or contact support.'**
+  String get partyPassErrorLicenseMissing;
+
+  /// No description provided for @partyPassErrorPurchaseExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'This checkout expired. Start a new purchase.'**
+  String get partyPassErrorPurchaseExpired;
+
+  /// No description provided for @partyPassErrorPurchaseNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No pending purchase was found. Start a new purchase.'**
+  String get partyPassErrorPurchaseNotFound;
+
+  /// No description provided for @partyPassErrorRateLimited.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many attempts. Wait a moment and try again.'**
+  String get partyPassErrorRateLimited;
+
+  /// No description provided for @partyPassErrorCheckoutUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Checkout is not available right now. Try again later.'**
+  String get partyPassErrorCheckoutUnavailable;
+
+  /// No description provided for @partyPassErrorCheckoutOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The checkout page could not open. Try again, or enter your license key.'**
+  String get partyPassErrorCheckoutOpenFailed;
+
+  /// No description provided for @partyPassErrorNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach the purchase service. Check your connection and try again.'**
+  String get partyPassErrorNetwork;
 
   /// No description provided for @partyPassRelayError.
   ///
@@ -3208,7 +3400,7 @@ abstract class AppLocalizations {
   /// No description provided for @relayStatusRelay.
   ///
   /// In en, this message translates to:
-  /// **'5G relay'**
+  /// **'Online relay'**
   String get relayStatusRelay;
 
   /// No description provided for @relayStatusCustom.
@@ -3222,12 +3414,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Not connected'**
   String get relayStatusOffline;
-
-  /// No description provided for @relayStatusFoss.
-  ///
-  /// In en, this message translates to:
-  /// **'Self-host ready'**
-  String get relayStatusFoss;
 
   /// No description provided for @soundboardTitle.
   ///
@@ -3310,13 +3496,13 @@ abstract class AppLocalizations {
   /// No description provided for @firewallTitle.
   ///
   /// In en, this message translates to:
-  /// **'Strict 5G firewall detected!'**
+  /// **'This network blocks direct play'**
   String get firewallTitle;
 
   /// No description provided for @firewallBody.
   ///
   /// In en, this message translates to:
-  /// **'Connect to the same Wi-Fi/Hotspot to play 100% free, or unlock the WhoTook Party Pass (€2.99 once) to use our high-speed 5G Relay Server.'**
+  /// **'Same Wi-Fi is always free. Connect to the same Wi-Fi or hotspot to play, or unlock Play Anywhere with the Party Pass.'**
   String get firewallBody;
 
   /// No description provided for @firewallWifiAction.
@@ -3330,12 +3516,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unlock Party Pass'**
   String get firewallUnlockAction;
-
-  /// No description provided for @firewallFossAction.
-  ///
-  /// In en, this message translates to:
-  /// **'Set up custom TURN'**
-  String get firewallFossAction;
 
   /// No description provided for @firewallRelayDownTitle.
   ///
@@ -3355,36 +3535,6 @@ abstract class AppLocalizations {
   /// **'Try again'**
   String get firewallRetryAction;
 
-  /// No description provided for @fossTurnTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Custom TURN Server (Self-Host)'**
-  String get fossTurnTitle;
-
-  /// No description provided for @fossTurnBody.
-  ///
-  /// In en, this message translates to:
-  /// **'FOSS builds never use the official relay. Point the app at your own coturn server for strict networks.'**
-  String get fossTurnBody;
-
-  /// No description provided for @fossTurnSaved.
-  ///
-  /// In en, this message translates to:
-  /// **'Custom TURN saved'**
-  String get fossTurnSaved;
-
-  /// No description provided for @fossBuildBadge.
-  ///
-  /// In en, this message translates to:
-  /// **'FOSS build'**
-  String get fossBuildBadge;
-
-  /// No description provided for @fossBuildBody.
-  ///
-  /// In en, this message translates to:
-  /// **'No billing, no analytics, no official relay.'**
-  String get fossBuildBody;
-
   /// No description provided for @settingsPartyPassTitle.
   ///
   /// In en, this message translates to:
@@ -3400,7 +3550,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsPartyPassInactive.
   ///
   /// In en, this message translates to:
-  /// **'Relay, soundboard and shared themes'**
+  /// **'Play Anywhere, soundboard and shared themes'**
   String get settingsPartyPassInactive;
 
   /// No description provided for @errorRelayUnavailable.
@@ -3415,11 +3565,41 @@ abstract class AppLocalizations {
   /// **'Free for everyone'**
   String get roomThemeFree;
 
-  /// No description provided for @turnCredentialPairError.
+  /// No description provided for @roomThemePreviewHint.
   ///
   /// In en, this message translates to:
-  /// **'Fill in both the TURN username and password, or leave both empty.'**
-  String get turnCredentialPairError;
+  /// **'Tap a theme to preview it live on the lobby.'**
+  String get roomThemePreviewHint;
+
+  /// No description provided for @roomThemePreviewing.
+  ///
+  /// In en, this message translates to:
+  /// **'👀 Previewing \"{theme}\"'**
+  String roomThemePreviewing(String theme);
+
+  /// No description provided for @roomThemeApply.
+  ///
+  /// In en, this message translates to:
+  /// **'✓ Apply Theme to Room'**
+  String get roomThemeApply;
+
+  /// No description provided for @roomThemeUnlockPass.
+  ///
+  /// In en, this message translates to:
+  /// **'🔓 Unlock Party Pass ({price}) to use in match'**
+  String roomThemeUnlockPass(String price);
+
+  /// No description provided for @roomThemeRevert.
+  ///
+  /// In en, this message translates to:
+  /// **'Revert'**
+  String get roomThemeRevert;
+
+  /// No description provided for @roomThemeApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme applied to the room'**
+  String get roomThemeApplied;
 
   /// No description provided for @firewallQuotaTitle.
   ///
@@ -3486,6 +3666,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This invite has expired. Ask the host for a new QR code.'**
   String get errorInviteExpired;
+
+  /// No description provided for @roomThemePreviewBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'PREVIEW'**
+  String get roomThemePreviewBadge;
+
+  /// No description provided for @gamePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Game photo'**
+  String get gamePhoto;
 }
 
 class _AppLocalizationsDelegate

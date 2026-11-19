@@ -47,7 +47,10 @@ class _DemoGameScreenState extends ConsumerState<DemoGameScreen> {
       config: widget.config,
       locale: widget.locale,
     );
-    _starting = _controller.start();
+    _starting = _controller.start().timeout(
+      const Duration(seconds: 20),
+      onTimeout: () => throw StateError('demo start timed out'),
+    );
   }
 
   @override

@@ -149,6 +149,7 @@ void main() {
       'partyPassTitle',
       'partyPassPrivacy',
       'partyPassLobbyButton',
+      'partyPassLicenseHint',
       'settingsPartyPassTitle',
       'roomThemeMidnightArcade',
       'roomThemeCyberNeon',
@@ -157,6 +158,7 @@ void main() {
       'lobbySoundboardLabel',
       'lobbyRelayLabel',
       'relayStatusDirect',
+      'relayStatusRelay',
       'soundboardTitle',
       'soundVineBoom',
     };

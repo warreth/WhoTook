@@ -2,7 +2,8 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../build_flavor.dart';
+import '../distribution.dart';
+import 'paddle_purchase_service.dart';
 import 'party_pass_repository.dart';
 import 'purchase_service.dart';
 import 'turn_relay_client.dart';
@@ -10,8 +11,9 @@ import 'turn_relay_client.dart';
 class PartyPassState {
   const PartyPassState({
     this.active = false,
-    this.fossIncluded = false,
     this.billingAvailable = false,
+    this.billingReady = true,
+    this.billingKind = PartyPassBillingKind.store,
     this.loading = true,
     this.purchasing = false,
     this.credential,
@@ -25,10 +27,15 @@ class PartyPassState {
 
   final bool active;
 
-  /// FOSS builds include every cosmetic feature and never contact the store
-  /// or the official relay.
-  final bool fossIncluded;
   final bool billingAvailable;
+
+  /// Which purchase surface this build may show. Store builds never expose a
+  /// direct/Paddle link; direct builds never show a store button.
+  final PartyPassBillingKind billingKind;
+
+  /// False until the billing connection has been checked at least once. Keeps
+  /// the purchase sheet from claiming the store is missing during startup.
+  final bool billingReady;
   final bool loading;
   final bool purchasing;
   final PartyPassCredential? credential;
@@ -39,14 +46,15 @@ class PartyPassState {
   final int remainingMatchesToday;
   final int dailyLimit;
 
-  bool get canBuy => !fossIncluded && !active;
+  bool get canBuy => !active;
 
   String get displayPrice => priceLabel ?? '€2.99';
 
   PartyPassState copyWith({
     bool? active,
-    bool? fossIncluded,
     bool? billingAvailable,
+    bool? billingReady,
+    PartyPassBillingKind? billingKind,
     bool? loading,
     bool? purchasing,
     PartyPassCredential? credential,
@@ -56,16 +64,18 @@ class PartyPassState {
     DateTime? relayRetryAtUtc,
     int? remainingMatchesToday,
     int? dailyLimit,
+    bool clearCredential = false,
     bool clearError = false,
     bool clearRelayError = false,
     bool clearRelayRetry = false,
   }) => PartyPassState(
     active: active ?? this.active,
-    fossIncluded: fossIncluded ?? this.fossIncluded,
     billingAvailable: billingAvailable ?? this.billingAvailable,
+    billingReady: billingReady ?? this.billingReady,
+    billingKind: billingKind ?? this.billingKind,
     loading: loading ?? this.loading,
     purchasing: purchasing ?? this.purchasing,
-    credential: credential ?? this.credential,
+    credential: clearCredential ? null : (credential ?? this.credential),
     priceLabel: priceLabel ?? this.priceLabel,
     errorCode: clearError ? null : (errorCode ?? this.errorCode),
     relayErrorCode: clearRelayError
@@ -80,13 +90,10 @@ class PartyPassState {
 }
 
 class PartyPassController extends AsyncNotifier<PartyPassState> {
-  /// Override in tests to exercise the official purchase path from a FOSS
-  /// test runner. Production always follows the compile-time flavor.
-  bool get fossIncludedBuild => BuildFlavor.foss;
-
   StreamSubscription<PartyPassPurchaseEvent>? _subscription;
   TurnRelayGrant? _cachedGrant;
   String? _lastProcessedToken;
+  Future<void> _credentialLock = Future<void>.value();
   int _quotaRequestId = 0;
   int _appliedQuotaRequestId = 0;
   bool _disposed = false;
@@ -101,28 +108,25 @@ class PartyPassController extends AsyncNotifier<PartyPassState> {
       unawaited(_subscription?.cancel());
     });
 
-    if (fossIncludedBuild) {
-      return const PartyPassState(
-        active: true,
-        fossIncluded: true,
-        loading: false,
-      );
-    }
-
     _subscription = service.events.listen(_onPurchaseEvent);
     // Billing setup never blocks the first frame. A missing store plugin or a
     // slow network must not keep the lobby spinner alive.
-    unawaited(_initializeBilling(service));
+    unawaited(_initializeBilling(service, verifyStored: stored != null));
     return PartyPassState(
       active: stored != null,
       credential: stored,
       billingAvailable: service.available,
+      billingReady: false,
+      billingKind: service.kind,
       priceLabel: service.priceLabel,
       loading: false,
     );
   }
 
-  Future<void> _initializeBilling(PartyPassPurchaseService service) async {
+  Future<void> _initializeBilling(
+    PartyPassPurchaseService service, {
+    required bool verifyStored,
+  }) async {
     try {
       await service.initialize();
     } on Object {
@@ -134,38 +138,66 @@ class PartyPassController extends AsyncNotifier<PartyPassState> {
     state = AsyncData(
       current.copyWith(
         billingAvailable: service.available,
+        billingReady: true,
+        billingKind: service.kind,
         priceLabel: service.priceLabel,
         loading: false,
       ),
     );
+    // A stored receipt is trusted for the first frame so an offline party
+    // still gets its cosmetics. This check revokes it when the store says the
+    // purchase is no longer valid.
+    if (verifyStored) unawaited(verify());
   }
 
-  Future<void> _onPurchaseEvent(PartyPassPurchaseEvent event) async {
-    if (_disposed) return;
-    final current = state.value ?? const PartyPassState();
-    if (!event.isSuccess || event.credential == null) return;
+  Future<void> _onPurchaseEvent(PartyPassPurchaseEvent event) {
+    if (_disposed || !event.isSuccess || event.credential == null) {
+      return Future<void>.value();
+    }
     final credential = event.credential!;
-    if (_lastProcessedToken == credential.verificationToken) return;
-    _lastProcessedToken = credential.verificationToken;
-    _cachedGrant = null;
-    await ref.read(partyPassRepositoryProvider).save(credential);
-    if (_disposed) return;
-    final latest = state.value ?? current;
-    state = AsyncData(
-      latest.copyWith(
-        active: true,
-        credential: credential,
-        purchasing: false,
-        billingAvailable: true,
-        clearError: true,
-      ),
-    );
-    unawaited(verify());
+    if (_lastProcessedToken == credential.verificationToken) {
+      return Future<void>.value();
+    }
+    // The store stream and the awaited buy() result can deliver the same
+    // purchase. Serialize acceptance so the second event waits for the first
+    // instead of returning while the state is still locked.
+    final result = _credentialLock.then((_) async {
+      if (_disposed || _lastProcessedToken == credential.verificationToken) {
+        return;
+      }
+      final current = state.value ?? const PartyPassState();
+      _cachedGrant = null;
+      try {
+        await ref.read(partyPassRepositoryProvider).save(credential);
+      } on Object {
+        if (_disposed) return;
+        final latest = state.value ?? current;
+        state = AsyncData(
+          latest.copyWith(purchasing: false, errorCode: 'storage_error'),
+        );
+        return;
+      }
+      if (_disposed) return;
+      _lastProcessedToken = credential.verificationToken;
+      final latest = state.value ?? current;
+      state = AsyncData(
+        latest.copyWith(
+          active: true,
+          credential: credential,
+          purchasing: false,
+          billingAvailable: true,
+          clearError: true,
+        ),
+      );
+      unawaited(verify());
+    });
+    _credentialLock = result.catchError((Object _) {});
+    return result;
   }
 
   Future<void> unlock() async {
     final current = state.value ?? const PartyPassState();
-    if (current.fossIncluded || current.purchasing) return;
+    if (current.purchasing) return;
     state = AsyncData(current.copyWith(purchasing: true, clearError: true));
     final event = await ref.read(partyPassPurchaseServiceProvider).buy();
     if (_disposed) return;
@@ -174,11 +206,62 @@ class PartyPassController extends AsyncNotifier<PartyPassState> {
 
   Future<void> restore() async {
     final current = state.value ?? const PartyPassState();
-    if (current.fossIncluded || current.purchasing) return;
+    if (current.purchasing) return;
     state = AsyncData(current.copyWith(purchasing: true, clearError: true));
     final event = await ref.read(partyPassPurchaseServiceProvider).restore();
     if (_disposed) return;
     await _applyPurchaseEvent(event);
+  }
+
+  /// Redeems a Paddle license key typed by the user. The key is verified with
+  /// the server before it is stored, so a typo never unlocks cosmetics.
+  Future<void> redeem(String licenseKey) async {
+    final current = state.value ?? const PartyPassState();
+    if (current.purchasing) return;
+    state = AsyncData(current.copyWith(purchasing: true, clearError: true));
+    final event = await ref
+        .read(partyPassPurchaseServiceProvider)
+        .redeem(licenseKey);
+    if (_disposed) return;
+    if (!event.isSuccess || event.credential == null) {
+      await _applyPurchaseEvent(event);
+      return;
+    }
+    final credential = event.credential!;
+    try {
+      final result = await ref
+          .read(turnRelayClientProvider)
+          .verify(
+            baseUrl: TurnRelayClient.defaultBaseUrl,
+            credential: credential,
+          );
+      if (_disposed) return;
+      if (!result.valid) {
+        final latest = state.value ?? current;
+        state = AsyncData(
+          latest.copyWith(purchasing: false, errorCode: 'invalid_license'),
+        );
+        return;
+      }
+    } on TurnRelayException catch (error) {
+      if (_disposed) return;
+      final latest = state.value ?? current;
+      final code = switch (error.code) {
+        TurnRelayErrorCode.invalidReceipt ||
+        TurnRelayErrorCode.productMismatch => 'invalid_license',
+        TurnRelayErrorCode.rateLimited ||
+        TurnRelayErrorCode.fairUseLimit => 'rate_limited',
+        _ => 'network_error',
+      };
+      state = AsyncData(latest.copyWith(purchasing: false, errorCode: code));
+      return;
+    }
+    await _onPurchaseEvent(
+      PartyPassPurchaseEvent(
+        status: PartyPassPurchaseStatus.purchased,
+        credential: credential,
+      ),
+    );
   }
 
   Future<void> _applyPurchaseEvent(PartyPassPurchaseEvent event) async {
@@ -197,9 +280,10 @@ class PartyPassController extends AsyncNotifier<PartyPassState> {
   }
 
   /// Verifies the receipt without spending a relay match. Called once after a
-  /// purchase or restore, and whenever the pass sheet opens.
+  /// purchase or restore, and whenever the pass sheet opens. A definitive
+  /// rejection also locks the cosmetics, not just the relay.
   Future<void> verify() async {
-    if (fossIncludedBuild || _disposed) return;
+    if (_disposed) return;
     final current = state.value ?? const PartyPassState();
     final credential = current.credential;
     if (credential == null) return;
@@ -220,13 +304,18 @@ class PartyPassController extends AsyncNotifier<PartyPassState> {
       }
       _appliedQuotaRequestId = requestId;
       if (!result.valid) {
+        _cachedGrant = null;
         state = AsyncData(
           latest.copyWith(
-            relayErrorCode: 'invalid_receipt',
+            active: false,
+            clearCredential: true,
+            errorCode: 'pass_revoked',
             remainingMatchesToday: 0,
+            clearRelayError: true,
             clearRelayRetry: true,
           ),
         );
+        await ref.read(partyPassRepositoryProvider).clear();
         return;
       }
       state = AsyncData(
@@ -245,6 +334,22 @@ class PartyPassController extends AsyncNotifier<PartyPassState> {
         return;
       }
       _appliedQuotaRequestId = requestId;
+      if (error.code == TurnRelayErrorCode.invalidReceipt ||
+          error.code == TurnRelayErrorCode.productMismatch) {
+        _cachedGrant = null;
+        state = AsyncData(
+          latest.copyWith(
+            active: false,
+            clearCredential: true,
+            errorCode: 'pass_revoked',
+            remainingMatchesToday: 0,
+            clearRelayError: true,
+            clearRelayRetry: true,
+          ),
+        );
+        await ref.read(partyPassRepositoryProvider).clear();
+        return;
+      }
       state = AsyncData(
         latest.copyWith(
           relayErrorCode: error.code,
@@ -258,7 +363,7 @@ class PartyPassController extends AsyncNotifier<PartyPassState> {
   /// Called by the transport at ICE setup time. A null grant lets direct P2P
   /// get its chance; [TurnRelayAttempt.passActive] drives the failure prompt.
   Future<TurnRelayAttempt> relayAttempt() async {
-    if (fossIncludedBuild || _disposed) return const TurnRelayAttempt();
+    if (_disposed) return const TurnRelayAttempt();
     final current = state.value ?? const PartyPassState();
     final credential = current.credential;
     if (!current.active || credential == null) {
@@ -344,8 +449,10 @@ final partyPassRepositoryProvider = Provider<PartyPassRepository>(
 final partyPassPurchaseServiceProvider = Provider<PartyPassPurchaseService>((
   ref,
 ) {
-  final service = BuildFlavor.foss
-      ? DisabledPurchaseService()
+  final service = isDirectBuild
+      ? PaddlePartyPassPurchaseService(
+          repository: ref.watch(partyPassRepositoryProvider),
+        )
       : StorePartyPassPurchaseService();
   ref.onDispose(service.dispose);
   return service;

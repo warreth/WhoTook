@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/build_flavor.dart';
 import '../../core/models/models.dart';
 import '../../core/party_pass/party_pass_controller.dart';
 import '../../core/party_pass/room_theme.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../l10n/l10n.dart';
+import '../../state/match_coordinator.dart';
 import '../../state/providers.dart';
-import '../screens/advanced_settings_screen.dart';
 import 'game_widgets.dart';
 import 'party_pass_sheet.dart';
 import 'room_theme_picker.dart';
@@ -22,8 +21,7 @@ class PartyPassLobbyBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = WhoTookColors.of(context);
     final l10n = context.l10n;
-    final coordinator = ref.read(matchCoordinatorProvider);
-    final state = ref.watch(matchStateProvider).value ?? coordinator.state;
+    final state = ref.watch(matchStateProvider).value ?? const MatchUiState();
     final pass = ref.watch(partyPassProvider).value ?? const PartyPassState();
     final theme = RoomThemeId.fromWire(state.roomThemeId);
     final customTurn = ref.watch(appSettingsProvider).value?.customTurnUrl;
@@ -70,27 +68,12 @@ class PartyPassLobbyBar extends ConsumerWidget {
                 icon: Icons.public,
                 label: l10n.lobbyRelayLabel,
                 value: relayLabel,
-                onTap: BuildFlavor.foss
-                    ? null
-                    : () => showPartyPassSheet(context),
+                onTap: () => showPartyPassSheet(context),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.s12),
-          if (BuildFlavor.foss)
-            GameButton(
-              label: l10n.partyPassCustomTurn,
-              icon: Icons.dns_outlined,
-              variant: GameButtonVariant.secondary,
-              small: true,
-              fullWidth: true,
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const AdvancedSettingsScreen(),
-                ),
-              ),
-            )
-          else if (pass.loading)
+          if (pass.loading)
             Padding(
               padding: const EdgeInsets.all(AppSpacing.s8),
               child: Text(
@@ -168,7 +151,7 @@ class PartyPassLobbyBar extends ConsumerWidget {
       ConnectionMode.webrtcP2p => l10n.relayStatusDirect,
       ConnectionMode.webrtcTurn => l10n.relayStatusRelay,
       ConnectionMode.offlineLoopback => l10n.relayStatusOffline,
-      null => BuildFlavor.foss ? l10n.relayStatusFoss : l10n.relayStatusOffline,
+      null => l10n.relayStatusOffline,
     };
   }
 }

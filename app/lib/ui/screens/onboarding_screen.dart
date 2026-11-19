@@ -100,7 +100,56 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   height: 1.45,
                 ),
               ),
-              const SizedBox(height: AppSpacing.s24),
+              const SizedBox(height: AppSpacing.s16),
+              SurfaceCard(
+                padding: const EdgeInsets.all(AppSpacing.s12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Container(
+                      width: 34,
+                      height: 34,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: colors.raised,
+                        borderRadius: BorderRadius.circular(AppRadii.rSm),
+                        border: Border.all(color: colors.ink, width: 2),
+                      ),
+                      child: Icon(
+                        Icons.wifi_tethering,
+                        size: 18,
+                        color: colors.positive,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.s12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            context.l10n.onboardingFreeTitle,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: colors.ink,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            context.l10n.onboardingFreeBody,
+                            style: TextStyle(
+                              fontSize: 12,
+                              height: 1.35,
+                              color: colors.ink2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpacing.s20),
               TextField(
                 controller: _name,
                 textCapitalization: TextCapitalization.words,

@@ -1414,11 +1414,26 @@ class _MemeReveal extends StatelessWidget {
     final cards = state.memeRevealCards;
     if (reveal == null || cards.isEmpty) {
       return Center(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpacing.s20),
-          child: EmptyState(
-            title: l10n.memeNoMemes,
-            body: l10n.nextRoundInMoment,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              EmptyState(title: l10n.memeNoMemes, body: l10n.nextRoundInMoment),
+              const SizedBox(height: AppSpacing.s16),
+              if (state.isHosting)
+                GameButton(
+                  label: l10n.nextRound,
+                  onPressed: onNext,
+                  icon: Icons.arrow_forward_rounded,
+                  fullWidth: true,
+                )
+              else
+                NoticeBanner(
+                  message: l10n.waitingForHostToContinue,
+                  icon: Icons.hourglass_empty,
+                ),
+            ],
           ),
         ),
       );

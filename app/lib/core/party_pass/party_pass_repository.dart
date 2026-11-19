@@ -1,11 +1,12 @@
 import 'dart:convert';
 
-import 'package:shared_preferences/shared_preferences.dart';
+import 'party_pass_storage.dart';
 
-/// Store that sold the pass. The wire value is what the private server expects.
+/// Where the pass came from. The wire value is what the private server expects.
 enum StorePlatform {
   apple('ios'),
-  google('android');
+  google('android'),
+  paddle('paddle');
 
   const StorePlatform(this.wireValue);
 
@@ -65,18 +66,19 @@ class PartyPassCredential {
 }
 
 const String kPartyPassStorageKey = 'whotook.party_pass.v1';
+const String kPartyPassPendingRefKey = 'whotook.party_pass.pending.v1';
 const String kPartyPassProductId = 'whotook_party_pass';
 
 /// Local, instant unlock state. The relay still verifies the credential on
 /// every credential request, so a modified local flag only changes cosmetics.
 class PartyPassRepository {
-  PartyPassRepository({SharedPreferencesAsync? preferences})
-    : _prefs = preferences ?? SharedPreferencesAsync();
+  PartyPassRepository({PartyPassStorage? storage})
+    : _storage = storage ?? SecurePartyPassStorage();
 
-  final SharedPreferencesAsync _prefs;
+  final PartyPassStorage _storage;
 
   Future<PartyPassCredential?> load() async {
-    final raw = await _prefs.getString(kPartyPassStorageKey);
+    final raw = await _storage.read(kPartyPassStorageKey);
     if (raw == null || raw.isEmpty) return null;
     try {
       final parsed = jsonDecode(raw);
@@ -89,7 +91,19 @@ class PartyPassRepository {
   }
 
   Future<void> save(PartyPassCredential credential) =>
-      _prefs.setString(kPartyPassStorageKey, jsonEncode(credential.toJson()));
+      _storage.write(kPartyPassStorageKey, jsonEncode(credential.toJson()));
 
-  Future<void> clear() => _prefs.remove(kPartyPassStorageKey);
+  Future<void> clear() => _storage.delete(kPartyPassStorageKey);
+
+  /// A random lookup secret for an in-flight Paddle checkout. It is not the
+  /// license itself; the server only stores its hash.
+  Future<String?> loadPendingRef() async {
+    final value = await _storage.read(kPartyPassPendingRefKey);
+    return value == null || value.isEmpty ? null : value;
+  }
+
+  Future<void> savePendingRef(String ref) =>
+      _storage.write(kPartyPassPendingRefKey, ref);
+
+  Future<void> clearPendingRef() => _storage.delete(kPartyPassPendingRefKey);
 }

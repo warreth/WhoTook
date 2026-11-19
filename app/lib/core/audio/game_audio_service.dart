@@ -7,19 +7,29 @@ import 'package:flutter/services.dart';
 
 import 'audio_contexts.dart';
 
-/// Layered party audio: short tactile effects plus a looping music bed with
-/// panic ducking. Every call is fire-and-forget and safely ignores a missing
-/// audio plugin, which keeps widget tests quiet.
+/// Layered party audio: a fixed pool of tactile sound effects plus one looping
+/// music bed with panic ducking.
+///
+/// The music policy is room-aware: the host is the room speaker by default,
+/// while guests start silent and can opt into their own soundtrack from the
+/// top bar. Sound-effect players are created once, never disposed mid-match,
+/// which keeps iOS `AVAudioSession` stable across a whole party.
 class GameAudioService {
   GameAudioService._();
 
   static final GameAudioService instance = GameAudioService._();
-  final Map<String, AudioPlayer> _players = <String, AudioPlayer>{};
-  final Set<String> _configuredSfx = <String>{};
 
-  /// SFX switch. Music has its own switch next to it.
+  /// Do not recreate players on taps: four fixed voices are enough for the
+  /// overlapping click/whoosh/vote effects and keep Android latency low.
+  static const int sfxPoolSize = 4;
+
+  final List<AudioPlayer> _sfxPool = <AudioPlayer>[];
+  int _nextSfx = 0;
+  bool _initialized = false;
+  Future<void>? _initializing;
+
+  /// SFX switch. Effective music follows [roomRoleApplied].
   bool enabled = true;
-  bool musicEnabled = true;
   bool get isSfxMuted => !enabled;
   set isSfxMuted(bool muted) => enabled = !muted;
 
@@ -34,33 +44,70 @@ class GameAudioService {
   int _musicGeneration = 0;
   double _musicLevel = _musicVolume;
 
+  bool _inRoom = false;
+  bool _roleIsHost = false;
+  bool _userMusic = true;
+  bool _hostMusicChoice = true;
+  bool _guestMusicChoice = false;
+
+  /// Effective music state: the host starts as the room speaker, a guest only
+  /// plays after turning their own speaker on.
+  bool get musicEnabled => _inRoom
+      ? (_roleIsHost ? _hostMusicChoice : _guestMusicChoice)
+      : _userMusic;
+
   static final bool _isTest =
       !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
 
   static const double _musicVolume = 0.60;
   static const double _duckedVolume = 0.25;
-  static const String musicTrackId = 'party_loop_60';
-  static const Duration musicTrackDuration = Duration(seconds: 60);
 
-  DateTime? _trackStartedAt;
-  GameMusicTrack? _remoteTrack;
-  void Function(GameMusicTrack track)? onHostTrackStarted;
-  int _hostOffsetMs = 0;
-  int? _lastSeekHostMs;
+  /// Configure the global session and allocate every player once. Safe to call
+  /// more than once; concurrent callers share the same future.
+  Future<void> initialize() {
+    if (_initialized) return Future<void>.value();
+    return _initializing ??= _initialize();
+  }
 
-  int get hostTimeOffsetMs => _hostOffsetMs;
+  Future<void> _initialize() async {
+    try {
+      // One global AVAAudioSession for the whole process. Re-applying this
+      // during a match is what used to cut iOS audio out.
+      await AudioPlayer.global.setAudioContext(gameMusicContext());
+      if (!_isTest) {
+        for (var i = 0; i < sfxPoolSize; i++) {
+          final player = AudioPlayer(playerId: 'whotook-sfx-$i');
+          await player.setAudioContext(gameSfxContext());
+          await player.setPlayerMode(PlayerMode.lowLatency);
+          await player.setReleaseMode(ReleaseMode.stop);
+          _sfxPool.add(player);
+        }
+        _music = AudioPlayer(playerId: 'whotook-music');
+        await _music!.setReleaseMode(ReleaseMode.loop);
+        await _music!.setAudioContext(gameMusicContext());
+        await _music!.setPlayerMode(PlayerMode.mediaPlayer);
+        _panic = AudioPlayer(playerId: 'whotook-panic');
+        await _panic!.setReleaseMode(ReleaseMode.loop);
+        await _panic!.setAudioContext(gameSfxContext());
+        await _panic!.setPlayerMode(PlayerMode.mediaPlayer);
+        await AudioPlayer.global.ensureInitialized();
+      }
+      _initialized = true;
+    } on Object {
+      // Audio is optional; a missing plugin must never stop the app.
+      _initialized = true;
+    } finally {
+      _initializing = null;
+    }
+  }
 
   Future<void> _play(String asset, {double volume = 1}) async {
     if (!enabled || _isTest) return;
+    await initialize();
+    if (_sfxPool.isEmpty) return;
+    final player = _sfxPool[_nextSfx];
+    _nextSfx = (_nextSfx + 1) % _sfxPool.length;
     try {
-      final player = _players.putIfAbsent(
-        asset,
-        () => AudioPlayer(playerId: 'whotook-$asset'),
-      );
-      if (_configuredSfx.add(asset)) {
-        await player.setAudioContext(gameSfxContext());
-        await player.setPlayerMode(PlayerMode.lowLatency);
-      }
       await player.stop();
       await player.setVolume(volume);
       await player.play(AssetSource('audio/$asset.wav'));
@@ -112,50 +159,70 @@ class GameAudioService {
   }
 
   // Music bed --------------------------------------------------------------
+  /// Apply persisted preferences. Outside a room this decides whether music
+  /// plays; inside a room the room role wins but the SFX switch still applies.
   Future<void> configure({required bool sfx, required bool music}) async {
     enabled = sfx;
-    musicEnabled = music;
-    if (music) {
+    _userMusic = music;
+    if (!_inRoom) _guestMusicChoice = music;
+    await _applyMusic();
+  }
+
+  /// Called once when the local phone enters or leaves a room. The host becomes
+  /// the room speaker; guests default to silent until they tap the music
+  /// toggle themselves.
+  Future<void> applyRoomRole({
+    required bool isHost,
+    required bool inRoom,
+  }) async {
+    final enteringRoom = inRoom && (!_inRoom || _roleIsHost != isHost);
+    _inRoom = inRoom;
+    _roleIsHost = isHost;
+    if (enteringRoom) {
+      _hostMusicChoice = true;
+      _guestMusicChoice = false;
+    }
+    await _applyMusic();
+  }
+
+  /// Top-bar and settings music switch. Guests toggle their own speaker;
+  /// outside a room this is the home-screen soundtrack switch.
+  Future<void> setMusicEnabled(bool music) async {
+    _userMusic = music;
+    if (_inRoom) {
+      if (_roleIsHost) {
+        _hostMusicChoice = music;
+      } else {
+        _guestMusicChoice = music;
+      }
+    }
+    await _applyMusic();
+  }
+
+  Future<void> _applyMusic() async {
+    if (musicEnabled && !_ducking) {
       await startMusic();
-    } else {
+    } else if (!musicEnabled) {
       await stopMusic();
     }
   }
 
   Future<void> startMusic() async {
     if (!musicEnabled || _isTest || _musicStarting || _musicStarted) return;
+    await initialize();
+    final player = _music;
+    if (player == null) return;
     _musicStarting = true;
     final generation = ++_musicGeneration;
     try {
-      final player = _music ??= AudioPlayer(playerId: 'whotook-music');
-      await player.setReleaseMode(ReleaseMode.loop);
-      await player.setAudioContext(gameMusicContext());
-      await player.setPlayerMode(PlayerMode.mediaPlayer);
       await player.setVolume(_ducking ? _duckedVolume : _musicVolume);
       _musicLevel = _ducking ? _duckedVolume : _musicVolume;
-      _trackStartedAt ??= DateTime.now();
       await player.play(AssetSource('audio/party_loop.mp3'));
-      if (_remoteTrack != null) {
-        await _seekToRemoteTrack(force: true);
-      } else {
-        final anchor = _trackStartedAt;
-        if (anchor != null) {
-          final elapsed =
-              (DateTime.now().millisecondsSinceEpoch -
-                  anchor.millisecondsSinceEpoch) %
-              musicTrackDuration.inMilliseconds;
-          if (elapsed > 300) {
-            await player.seek(Duration(milliseconds: elapsed));
-          }
-        }
-      }
       if (generation != _musicGeneration || !musicEnabled) {
         await player.stop();
         return;
       }
       _musicStarted = true;
-      final callback = onHostTrackStarted;
-      if (callback != null) callback(hostTrackInfo());
     } on Object {
       // Music is optional; the game must play without audio.
     } finally {
@@ -166,8 +233,6 @@ class GameAudioService {
   Future<void> stopMusic() async {
     _musicGeneration++;
     _musicStarted = false;
-    _trackStartedAt = null;
-    _lastSeekHostMs = null;
     _panicActive = false;
     try {
       await _panic?.stop();
@@ -177,71 +242,17 @@ class GameAudioService {
     }
   }
 
-  GameMusicTrack hostTrackInfo() {
-    final start = _trackStartedAt ??= DateTime.now();
-    return GameMusicTrack(
-      trackId: musicTrackId,
-      hostStartMs: start.millisecondsSinceEpoch,
-      durationMs: musicTrackDuration.inMilliseconds,
-    );
-  }
-
-  /// Hosts call this once when a room opens. It returns the exact loop anchor
-  /// that every client should seek to.
-  Future<GameMusicTrack> startHostTrack() async {
-    if (!_isTest && musicEnabled && !_musicStarted) await startMusic();
-    return hostTrackInfo();
-  }
-
-  void setHostOffsetMs(int offsetMs) {
-    _hostOffsetMs = offsetMs;
-    if (_remoteTrack != null) {
-      unawaited(_seekToRemoteTrack());
-    }
-  }
-
-  /// Clients call this with the host's loop anchor. The elapsed position is
-  /// computed with the measured clock offset so every phone lands on the same
-  /// beat, even when it joins late.
-  Future<void> syncToTrack(GameMusicTrack track, {int? offsetMs}) async {
-    _remoteTrack = track;
-    if (offsetMs != null) _hostOffsetMs = offsetMs;
-    if (!musicEnabled || _isTest) return;
-    if (!_musicStarted) await startMusic();
-    await _seekToRemoteTrack(force: true);
-  }
-
-  Future<void> _seekToRemoteTrack({bool force = false}) async {
-    final track = _remoteTrack;
-    final player = _music;
-    if (track == null || player == null || track.durationMs <= 0) return;
-    final now = DateTime.now().millisecondsSinceEpoch + _hostOffsetMs;
-    final elapsed = (now - track.hostStartMs) % track.durationMs;
-    final last = _lastSeekHostMs;
-    if (!force && last != null && (now - last).abs() < 180 && elapsed >= 0) {
-      return;
-    }
-    _lastSeekHostMs = now;
-    try {
-      await player.seek(Duration(milliseconds: elapsed));
-      if (force) await player.resume();
-    } on Object {
-      // Syncing is best-effort; the loop keeps playing from wherever it is.
-    }
-  }
-
-  /// Final-five-second layer: a faster percussion loop under the ducked
-  /// party track, then back to the normal groove.
+  /// Final-five-second layer: a faster percussion loop under the ducked party
+  /// track, then back to the normal groove.
   Future<void> setPanic(bool active) async {
     if (_panicActive == active) return;
     _panicActive = active;
     if (!musicEnabled || _isTest) return;
+    await initialize();
+    final player = _panic;
+    if (player == null) return;
     try {
-      final player = _panic ??= AudioPlayer(playerId: 'whotook-panic');
       if (active) {
-        await player.setReleaseMode(ReleaseMode.loop);
-        await player.setAudioContext(gameSfxContext());
-        await player.setPlayerMode(PlayerMode.mediaPlayer);
         await player.setVolume(0.38);
         await player.play(AssetSource('audio/panic_loop.mp3'));
       } else {
@@ -290,47 +301,16 @@ class GameAudioService {
   Future<void> dispose() async {
     _duckTimer?.cancel();
     _musicStarted = false;
-    _remoteTrack = null;
-    _trackStartedAt = null;
+    for (final player in _sfxPool) {
+      await player.dispose();
+    }
+    _sfxPool.clear();
     await _panic?.dispose();
     _panic = null;
     await _music?.dispose();
     _music = null;
-    for (final player in _players.values) {
-      await player.dispose();
-    }
-    _players.clear();
+    _initialized = false;
   }
-}
-
-class GameMusicTrack {
-  const GameMusicTrack({
-    required this.trackId,
-    required this.hostStartMs,
-    required this.durationMs,
-  });
-
-  final String trackId;
-  final int hostStartMs;
-  final int durationMs;
-
-  Map<String, dynamic> toJson() => <String, dynamic>{
-    'trackId': trackId,
-    'hostTrackStartTimestampMs': hostStartMs,
-    'trackDurationMs': durationMs,
-  };
-
-  factory GameMusicTrack.fromJson(Map<String, dynamic> json) => GameMusicTrack(
-    trackId: json['trackId'] as String? ?? GameAudioService.musicTrackId,
-    hostStartMs:
-        (json['hostTrackStartTimestampMs'] as int?) ??
-        (json['hostStartMs'] as int?) ??
-        0,
-    durationMs:
-        (json['trackDurationMs'] as int?) ??
-        (json['durationMs'] as int?) ??
-        GameAudioService.musicTrackDuration.inMilliseconds,
-  );
 }
 
 /// Haptics with one switch for the whole game.

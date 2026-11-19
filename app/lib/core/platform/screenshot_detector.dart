@@ -26,18 +26,24 @@ class ScreenshotDetector {
     if (!await _channelAvailable()) {
       return;
     }
-    _subscription = _channel.receiveBroadcastStream().listen(
-      (_) {
-        onScreenshot();
-        if (!_events.isClosed) {
-          _events.add(null);
-        }
-      },
-      onError: (Object _) {},
-      onDone: () {
-        _subscription = null;
-      },
-    );
+    try {
+      _subscription = _channel.receiveBroadcastStream().listen(
+        (_) {
+          onScreenshot();
+          if (!_events.isClosed) {
+            _events.add(null);
+          }
+        },
+        onError: (Object _) {},
+        onDone: () {
+          _subscription = null;
+        },
+      );
+    } on Object {
+      // A channel that answered the probe but cannot be listened to must not
+      // keep a match screen waiting.
+      _subscription = null;
+    }
   }
 
   Future<void> stop() async {
@@ -68,6 +74,9 @@ class ScreenshotDetector {
     } on PlatformException {
       // The native side answered, even if it rejected the method.
       return true;
+    } on Object {
+      // Web and desktop have no screenshot channel.
+      return false;
     }
   }
 }

@@ -58,6 +58,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Guess whose photo it is'), findsOneWidget);
+    expect(find.text('Same Wi-Fi is always free'), findsOneWidget);
+    expect(find.textContaining('Play Anywhere is optional'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('Continue'),
       300,

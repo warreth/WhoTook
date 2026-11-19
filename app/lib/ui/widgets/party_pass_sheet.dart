@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants.dart';
 import '../../core/links.dart';
 import '../../core/party_pass/party_pass_controller.dart';
+import '../../core/party_pass/purchase_service.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../l10n/l10n.dart';
 import '../screens/advanced_settings_screen.dart';
@@ -43,7 +44,7 @@ class _PartyPassBottomSheetState extends ConsumerState<PartyPassBottomSheet> {
     super.initState();
     if (widget.verifyOnOpen) {
       final pass = ref.read(partyPassProvider).value;
-      if (pass != null && pass.active && !pass.fossIncluded) {
+      if (pass != null && pass.active) {
         unawaited(ref.read(partyPassProvider.notifier).verify());
       }
     }
@@ -55,6 +56,42 @@ class _PartyPassBottomSheetState extends ConsumerState<PartyPassBottomSheet> {
 
   Future<void> _restore() async {
     await ref.read(partyPassProvider.notifier).restore();
+  }
+
+  Future<void> _enterLicense() async {
+    final l10n = context.l10n;
+    final controller = TextEditingController();
+    final key = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.partyPassLicenseTitle),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          autocorrect: false,
+          enableSuggestions: false,
+          textCapitalization: TextCapitalization.characters,
+          decoration: InputDecoration(
+            hintText: l10n.partyPassLicenseHint,
+            border: const OutlineInputBorder(),
+          ),
+          onSubmitted: (value) => Navigator.of(context).pop(value),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: Text(l10n.partyPassLicenseApply),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (!mounted || key == null || key.trim().isEmpty) return;
+    await ref.read(partyPassProvider.notifier).redeem(key);
   }
 
   void _openCustomTurn() {
@@ -165,7 +202,7 @@ class _PartyPassBottomSheetState extends ConsumerState<PartyPassBottomSheet> {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.s16),
-                if (pass.loading)
+                if (pass.loading || !pass.billingReady)
                   Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.s12),
                     child: Text(
@@ -173,9 +210,7 @@ class _PartyPassBottomSheetState extends ConsumerState<PartyPassBottomSheet> {
                       style: TextStyle(fontSize: 12, color: colors.ink3),
                     ),
                   ),
-                if (pass.fossIncluded)
-                  _FossNote(l10n: l10n)
-                else if (pass.active)
+                if (pass.active)
                   _ActiveBadge(
                     l10n: l10n,
                     remaining: pass.remainingMatchesToday,
@@ -184,7 +219,9 @@ class _PartyPassBottomSheetState extends ConsumerState<PartyPassBottomSheet> {
                   )
                 else
                   Text(
-                    l10n.partyPassRestoreHint,
+                    pass.billingKind == PartyPassBillingKind.paddle
+                        ? l10n.partyPassRestoreHintPaddle
+                        : l10n.partyPassRestoreHint,
                     style: TextStyle(
                       fontSize: 13,
                       height: 1.4,
@@ -209,7 +246,7 @@ class _PartyPassBottomSheetState extends ConsumerState<PartyPassBottomSheet> {
                   title: l10n.partyPassPerkThemesTitle,
                   body: l10n.partyPassPerkThemesBody,
                 ),
-                if (!pass.active && !pass.fossIncluded) ...<Widget>[
+                if (!pass.active) ...<Widget>[
                   const SizedBox(height: AppSpacing.s8),
                   Text(
                     l10n.soundboardLocked,
@@ -237,45 +274,71 @@ class _PartyPassBottomSheetState extends ConsumerState<PartyPassBottomSheet> {
                   ),
                   const SizedBox(height: AppSpacing.s12),
                 ],
-                if (pass.fossIncluded) ...<Widget>[
-                  GameButton(
-                    label: l10n.partyPassCustomTurn,
-                    icon: Icons.dns_outlined,
-                    variant: GameButtonVariant.secondary,
-                    onPressed: _openCustomTurn,
-                    fullWidth: true,
-                  ),
-                ] else if (pass.active) ...<Widget>[
+                if (pass.active) ...<Widget>[
                   TextButton(
                     onPressed: busy ? null : () => unawaited(_restore()),
                     child: Text(l10n.partyPassRestore),
                   ),
-                ] else ...<Widget>[
-                  if (!pass.billingAvailable)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.s12),
-                      child: Text(
-                        l10n.partyPassStoreUnavailable,
-                        style: TextStyle(
-                          fontSize: 12,
-                          height: 1.4,
-                          color: colors.ink3,
-                        ),
+                ] else if (pass.billingKind ==
+                    PartyPassBillingKind.paddle) ...<Widget>[
+                  if (pass.billingReady && pass.billingAvailable) ...<Widget>[
+                    GameButton(
+                      label: l10n.partyPassUnlockButton(pass.displayPrice),
+                      icon: Icons.lock_open,
+                      variant: GameButtonVariant.gold,
+                      onPressed: busy ? null : () => unawaited(_unlock()),
+                      fullWidth: true,
+                    ),
+                  ] else if (pass.billingReady) ...<Widget>[
+                    Text(
+                      l10n.partyPassPaddleUnavailable,
+                      style: TextStyle(
+                        fontSize: 12,
+                        height: 1.4,
+                        color: colors.ink3,
                       ),
                     ),
+                  ],
+                  const SizedBox(height: AppSpacing.s8),
+                  TextButton(
+                    onPressed: busy ? null : () => unawaited(_restore()),
+                    child: Text(l10n.partyPassRestore),
+                  ),
+                  TextButton(
+                    onPressed: busy ? null : () => unawaited(_enterLicense()),
+                    child: Text(l10n.partyPassLicenseButton),
+                  ),
+                ] else if (pass.billingReady &&
+                    pass.billingAvailable) ...<Widget>[
                   GameButton(
                     label: l10n.partyPassUnlockButton(pass.displayPrice),
                     icon: Icons.lock_open,
                     variant: GameButtonVariant.gold,
-                    onPressed: busy || !pass.billingAvailable
-                        ? null
-                        : () => unawaited(_unlock()),
+                    onPressed: busy ? null : () => unawaited(_unlock()),
                     fullWidth: true,
                   ),
                   const SizedBox(height: AppSpacing.s8),
                   TextButton(
                     onPressed: busy ? null : () => unawaited(_restore()),
                     child: Text(l10n.partyPassRestore),
+                  ),
+                ] else if (pass.billingReady) ...<Widget>[
+                  Text(
+                    l10n.partyPassStoreUnavailable,
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.4,
+                      color: colors.ink3,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.s12),
+                  GameButton(
+                    label: l10n.partyPassStoreButton,
+                    icon: Icons.open_in_new,
+                    variant: GameButtonVariant.secondary,
+                    onPressed: () =>
+                        unawaited(openExternal(context, appStoreUrl())),
+                    fullWidth: true,
                   ),
                 ],
                 if (busy)
@@ -316,11 +379,10 @@ class _PartyPassBottomSheetState extends ConsumerState<PartyPassBottomSheet> {
                           unawaited(openExternal(context, kPrivacyUrl)),
                       child: Text(l10n.partyPassPrivacy),
                     ),
-                    if (!pass.fossIncluded)
-                      TextButton(
-                        onPressed: _openCustomTurn,
-                        child: Text(l10n.partyPassCustomTurn),
-                      ),
+                    TextButton(
+                      onPressed: _openCustomTurn,
+                      child: Text(l10n.partyPassCustomTurn),
+                    ),
                   ],
                 ),
               ],
@@ -459,49 +521,6 @@ class _ActiveBadge extends StatelessWidget {
                 ? l10n.partyPassFairUse(remaining, limit)
                 : l10n.partyPassRelayError,
             style: TextStyle(fontSize: 12, color: colors.ink2),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FossNote extends StatelessWidget {
-  const _FossNote({required this.l10n});
-
-  final AppLocalizations l10n;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = WhoTookColors.of(context);
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.s12),
-      decoration: BoxDecoration(
-        color: colors.raised,
-        borderRadius: BorderRadius.circular(AppRadii.rControl),
-        border: Border.all(color: colors.ink, width: 2),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Icon(Icons.code, size: 18, color: colors.accent),
-              const SizedBox(width: AppSpacing.s8),
-              Text(
-                l10n.partyPassFossIncluded,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: colors.ink,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.s4),
-          Text(
-            l10n.partyPassFossBody,
-            style: TextStyle(fontSize: 12, height: 1.4, color: colors.ink2),
           ),
         ],
       ),

@@ -62,26 +62,6 @@ jobs:
         working-directory: app
         run: flutter build apk --debug --target-platform android-arm64
 
-  foss:
-    name: FOSS build without billing
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
-        with:
-          distribution: temurin
-          java-version: 17
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
-        with:
-          flutter-version: 3.47.2
-          channel: stable
-          cache: true
-      - name: Test and build the dependency-clean FOSS flavor
-        run: bash app/foss/build.sh
-
   ios:
     name: iOS build without signing
     runs-on: macos-latest

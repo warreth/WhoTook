@@ -3,20 +3,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
-import 'package:whotook/core/build_flavor.dart';
 import 'package:whotook/core/models/models.dart';
 import 'package:whotook/core/party_pass/party_pass_controller.dart';
+import 'package:whotook/core/party_pass/purchase_service.dart';
+import 'package:whotook/core/party_pass/room_theme.dart';
 import 'package:whotook/core/party_pass/sound_effect.dart';
+import 'package:whotook/core/storage/settings_repository.dart';
 import 'package:whotook/core/theme/whotook_theme.dart';
 import 'package:whotook/l10n/l10n.dart';
 import 'package:whotook/state/match_coordinator.dart';
 import 'package:whotook/state/providers.dart';
-import 'package:whotook/ui/widgets/custom_turn_section.dart';
 import 'package:whotook/ui/widgets/firewall_prompt.dart';
 import 'package:whotook/ui/widgets/party_pass_bar.dart';
 import 'package:whotook/ui/widgets/party_pass_sheet.dart';
 import 'package:whotook/ui/widgets/room_theme_picker.dart';
 import 'package:whotook/ui/widgets/soundboard_overlay.dart';
+
+import '../support/test_photo_library.dart';
 
 class _FixedSettings extends AppSettingsController {
   _FixedSettings(this.value);
@@ -70,6 +73,15 @@ Widget _app(
       matchStateProvider.overrideWith(
         (ref) => Stream<MatchUiState>.value(match ?? _lobby()),
       ),
+      matchCoordinatorProvider.overrideWith((ref) {
+        final coordinator = MatchCoordinator(
+          photos: TestPhotoLibrary(seed: 1),
+          settings: SettingsRepository(),
+          platformServices: false,
+        );
+        ref.onDispose(coordinator.dispose);
+        return coordinator;
+      }),
     ],
     child: MaterialApp(
       theme: buildWhoTookTheme(Brightness.light),
@@ -102,11 +114,7 @@ void main() {
     expect(find.text('Soundboard'), findsOneWidget);
     expect(find.text('Pass only'), findsOneWidget);
     expect(find.text('Same Wi-Fi'), findsOneWidget);
-    if (BuildFlavor.foss) {
-      expect(find.text('Use your own TURN server'), findsOneWidget);
-    } else {
-      expect(find.text('Party Pass (€2.99)'), findsOneWidget);
-    }
+    expect(find.text('Party Pass (€2.99)'), findsOneWidget);
   });
 
   testWidgets('the pass sheet lists every perk, restore and the price', (
@@ -120,18 +128,107 @@ void main() {
     await tester.pumpWidget(
       _app(
         const PartyPassBottomSheet(verifyOnOpen: false),
-        const PartyPassState(loading: false),
+        const PartyPassState(loading: false, billingAvailable: true),
       ),
     );
     await tester.pumpAndSettle();
 
     expect(find.text('WhoTook Party Pass'), findsOneWidget);
-    expect(find.text('5G & firewall relay'), findsOneWidget);
+    expect(find.text('Play Anywhere'), findsOneWidget);
+    expect(find.textContaining('Same Wi-Fi is always free'), findsOneWidget);
     expect(find.text('Live soundboard'), findsOneWidget);
     expect(find.text('Shared room themes'), findsOneWidget);
     expect(find.text('Unlock Forever, €2.99'), findsOneWidget);
     expect(find.text('Restore purchases'), findsOneWidget);
     expect(find.text('Use your own TURN server'), findsOneWidget);
+  });
+
+  testWidgets('a build without billing points at the store', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      _app(
+        const PartyPassBottomSheet(verifyOnOpen: false),
+        const PartyPassState(loading: false, billingAvailable: false),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('The store is not available in this build'),
+      findsOneWidget,
+    );
+    expect(find.text('Get the store version'), findsOneWidget);
+    expect(find.text('Unlock Forever, €2.99'), findsNothing);
+    expect(find.text('I have a license key'), findsNothing);
+  });
+
+  testWidgets(
+    'a direct build offers Paddle and a license entry, never the store',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        _app(
+          const PartyPassBottomSheet(verifyOnOpen: false),
+          const PartyPassState(
+            loading: false,
+            billingAvailable: true,
+            billingKind: PartyPassBillingKind.paddle,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Unlock Forever, €2.99'), findsOneWidget);
+      expect(find.text('I have a license key'), findsOneWidget);
+      expect(find.textContaining('The store is not available'), findsNothing);
+      expect(find.text('Get the store version'), findsNothing);
+
+      await tester.ensureVisible(find.text('I have a license key'));
+      await tester.tap(find.text('I have a license key'));
+      await tester.pumpAndSettle();
+      expect(find.text('Enter your Party Pass license'), findsOneWidget);
+      expect(
+        find.text('WT-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('a direct build without checkout still accepts a license', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      _app(
+        const PartyPassBottomSheet(verifyOnOpen: false),
+        const PartyPassState(
+          loading: false,
+          billingAvailable: false,
+          billingKind: PartyPassBillingKind.paddle,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('Online checkout is unavailable'),
+      findsOneWidget,
+    );
+    expect(find.text('Unlock Forever, €2.99'), findsNothing);
+    expect(find.text('I have a license key'), findsOneWidget);
+    expect(find.text('Get the store version'), findsNothing);
   });
 
   testWidgets('an active pass shows the allowance and no unlock button', (
@@ -154,27 +251,6 @@ void main() {
     expect(find.text('12 of 15 relay matches left today'), findsOneWidget);
     expect(find.text('Unlock Forever, €2.99'), findsNothing);
     expect(find.text('Restore purchases'), findsOneWidget);
-  });
-
-  testWidgets('a FOSS build includes the features and points at self-hosting', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      _app(
-        const PartyPassBottomSheet(verifyOnOpen: false),
-        const PartyPassState(
-          active: true,
-          fossIncluded: true,
-          remainingMatchesToday: 0,
-          dailyLimit: 0,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('Included in this FOSS build'), findsOneWidget);
-    expect(find.text('Use your own TURN server'), findsOneWidget);
-    expect(find.text('Unlock Forever, €2.99'), findsNothing);
   });
 
   testWidgets('the soundboard expands with all six sounds', (tester) async {
@@ -216,7 +292,7 @@ void main() {
     expect(find.text('Soundboard'), findsNothing);
   });
 
-  testWidgets('the 5G prompt offers the free Wi-Fi route first', (
+  testWidgets('the blocked-network prompt offers the free Wi-Fi route first', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -233,14 +309,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Strict 5G firewall detected!'), findsOneWidget);
-    if (BuildFlavor.foss) {
-      expect(find.text('Set up custom TURN'), findsOneWidget);
-      expect(find.text('Unlock Party Pass'), findsNothing);
-    } else {
-      expect(find.text('Play on Wi-Fi/Hotspot'), findsOneWidget);
-      expect(find.text('Unlock Party Pass'), findsOneWidget);
-    }
+    expect(find.text('This network blocks direct play'), findsOneWidget);
+    expect(find.textContaining('Same Wi-Fi is always free'), findsOneWidget);
+    expect(find.text('Play on Wi-Fi/Hotspot'), findsOneWidget);
+    expect(find.text('Unlock Party Pass'), findsOneWidget);
   });
 
   testWidgets('a fair-use denial shows the quota copy and reset time', (
@@ -272,26 +344,7 @@ void main() {
 
     expect(find.text('Daily relay limit reached'), findsOneWidget);
     expect(find.textContaining('Next allowance:'), findsOneWidget);
-    if (!BuildFlavor.foss) {
-      expect(find.text('Retry now'), findsOneWidget);
-    }
-  });
-
-  testWidgets('the FOSS self-host form has URI, username and password', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      _app(
-        const SingleChildScrollView(child: CustomTurnSection()),
-        const PartyPassState(active: true, fossIncluded: true),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('Custom TURN Server (Self-Host)'), findsOneWidget);
-    expect(find.text('TURN URI'), findsOneWidget);
-    expect(find.text('Username'), findsOneWidget);
-    expect(find.text('Password'), findsOneWidget);
+    expect(find.text('Retry now'), findsOneWidget);
   });
 
   testWidgets('the theme picker scrolls at large text on a small phone', (
@@ -319,6 +372,56 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Room theme'), findsOneWidget);
     expect(find.byType(SingleChildScrollView), findsWidgets);
+  });
+
+  testWidgets('tapping a theme previews it live and exposes Apply', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        const RoomThemePickerSheet(),
+        const PartyPassState(
+          active: true,
+          billingAvailable: true,
+          loading: false,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(RoomThemePickerSheet)),
+    );
+    expect(container.read(roomThemePreviewProvider), isNull);
+
+    await tester.tap(find.text('Midnight Arcade'));
+    await tester.pumpAndSettle();
+
+    expect(
+      container.read(roomThemePreviewProvider),
+      RoomThemeId.midnightArcade,
+    );
+    expect(find.textContaining('Apply Theme'), findsOneWidget);
+    expect(find.textContaining('Revert'), findsNothing);
+  });
+
+  testWidgets('a locked theme previews with Unlock and Revert', (tester) async {
+    await tester.pumpWidget(
+      _app(const RoomThemePickerSheet(), const PartyPassState(loading: false)),
+    );
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(RoomThemePickerSheet)),
+    );
+    await tester.tap(find.text('Cyber Neon'));
+    await tester.pumpAndSettle();
+
+    expect(container.read(roomThemePreviewProvider), RoomThemeId.cyberNeon);
+    expect(find.textContaining('Unlock Party Pass'), findsOneWidget);
+    await tester.tap(find.text('Revert'));
+    await tester.pumpAndSettle();
+    expect(container.read(roomThemePreviewProvider), isNull);
   });
 
   testWidgets('the lobby bar opens the theme picker', (tester) async {

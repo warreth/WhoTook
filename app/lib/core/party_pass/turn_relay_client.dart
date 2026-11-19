@@ -203,9 +203,8 @@ class TurnRelayClient {
     throw TurnRelayException(
       code,
       remainingMatchesToday: decoded?['remainingMatchesToday'] as int?,
-      retryAtUtc: DateTime.tryParse(
-        decoded?['retryAtUtc'] as String? ?? '',
-      )?.toUtc(),
+      retryAtUtc: DateTime.tryParse(decoded?['retryAtUtc'] as String? ?? '')
+          ?.toUtc(),
     );
   }
 

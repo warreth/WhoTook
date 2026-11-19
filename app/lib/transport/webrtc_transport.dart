@@ -6,7 +6,6 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:http/http.dart' as http;
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-import '../core/build_flavor.dart';
 import '../core/models/models.dart';
 import '../core/party_pass/turn_relay_client.dart';
 import '../core/protocol/wire_message.dart';
@@ -122,7 +121,7 @@ class SignalingIceClient {
     http.Client? httpClient,
     this.timeout = const Duration(seconds: 8),
     this.turnRelay,
-    this.acceptServerTurn = !BuildFlavor.official,
+    this.acceptServerTurn = false,
   }) : _http = httpClient ?? http.Client();
 
   final String signalingUrl;
@@ -130,7 +129,8 @@ class SignalingIceClient {
   final http.Client _http;
 
   /// Official builds obtain relay credentials only from a verified Party Pass.
-  /// Legacy self-hosted signaling servers may still return TURN to FOSS builds.
+  /// A legacy or custom signaling server may still return TURN; the flag lets
+  /// tests exercise that path without accepting it in production.
   final Future<TurnRelayAttempt> Function()? turnRelay;
   final bool acceptServerTurn;
 

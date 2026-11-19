@@ -19,16 +19,28 @@ class ResponsiveGameLayout {
   double get pagePadding => isCompactHeight ? 13 : 20;
   double get sectionGap => isCompactHeight ? 8 : 12;
   double get cardPadding => isCompactHeight ? 12 : 16;
-  double get controlHeight => isCompactHeight ? 44 : 52;
-  double get smallControlHeight => isCompactHeight ? 40 : 42;
+
+  /// Thumb-friendly on every phone: 48 px on the shortest iPhone, 52 px on
+  /// standard phones and 58 px on tall phones. Never shrink below this.
+  double get controlHeight => isUltraCompact
+      ? 48
+      : isCompactHeight
+      ? 52
+      : 58;
+
+  /// Secondary controls keep the same thumb target as primary ones: utility
+  /// actions must not look like fingertips compared with the big buttons.
+  double get smallControlHeight => isUltraCompact
+      ? 48
+      : isCompactHeight
+      ? 50
+      : 52;
   double get shadowOffset => isCompactHeight ? 3 : 5;
   double get qrSize => isCompactHeight ? 140 : 160;
   double get titleSize => isCompactHeight ? 22 : 28;
   double get largeTitleSize => isCompactHeight ? 26 : 34;
   double get timerSize => isCompactHeight ? 54 : 66;
   double get timerInnerSize => isCompactHeight ? 36 : 44;
-
-  double scaled(double value) => isCompactHeight ? value * 0.8 : value;
 
   static ResponsiveGameLayout of(BuildContext context) =>
       ResponsiveGameLayout(MediaQuery.sizeOf(context));

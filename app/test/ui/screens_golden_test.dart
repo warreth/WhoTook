@@ -11,7 +11,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:whotook/l10n/l10n.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
-import 'package:whotook/core/build_flavor.dart';
 import 'package:whotook/core/models/models.dart';
 import 'package:whotook/core/storage/last_room_repository.dart';
 import 'package:whotook/core/theme/whotook_theme.dart';
@@ -121,7 +120,6 @@ void main() {
   });
 
   testWidgets('lobby', (tester) async {
-    if (BuildFlavor.foss) return;
     await _pump(tester, const LobbyScreen(), _settings(), state: _lobbyState());
     await expectLater(
       find.byType(LobbyScreen),
@@ -130,7 +128,6 @@ void main() {
   });
 
   testWidgets('online lobby shows the Wi-Fi hint', (tester) async {
-    if (BuildFlavor.foss) return;
     await _pump(
       tester,
       const LobbyScreen(),
@@ -431,7 +428,6 @@ void main() {
   });
 
   testWidgets('dark lobby', (tester) async {
-    if (BuildFlavor.foss) return;
     await _pump(
       tester,
       const LobbyScreen(),
@@ -538,7 +534,6 @@ void main() {
   });
 
   testWidgets('dark lobby with meme mode', (tester) async {
-    if (BuildFlavor.foss) return;
     await _pump(
       tester,
       const LobbyScreen(),
@@ -725,12 +720,10 @@ void main() {
     await _pump(tester, const LobbyScreen(), _settings(), state: _lobbyState());
     expect(find.text('Start photo check').hitTestable(), findsOneWidget);
     expect(tester.takeException(), isNull);
-    if (!BuildFlavor.foss) {
-      await expectLater(
-        find.byType(LobbyScreen),
-        matchesGoldenFile('goldens/lobby-compact.png'),
-      );
-    }
+    await expectLater(
+      find.byType(LobbyScreen),
+      matchesGoldenFile('goldens/lobby-compact.png'),
+    );
 
     await _pump(
       tester,
@@ -1526,7 +1519,6 @@ void main() {
   });
 
   testWidgets('marketing lobby', (tester) async {
-    if (BuildFlavor.foss) return;
     _retina(tester);
     await _pump(tester, const LobbyScreen(), _settings(), state: _lobbyState());
     await expectLater(

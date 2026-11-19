@@ -591,35 +591,42 @@ void main() {
     expect(host.state.avatarPhotos['p-photo'], 'abc');
   });
 
-  test('a newer build warns the host and the older clients', () async {
-    final newer = MatchCoordinator(
-      photos: TestPhotoLibrary(seed: 22),
-      settings: SettingsRepository(),
-      connector: HybridConnector(
-        onlineClientFactory: () => LoopbackClientTransport(hub),
-      ),
-      appVersion: '1.9.3',
-      appBuild: 16,
-      roundDuration: const Duration(milliseconds: 900),
-      countdownDuration: Duration.zero,
-      revealDuration: const Duration(milliseconds: 40),
-      extendWindow: const Duration(milliseconds: 300),
-    );
-    addTearDown(newer.dispose);
-    await newer.loadSettings();
-    await newer.joinMatch(inviteUrl);
-    await _waitFor(() => host.state.players.length == 4);
-    await _waitFor(() => host.state.versionWarning != null);
-    await _waitFor(() => clientOne.state.versionWarning != null);
+  test(
+    'a newer semantic version warns the host and the older clients',
+    () async {
+      final newer = MatchCoordinator(
+        photos: TestPhotoLibrary(seed: 22),
+        settings: SettingsRepository(),
+        connector: HybridConnector(
+          onlineClientFactory: () => LoopbackClientTransport(hub),
+        ),
+        appVersion: '1.9.3',
+        appBuild: 16,
+        roundDuration: const Duration(milliseconds: 900),
+        countdownDuration: Duration.zero,
+        revealDuration: const Duration(milliseconds: 40),
+        extendWindow: const Duration(milliseconds: 300),
+      );
+      addTearDown(newer.dispose);
+      await newer.loadSettings();
+      await newer.joinMatch(inviteUrl);
+      await _waitFor(() => host.state.players.length == 4);
+      await _waitFor(() => host.state.versionWarning != null);
+      await _waitFor(() => clientOne.state.versionWarning != null);
 
-    expect(host.state.versionWarning!.latestBuild, 16);
-    expect(host.state.versionWarning!.ownBuild, 15);
-    expect(clientOne.state.versionWarning!.latestVersion, '1.9.3');
-    expect(newer.state.versionWarning, isNull);
+      expect(host.state.versionWarning!.latestVersion, '1.9.3');
+      expect(host.state.versionWarning!.ownVersion, '1.9.2');
+      expect(clientOne.state.versionWarning!.latestVersion, '1.9.3');
+      expect(
+        clientOne.state.versionWarning!.latestVersion.split('+').first,
+        '1.9.3',
+      );
+      expect(newer.state.versionWarning, isNull);
 
-    host.dismissVersionWarning();
-    expect(host.state.versionWarningDismissed, isTrue);
-  });
+      host.dismissVersionWarning();
+      expect(host.state.versionWarningDismissed, isTrue);
+    },
+  );
 
   test('joining after the lobby started returns a clear message', () async {
     await prepareAndStart(rounds: 2);

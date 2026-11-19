@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart';
 
 import '../party_pass/sound_effect.dart';
 import 'audio_contexts.dart';
@@ -15,7 +16,8 @@ class SoundboardService {
   final Set<PartySound> _configured = <PartySound>{};
   bool enabled = true;
 
-  static final bool _isTest = Platform.environment.containsKey('FLUTTER_TEST');
+  static final bool _isTest =
+      !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
 
   Future<void> play(PartySound sound) async {
     if (!enabled || _isTest) return;

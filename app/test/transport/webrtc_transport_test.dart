@@ -203,7 +203,10 @@ void main() {
         signalingUrl: 'https://signal.whotook.party',
       ),
     );
-    expect(transport.iceTimeout, greaterThanOrEqualTo(const Duration(seconds: 20)));
+    expect(
+      transport.iceTimeout,
+      greaterThanOrEqualTo(const Duration(seconds: 20)),
+    );
   });
 
   test('a granted relay timeout maps to the relay prompt', () {

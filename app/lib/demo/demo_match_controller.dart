@@ -74,6 +74,7 @@ class DemoMatchController {
       lastRooms: _roomsFor('host'),
       hostTransportFactory: (room, secret, lan) => LoopbackHostTransport(_hub),
       includeOnlineTransport: false,
+      platformServices: false,
       random: Random(7),
       appVersion: kAppVersion,
       appBuild: kAppBuildNumber,
@@ -118,7 +119,7 @@ class DemoMatchController {
   }
 
   LastRoomRepository _roomsFor(String id) {
-    final repo = LastRoomRepository(storageKey: 'whotook.demo.$id');
+    final repo = LastRoomRepository.memory(storageKey: 'whotook.demo.$id');
     _rooms.add(repo);
     return repo;
   }
@@ -323,8 +324,8 @@ class _DemoBot {
       ),
       appVersion: kAppVersion,
       appBuild: kAppBuildNumber,
-      audioSync: false,
       countdownDuration: countdownDuration,
+      platformServices: false,
     );
     coordinator.updateSettings(
       AppSettings(nickname: name, avatar: avatar, onboardingCompleted: true),
@@ -399,9 +400,6 @@ class DemoAppSettingsController extends AppSettingsController {
 
 /// The demo does not touch billing or the relay.
 class DemoPartyPassController extends PartyPassController {
-  @override
-  bool get fossIncludedBuild => false;
-
   @override
   Future<PartyPassState> build() async => const PartyPassState(loading: false);
 }

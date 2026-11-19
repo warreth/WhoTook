@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -91,6 +90,19 @@ class RoundScreen extends ConsumerWidget {
                         syncTotal: state.vaultSyncTotal,
                       ),
                     )
+                  else if (showingReveal)
+                    Expanded(
+                      child: _RevealBlock(
+                        reveal: reveal,
+                        players: state.players,
+                        avatarPhotos: state.avatarPhotos,
+                        localPlayerId: state.localPlayerId,
+                        photoBytes: state.activePhotoBytes,
+                        photoId: reveal.photoId,
+                        isHosting: state.isHosting,
+                        onNext: () => unawaited(coordinator.skipRound()),
+                      ),
+                    )
                   else ...<Widget>[
                     Expanded(
                       child: AnimatedSwitcher(
@@ -99,53 +111,43 @@ class RoundScreen extends ConsumerWidget {
                         child: _PhotoFrame(
                           key: ValueKey<int>(state.currentRound),
                           bytes: state.activePhotoBytes,
+                          photoId: state.activePhotoId,
                           isPanorama: state.activePhotoIsPanorama,
                         ),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.s12),
-                    if (showingReveal)
-                      _RevealBlock(
-                        reveal: reveal,
-                        players: state.players,
-                        avatarPhotos: state.avatarPhotos,
-                        localPlayerId: state.localPlayerId,
-                      )
-                    else ...<Widget>[
-                      const SizedBox(height: AppSpacing.s12),
-                      PanicTimerBar(
-                        remainingMs: state.remainingMs,
-                        totalMs: (state.config.roundSeconds * 1000).clamp(
-                          1,
-                          60000,
-                        ),
-                        label: l10n.tapNameToLock,
+                    PanicTimerBar(
+                      remainingMs: state.remainingMs,
+                      totalMs: (state.config.roundSeconds * 1000).clamp(
+                        1,
+                        60000,
                       ),
-                      const SizedBox(height: AppSpacing.s12),
-                      _GuessGrid(
-                        options: state.activeRoundOptions,
-                        avatarPhotos: state.avatarPhotos,
-                        lockedOwnerId: state.lockedGuessOwnerId,
-                        buttonHeight: layout.controlHeight,
-                        onGuess: (ownerId) {
-                          unawaited(GameHaptics.instance.selection());
-                          unawaited(GameAudioService.instance.tap());
-                          unawaited(
-                            state.isHosting
-                                ? coordinator.submitGuess(ownerId)
-                                : coordinator.clientSubmitGuess(ownerId),
-                          );
-                        },
+                      label: l10n.tapNameToLock,
+                    ),
+                    const SizedBox(height: AppSpacing.s12),
+                    _GuessGrid(
+                      options: state.activeRoundOptions,
+                      avatarPhotos: state.avatarPhotos,
+                      lockedOwnerId: state.lockedGuessOwnerId,
+                      buttonHeight: layout.controlHeight,
+                      onGuess: (ownerId) {
+                        unawaited(GameHaptics.instance.selection());
+                        unawaited(GameAudioService.instance.tap());
+                        unawaited(
+                          state.isHosting
+                              ? coordinator.submitGuess(ownerId)
+                              : coordinator.clientSubmitGuess(ownerId),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.s8),
+                    if (state.lockedGuessOwnerId != null)
+                      Text(
+                        l10n.lockedInWaiting,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 13, color: colors.ink2),
                       ),
-                      const SizedBox(height: AppSpacing.s8),
-                      const SizedBox(height: AppSpacing.s8),
-                      if (state.lockedGuessOwnerId != null)
-                        Text(
-                          l10n.lockedInWaiting,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 13, color: colors.ink2),
-                        ),
-                    ],
                   ],
                 ],
               ),
@@ -259,48 +261,85 @@ class _CountdownView extends StatelessWidget {
 }
 
 class _PhotoFrame extends StatelessWidget {
-  const _PhotoFrame({super.key, required this.bytes, this.isPanorama = false});
+  const _PhotoFrame({
+    super.key,
+    required this.bytes,
+    this.photoId,
+    this.isPanorama = false,
+  });
 
   final Uint8List? bytes;
+  final String? photoId;
   final bool isPanorama;
 
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadii.rCard),
-        border: Border.all(color: colors.ink, width: 2),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: colors.ink,
-            blurRadius: 0,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(AppSpacing.s8),
-      child: Stack(
-        fit: StackFit.expand,
-        children: <Widget>[
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadii.rSm),
-            child: _Photo(bytes: bytes, isPanorama: isPanorama),
-          ),
-          Positioned.fill(
-            child: CropFrameOverlay(color: colors.ink, inset: 4, armLength: 14),
-          ),
-        ],
+    final l10n = context.l10n;
+    return Semantics(
+      container: true,
+      image: true,
+      label: l10n.gamePhoto,
+      child: GestureDetector(
+        onTap: bytes == null || bytes!.isEmpty
+            ? null
+            : () => showPhotoLightbox(
+                context,
+                bytes: bytes,
+                photoId: photoId,
+                caption: l10n.tapToZoomBody,
+              ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            Container(
+              decoration: BoxDecoration(
+                color: colors.card,
+                borderRadius: BorderRadius.circular(AppRadii.rCard),
+                border: Border.all(color: colors.ink, width: 2),
+                boxShadow: <BoxShadow>[
+                  BoxShadow(
+                    color: colors.ink,
+                    blurRadius: 0,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(AppSpacing.s8),
+              child: Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(AppRadii.rSm),
+                    child: _Photo(
+                      bytes: bytes,
+                      photoId: photoId,
+                      isPanorama: isPanorama,
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: CropFrameOverlay(
+                      color: colors.ink,
+                      inset: 4,
+                      armLength: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Positioned(right: 14, bottom: 14, child: TapToZoomBadge()),
+          ],
+        ),
       ),
     );
   }
 }
 
 class _Photo extends StatelessWidget {
-  const _Photo({required this.bytes, this.isPanorama = false});
+  const _Photo({required this.bytes, this.photoId, this.isPanorama = false});
 
   final Uint8List? bytes;
+  final String? photoId;
   final bool isPanorama;
 
   @override
@@ -314,6 +353,7 @@ class _Photo extends StatelessWidget {
       color: colors.ink,
       child: GamePhoto(
         bytes: data,
+        photoId: photoId,
         fit: isPanorama ? BoxFit.contain : BoxFit.cover,
       ),
     );
@@ -423,12 +463,20 @@ class _RevealBlock extends StatefulWidget {
     required this.players,
     required this.avatarPhotos,
     required this.localPlayerId,
+    required this.photoBytes,
+    required this.photoId,
+    required this.isHosting,
+    required this.onNext,
   });
 
   final RoundReveal reveal;
   final List<Player> players;
   final Map<String, String> avatarPhotos;
   final String? localPlayerId;
+  final Uint8List? photoBytes;
+  final String photoId;
+  final bool isHosting;
+  final VoidCallback onNext;
 
   @override
   State<_RevealBlock> createState() => _RevealBlockState();
@@ -455,7 +503,7 @@ class _RevealBlockState extends State<_RevealBlock> {
   void _scheduleReveal() {
     _timer?.cancel();
     _shown = false;
-    _timer = Timer(const Duration(milliseconds: 700), () {
+    _timer = Timer(const Duration(milliseconds: 500), () {
       if (!mounted) return;
       setState(() => _shown = true);
       unawaited(GameAudioService.instance.tap());
@@ -469,14 +517,18 @@ class _RevealBlockState extends State<_RevealBlock> {
     super.dispose();
   }
 
+  Player? _player(String id) =>
+      widget.players.where((player) => player.id == id).firstOrNull;
+
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
     final l10n = context.l10n;
     final reveal = widget.reveal;
-    final owner = widget.players
-        .where((p) => p.id == reveal.ownerId)
-        .firstOrNull;
+    final owner = _player(reveal.ownerId);
+    final fastest = reveal.microAward?.kind == MicroAwardKind.fastestGuess
+        ? reveal.microAward
+        : null;
     final fooled = reveal.guesses
         .where(
           (g) => !g.isOwnPhoto && !g.isCorrect && g.guessedOwnerId.isNotEmpty,
@@ -486,184 +538,488 @@ class _RevealBlockState extends State<_RevealBlock> {
         .where((g) => !g.isOwnPhoto && g.guessedOwnerId.isEmpty)
         .length;
     final localId = widget.localPlayerId;
-    final guess = localId == null
+    final localGuess = localId == null
         ? null
         : reveal.guesses.where((g) => g.playerId == localId).firstOrNull;
-    final ownPhoto = localId != null && reveal.ownerId == localId;
-    final maxScore = widget.players.isEmpty
-        ? 0
-        : widget.players.map((player) => player.score).reduce(math.max);
+    final localOwnPhoto = localId != null && reveal.ownerId == localId;
+    final (localResult, localTone, localIcon) = switch (localGuess) {
+      _ when localId == null => (null, colors.ink2, Icons.remove),
+      null => (l10n.noAnswer, colors.negative, Icons.timer_off_outlined),
+      _ when localGuess.guessedOwnerId.isEmpty => (
+        l10n.noAnswer,
+        colors.negative,
+        Icons.timer_off_outlined,
+      ),
+      _ when localGuess.isCorrect => (
+        localOwnPhoto
+            ? l10n.yourPhotoYouGotIt(localGuess.pointsAwarded)
+            : l10n.youGotIt(localGuess.pointsAwarded),
+        colors.positive,
+        Icons.check_circle_outline,
+      ),
+      _ => (
+        localOwnPhoto ? l10n.yourPhotoWrongGuess : l10n.wrongGuess,
+        colors.negative,
+        Icons.cancel_outlined,
+      ),
+    };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        _RevealHero(
+          shown: _shown,
+          owner: owner,
+          ownerAvatar: owner == null ? null : widget.avatarPhotos[owner.id],
+          photoBytes: widget.photoBytes,
+          photoId: widget.photoId,
+          fastest: fastest,
+          fooled: fooled,
+          missed: missed,
+          nobodyGuessed: reveal.nobodyGuessed,
+          everyoneGuessed: reveal.everyoneGuessed,
+        ),
+        if (localResult != null && _shown) ...<Widget>[
+          const SizedBox(height: 5),
+          Row(
+            children: <Widget>[
+              Icon(localIcon, size: 14, color: localTone),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  localResult,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: localTone,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+        const SizedBox(height: AppSpacing.s8),
+        Expanded(
+          child: ListView.separated(
+            padding: EdgeInsets.zero,
+            itemCount: reveal.guesses.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 7),
+            itemBuilder: (context, index) {
+              final guess = reveal.guesses[index];
+              final player = _player(guess.playerId);
+              final guessed = guess.guessedOwnerId.isEmpty
+                  ? null
+                  : _player(guess.guessedOwnerId);
+              return _RevealGuessCard(
+                shown: _shown,
+                guess: guess,
+                player: player,
+                guessedName: guessed?.name,
+                avatarPhoto: player == null
+                    ? null
+                    : widget.avatarPhotos[player.id],
+                isLocal: player?.id == widget.localPlayerId,
+                isOwner: guess.isOwnPhoto,
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: AppSpacing.s8),
+        if (widget.isHosting)
+          GameButton(
+            label: l10n.nextRound,
+            onPressed: widget.onNext,
+            icon: Icons.arrow_forward_rounded,
+            fullWidth: true,
+          )
+        else
+          NoticeBanner(
+            message: l10n.waitingForHostToContinue,
+            icon: Icons.hourglass_empty,
+          ),
+      ],
+    );
+  }
+}
 
-    var result = '';
-    var tone = colors.ink2;
-    var icon = Icons.remove_circle_outline;
-    if (localId != null) {
-      if (guess == null || guess.guessedOwnerId.isEmpty) {
-        result = l10n.noAnswer;
-        tone = colors.negative;
-        icon = Icons.timer_off_outlined;
-      } else if (guess.isCorrect) {
-        result = ownPhoto
-            ? l10n.yourPhotoYouGotIt(guess.pointsAwarded)
-            : l10n.youGotIt(guess.pointsAwarded);
-        tone = colors.positive;
-        icon = Icons.check_circle_outline;
-      } else {
-        result = ownPhoto ? l10n.yourPhotoWrongGuess : l10n.wrongGuess;
-        tone = colors.negative;
-        icon = Icons.cancel_outlined;
-      }
-    }
+class _RevealHero extends StatelessWidget {
+  const _RevealHero({
+    required this.shown,
+    required this.owner,
+    required this.ownerAvatar,
+    required this.photoBytes,
+    required this.photoId,
+    required this.fastest,
+    required this.fooled,
+    required this.missed,
+    required this.nobodyGuessed,
+    required this.everyoneGuessed,
+  });
+
+  final bool shown;
+  final Player? owner;
+  final String? ownerAvatar;
+  final Uint8List? photoBytes;
+  final String photoId;
+  final MicroAward? fastest;
+  final int fooled;
+  final int missed;
+  final bool nobodyGuessed;
+  final bool everyoneGuessed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
+    final ownerName = owner?.name ?? l10n.player;
     final summary = <String>[
       if (fooled > 0) l10n.playersFooled(fooled),
       if (missed > 0) l10n.playersDidNotAnswer(missed),
     ].join(' · ');
-
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(AppRadii.rCard),
+        border: Border.all(color: colors.ink, width: 2.5),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: colors.ink,
+            offset: const Offset(0, 5),
+            blurRadius: 0,
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Semantics(
-            liveRegion: true,
-            child: SurfaceCard(
-              padding: const EdgeInsets.all(AppSpacing.s12),
-              child: Row(
-                children: <Widget>[
-                  PlayerAvatar(
-                    initial: _shown ? (owner?.name ?? '?') : '?',
-                    avatar: _shown ? (owner?.avatar ?? '') : '',
-                    photoBase64: _shown && owner != null
-                        ? widget.avatarPhotos[owner.id]
-                        : null,
-                    isHost: _shown && (owner?.isHost ?? false),
-                    size: 32,
-                  ),
-                  const SizedBox(width: AppSpacing.s12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          _shown
-                              ? l10n.shotBy(owner?.name ?? l10n.player)
-                              : l10n.whoTookIt,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          _shown
-                              ? (summary.isEmpty
-                                    ? l10n.everyoneGotItRight
-                                    : summary)
-                              : l10n.revealing,
-                          style: TextStyle(fontSize: 12, color: colors.ink2),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.s8),
           SizedBox(
-            height: 24,
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 180),
-              child: _shown && localId != null
-                  ? Row(
-                      key: ValueKey<String>('result-${reveal.roundNumber}'),
-                      children: <Widget>[
-                        Icon(icon, size: 15, color: tone),
-                        const SizedBox(width: AppSpacing.s4),
-                        Flexible(
-                          child: Text(
-                            result,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: tone,
-                            ),
-                          ),
-                        ),
-                      ],
-                    )
-                  : const SizedBox.shrink(),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.s8),
-          Expanded(
-            child: SurfaceCard(
-              padding: EdgeInsets.zero,
-              child: ListView(
-                padding: EdgeInsets.zero,
-                children: <Widget>[
-                  for (var i = 0; i < reveal.guesses.length; i++)
-                    ScoreRow(
-                      position: i + 1,
-                      player: _playerFor(context, reveal.guesses[i]),
-                      photoBase64:
-                          widget.avatarPhotos[_playerFor(
-                            context,
-                            reveal.guesses[i],
-                          ).id],
-                      score: _playerFor(context, reveal.guesses[i]).score,
-                      delta:
-                          reveal.scoreDeltas[_playerFor(
-                            context,
-                            reveal.guesses[i],
-                          ).id],
-                      streak: reveal
-                          .streaks[_playerFor(context, reveal.guesses[i]).id],
-                      highlighted: reveal.guesses[i].isOwnPhoto,
-                      maxScore: maxScore,
-                    ),
-                ],
-              ),
-            ),
-          ),
-          if (reveal.microAward != null) ...<Widget>[
-            const SizedBox(height: AppSpacing.s8),
-            Row(
+            width: 108,
+            child: Stack(
+              clipBehavior: Clip.none,
               children: <Widget>[
-                Icon(Icons.bolt_outlined, size: 14, color: colors.ink2),
-                const SizedBox(width: AppSpacing.s4),
-                Flexible(
-                  child: Text(
-                    _microLabel(context, reveal.microAward!),
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12, color: colors.ink2),
-                  ),
+                PolaroidPhotoCard(
+                  bytes: photoBytes,
+                  caption: shown ? l10n.shotBy(ownerName) : '...',
+                  tilt: -0.045,
+                  aspectRatio: 1.02,
+                  onTap: photoBytes == null || photoBytes!.isEmpty
+                      ? null
+                      : () => showPhotoLightbox(
+                          context,
+                          bytes: photoBytes,
+                          photoId: photoId,
+                          caption: ownerName,
+                        ),
                 ),
+                if (shown && owner != null)
+                  Positioned(
+                    right: -8,
+                    bottom: 6,
+                    child: Transform.rotate(
+                      angle: 0.08,
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: colors.card,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: colors.ink, width: 2.5),
+                          boxShadow: <BoxShadow>[
+                            BoxShadow(
+                              color: colors.ink,
+                              offset: const Offset(0, 3),
+                              blurRadius: 0,
+                            ),
+                          ],
+                        ),
+                        child: PlayerAvatar(
+                          initial: ownerName,
+                          avatar: owner!.avatar,
+                          photoBase64: ownerAvatar,
+                          isHost: owner!.isHost,
+                          size: 38,
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
-          ],
+          ),
+          const SizedBox(width: AppSpacing.s12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                AnimatedOpacity(
+                  duration: const Duration(milliseconds: 260),
+                  opacity: shown ? 1 : 0,
+                  child: Text(
+                    shown ? l10n.itWasPhotoOf(ownerName) : l10n.whoTookIt,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: gameDisplay(size: 19, color: colors.ink),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                if (fastest != null)
+                  _RevealBadge(
+                    icon: Icons.bolt,
+                    background: GamePalette.gold,
+                    foreground: GamePalette.onGold,
+                    label: l10n.fastestAward(
+                      fastest!.playerName ?? '',
+                      ((fastest!.elapsedMs ?? 0) / 1000).toStringAsFixed(1),
+                    ),
+                  )
+                else if (shown)
+                  _RevealBadge(
+                    icon: Icons.visibility_off_outlined,
+                    background: colors.raised,
+                    foreground: colors.ink2,
+                    label: nobodyGuessed
+                        ? l10n.nobodyGuessed
+                        : everyoneGuessed
+                        ? l10n.everyoneNailedIt
+                        : fooled > 0
+                        ? l10n.playersFooled(fooled)
+                        : l10n.everyoneGotItRight,
+                  ),
+                if (owner != null) ...<Widget>[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: <Widget>[
+                      Icon(
+                        Icons.photo_camera_outlined,
+                        size: 13,
+                        color: colors.ink3,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          summary.isEmpty ? l10n.everyoneGotItRight : summary,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            height: 1.3,
+                            color: colors.ink2,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
+}
 
-  Player _playerFor(BuildContext context, GuessRecord guess) {
-    return widget.players.firstWhere(
-      (p) => p.id == guess.playerId,
-      orElse: () => Player(id: guess.playerId, name: context.l10n.player),
+class _RevealBadge extends StatelessWidget {
+  const _RevealBadge({
+    required this.icon,
+    required this.background,
+    required this.foreground,
+    required this.label,
+  });
+
+  final IconData icon;
+  final Color background;
+  final Color foreground;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: GamePalette.onGold.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(icon, size: 13, color: foreground),
+          const SizedBox(width: 3),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w800,
+                color: foreground,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
+}
 
-  String _microLabel(BuildContext context, MicroAward award) {
+class _RevealGuessCard extends StatelessWidget {
+  const _RevealGuessCard({
+    required this.shown,
+    required this.guess,
+    required this.player,
+    required this.guessedName,
+    required this.avatarPhoto,
+    required this.isLocal,
+    required this.isOwner,
+  });
+
+  final bool shown;
+  final GuessRecord guess;
+  final Player? player;
+  final String? guessedName;
+  final String? avatarPhoto;
+  final bool isLocal;
+  final bool isOwner;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
     final l10n = context.l10n;
-    return switch (award.kind) {
-      MicroAwardKind.fastestGuess => l10n.fastestAward(
-        award.playerName ?? '',
-        ((award.elapsedMs ?? 0) / 1000).toStringAsFixed(1),
+    final name = player?.name ?? l10n.player;
+    final (detail, detailTone) = switch (guess) {
+      _ when !shown => (l10n.revealing, colors.ink2),
+      _ when guess.guessedOwnerId.isEmpty => (
+        l10n.noGuessMade,
+        colors.negative,
       ),
-      MicroAwardKind.nobodyGuessed => l10n.nobodyGuessed,
-      MicroAwardKind.everyoneGuessed => l10n.everyoneNailedIt,
-      MicroAwardKind.screenshot => l10n.screenshotBy(award.playerName ?? ''),
+      _ when guess.isOwnPhoto => (l10n.ownerLabel, colors.ink2),
+      _ when guess.isCorrect => (l10n.guessedCorrectly, colors.positive),
+      _ => (l10n.guessedWrong(guessedName ?? l10n.player), colors.negative),
     };
+    return Container(
+      padding: const EdgeInsets.fromLTRB(9, 8, 9, 8),
+      decoration: BoxDecoration(
+        color: isOwner ? colors.raised : colors.card,
+        borderRadius: BorderRadius.circular(AppRadii.rControl),
+        border: Border.all(
+          color: isLocal ? colors.accent : colors.ink,
+          width: isLocal ? 2.5 : 2,
+        ),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: colors.ink,
+            offset: const Offset(0, 3),
+            blurRadius: 0,
+          ),
+        ],
+      ),
+      child: Row(
+        children: <Widget>[
+          PlayerAvatar(
+            initial: name,
+            avatar: player?.avatar ?? '',
+            photoBase64: avatarPhoto,
+            isHost: player?.isHost ?? false,
+            size: 34,
+          ),
+          const SizedBox(width: AppSpacing.s8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Flexible(
+                      child: Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: colors.ink,
+                        ),
+                      ),
+                    ),
+                    if (isOwner) ...<Widget>[
+                      const SizedBox(width: 4),
+                      const Icon(
+                        Icons.photo_camera,
+                        size: 12,
+                        color: GamePalette.goldDeep,
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  detail,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: detailTone,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: <Widget>[
+              TweenAnimationBuilder<double>(
+                tween: Tween<double>(
+                  begin: 0,
+                  end: shown ? guess.pointsAwarded.toDouble() : 0,
+                ),
+                duration: const Duration(milliseconds: 650),
+                curve: Curves.easeOutCubic,
+                builder: (context, value, _) => Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: guess.pointsAwarded > 0
+                        ? colors.positive
+                        : colors.raised,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: colors.ink, width: 1.5),
+                  ),
+                  child: Text(
+                    guess.pointsAwarded > 0
+                        ? '+${l10n.points(value.round())}'
+                        : '+0',
+                    style: TextStyle(
+                      fontFamily: 'JetBrainsMono',
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: guess.pointsAwarded > 0
+                          ? Colors.white
+                          : colors.ink3,
+                    ),
+                  ),
+                ),
+              ),
+              if (player != null) ...<Widget>[
+                const SizedBox(height: 2),
+                Text(
+                  '${player!.score}',
+                  style: TextStyle(
+                    fontFamily: 'JetBrainsMono',
+                    fontSize: 9,
+                    color: colors.ink3,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }

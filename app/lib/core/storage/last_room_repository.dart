@@ -46,11 +46,19 @@ class LastRoomRepository {
     this.storageKey = kLastRoomStorageKey,
   }) : _prefs = preferences ?? SharedPreferencesAsync();
 
-  final SharedPreferencesAsync _prefs;
+  /// The offline demo keeps its rooms in memory and never touches the
+  /// platform preferences channel.
+  LastRoomRepository.memory({this.storageKey = kLastRoomStorageKey})
+    : _prefs = null;
+
+  final SharedPreferencesAsync? _prefs;
   final String storageKey;
+  LastRoom? _memory;
 
   Future<LastRoom?> load() async {
-    final raw = await _prefs.getString(storageKey);
+    final prefs = _prefs;
+    if (prefs == null) return _memory;
+    final raw = await prefs.getString(storageKey);
     if (raw == null || raw.isEmpty) return null;
     try {
       final parsed = jsonDecode(raw);
@@ -63,8 +71,17 @@ class LastRoomRepository {
     }
   }
 
-  Future<void> remember(LastRoom room) =>
-      _prefs.setString(storageKey, jsonEncode(room.toJson()));
+  Future<void> remember(LastRoom room) async {
+    _memory = room;
+    final prefs = _prefs;
+    if (prefs != null) {
+      await prefs.setString(storageKey, jsonEncode(room.toJson()));
+    }
+  }
 
-  Future<void> forget() => _prefs.remove(storageKey);
+  Future<void> forget() async {
+    _memory = null;
+    final prefs = _prefs;
+    if (prefs != null) await prefs.remove(storageKey);
+  }
 }

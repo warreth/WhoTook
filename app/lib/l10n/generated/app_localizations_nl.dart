@@ -132,6 +132,13 @@ class AppLocalizationsNl extends AppLocalizations {
       'Eén foto. Eén gok. Tik op wie volgens jou de foto nam.';
 
   @override
+  String get onboardingFreeTitle => 'Op dezelfde wifi is het altijd gratis';
+
+  @override
+  String get onboardingFreeBody =>
+      'Speel overal is optioneel, voor vrienden op mobiele data of een ander wifi-netwerk. Het zit bij de Party Pass.';
+
+  @override
   String get yourName => 'Je naam';
 
   @override
@@ -800,7 +807,40 @@ class AppLocalizationsNl extends AppLocalizations {
   String get longestStreak => 'Langste reeks';
 
   @override
-  String get masterOfMystery => 'Mysteriespeurder';
+  String get masterOfMystery => 'Onraadbare foto 🕵️';
+
+  @override
+  String awardWrongGuesses(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count mensen fout',
+      one: '1 persoon fout',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String itWasPhotoOf(String name) {
+    return 'Het was de foto van $name!';
+  }
+
+  @override
+  String guessedWrong(String name) {
+    return 'Raadde $name ❌';
+  }
+
+  @override
+  String get guessedCorrectly => 'Goed geraden ✓';
+
+  @override
+  String get noGuessMade => 'Geen gok ⏳';
+
+  @override
+  String get tapToZoom => '🔍 Tik om te zoomen';
+
+  @override
+  String get tapToZoomBody => 'Knijp om de details te bekijken';
 
   @override
   String get paparazzi => 'Paparazzi';
@@ -1173,7 +1213,7 @@ class AppLocalizationsNl extends AppLocalizations {
     String ownVersion,
     int ownBuild,
   ) {
-    return 'Iemand gebruikt $latestVersion (build $latestBuild). Jij gebruikt $ownVersion (build $ownBuild). Werk bij zodat rondes en foto\'s synchroon blijven.';
+    return 'Iemand gebruikt $latestVersion. Jij gebruikt $ownVersion. Werk bij zodat rondes en foto\'s synchroon blijven.';
   }
 
   @override
@@ -1627,24 +1667,45 @@ class AppLocalizationsNl extends AppLocalizations {
   }
 
   @override
-  String roundReadyPrompt(int round) {
-    return 'Ronde $round: maak je klaar!';
+  String roundSplashKicker(int round) {
+    return 'RONDE $round';
   }
 
   @override
-  String roundEyesPrompt(int round) {
-    return 'Ronde $round: kijk goed!';
-  }
+  String get classicSplashPhotographer => 'Raad de fotograaf!';
 
   @override
-  String roundGuessPrompt(int round) {
-    return 'Ronde $round: raad de foto!';
-  }
+  String get classicSplashGallery => 'Uit wiens galerij komt deze?';
 
   @override
-  String roundWhoPrompt(int round) {
-    return 'Ronde $round: van wie is deze camera-rol?';
-  }
+  String get classicSplashDetails => 'Kijk goed naar de details!';
+
+  @override
+  String get classicSplashWho => 'Wie nam dit kiekje?';
+
+  @override
+  String get memeSplashRoast => 'Tijd om te roasten!';
+
+  @override
+  String get memeSplashFunniest => 'Bedenk de grappigste meme!';
+
+  @override
+  String get memeSplashRidicule => 'Maak je vrienden belachelijk!';
+
+  @override
+  String get memeSplashLaugh => 'Laat de kamer lachen!';
+
+  @override
+  String get timeSplashMachine => 'Start de tijdmachine!';
+
+  @override
+  String get timeSplashYear => 'Welk jaar was dit?!';
+
+  @override
+  String get timeSplashHair => 'Check de kapsels en kleding!';
+
+  @override
+  String get timeSplashBack => 'Reis terug in de tijd!';
 
   @override
   String roundSplash(int round, String mode) {
@@ -1707,11 +1768,11 @@ class AppLocalizationsNl extends AppLocalizations {
       'Eén betaling. Alle feestfuncties, voor altijd.';
 
   @override
-  String get partyPassPerkRelayTitle => '5G- en firewallrelay';
+  String get partyPassPerkRelayTitle => 'Speel overal';
 
   @override
   String get partyPassPerkRelayBody =>
-      'Speel door strikte 5G- en providerfirewalls met onze versleutelde relay, met een eerlijk dagelijks gebruik.';
+      'Vrienden op mobiele data of een ander wifi-netwerk doen mee via onze versleutelde relay. Op dezelfde wifi is het altijd gratis. De relay heeft een dagelijkse limiet.';
 
   @override
   String get partyPassPerkSoundboardTitle => 'Live-soundboard';
@@ -1743,7 +1804,7 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get partyPassActiveBody =>
-      'Relay, soundboard en gedeelde thema\'s zijn op dit toestel ontgrendeld.';
+      'Speel overal, het soundboard en gedeelde thema\'s zijn op dit toestel ontgrendeld.';
 
   @override
   String partyPassFairUse(int remaining, int limit) {
@@ -1751,22 +1812,39 @@ class AppLocalizationsNl extends AppLocalizations {
   }
 
   @override
-  String get partyPassFossIncluded => 'Inbegrepen in deze FOSS-build';
+  String get partyPassStoreUnavailable =>
+      'De winkel is niet beschikbaar in deze build. Installeer WhoTook via de App Store of Google Play om de Party Pass te kopen of te herstellen.';
 
   @override
-  String get partyPassFossBody =>
-      'Geen winkel, geen tracking. Het soundboard en alle thema\'s zijn gratis, en je kunt de app op je eigen TURN-server richten.';
+  String get partyPassStoreButton => 'Haal de storeversie';
+
+  @override
+  String get partyPassPaddleUnavailable =>
+      'Online betalen is nu niet beschikbaar. Je kunt wel een licentiesleutel invoeren.';
+
+  @override
+  String get partyPassLicenseButton => 'Ik heb een licentiesleutel';
+
+  @override
+  String get partyPassLicenseTitle => 'Voer je Party Pass-licentie in';
+
+  @override
+  String get partyPassLicenseHint =>
+      'WT-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX';
+
+  @override
+  String get partyPassLicenseApply => 'Party Pass ontgrendelen';
+
+  @override
+  String get partyPassRestoreHintPaddle =>
+      'Al gekocht? Herstel de aankoop of voer de licentiesleutel in.';
 
   @override
   String get partyPassCustomTurn => 'Gebruik je eigen TURN-server';
 
   @override
-  String get partyPassStoreUnavailable =>
-      'De winkel is niet beschikbaar in deze build. Herstel je aankopen na installatie via de App Store of Google Play.';
-
-  @override
   String get partyPassPurchasePending =>
-      'Wachten op bevestiging van de winkel…';
+      'Wachten op bevestiging van de aankoop…';
 
   @override
   String get partyPassErrorCanceled =>
@@ -1785,8 +1863,44 @@ class AppLocalizationsNl extends AppLocalizations {
       'Er is geen eerdere Party Pass-aankoop op dit account gevonden.';
 
   @override
+  String get partyPassErrorRevoked =>
+      'Deze Party Pass is niet meer geldig. Herstel je aankopen, of neem contact op met support als dit niet klopt.';
+
+  @override
   String get partyPassErrorGeneric =>
       'Er ging iets mis. Probeer opnieuw of herstel je aankopen.';
+
+  @override
+  String get partyPassErrorInvalidLicense =>
+      'Die licentiesleutel is niet geldig. Controleer de sleutel en probeer opnieuw.';
+
+  @override
+  String get partyPassErrorLicenseMissing =>
+      'De aankoop is gelukt, maar de licentie werd niet teruggegeven. Herstel de aankoop of neem contact op met support.';
+
+  @override
+  String get partyPassErrorPurchaseExpired =>
+      'Deze checkout is verlopen. Start een nieuwe aankoop.';
+
+  @override
+  String get partyPassErrorPurchaseNotFound =>
+      'Er is geen openstaande aankoop gevonden. Start een nieuwe aankoop.';
+
+  @override
+  String get partyPassErrorRateLimited =>
+      'Te veel pogingen. Wacht even en probeer opnieuw.';
+
+  @override
+  String get partyPassErrorCheckoutUnavailable =>
+      'Betalen is nu niet beschikbaar. Probeer het later opnieuw.';
+
+  @override
+  String get partyPassErrorCheckoutOpenFailed =>
+      'De betaalpagina kon niet openen. Probeer opnieuw of voer je licentiesleutel in.';
+
+  @override
+  String get partyPassErrorNetwork =>
+      'Kon de betaaldienst niet bereiken. Controleer je verbinding en probeer opnieuw.';
 
   @override
   String get partyPassRelayError =>
@@ -1863,16 +1977,13 @@ class AppLocalizationsNl extends AppLocalizations {
   String get relayStatusDirect => 'Direct P2P';
 
   @override
-  String get relayStatusRelay => '5G-relay';
+  String get relayStatusRelay => 'Online relay';
 
   @override
   String get relayStatusCustom => 'Eigen TURN';
 
   @override
   String get relayStatusOffline => 'Niet verbonden';
-
-  @override
-  String get relayStatusFoss => 'Self-host klaar';
 
   @override
   String get soundboardTitle => 'Soundboard';
@@ -1918,20 +2029,17 @@ class AppLocalizationsNl extends AppLocalizations {
   }
 
   @override
-  String get firewallTitle => 'Strikte 5G-firewall gedetecteerd!';
+  String get firewallTitle => 'Dit netwerk blokkeert direct spelen';
 
   @override
   String get firewallBody =>
-      'Verbind met dezelfde wifi/hotspot om 100% gratis te spelen, of ontgrendel de WhoTook Party Pass (€2,99 eenmalig) voor onze snelle 5G-relayserver.';
+      'Op dezelfde wifi is het altijd gratis. Verbind met dezelfde wifi of hotspot om te spelen, of ontgrendel Speel overal met de Party Pass.';
 
   @override
   String get firewallWifiAction => 'Speel via wifi/hotspot';
 
   @override
   String get firewallUnlockAction => 'Party Pass ontgrendelen';
-
-  @override
-  String get firewallFossAction => 'Eigen TURN instellen';
 
   @override
   String get firewallRelayDownTitle => 'Relay kon niet verbinden';
@@ -1944,23 +2052,6 @@ class AppLocalizationsNl extends AppLocalizations {
   String get firewallRetryAction => 'Opnieuw proberen';
 
   @override
-  String get fossTurnTitle => 'Eigen TURN-server (self-host)';
-
-  @override
-  String get fossTurnBody =>
-      'FOSS-builds gebruiken nooit de officiële relay. Richt de app op je eigen coturn-server voor strikte netwerken.';
-
-  @override
-  String get fossTurnSaved => 'Eigen TURN opgeslagen';
-
-  @override
-  String get fossBuildBadge => 'FOSS-build';
-
-  @override
-  String get fossBuildBody =>
-      'Geen betalingen, geen analytics, geen officiële relay.';
-
-  @override
   String get settingsPartyPassTitle => 'WhoTook Party Pass';
 
   @override
@@ -1968,7 +2059,7 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get settingsPartyPassInactive =>
-      'Relay, soundboard en gedeelde thema\'s';
+      'Speel overal, soundboard en gedeelde thema\'s';
 
   @override
   String get errorRelayUnavailable =>
@@ -1978,8 +2069,27 @@ class AppLocalizationsNl extends AppLocalizations {
   String get roomThemeFree => 'Gratis voor iedereen';
 
   @override
-  String get turnCredentialPairError =>
-      'Vul zowel de TURN-gebruikersnaam als het wachtwoord in, of laat beide leeg.';
+  String get roomThemePreviewHint =>
+      'Tik op een thema om het live in de lobby te bekijken.';
+
+  @override
+  String roomThemePreviewing(String theme) {
+    return '👀 Voorbeeld: \"$theme\"';
+  }
+
+  @override
+  String get roomThemeApply => '✓ Toepassen op de kamer';
+
+  @override
+  String roomThemeUnlockPass(String price) {
+    return '🔓 Ontgrendel Party Pass ($price) om dit in de wedstrijd te gebruiken';
+  }
+
+  @override
+  String get roomThemeRevert => 'Terugzetten';
+
+  @override
+  String get roomThemeApplied => 'Thema toegepast op de kamer';
 
   @override
   String get firewallQuotaTitle => 'Daglimiet voor relay bereikt';
@@ -2023,4 +2133,10 @@ class AppLocalizationsNl extends AppLocalizations {
   @override
   String get errorInviteExpired =>
       'Deze uitnodiging is verlopen. Vraag de host om een nieuwe QR-code.';
+
+  @override
+  String get roomThemePreviewBadge => 'VOORBEELD';
+
+  @override
+  String get gamePhoto => 'Spelfoto';
 }

@@ -134,6 +134,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'One photo. One guess. Tap who you think took it.';
 
   @override
+  String get onboardingFreeTitle => 'Same Wi-Fi is always free';
+
+  @override
+  String get onboardingFreeBody =>
+      'Play Anywhere is optional, for friends on mobile data or another Wi-Fi. It comes with the Party Pass.';
+
+  @override
   String get yourName => 'Your name';
 
   @override
@@ -798,7 +805,40 @@ class AppLocalizationsEn extends AppLocalizations {
   String get longestStreak => 'Longest streak';
 
   @override
-  String get masterOfMystery => 'Master of mystery';
+  String get masterOfMystery => 'Unguessable Photo 🕵️';
+
+  @override
+  String awardWrongGuesses(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count wrong guesses',
+      one: '1 wrong guess',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String itWasPhotoOf(String name) {
+    return 'It was $name\'s photo!';
+  }
+
+  @override
+  String guessedWrong(String name) {
+    return 'Guessed $name ❌';
+  }
+
+  @override
+  String get guessedCorrectly => 'Guessed right ✓';
+
+  @override
+  String get noGuessMade => 'No guess ⏳';
+
+  @override
+  String get tapToZoom => '🔍 Tap to zoom';
+
+  @override
+  String get tapToZoomBody => 'Pinch to inspect the details';
 
   @override
   String get paparazzi => 'Paparazzi';
@@ -1166,7 +1206,7 @@ class AppLocalizationsEn extends AppLocalizations {
     String ownVersion,
     int ownBuild,
   ) {
-    return 'Someone is on $latestVersion (build $latestBuild). You are on $ownVersion (build $ownBuild). Update so rounds and photos stay in sync.';
+    return 'Someone is on $latestVersion. You are on $ownVersion. Update so rounds and photos stay in sync.';
   }
 
   @override
@@ -1619,24 +1659,45 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String roundReadyPrompt(int round) {
-    return 'Round $round: get ready!';
+  String roundSplashKicker(int round) {
+    return 'ROUND $round';
   }
 
   @override
-  String roundEyesPrompt(int round) {
-    return 'Round $round: eyes on the screen!';
-  }
+  String get classicSplashPhotographer => 'Guess the photographer!';
 
   @override
-  String roundGuessPrompt(int round) {
-    return 'Round $round: guess the photo!';
-  }
+  String get classicSplashGallery => 'Whose gallery is this from?';
 
   @override
-  String roundWhoPrompt(int round) {
-    return 'Round $round: whose camera roll?';
-  }
+  String get classicSplashDetails => 'Look closely at the details!';
+
+  @override
+  String get classicSplashWho => 'Who took this shot?';
+
+  @override
+  String get memeSplashRoast => 'Time to roast!';
+
+  @override
+  String get memeSplashFunniest => 'Think of the funniest meme!';
+
+  @override
+  String get memeSplashRidicule => 'Make your friends ridiculous!';
+
+  @override
+  String get memeSplashLaugh => 'Make the room laugh!';
+
+  @override
+  String get timeSplashMachine => 'Start the time machine!';
+
+  @override
+  String get timeSplashYear => 'What year was this?!';
+
+  @override
+  String get timeSplashHair => 'Check the haircuts and clothes!';
+
+  @override
+  String get timeSplashBack => 'Travel back in time!';
 
   @override
   String roundSplash(int round, String mode) {
@@ -1697,11 +1758,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get partyPassSubtitle => 'One payment. Every party feature, forever.';
 
   @override
-  String get partyPassPerkRelayTitle => '5G & firewall relay';
+  String get partyPassPerkRelayTitle => 'Play Anywhere';
 
   @override
   String get partyPassPerkRelayBody =>
-      'Play through strict 5G and carrier NATs with our encrypted relay, with a fair-use allowance every day.';
+      'Friends on mobile data or another Wi-Fi join through our encrypted relay. Same Wi-Fi is always free. The relay has a daily limit.';
 
   @override
   String get partyPassPerkSoundboardTitle => 'Live soundboard';
@@ -1734,7 +1795,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get partyPassActiveBody =>
-      'Relay, soundboard and shared themes are unlocked on this device.';
+      'Play Anywhere, the soundboard and shared themes are unlocked on this device.';
 
   @override
   String partyPassFairUse(int remaining, int limit) {
@@ -1742,22 +1803,38 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get partyPassFossIncluded => 'Included in this FOSS build';
+  String get partyPassStoreUnavailable =>
+      'The store is not available in this build. Install WhoTook from the App Store or Google Play to buy or restore the Party Pass.';
 
   @override
-  String get partyPassFossBody =>
-      'No store, no tracking. The soundboard and all themes are free, and you can point the app at your own TURN server.';
+  String get partyPassStoreButton => 'Get the store version';
+
+  @override
+  String get partyPassPaddleUnavailable =>
+      'Online checkout is unavailable right now. You can still enter a license key.';
+
+  @override
+  String get partyPassLicenseButton => 'I have a license key';
+
+  @override
+  String get partyPassLicenseTitle => 'Enter your Party Pass license';
+
+  @override
+  String get partyPassLicenseHint =>
+      'WT-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX';
+
+  @override
+  String get partyPassLicenseApply => 'Unlock Party Pass';
+
+  @override
+  String get partyPassRestoreHintPaddle =>
+      'Already bought it? Restore the purchase or enter the license key.';
 
   @override
   String get partyPassCustomTurn => 'Use your own TURN server';
 
   @override
-  String get partyPassStoreUnavailable =>
-      'The store is not available in this build. Restore purchases after installing from the App Store or Google Play.';
-
-  @override
-  String get partyPassPurchasePending =>
-      'Waiting for the store to confirm your purchase…';
+  String get partyPassPurchasePending => 'Waiting for the purchase to confirm…';
 
   @override
   String get partyPassErrorCanceled =>
@@ -1776,8 +1853,44 @@ class AppLocalizationsEn extends AppLocalizations {
       'No previous Party Pass purchase was found on this account.';
 
   @override
+  String get partyPassErrorRevoked =>
+      'This Party Pass is no longer valid. Restore purchases, or contact support if you think this is a mistake.';
+
+  @override
   String get partyPassErrorGeneric =>
       'Something went wrong. Try again, or restore purchases.';
+
+  @override
+  String get partyPassErrorInvalidLicense =>
+      'That license key is not valid. Check the key and try again.';
+
+  @override
+  String get partyPassErrorLicenseMissing =>
+      'The purchase completed, but the license was not returned. Restore the purchase or contact support.';
+
+  @override
+  String get partyPassErrorPurchaseExpired =>
+      'This checkout expired. Start a new purchase.';
+
+  @override
+  String get partyPassErrorPurchaseNotFound =>
+      'No pending purchase was found. Start a new purchase.';
+
+  @override
+  String get partyPassErrorRateLimited =>
+      'Too many attempts. Wait a moment and try again.';
+
+  @override
+  String get partyPassErrorCheckoutUnavailable =>
+      'Checkout is not available right now. Try again later.';
+
+  @override
+  String get partyPassErrorCheckoutOpenFailed =>
+      'The checkout page could not open. Try again, or enter your license key.';
+
+  @override
+  String get partyPassErrorNetwork =>
+      'Could not reach the purchase service. Check your connection and try again.';
 
   @override
   String get partyPassRelayError =>
@@ -1853,16 +1966,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get relayStatusDirect => 'Direct P2P';
 
   @override
-  String get relayStatusRelay => '5G relay';
+  String get relayStatusRelay => 'Online relay';
 
   @override
   String get relayStatusCustom => 'Custom TURN';
 
   @override
   String get relayStatusOffline => 'Not connected';
-
-  @override
-  String get relayStatusFoss => 'Self-host ready';
 
   @override
   String get soundboardTitle => 'Soundboard';
@@ -1909,20 +2019,17 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get firewallTitle => 'Strict 5G firewall detected!';
+  String get firewallTitle => 'This network blocks direct play';
 
   @override
   String get firewallBody =>
-      'Connect to the same Wi-Fi/Hotspot to play 100% free, or unlock the WhoTook Party Pass (€2.99 once) to use our high-speed 5G Relay Server.';
+      'Same Wi-Fi is always free. Connect to the same Wi-Fi or hotspot to play, or unlock Play Anywhere with the Party Pass.';
 
   @override
   String get firewallWifiAction => 'Play on Wi-Fi/Hotspot';
 
   @override
   String get firewallUnlockAction => 'Unlock Party Pass';
-
-  @override
-  String get firewallFossAction => 'Set up custom TURN';
 
   @override
   String get firewallRelayDownTitle => 'Relay could not connect';
@@ -1935,29 +2042,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get firewallRetryAction => 'Try again';
 
   @override
-  String get fossTurnTitle => 'Custom TURN Server (Self-Host)';
-
-  @override
-  String get fossTurnBody =>
-      'FOSS builds never use the official relay. Point the app at your own coturn server for strict networks.';
-
-  @override
-  String get fossTurnSaved => 'Custom TURN saved';
-
-  @override
-  String get fossBuildBadge => 'FOSS build';
-
-  @override
-  String get fossBuildBody => 'No billing, no analytics, no official relay.';
-
-  @override
   String get settingsPartyPassTitle => 'WhoTook Party Pass';
 
   @override
   String get settingsPartyPassActive => 'Active on this device';
 
   @override
-  String get settingsPartyPassInactive => 'Relay, soundboard and shared themes';
+  String get settingsPartyPassInactive =>
+      'Play Anywhere, soundboard and shared themes';
 
   @override
   String get errorRelayUnavailable =>
@@ -1967,8 +2059,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get roomThemeFree => 'Free for everyone';
 
   @override
-  String get turnCredentialPairError =>
-      'Fill in both the TURN username and password, or leave both empty.';
+  String get roomThemePreviewHint =>
+      'Tap a theme to preview it live on the lobby.';
+
+  @override
+  String roomThemePreviewing(String theme) {
+    return '👀 Previewing \"$theme\"';
+  }
+
+  @override
+  String get roomThemeApply => '✓ Apply Theme to Room';
+
+  @override
+  String roomThemeUnlockPass(String price) {
+    return '🔓 Unlock Party Pass ($price) to use in match';
+  }
+
+  @override
+  String get roomThemeRevert => 'Revert';
+
+  @override
+  String get roomThemeApplied => 'Theme applied to the room';
 
   @override
   String get firewallQuotaTitle => 'Daily relay limit reached';
@@ -2011,4 +2122,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errorInviteExpired =>
       'This invite has expired. Ask the host for a new QR code.';
+
+  @override
+  String get roomThemePreviewBadge => 'PREVIEW';
+
+  @override
+  String get gamePhoto => 'Game photo';
 }
