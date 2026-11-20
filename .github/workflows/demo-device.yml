@@ -45,8 +45,10 @@ jobs:
             | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+      - name: Remove the preinstalled cmdline-tools stub
+        run: sudo rm -rf /usr/local/lib/android/sdk/cmdline-tools
       - name: Run the demo on an Android emulator
-        uses: ReactiveCircus/android-emulator-runner@4f4106d3fcce05df782f55421d7a769a2d2e0713 # v2.8.0
+        uses: ReactiveCircus/android-emulator-runner@e93c997dcab69054e999e3924af3d21c4a736e13 # v2.9.0
         with:
           api-level: 34
           target: google_apis
