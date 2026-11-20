@@ -64,10 +64,11 @@ never on `snapshot.hasData`.
 
 The fast gate is the Demo Mode transition test in
 `app/test/ui/demo_screen_test.dart`, which runs with every `flutter test`.
-Before tagging a beta or release, also run
-`./tool/playtest/run_device_demo_test.sh -d <device>` on Android and iOS, or
-wait for the `Demo device smoke` workflow. A green unit suite alone does not
-prove the platform channels work.
+The `Demo device smoke` workflow runs the same test on an iOS simulator. Its
+Android emulator job is best effort because GitHub's Linux runners have no KVM;
+run `./tool/playtest/run_device_demo_test.sh -d <device>` on an Android phone
+for the required Android device proof. A green unit suite alone does not prove
+the platform channels work.
 
 
 ## Releases
