@@ -1,0 +1,102 @@
+name: Dispatch Apple build
+
+# The hub does the Apple work; this file only asks it to. Tags are the release
+# path. A manual run is for a branch or for re-running a tag without creating
+# another tag.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch or tag to build; leave empty for the selected ref
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dispatch-apple-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    name: Ask apple-ci-hub
+    # Forks have neither the token nor a reason to spend the hub's minutes.
+    if: github.repository == 'warreth/WhoTook'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Send the repository_dispatch
+        env:
+          TOKEN: ${{ secrets.APPLE_CI_DISPATCH_TOKEN }}
+          REF_INPUT: ${{ inputs.ref }}
+          DEFAULT_REF: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          set -euo pipefail
+          set +x
+          [ -n "$TOKEN" ] || {
+            echo "::error::APPLE_CI_DISPATCH_TOKEN is not set in this repository."
+            exit 1
+          }
+
+          ref="${REF_INPUT:-$DEFAULT_REF}"
+          [[ "$ref" =~ ^[A-Za-z0-9._/-]+$ ]] || {
+            echo "::error::ref may only contain letters, digits, dot, underscore, slash and dash."
+            exit 1
+          }
+          case "$ref" in
+            -*|.*|/*|*/|*//*|*..*|*.lock)
+              echo "::error::ref is not a safe branch or tag name."
+              exit 1
+              ;;
+          esac
+
+          # The hub resolves tag versus branch against the target repository;
+          # this hint only describes the GitHub ref the run started from.
+          payload="$(
+            jq -n \
+              --arg app "whotook" \
+              --arg ref "$ref" \
+              --arg ref_type "$REF_TYPE" \
+              --arg platforms "ios" \
+              '{
+                event_type: "apple-build",
+                client_payload: {
+                  app: $app,
+                  ref: $ref,
+                  ref_type: $ref_type,
+                  platforms: $platforms
+                }
+              }'
+          )"
+
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+          header_file="$tmpdir/auth.header"
+          umask 077
+          printf 'Authorization: Bearer %s\n' "$TOKEN" > "$header_file"
+
+          http_code="000"
+          if ! http_code="$(
+            printf '%s' "$payload" |
+              curl --silent --show-error --max-time 30 --retry 2 \
+                --request POST \
+                --header "@$header_file" \
+                --header 'Accept: application/vnd.github+json' \
+                --header 'X-GitHub-Api-Version: 2022-11-28' \
+                --output /dev/null \
+                --write-out '%{http_code}' \
+                --data-binary @- \
+                https://api.github.com/repos/warreth/apple-ci-hub/dispatches
+          )"; then
+            echo "::error::Could not reach the apple-ci-hub dispatcher."
+            exit 1
+          fi
+          if [ "$http_code" != "204" ]; then
+            echo "::error::apple-ci-hub rejected the dispatch (HTTP $http_code)."
+            exit 1
+          fi
+          echo "Dispatched WhoTook $ref (ios) to apple-ci-hub."

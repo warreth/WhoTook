@@ -1,0 +1,21 @@
+# WhoTook's Codemagic side. Builds are started by the apple-ci-hub API with a
+# workflowId; there is deliberately no triggering: block. A Codemagic webhook
+# here would build the same tag a second time, once from GitHub Actions and
+# once from Codemagic.
+workflows:
+  whotook-ios:
+    name: WhoTook iOS
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      flutter: 3.47.2
+      vars:
+        TARGET_PLATFORM: ios
+    scripts:
+      - name: Build the unsigned FFOSS IPA
+        script: ./scripts/ci/build_apple.sh ios
+      - name: Attach the IPA to the GitHub Release
+        script: ./scripts/ci/publish_release.sh ios
+    artifacts:
+      - artifacts/ios/*.ipa
+      - artifacts/ios/SHA256SUMS-ios.txt
