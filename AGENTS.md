@@ -58,7 +58,16 @@ socket, and no platform services. The demo host and every bot use
 `platformServices: false`, because screenshot detection and the wake lock can
 wait forever on an iOS channel and leave "Demotafel klaarzetten" spinning.
 Every setup step is wrapped in a 4-second guard, and after 6 seconds the
-loading screen offers Retry and "Meld dit probleem".
+loading screen offers Retry and "Meld dit probleem". A `FutureBuilder<void>`
+completes with `data == null`, so gate success on `ConnectionState.done`,
+never on `snapshot.hasData`.
+
+The fast gate is the Demo Mode transition test in
+`app/test/ui/demo_screen_test.dart`, which runs with every `flutter test`.
+Before tagging a beta or release, also run
+`./tool/playtest/run_device_demo_test.sh -d <device>` on Android and iOS, or
+wait for the `Demo device smoke` workflow. A green unit suite alone does not
+prove the platform channels work.
 
 
 ## Releases
@@ -69,7 +78,7 @@ guess from the version number. Write short, friendly release notes for players,
 not a commit dump or internal changelog. Release automation is triggered only by
 publishing a GitHub Release.
 
-For a beta, keep `app/pubspec.yaml` on a numeric version (`1.10.0+17`) and tag
-the release `v1.10.0-beta.1`. TestFlight needs a numeric
+For a beta, keep `app/pubspec.yaml` on a numeric version (`1.10.0+18`) and tag
+the release `v1.10.0-beta.2`. TestFlight needs a numeric
 `CFBundleShortVersionString`, and the release workflow matches the tag on its
 base version.

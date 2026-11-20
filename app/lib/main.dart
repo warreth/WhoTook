@@ -8,6 +8,7 @@ import 'core/app_info.dart';
 import 'core/audio/game_audio_service.dart';
 import 'core/constants.dart';
 import 'core/diagnostics/bug_report_service.dart';
+import 'core/diagnostics/device_descriptor.dart';
 import 'core/distribution.dart';
 
 Future<void> main() async {
@@ -34,7 +35,18 @@ Future<void> main() async {
     // A missing platform channel must not stop the app; the release constants
     // remain as the fallback.
   }
-  BugReportService.instance.configure(version: info.version, build: info.build);
+  DeviceDescriptor? device;
+  try {
+    device = await readDeviceDescriptor().timeout(const Duration(seconds: 2));
+  } on Object {
+    // Diagnostics fall back to the platform version string.
+  }
+  BugReportService.instance.configure(
+    version: info.version,
+    build: info.build,
+    osLabel: device?.osLabel,
+    deviceLabel: device?.deviceLabel,
+  );
   runApp(
     ProviderScope(
       overrides: [appInfoProvider.overrideWithValue(info)],

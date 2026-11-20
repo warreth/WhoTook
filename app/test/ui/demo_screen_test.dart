@@ -62,9 +62,13 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.byType(DemoGameScreen, skipOffstage: false), findsOneWidget);
-    // Let the in-process host and bots finish before disposing the screen;
-    // leaving setup futures running would leave test timers pending.
+    // A completed Future<void> has no data, so this transition is the exact
+    // place a "success but still loading" regression hides. Let the in-process
+    // host and bots finish and demand the real lobby.
     await tester.pump(const Duration(seconds: 5));
+    expect(find.text('Setting up the demo table'), findsNothing);
+    expect(find.text('Your demo table'), findsOneWidget);
+    expect(find.text('Lotte'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();

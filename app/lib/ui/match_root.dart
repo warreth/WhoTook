@@ -23,6 +23,7 @@ import 'screens/prepare_screen.dart';
 import 'screens/round_screen.dart';
 import 'screens/timeline_screen.dart';
 import 'widgets/firewall_prompt.dart';
+import 'widgets/idle_report_overlay.dart';
 import 'widgets/screenshot_alert_toast.dart';
 import 'widgets/soundboard_overlay.dart';
 import 'widgets/report_issue_button.dart';
@@ -164,55 +165,62 @@ class _MatchRootState extends ConsumerState<MatchRoot> {
         if (didPop) return;
         unawaited(_confirmLeave(context, coordinator, state));
       },
-      child: Stack(
-        fit: StackFit.expand,
-        children: <Widget>[
-          screen,
-          if (_showSplash && _splashRound != null)
-            _ArcadeSplash(
-              round: _splashRound!,
-              mode: _splashMode ?? state.activeMode,
-              mixed: state.config.mode == GameMode.mixedParty,
-            ),
-          if (warning != null &&
-              warning.isNewer &&
-              !state.reconnecting &&
-              !state.versionWarningDismissed &&
-              warning.latestBuild != _dismissedBuild)
-            SafeArea(
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.s12),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      VersionWarningCard(
-                        warning: warning,
-                        onDismiss: () => _dismissWarning(warning),
-                      ),
-                    ],
+      child: IdleReportOverlay(
+        resetToken:
+            '${state.roomId}:${state.phase.name}:${state.currentRound}:'
+            '${state.activeMode.name}:${state.connectionMode?.name}',
+        enabled: !atHome && !state.reconnecting,
+        screenLabel: 'Match: ${_diagnosticPhase(state.phase)}',
+        child: Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            screen,
+            if (_showSplash && _splashRound != null)
+              _ArcadeSplash(
+                round: _splashRound!,
+                mode: _splashMode ?? state.activeMode,
+                mixed: state.config.mode == GameMode.mixedParty,
+              ),
+            if (warning != null &&
+                warning.isNewer &&
+                !state.reconnecting &&
+                !state.versionWarningDismissed &&
+                warning.latestBuild != _dismissedBuild)
+              SafeArea(
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.s12),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        VersionWarningCard(
+                          warning: warning,
+                          onDismiss: () => _dismissWarning(warning),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: ScreenshotAlertToast(),
             ),
-          const Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: ScreenshotAlertToast(),
-          ),
-          const SoundboardToast(),
-          const SoundboardPill(),
-          if (state.reconnecting)
-            Positioned.fill(
-              child: _ReconnectOverlay(
-                secondsLeft: state.reconnectSecondsLeft,
-                onLeave: () => unawaited(coordinator.leaveMatch()),
+            const SoundboardToast(),
+            const SoundboardPill(),
+            if (state.reconnecting)
+              Positioned.fill(
+                child: _ReconnectOverlay(
+                  secondsLeft: state.reconnectSecondsLeft,
+                  onLeave: () => unawaited(coordinator.leaveMatch()),
+                ),
               ),
-            ),
-          const FirewallPromptOverlay(),
-        ],
+            const FirewallPromptOverlay(),
+          ],
+        ),
       ),
     );
   }

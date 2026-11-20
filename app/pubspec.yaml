@@ -1,7 +1,7 @@
 name: whotook
 description: "Open-source hybrid LAN & WebRTC party photo-guessing game."
 publish_to: 'none'
-version: 1.10.0+17
+version: 1.10.0+18
 
 environment:
   sdk: ^3.13.2
@@ -33,9 +33,14 @@ dependencies:
   in_app_purchase: ^3.3.1
   in_app_purchase_storekit: ^0.4.17
   flutter_secure_storage: ^11.2.0
+  share_plus: ^13.3.1
+  path_provider: ^2.1.6
+  device_info_plus: ^13.3.0
 
 dev_dependencies:
   flutter_test:
+    sdk: flutter
+  integration_test:
     sdk: flutter
   flutter_lints: ^6.0.0
   shared_preferences_platform_interface: ^2.4.2

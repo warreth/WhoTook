@@ -1916,6 +1916,54 @@ abstract class AppLocalizations {
   /// **'Could not open a mail app or copy the report.'**
   String get reportCopyFailed;
 
+  /// No description provided for @reportEmailAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Email with diagnostics'**
+  String get reportEmailAction;
+
+  /// No description provided for @reportEmailBody.
+  ///
+  /// In en, this message translates to:
+  /// **'A short report that fits in any mail app'**
+  String get reportEmailBody;
+
+  /// No description provided for @reportShareAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Share log file'**
+  String get reportShareAction;
+
+  /// No description provided for @reportShareBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The full report as a text file, to send as an attachment'**
+  String get reportShareBody;
+
+  /// No description provided for @reportShareMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'WhoTook diagnostics for {email}. The full report is attached as a text file.'**
+  String reportShareMessage(String email);
+
+  /// No description provided for @reportCopyAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy report'**
+  String get reportCopyAction;
+
+  /// No description provided for @reportCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Report copied to the clipboard.'**
+  String get reportCopied;
+
+  /// No description provided for @reportShareFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not share the log file.'**
+  String get reportShareFailed;
+
   /// No description provided for @demoTakingLong.
   ///
   /// In en, this message translates to:

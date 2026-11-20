@@ -126,7 +126,10 @@ class _DemoGameScreenState extends ConsumerState<DemoGameScreen> {
             onClose: () => Navigator.of(context).maybePop(),
           );
         }
-        if (!snapshot.hasData) {
+        // `_starting` is a Future<void>, so a successful completion has
+        // `data == null` and `hasData` stays false. The connection state is
+        // the only reliable success signal here.
+        if (snapshot.connectionState != ConnectionState.done) {
           return _DemoSetupLoading(
             colors: colors,
             l10n: l10n,

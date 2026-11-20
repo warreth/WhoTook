@@ -1129,6 +1129,33 @@ class AppLocalizationsEn extends AppLocalizations {
       'Could not open a mail app or copy the report.';
 
   @override
+  String get reportEmailAction => 'Email with diagnostics';
+
+  @override
+  String get reportEmailBody => 'A short report that fits in any mail app';
+
+  @override
+  String get reportShareAction => 'Share log file';
+
+  @override
+  String get reportShareBody =>
+      'The full report as a text file, to send as an attachment';
+
+  @override
+  String reportShareMessage(String email) {
+    return 'WhoTook diagnostics for $email. The full report is attached as a text file.';
+  }
+
+  @override
+  String get reportCopyAction => 'Copy report';
+
+  @override
+  String get reportCopied => 'Report copied to the clipboard.';
+
+  @override
+  String get reportShareFailed => 'Could not share the log file.';
+
+  @override
   String get demoTakingLong => 'This is taking longer than expected.';
 
   @override

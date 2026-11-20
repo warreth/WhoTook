@@ -1133,6 +1133,33 @@ class AppLocalizationsNl extends AppLocalizations {
       'Kon geen mail-app openen of het rapport kopiëren.';
 
   @override
+  String get reportEmailAction => 'E-mail met diagnose';
+
+  @override
+  String get reportEmailBody => 'Een kort rapport dat in elke mail-app past';
+
+  @override
+  String get reportShareAction => 'Deel logbestand';
+
+  @override
+  String get reportShareBody =>
+      'Het volledige rapport als tekstbestand, om als bijlage te sturen';
+
+  @override
+  String reportShareMessage(String email) {
+    return 'Diagnostiek van WhoTook voor $email. Het volledige rapport zit als tekstbestand bij deze mail.';
+  }
+
+  @override
+  String get reportCopyAction => 'Kopieer rapport';
+
+  @override
+  String get reportCopied => 'Rapport gekopieerd naar het klembord.';
+
+  @override
+  String get reportShareFailed => 'Kon het logbestand niet delen.';
+
+  @override
   String get demoTakingLong => 'Dit duurt langer dan verwacht.';
 
   @override

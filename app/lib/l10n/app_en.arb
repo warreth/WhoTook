@@ -653,6 +653,21 @@
     }
   },
   "reportCopyFailed": "Could not open a mail app or copy the report.",
+  "reportEmailAction": "Email with diagnostics",
+  "reportEmailBody": "A short report that fits in any mail app",
+  "reportShareAction": "Share log file",
+  "reportShareBody": "The full report as a text file, to send as an attachment",
+  "reportShareMessage": "WhoTook diagnostics for {email}. The full report is attached as a text file.",
+  "@reportShareMessage": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "reportCopyAction": "Copy report",
+  "reportCopied": "Report copied to the clipboard.",
+  "reportShareFailed": "Could not share the log file.",
   "demoTakingLong": "This is taking longer than expected.",
   "demoRetry": "Try again",
   "termsAndRules": "Terms and community rules",

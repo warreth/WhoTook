@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:collection';
-import 'dart:io' show Platform;
+import 'dart:io' show File, Platform;
 import 'dart:math' show min;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../l10n/l10n.dart';
@@ -20,8 +22,12 @@ class BugReportService {
   BugReportService({
     Future<bool> Function(Uri uri)? launch,
     Future<void> Function(String text)? copy,
+    Future<File> Function(String name, String contents)? writeFile,
+    Future<bool> Function(File file, String subject, String text)? shareFile,
   }) : _launch = launch ?? _launchExternal,
-       _copy = copy ?? _copyToClipboard;
+       _copy = copy ?? _copyToClipboard,
+       _writeFile = writeFile ?? _writeTempReport,
+       _shareFile = shareFile ?? _shareReportFile;
 
   static final BugReportService instance = BugReportService();
 
@@ -32,9 +38,14 @@ class BugReportService {
   final ListQueue<_DiagnosticEvent> _events = ListQueue<_DiagnosticEvent>();
   final Future<bool> Function(Uri uri) _launch;
   final Future<void> Function(String text) _copy;
+  final Future<File> Function(String name, String contents) _writeFile;
+  final Future<bool> Function(File file, String subject, String text)
+  _shareFile;
 
   String _version = kAppVersion;
   int _build = kAppBuildNumber;
+  String? _osLabelOverride;
+  String? _deviceLabel;
   String _mode = '-';
   String _role = '-';
   String _phase = '-';
@@ -43,9 +54,21 @@ class BugReportService {
   bool _demo = false;
   bool _hooksInstalled = false;
 
-  void configure({String? version, int? build}) {
+  /// File sharing is unavailable on the web build; email and clipboard work.
+  bool get canShareFile => !kIsWeb;
+
+  void configure({
+    String? version,
+    int? build,
+    String? osLabel,
+    String? deviceLabel,
+  }) {
     if (version != null && version.isNotEmpty) _version = version;
     if (build != null && build > 0) _build = build;
+    if (osLabel != null && osLabel.isNotEmpty) _osLabelOverride = osLabel;
+    if (deviceLabel != null && deviceLabel.isNotEmpty) {
+      _deviceLabel = deviceLabel;
+    }
   }
 
   void installErrorHooks() {
@@ -53,11 +76,7 @@ class BugReportService {
     _hooksInstalled = true;
     final previousFlutterError = FlutterError.onError;
     FlutterError.onError = (details) {
-      record(
-        'FLUTTER',
-        details.exceptionAsString(),
-        stack: details.stack,
-      );
+      record('FLUTTER', details.exceptionAsString(), stack: details.stack);
       previousFlutterError?.call(details);
     };
     final previousPlatformError = PlatformDispatcher.instance.onError;
@@ -131,7 +150,7 @@ class BugReportService {
   }
 
   String get appLine =>
-      'App: v$_version+$_build (${_osLabel()} - ${_distributionLabel()})';
+      'App: v$_version+$_build (${_osLabelOverride ?? _fallbackOsLabel()} - ${_distributionLabel()})';
 
   String get contextLine =>
       'Mode: $_mode | Role: $_role${_demo ? ' (demo)' : ''} | Phase: $_phase';
@@ -163,17 +182,19 @@ class BugReportService {
       ..writeln(appLine)
       ..writeln(contextLine)
       ..writeln(connectionLine)
-      ..writeln('Screen: $screen')
+      ..writeln('Screen: $screen');
+    final device = _deviceLabel;
+    if (device != null && device.isNotEmpty) {
+      buffer.writeln('Device: $device');
+    }
+    buffer
       ..writeln()
       ..writeln('$logsLabel:')
       ..write(logsOverride ?? recentLogs);
     return buffer.toString().trimRight();
   }
 
-  Uri buildMailto({
-    required String subject,
-    required String body,
-  }) {
+  Uri buildMailto({required String subject, required String body}) {
     // Build the query by hand: Uri's queryParameters encodes spaces as '+',
     // which iOS Mail shows literally in a mailto body.
     return Uri.parse(
@@ -239,10 +260,71 @@ class BugReportService {
           SnackBar(content: Text(l10n.reportNoMailApp(kSupportEmail))),
         );
       case BugReportDelivery.failed:
-        messenger.showSnackBar(
-          SnackBar(content: Text(l10n.reportCopyFailed)),
-        );
+        messenger.showSnackBar(SnackBar(content: Text(l10n.reportCopyFailed)));
     }
+  }
+
+  /// Shares the full, untruncated report as a .txt file. A mailto link cannot
+  /// carry an attachment, so the share sheet is the zero-server route: the
+  /// player picks Mail or Gmail and the file is attached to the message.
+  Future<bool> shareReport(
+    BuildContext context, {
+    String? screenOverride,
+    String? screenLabel,
+  }) {
+    final l10n = context.l10n;
+    return deliverFile(
+      report: buildReport(
+        intro: l10n.reportBodyIntro,
+        diagnosticsLabel: l10n.reportDiagnostics,
+        logsLabel: l10n.reportRecentLogs,
+        screenOverride: screenLabel ?? screenOverride,
+      ),
+      text: l10n.reportShareMessage(kSupportEmail),
+    );
+  }
+
+  /// Writes the report to a temp file and opens the system share sheet.
+  Future<bool> deliverFile({
+    required String report,
+    required String text,
+  }) async {
+    try {
+      final file = await _writeFile(reportFileName(), report);
+      await _shareFile(file, buildSubject(), text);
+      return true;
+    } on Object {
+      return false;
+    }
+  }
+
+  /// Copies the full report, not the mailto-truncated version.
+  Future<bool> copyReport(
+    BuildContext context, {
+    String? screenOverride,
+    String? screenLabel,
+  }) async {
+    final l10n = context.l10n;
+    try {
+      await _copy(
+        buildReport(
+          intro: l10n.reportBodyIntro,
+          diagnosticsLabel: l10n.reportDiagnostics,
+          logsLabel: l10n.reportRecentLogs,
+          screenOverride: screenLabel ?? screenOverride,
+        ),
+      );
+      return true;
+    } on Object {
+      return false;
+    }
+  }
+
+  String reportFileName([DateTime? now]) {
+    final at = now ?? DateTime.now();
+    String two(int value) => value.toString().padLeft(2, '0');
+    return 'whotook-diagnostics-${at.year}${two(at.month)}${two(at.day)}-'
+        '${two(at.hour)}${two(at.minute)}.txt';
   }
 
   String _fitBody({
@@ -284,7 +366,9 @@ class BugReportService {
 
   String _safeTag(String tag) {
     final normalized = tag.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9_/]'), '');
-    return normalized.isEmpty ? 'APP' : normalized.substring(0, min(normalized.length, 24));
+    return normalized.isEmpty
+        ? 'APP'
+        : normalized.substring(0, min(normalized.length, 24));
   }
 
   String _redact(String value) {
@@ -300,10 +384,7 @@ class BugReportService {
           RegExp(r'(https?://[^\s/]+)/j/[^\s]+', caseSensitive: false),
           r'$1/j/[redacted]',
         )
-        .replaceAll(
-          RegExp(r'\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b'),
-          '[ip]',
-        )
+        .replaceAll(RegExp(r'\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b'), '[ip]')
         .replaceAll(
           RegExp(
             r'(?:[A-Za-z]:)?(?:[\\/][^\s\\/]+)+\.(?:jpe?g|png|heic|heif|gif|webp)\b',
@@ -326,11 +407,17 @@ class BugReportService {
     };
   }
 
-  String _osLabel() {
+  String _fallbackOsLabel() {
     if (kIsWeb) return 'Web';
     final platform = _platformLabel();
     var raw = Platform.operatingSystemVersion.trim();
-    for (final prefix in <String>['Version ', platform, 'Windows ', 'macOS ']) {
+    for (final prefix in <String>[
+      'Version ',
+      platform,
+      'Android ',
+      'Windows ',
+      'macOS ',
+    ]) {
       if (raw.toLowerCase().startsWith(prefix.toLowerCase())) {
         raw = raw.substring(prefix.length).trim();
       }
@@ -339,7 +426,13 @@ class BugReportService {
         .replaceFirst(RegExp(r'\s*\(Build.*$', caseSensitive: false), '')
         .replaceFirst(RegExp(r'\s*\(SDK.*$', caseSensitive: false), '')
         .trim();
-    return raw.isEmpty ? platform : '$platform $raw';
+    if (raw.isEmpty) return platform;
+    // Some Android ROMs put a long build id where the release belongs. Keep a
+    // human version (14, 15, 16) and treat anything else as the SDK fallback.
+    if (platform == 'Android' && !RegExp(r'^\d+(\.\d+)*$').hasMatch(raw)) {
+      return 'Android';
+    }
+    return '$platform $raw';
   }
 
   String _distributionLabel() {
@@ -361,6 +454,30 @@ class BugReportService {
 
   static Future<void> _copyToClipboard(String text) {
     return Clipboard.setData(ClipboardData(text: text));
+  }
+
+  static Future<File> _writeTempReport(String name, String contents) async {
+    final directory = await getTemporaryDirectory();
+    final file = File('${directory.path}/$name');
+    // The OS cleans the temporary directory; the share target keeps its own
+    // copy after the sheet closes.
+    return file.writeAsString(contents, flush: true);
+  }
+
+  static Future<bool> _shareReportFile(
+    File file,
+    String subject,
+    String text,
+  ) async {
+    await SharePlus.instance.share(
+      ShareParams(
+        files: <XFile>[XFile(file.path, mimeType: 'text/plain')],
+        subject: subject,
+        title: subject,
+        text: text,
+      ),
+    );
+    return true;
   }
 }
 
