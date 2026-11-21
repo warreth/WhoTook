@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../distribution.dart';
+import '../playtest_config.dart';
 import 'party_pass_repository.dart';
 import 'purchase_service.dart';
 import 'turn_relay_client.dart';
@@ -61,6 +62,13 @@ class PaddlePartyPassPurchaseService implements PartyPassPurchaseService {
   Future<void> initialize() async {
     if (_initialized) return;
     _initialized = true;
+    if (PlaytestConfig.enabled) {
+      // The headless browser suite runs on a local origin. Do not call the
+      // production Worker there: its CORS policy is intentionally narrow and
+      // the playtest does not exercise billing.
+      _available = false;
+      return;
+    }
     try {
       final json = await _get('/party-pass/config');
       _available = json['paddle'] == true && json['checkoutAvailable'] == true;
