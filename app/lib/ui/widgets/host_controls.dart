@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/models.dart';
+import '../../core/theme/whotook_theme.dart';
 import '../../l10n/l10n.dart';
 import '../../state/match_coordinator.dart';
 import '../../state/providers.dart';
+import 'room_qr_dialog.dart';
 
 /// Small host-only menu for a match in progress: skip a stuck screen or
 /// remove a disruptive player without closing the room.
@@ -32,33 +34,49 @@ class HostControlsButton extends ConsumerWidget {
     final others = state.players
         .where((player) => player.id != 'host' && player.connected)
         .toList();
-    if (!canSkip && others.isEmpty) return const SizedBox.shrink();
-    return PopupMenuButton<String>(
-      tooltip: context.l10n.hostControls,
-      icon: Icon(
-        Icons.more_vert,
-        size: 20,
-        color: Theme.of(context).brightness == Brightness.dark
-            ? const Color(0xFFB4ADA1)
-            : const Color(0xFF5E554A),
-      ),
-      onSelected: (value) {
-        if (value == 'skip') {
-          unawaited(_confirmSkip(context, coordinator));
-        } else if (value == 'remove') {
-          unawaited(_pickPlayer(context, coordinator, others));
-        }
-      },
-      itemBuilder: (context) => <PopupMenuEntry<String>>[
-        if (canSkip)
-          PopupMenuItem<String>(
-            value: 'skip',
-            child: Text(context.l10n.skipRound),
+    final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
+    final canShowQr = state.roomId != null && state.inviteUrl != null;
+    final hasMenu = canSkip || others.isNotEmpty;
+    if (!canShowQr && !hasMenu) return const SizedBox.shrink();
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        if (canShowQr)
+          IconButton(
+            tooltip: l10n.showRoomQr,
+            onPressed: () => unawaited(
+              showRoomQrDialog(
+                context,
+                roomId: state.roomId!,
+                inviteUrl: state.inviteUrl!,
+              ),
+            ),
+            icon: Icon(Icons.qr_code_2, size: 20, color: colors.ink2),
           ),
-        if (others.isNotEmpty)
-          PopupMenuItem<String>(
-            value: 'remove',
-            child: Text(context.l10n.removePlayer),
+        if (hasMenu)
+          PopupMenuButton<String>(
+            tooltip: l10n.hostControls,
+            icon: Icon(Icons.more_vert, size: 20, color: colors.ink2),
+            onSelected: (value) {
+              if (value == 'skip') {
+                unawaited(_confirmSkip(context, coordinator));
+              } else if (value == 'remove') {
+                unawaited(_pickPlayer(context, coordinator, others));
+              }
+            },
+            itemBuilder: (context) => <PopupMenuEntry<String>>[
+              if (canSkip)
+                PopupMenuItem<String>(
+                  value: 'skip',
+                  child: Text(context.l10n.skipRound),
+                ),
+              if (others.isNotEmpty)
+                PopupMenuItem<String>(
+                  value: 'remove',
+                  child: Text(context.l10n.removePlayer),
+                ),
+            ],
           ),
       ],
     );

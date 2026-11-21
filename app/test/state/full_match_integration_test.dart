@@ -629,18 +629,42 @@ void main() {
     },
   );
 
-  test('joining after the lobby started returns a clear message', () async {
+  test('joining after the lobby started waits for the next match', () async {
     await prepareAndStart(rounds: 2);
     final late = _client(hub, seed: 9);
     addTearDown(late.dispose);
     await late.loadSettings();
     await late.joinMatch(inviteUrl);
     await _waitFor(
-      () => late.state.roomId == null && late.state.errorMessage != null,
+      () =>
+          late.state.waitingForMatch &&
+          late.state.localPlayerId != null &&
+          late.state.roomId != null,
     );
-    expect(late.state.errorMessage, contains('already started'));
+    expect(late.state.waitingForMatch, isTrue);
+    expect(late.state.roomId, host.state.roomId);
     expect(host.state.players.length, 3);
-  });
+    await _waitFor(() => late.state.currentRound > 0);
+    expect(late.state.activeMode, host.state.activeMode);
+    await _waitFor(() => late.state.activePhotoBytes != null);
+
+    await host.playAgain();
+    await _waitFor(
+      () => !late.state.waitingForMatch && host.state.players.length == 4,
+    );
+    expect(late.state.phase, RoundPhase.lobby);
+    expect(late.state.players.length, 4);
+
+    await host.startPrepare();
+    await _waitFor(() => late.state.candidates.isNotEmpty);
+    expect(late.state.photosNeeded, greaterThan(0));
+    await late.clientMarkReady();
+    await _waitFor(
+      () => host.state.players
+          .firstWhere((player) => player.id == late.state.localPlayerId)
+          .ready,
+    );
+  }, timeout: const Timeout(Duration(seconds: 45)));
 
   test('a client can rejoin the current round after a restart', () async {
     await prepareAndStart(rounds: 3);

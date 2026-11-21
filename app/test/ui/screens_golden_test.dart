@@ -1928,6 +1928,7 @@ MatchUiState _classicRevealState(Uint8List photo) => MatchUiState(
 MatchUiState _memeEditorState(Uint8List photo) => MatchUiState(
   isHosting: true,
   roomId: 'k8m2p9x4',
+  inviteUrl: 'https://whotook.party/j#eyJ2IjoxLCJob3N0SWQiOiJob3N0Iiwicm9vbSI6Ims4bTJwOXg0In0',
   localPlayerId: 'host',
   players: _players(),
   phase: RoundPhase.captionWriting,
@@ -1992,6 +1993,7 @@ MatchUiState _memeVoteState(Uint8List photo) => MatchUiState(
 MatchUiState _memeRevealState(Uint8List photo) => MatchUiState(
   isHosting: true,
   roomId: 'k8m2p9x4',
+  inviteUrl: 'https://whotook.party/j#eyJ2IjoxLCJob3N0SWQiOiJob3N0Iiwicm9vbSI6Ims4bTJwOXg0In0',
   localPlayerId: 'host',
   players: _players(),
   phase: RoundPhase.captionReveal,
@@ -2087,6 +2089,7 @@ MatchUiState _memeRevealState(Uint8List photo) => MatchUiState(
 MatchUiState _podiumState() => MatchUiState(
   isHosting: true,
   roomId: 'k8m2p9x4',
+  inviteUrl: 'https://whotook.party/j#eyJ2IjoxLCJob3N0SWQiOiJob3N0Iiwicm9vbSI6Ims4bTJwOXg0In0',
   localPlayerId: 'host',
   players: _players(),
   phase: RoundPhase.podium,
