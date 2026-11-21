@@ -508,21 +508,22 @@ class _SwapBank extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
     return Tooltip(
-      message: '${l10n.memeSwapsLeft(swaps)}. ${l10n.memeSwapsMatchWide}',
+      message: '${l10n.memeSwapsLeft(swaps)}. ${l10n.memeSwapsRoundWide}',
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.s8,
           vertical: 4,
         ),
         decoration: BoxDecoration(
+          color: colors.card,
           border: Border.all(color: colors.hairline, style: BorderStyle.solid),
           borderRadius: BorderRadius.circular(999),
         ),
         child: Text(
-          '${l10n.memeMatchSwaps.toUpperCase()} $swaps/5',
+          '${l10n.memeRoundSwaps.toUpperCase()} $swaps/5',
           style: TextStyle(
             fontFamily: 'JetBrainsMono',
-            fontSize: 9,
+            fontSize: 10,
             fontWeight: FontWeight.w600,
             color: swaps > 0 ? colors.accent : colors.ink3,
           ),
@@ -1581,49 +1582,6 @@ class _MemeReveal extends StatelessWidget {
               ),
             ),
           ],
-        ),
-        const SizedBox(height: AppSpacing.s12),
-        Container(
-          padding: const EdgeInsets.all(AppSpacing.s12),
-          decoration: BoxDecoration(
-            color: colors.raised,
-            borderRadius: BorderRadius.circular(AppRadii.rControl),
-            border: Border.all(color: colors.hairline),
-          ),
-          child: Row(
-            children: <Widget>[
-              const Icon(
-                Icons.star_outline,
-                size: 20,
-                color: GamePalette.goldDeep,
-              ),
-              const SizedBox(width: AppSpacing.s8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      l10n.memeModelRoyalty.toUpperCase(),
-                      style: TextStyle(
-                        fontFamily: 'JetBrainsMono',
-                        fontSize: 8,
-                        letterSpacing: 0.7,
-                        color: colors.ink3,
-                      ),
-                    ),
-                    Text(
-                      l10n.memeRoyaltyBody(winner.photoOwnerName ?? ''),
-                      style: TextStyle(
-                        fontSize: 12,
-                        height: 1.35,
-                        color: colors.ink2,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
         ),
         const SizedBox(height: AppSpacing.s12),
         GameButton(
