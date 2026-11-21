@@ -1,6 +1,6 @@
 import 'dart:math';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:photo_manager/photo_manager.dart';
 
@@ -11,6 +11,30 @@ const int kRelayPhotoDimension = 720;
 const int kRelayPhotoQuality = 60;
 const int kRelayUploadDimension = 900;
 const int kRelayUploadQuality = 68;
+
+/// One random index from each equal slice of the full library range. The result
+/// covers the oldest and newest photos instead of only the recent camera roll.
+@visibleForTesting
+List<int> stratifiedSampleIndices(int total, int count, Random random) {
+  if (total <= 0 || count <= 0) return const <int>[];
+  final take = min(total, count);
+  final seen = <int>{};
+  final indices = <int>[];
+  for (var i = 0; i < take; i++) {
+    final start = (total * i) ~/ take;
+    final end = (total * (i + 1)) ~/ take;
+    final span = max(1, end - start);
+    var index = start + random.nextInt(span);
+    if (index >= total) index = total - 1;
+    // Slices are disjoint when total >= count; scanning forward keeps the
+    // smaller-than-count case unique too.
+    while (!seen.add(index) && seen.length < total) {
+      index = (index + 1) % total;
+    }
+    indices.add(index);
+  }
+  return indices;
+}
 
 /// Injectable seam so tests can watch the relay path without the native codec.
 typedef PhotoCompressor = Future<Uint8List> Function(
@@ -122,8 +146,6 @@ class DevicePhotoLibraryService implements PhotoLibraryService {
 
   static const int maxDimension = 1080;
   static const int jpegQuality = 75;
-  static const int _pageSize = 40;
-  static const int _maxPagesPerAlbum = 5;
 
   static const PermissionRequestOption _requestOption = PermissionRequestOption(
     androidPermission: AndroidPermission(
@@ -224,63 +246,66 @@ class DevicePhotoLibraryService implements PhotoLibraryService {
     if (count <= 0) {
       return const <PickedPhoto>[];
     }
-    final paths = await PhotoManager.getAssetPathList(
-      hasAll: false,
-      type: RequestType.image,
-    );
-    final allowed = paths
-        .where((path) => !excludedAlbumIds.contains(path.id))
-        .toList();
-    if (allowed.isEmpty) {
+    final ranges = await _sampleRanges(excludedAlbumIds);
+    final total = ranges.fold<int>(0, (sum, range) => sum + range.count);
+    if (total <= 0) {
       return const <PickedPhoto>[];
     }
-    allowed.shuffle(_random);
 
-    // Build one mixed pool first, then read a few thumbnails at a time. The
-    // pool keeps the result random across albums instead of draining the first
-    // album before looking at the next one.
-    final seen = <String>{...excludeAssetIds};
-    final pool = <AssetEntity>[];
-    final poolTarget = max(count * 4, 12);
-    for (final path in allowed) {
-      if (pool.length >= poolTarget) break;
-      final assets = await _collectAssets(path, seen);
-      for (final asset in assets) {
-        if (seen.add(asset.id)) pool.add(asset);
-      }
-    }
-    pool.shuffle(_random);
-
+    // One random index from every full-history slice. This is the difference
+    // between "recent camera roll page" and an actually random sample.
+    final indices = stratifiedSampleIndices(total, count, _random);
+    final attempted = <int>{};
     final picked = <PickedPhoto>[];
-    var index = 0;
-    while (index < pool.length && picked.length < count) {
-      final batch = pool.skip(index).take(4).toList();
-      index += batch.length;
-      final photos = await Future.wait(batch.map(_readAsset));
-      for (final photo in photos) {
-        if (picked.length >= count) break;
-        if (photo == null) continue;
-        if (requireDate && !isUsableCaptureDate(photo.capturedAt)) continue;
-        picked.add(photo);
-      }
+    for (final index in indices) {
+      final photo = await _photoAt(
+        ranges: ranges,
+        index: index,
+        excludeAssetIds: excludeAssetIds,
+        requireDate: requireDate,
+        attempted: attempted,
+      );
+      if (photo != null) picked.add(photo);
     }
+
+    // A slot can fail because the asset is corrupt, a video, already excluded
+    // or missing a date. Retry across the whole range, never the recent page.
+    var guard = 0;
+    final maxAttempts = max(count * 8, 24);
+    while (picked.length < count &&
+        guard++ < maxAttempts &&
+        attempted.length < total) {
+      final photo = await _photoAt(
+        ranges: ranges,
+        index: _random.nextInt(total),
+        excludeAssetIds: excludeAssetIds,
+        requireDate: requireDate,
+        attempted: attempted,
+      );
+      if (photo != null) picked.add(photo);
+    }
+    picked.shuffle(_random);
     return picked;
   }
 
   @override
   Future<PickedPhoto?> pickSinglePhoto() async {
-    final paths = await PhotoManager.getAssetPathList(
-      onlyAll: true,
-      type: RequestType.image,
-    );
-    if (paths.isEmpty) {
-      return null;
+    final ranges = await _sampleRanges(const <String>{});
+    final total = ranges.fold<int>(0, (sum, range) => sum + range.count);
+    if (total <= 0) return null;
+    final attempted = <int>{};
+    final maxAttempts = min(total, 16);
+    for (var i = 0; i < maxAttempts; i++) {
+      final photo = await _photoAt(
+        ranges: ranges,
+        index: _random.nextInt(total),
+        excludeAssetIds: const <String>{},
+        requireDate: false,
+        attempted: attempted,
+      );
+      if (photo != null) return photo;
     }
-    final assets = await _collectAssets(paths.first, const <String>{});
-    if (assets.isEmpty) {
-      return null;
-    }
-    return _readAsset(assets[_random.nextInt(assets.length)]);
+    return null;
   }
 
   @override
@@ -294,31 +319,67 @@ class DevicePhotoLibraryService implements PhotoLibraryService {
     );
   }
 
-  Future<List<AssetEntity>> _collectAssets(
-    AssetPathEntity path,
-    Set<String> excludeAssetIds,
-  ) async {
-    final total = await path.assetCountAsync;
-    if (total <= 0) return const <AssetEntity>[];
-    final pages = min(_maxPagesPerAlbum, (total + _pageSize - 1) ~/ _pageSize);
-    final firstPage = pages <= 1 ? 0 : _random.nextInt(pages);
-    final assets = <AssetEntity>[];
-    // Read at most two random pages. The old sampler walked five pages from
-    // the top of every album before it read a single photo.
-    for (var offset = 0; offset < 2 && firstPage + offset < pages; offset++) {
-      final batch = await path.getAssetListPaged(
-        page: firstPage + offset,
-        size: _pageSize,
+  /// The all-photos path gives a chronological full timeline. When the host
+  /// excludes albums we cannot filter that path, so allowed albums become
+  /// adjacent ranges instead and each range is sampled across its whole count.
+  Future<List<_PhotoRange>> _sampleRanges(Set<String> excludedAlbumIds) async {
+    final paths = excludedAlbumIds.isEmpty
+        ? await PhotoManager.getAssetPathList(
+            onlyAll: true,
+            type: RequestType.image,
+          )
+        : await PhotoManager.getAssetPathList(
+            hasAll: false,
+            type: RequestType.image,
+          );
+    final ranges = <_PhotoRange>[];
+    var offset = 0;
+    for (final path in paths) {
+      if (excludedAlbumIds.contains(path.id)) continue;
+      final total = await path.assetCountAsync;
+      if (total <= 0) continue;
+      ranges.add(_PhotoRange(path: path, start: offset, count: total));
+      offset += total;
+    }
+    return ranges;
+  }
+
+  Future<PickedPhoto?> _photoAt({
+    required List<_PhotoRange> ranges,
+    required int index,
+    required Set<String> excludeAssetIds,
+    required bool requireDate,
+    required Set<int> attempted,
+  }) async {
+    if (!attempted.add(index)) return null;
+    final range = _rangeFor(ranges, index);
+    if (range == null) return null;
+    final local = index - range.start;
+    try {
+      final assets = await range.path.getAssetListRange(
+        start: local,
+        end: local + 1,
         type: RequestType.image,
       );
-      if (batch.isEmpty) break;
-      for (final asset in batch) {
-        if (!excludeAssetIds.contains(asset.id)) {
-          assets.add(asset);
-        }
+      if (assets.isEmpty) return null;
+      final asset = assets.first;
+      if (excludeAssetIds.contains(asset.id)) return null;
+      final photo = await _readAsset(asset);
+      if (photo == null) return null;
+      if (requireDate && !isUsableCaptureDate(photo.capturedAt)) return null;
+      return photo;
+    } on Object {
+      return null;
+    }
+  }
+
+  static _PhotoRange? _rangeFor(List<_PhotoRange> ranges, int index) {
+    for (final range in ranges) {
+      if (index >= range.start && index < range.start + range.count) {
+        return range;
       }
     }
-    return assets;
+    return null;
   }
 
   Future<PickedPhoto?> _readAsset(AssetEntity asset) async {
@@ -368,4 +429,16 @@ class DevicePhotoLibraryService implements PhotoLibraryService {
     // Photo managers return the Unix epoch for photos without a capture date.
     return !(year == 1970 && value.month == 1 && value.day == 1);
   }
+}
+
+class _PhotoRange {
+  const _PhotoRange({
+    required this.path,
+    required this.start,
+    required this.count,
+  });
+
+  final AssetPathEntity path;
+  final int start;
+  final int count;
 }
