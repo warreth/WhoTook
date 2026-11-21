@@ -719,6 +719,31 @@ class _LobbySetupSheet extends ConsumerWidget {
                 mode: config.mode,
                 onSelect: (mode) => unawaited(coordinator.setMode(mode)),
               ),
+              if (config.mode == GameMode.mixedParty) ...<Widget>[
+                const SizedBox(height: AppSpacing.s12),
+                Text(
+                  l10n.mixedModesLabel,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.s4),
+                Text(
+                  l10n.mixedModesHint,
+                  style: TextStyle(
+                    fontSize: 11,
+                    height: 1.3,
+                    color: colors.ink2,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.s8),
+                MixedModePicker(
+                  selected: config.activeMixedModes,
+                  onChanged: (modes) =>
+                      unawaited(coordinator.setMixedModes(modes)),
+                ),
+              ],
               const SizedBox(height: AppSpacing.s16),
               SectionLabel(l10n.roundsLabel),
               Wrap(
