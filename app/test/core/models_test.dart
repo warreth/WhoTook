@@ -9,9 +9,44 @@ void main() {
     expect(config.roundsK, 10);
     expect(config.roundSeconds, 8);
     expect(config.roundMs, 8000);
+    expect(config.activeMixedModes, MatchConfig.coreMixedModes);
     expect(config.copyWith(roundsK: 5).roundsK, 5);
     expect(config.copyWith(roundsK: 5).roundSeconds, 8);
     expect(MatchConfig.fromJson(config.toJson()).roundsK, 10);
+  });
+
+  test('Mixed Party config carries and normalizes its enabled modes', () {
+    const config = MatchConfig(
+      mode: GameMode.mixedParty,
+      enabledMixedModes: <GameMode>{GameMode.classic, GameMode.makeItMeme},
+    );
+    final restored = MatchConfig.fromJson(config.toJson());
+    expect(restored.mode, GameMode.mixedParty);
+    expect(restored.enabledMixedModes, <GameMode>{
+      GameMode.classic,
+      GameMode.makeItMeme,
+    });
+    expect(restored.needsPhotoDates, isFalse);
+    expect(
+      const MatchConfig(
+        mode: GameMode.mixedParty,
+        enabledMixedModes: <GameMode>{GameMode.classic, GameMode.timeTraveler},
+      ).needsPhotoDates,
+      isTrue,
+    );
+
+    const malformed = MatchConfig(
+      mode: GameMode.mixedParty,
+      enabledMixedModes: <GameMode>{GameMode.classic},
+    );
+    expect(malformed.activeMixedModes, MatchConfig.coreMixedModes);
+    expect(
+      MatchConfig.fromJson(<String, dynamic>{
+        'mode': 'mixedParty',
+        'enabledMixedModes': <String>['classic'],
+      }).activeMixedModes,
+      MatchConfig.coreMixedModes,
+    );
   });
 
   test('Player tracks averages and roundtrips through JSON', () {
@@ -189,7 +224,9 @@ void main() {
     expect(GameMode.values, <GameMode>[
       GameMode.classic,
       GameMode.captionThis,
+      GameMode.zoomOut,
       GameMode.makeItMeme,
+      GameMode.photoSabotage,
       GameMode.timeTraveler,
       GameMode.mixedParty,
     ]);

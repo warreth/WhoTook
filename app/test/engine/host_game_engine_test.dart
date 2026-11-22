@@ -35,12 +35,14 @@ HostGameEngine readyEngine({
   int? photosPerPlayer,
   GameMode mode = GameMode.classic,
   bool datedPhotos = false,
+  Set<GameMode> enabledMixedModes = MatchConfig.coreMixedModes,
 }) {
   final engine = HostGameEngine(
     config: MatchConfig(
       roundsK: roundsK,
       roundSeconds: roundSeconds,
       mode: mode,
+      enabledMixedModes: enabledMixedModes,
     ),
     random: Random(seed),
     planterOverride: 'p0',
@@ -84,6 +86,15 @@ void main() {
       expect(HostGameEngine.computePhotosNeeded(10, 0), 6);
       expect(
         HostGameEngine.computePhotosNeeded(10, 4, mode: GameMode.mixedParty),
+        12,
+      );
+      expect(
+        HostGameEngine.computePhotosNeeded(
+          10,
+          4,
+          mode: GameMode.mixedParty,
+          enabledMixedModes: <GameMode>{GameMode.classic, GameMode.makeItMeme},
+        ),
         12,
       );
       expect(
@@ -421,16 +432,22 @@ void main() {
       engine.startGame();
       final modes = engine.deck.map((entry) => entry.mode).toList();
       expect(modes, hasLength(6));
-      expect(modes.toSet(), hasLength(3));
+      expect(modes.toSet(), hasLength(5));
       expect(modes.where((m) => m == GameMode.classic), hasLength(2));
-      expect(modes.where((m) => m == GameMode.makeItMeme), hasLength(2));
-      expect(modes.where((m) => m == GameMode.timeTraveler), hasLength(2));
+      for (final mode in <GameMode>[
+        GameMode.zoomOut,
+        GameMode.makeItMeme,
+        GameMode.photoSabotage,
+        GameMode.timeTraveler,
+      ]) {
+        expect(modes.where((m) => m == mode), hasLength(1));
+      }
       for (var i = 1; i < modes.length; i++) {
         expect(modes[i], isNot(modes[i - 1]));
       }
     });
 
-    test('10 rounds give Classic the remainder', () {
+    test('10 rounds give every mode two turns', () {
       final engine = readyEngine(
         players: 4,
         roundsK: 10,
@@ -440,12 +457,71 @@ void main() {
       engine.startGame();
       final modes = engine.deck.map((entry) => entry.mode).toList();
       expect(modes, hasLength(10));
-      expect(modes.where((m) => m == GameMode.classic), hasLength(4));
-      expect(modes.where((m) => m == GameMode.makeItMeme), hasLength(3));
-      expect(modes.where((m) => m == GameMode.timeTraveler), hasLength(3));
+      for (final mode in <GameMode>[
+        GameMode.classic,
+        GameMode.zoomOut,
+        GameMode.makeItMeme,
+        GameMode.photoSabotage,
+        GameMode.timeTraveler,
+      ]) {
+        expect(modes.where((m) => m == mode), hasLength(2));
+      }
       for (var i = 1; i < modes.length; i++) {
         expect(modes[i], isNot(modes[i - 1]));
       }
+    });
+
+    test('only the enabled mixed modes are dealt', () {
+      final engine = readyEngine(
+        players: 4,
+        roundsK: 10,
+        mode: GameMode.mixedParty,
+        datedPhotos: false,
+        enabledMixedModes: <GameMode>{GameMode.classic, GameMode.makeItMeme},
+      );
+      engine.startGame();
+      final modes = engine.deck.map((entry) => entry.mode).toList();
+      expect(modes.toSet(), <GameMode>{GameMode.classic, GameMode.makeItMeme});
+      expect(modes.where((m) => m == GameMode.classic), hasLength(5));
+      expect(modes.where((m) => m == GameMode.makeItMeme), hasLength(5));
+      for (var i = 1; i < modes.length; i++) {
+        expect(modes[i], isNot(modes[i - 1]));
+      }
+    });
+
+    test('the host can change the enabled modes only in the lobby', () {
+      final engine = HostGameEngine(
+        config: const MatchConfig(roundsK: 6, mode: GameMode.mixedParty),
+        random: Random(3),
+      );
+      engine.addPlayer(id: 'p0', name: 'Player 0', isHost: true);
+      engine.addPlayer(id: 'p1', name: 'Player 1');
+      expect(
+        () => engine.setMixedModes(<GameMode>{GameMode.classic}),
+        throwsA(
+          isA<EngineException>().having(
+            (e) => e.code,
+            'code',
+            'invalid_mixed_modes',
+          ),
+        ),
+      );
+      engine.setMixedModes(<GameMode>{GameMode.classic, GameMode.timeTraveler});
+      expect(engine.config.enabledMixedModes, <GameMode>{
+        GameMode.classic,
+        GameMode.timeTraveler,
+      });
+
+      final prepared = readyEngine(
+        players: 3,
+        roundsK: 6,
+        mode: GameMode.mixedParty,
+        datedPhotos: true,
+        enabledMixedModes: <GameMode>{GameMode.classic, GameMode.timeTraveler},
+      );
+      prepared.startGame();
+      final modes = prepared.deck.map((entry) => entry.mode).toSet();
+      expect(modes, <GameMode>{GameMode.classic, GameMode.timeTraveler});
     });
 
     test('a match never draws the same photo twice', () {
@@ -462,12 +538,12 @@ void main() {
     });
   });
 
-  test('meme assignments and swaps never reuse a photo', () {
+  test('a meme deal is unique and only submitting marks a photo used', () {
     final engine = readyEngine(
-      players: 3,
+      players: 4,
       roundsK: 3,
       mode: GameMode.makeItMeme,
-      datedPhotos: true,
+      photosPerPlayer: 8,
     );
     engine.startGame();
     final deckIds = engine.deck.map((entry) => entry.photo.photoId).toSet();
@@ -477,17 +553,102 @@ void main() {
       for (final player in engine.players)
         engine.memeAssignmentFor(player.id)!.photoId,
     };
-    expect(assigned, hasLength(3));
+    expect(assigned, hasLength(4));
     expect(assigned.intersection(deckIds), isEmpty);
+    expect(engine.usedPhotoIds.intersection(assigned), isEmpty);
+
     final first = engine.players.first;
-    final swapped = <String>{};
-    for (var i = 0; i < 5; i++) {
-      final next = engine.swapMemePhoto(first.id);
-      expect(swapped.add(next.photoId), isTrue);
-      expect(assigned.add(next.photoId), isTrue);
+    final before = engine.memeAssignmentFor(first.id)!.photoId;
+    final swapped = engine.swapMemePhoto(first.id);
+    expect(swapped.photoId, isNot(before));
+    expect(engine.usedPhotoIds, isNot(contains(before)));
+    expect(engine.memeSwapsLeft(first.id), 4);
+  });
+
+  test('rapid swaps keep every held photo unique', () {
+    final engine = readyEngine(
+      players: 6,
+      roundsK: 2,
+      mode: GameMode.makeItMeme,
+      photosPerPlayer: 8,
+    );
+    engine.startGame();
+    engine.startRound();
+    for (var swap = 0; swap < 5; swap++) {
+      for (final player in engine.players) {
+        engine.swapMemePhoto(player.id);
+        final held = <String>{
+          for (final other in engine.players)
+            engine.memeAssignmentFor(other.id)!.photoId,
+        };
+        expect(held, hasLength(engine.players.length));
+      }
     }
-    expect(engine.usedPhotoIds, containsAll(swapped));
-    expect(engine.usedPhotoIds, containsAll(deckIds));
+    for (final player in engine.players) {
+      expect(engine.memeSwapsLeft(player.id), 0);
+    }
+  });
+
+  test('10+ heavy swap rounds never run out of photos', () {
+    final engine = readyEngine(
+      players: 4,
+      roundsK: 12,
+      mode: GameMode.makeItMeme,
+      photosPerPlayer: 8,
+    );
+    engine.startGame();
+    for (var round = 0; round < 12; round++) {
+      engine.startRound();
+      for (var swap = 0; swap < 5; swap++) {
+        for (final player in engine.players) {
+          engine.swapMemePhoto(player.id);
+        }
+      }
+      final held = <String>{
+        for (final player in engine.players)
+          engine.memeAssignmentFor(player.id)!.photoId,
+      };
+      expect(held, hasLength(4));
+      for (final player in engine.players) {
+        engine.submitMeme(
+          playerId: player.id,
+          template: MemeTemplate.classic,
+          topText: 'round $round ${player.id}',
+          bottomText: '',
+          snapY: 48,
+        );
+      }
+      engine.finishMemeRound();
+      engine.advanceAfterReveal();
+    }
+    expect(engine.phase, RoundPhase.podium);
+  });
+
+  test('swaps reset to five at the start of every meme round', () {
+    final engine = readyEngine(
+      players: 3,
+      roundsK: 2,
+      mode: GameMode.makeItMeme,
+      photosPerPlayer: 8,
+    );
+    engine.startGame();
+    engine.startRound();
+    for (final player in engine.players) {
+      engine.swapMemePhoto(player.id);
+      engine.submitMeme(
+        playerId: player.id,
+        template: MemeTemplate.classic,
+        topText: 'one',
+        bottomText: '',
+        snapY: 48,
+      );
+    }
+    engine.finishMemeRound();
+    engine.advanceAfterReveal();
+    engine.startRound();
+    for (final player in engine.players) {
+      expect(engine.memeSwapsLeft(player.id), 5);
+    }
   });
 
   group('scoring', () {
@@ -1151,6 +1312,151 @@ void main() {
       },
     );
   });
+  group('Zoom-Out', () {
+    test('anchors stay in the inner 60% and the deck is deterministic', () {
+      final engine = readyEngine(
+        players: 3,
+        roundsK: 4,
+        mode: GameMode.zoomOut,
+      );
+      engine.startGame();
+      for (final entry in engine.deck) {
+        expect(entry.zoomAnchorX, inInclusiveRange(0.25, 0.75));
+        expect(entry.zoomAnchorY, inInclusiveRange(0.25, 0.75));
+      }
+    });
+
+    test('early correct is 1000, late correct is 300', () {
+      final early = readyEngine(players: 3, roundsK: 2, mode: GameMode.zoomOut);
+      early.startGame();
+      final first = early.startRound();
+      final earlyGuesser = first.ownerId == 'p0' ? 'p1' : 'p0';
+      early.submitGuess(earlyGuesser, first.ownerId, 0);
+      expect(early.guessFor(earlyGuesser)!.pointsAwarded, 1000);
+
+      final late = readyEngine(players: 3, roundsK: 2, mode: GameMode.zoomOut);
+      late.startGame();
+      final second = late.startRound();
+      final lateGuesser = second.ownerId == 'p0' ? 'p1' : 'p0';
+      late.submitGuess(lateGuesser, second.ownerId, 15000);
+      expect(late.guessFor(lateGuesser)!.pointsAwarded, 300);
+    });
+
+    test('a wrong early guess locks the player out for the round', () {
+      final engine = readyEngine(
+        players: 3,
+        roundsK: 2,
+        mode: GameMode.zoomOut,
+      );
+      engine.startGame();
+      final entry = engine.startRound();
+      final guesser = entry.ownerId == 'p0' ? 'p1' : 'p0';
+      final wrong = entry.ownerId == 'p0' ? 'p2' : 'p0';
+      expect(wrong, isNot(entry.ownerId));
+      engine.submitGuess(guesser, wrong, 1000);
+      expect(engine.guessFor(guesser)!.isCorrect, isFalse);
+      expect(
+        () => engine.submitGuess(guesser, entry.ownerId, 1500),
+        throwsA(
+          isA<EngineException>().having((e) => e.code, 'code', 'locked_out'),
+        ),
+      );
+    });
+  });
+
+  group('Foto-Sabotage', () {
+    test('shares the unique photo lock and the five swaps', () {
+      final engine = readyEngine(
+        players: 6,
+        roundsK: 2,
+        mode: GameMode.photoSabotage,
+        photosPerPlayer: 8,
+      );
+      engine.startGame();
+      engine.startRound();
+      final held = <String>{
+        for (final player in engine.players)
+          engine.memeAssignmentFor(player.id)!.photoId,
+      };
+      expect(held, hasLength(6));
+      for (var i = 0; i < 5; i++) {
+        for (final player in engine.players) {
+          engine.swapMemePhoto(player.id);
+          final now = <String>{
+            for (final other in engine.players)
+              engine.memeAssignmentFor(other.id)!.photoId,
+          };
+          expect(now, hasLength(6));
+        }
+      }
+      for (final player in engine.players) {
+        expect(engine.memeSwapsLeft(player.id), 0);
+      }
+    });
+
+    test('stroke submissions vote and pay only the creator', () {
+      final engine = readyEngine(
+        players: 3,
+        roundsK: 2,
+        mode: GameMode.photoSabotage,
+        photosPerPlayer: 6,
+      );
+      engine.startGame();
+      engine.startRound();
+      for (final player in engine.players) {
+        engine.submitMeme(
+          playerId: player.id,
+          template: MemeTemplate.classic,
+          topText: '',
+          bottomText: '',
+          snapY: 50,
+          strokes: <SabotageStroke>[
+            SabotageStroke(
+              colorIndex: 2,
+              width: 0.01,
+              points: const <Offset>[Offset(0.2, 0.2), Offset(0.6, 0.6)],
+            ),
+          ],
+        );
+      }
+      final options = engine.memeOptions;
+      expect(options.every((option) => option.isSabotage), isTrue);
+      expect(options.every((option) => option.strokes.isNotEmpty), isTrue);
+      engine.beginMemeVoting();
+      for (final voter in engine.players) {
+        for (final option in options) {
+          if (option.id.isEmpty) continue;
+          if (engine.isOwnMeme(voter.id, option.id)) continue;
+          engine.submitMemeVote(
+            playerId: voter.id,
+            memeId: option.id,
+            vote: MemeVote.up,
+          );
+        }
+      }
+      final reveal = engine.finishMemeRound();
+      expect(reveal.entries.every((entry) => entry.isSabotage), isTrue);
+      for (final entry in reveal.entries) {
+        expect(entry.points, 200);
+        expect(reveal.scoreDeltas[entry.photoOwnerId], 200);
+      }
+    });
+
+    test('an empty sabotage round reveals without entries', () {
+      final engine = readyEngine(
+        players: 3,
+        roundsK: 2,
+        mode: GameMode.photoSabotage,
+        photosPerPlayer: 6,
+      );
+      engine.startGame();
+      engine.startRound();
+      final reveal = engine.finishMemeRound();
+      expect(reveal.entries, isEmpty);
+      expect(reveal.winnerIds, isEmpty);
+    });
+  });
+
   group('Make It Meme', () {
     test('builds a dynamic vault and assigns another player', () {
       final engine = readyEngine(
@@ -1193,7 +1499,7 @@ void main() {
       );
     });
 
-    test('votes anonymously, reveals authors and pays model royalties', () {
+    test('votes anonymously and reveals authors without a photo royalty', () {
       final engine = readyEngine(
         players: 3,
         roundsK: 2,
@@ -1236,8 +1542,9 @@ void main() {
       }
       final scoreDeltas = reveal.scoreDeltas;
       for (final entry in reveal.entries) {
-        expect(scoreDeltas[entry.authorId], greaterThanOrEqualTo(200));
-        expect(scoreDeltas[entry.photoOwnerId], greaterThanOrEqualTo(25));
+        expect(scoreDeltas[entry.authorId], 200);
+        // No +25: a photo owner scores only through their own meme.
+        expect(scoreDeltas[entry.photoOwnerId], 200);
       }
       expect(engine.phase, RoundPhase.captionReveal);
       expect(engine.topMemes, isNotEmpty);

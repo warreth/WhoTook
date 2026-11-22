@@ -27,7 +27,8 @@ It runs the Dart 4–6 peer simulation in
 `app/test/multiplayer_simulation_test.dart`, builds a throwaway
 `PLAYTEST_MODE=true` web bundle under `/tmp/opencode`, and drives four isolated
 Playwright browser contexts at `375x667`, `393x852`, `412x915` and `768x1024`
-through Classic, Make It Meme, Time Traveler and Mixed Party. Screenshots and a
+through Classic, Zoom-Out, Make It Meme, Foto-Sabotage, Time Traveler and Mixed
+Party. Screenshots and a
 structured report land in `.private_prototypes/auto_playtest/` (gitignored).
 
 Useful variants:

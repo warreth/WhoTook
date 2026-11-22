@@ -549,6 +549,59 @@ async function prepareMatch(host, bots, { capture = false } = {}) {
   );
 }
 
+async function playZoomRound(host, bots, round, capture) {
+  const start = await waitState(
+    host.page,
+    (state) => state.phase === 'guessing',
+    25000,
+    `zoom-out round ${round}`,
+  );
+  for (const bot of bots.slice(1)) {
+    await waitState(
+      bot.page,
+      (state) => state.phase === 'guessing',
+      20000,
+      `zoom-out round ${round} on ${bot.name}`,
+    );
+  }
+  await host.page.waitForTimeout(350);
+  if (capture.zoomRound) {
+    capture.zoomRound = false;
+    await shot(host.page, '03_zoom_out_round.png', { delay: 200 });
+    await assertPhotoVisible(host.page, '03_zoom_out_round');
+    await assertPhotoVisible(bots[1].page, '03_zoom_out_round tablet/phone');
+  }
+  const options = start.activeRoundOptions;
+  check(options.length >= 2, `zoom-out round ${round} exposes ${options.length} answer targets`);
+  for (let i = 0; i < bots.length; i++) {
+    const target = options[(i + round) % options.length].id;
+    await command(bots[i].page, 'classicGuess', target);
+  }
+  const reveal = await waitState(
+    host.page,
+    (state) => state.phase === 'reveal' || state.phase === 'podium',
+    25000,
+    `zoom-out round ${round} reveal`,
+  );
+  if (reveal.phase === 'podium') return;
+  await host.page.waitForTimeout(700);
+  if (capture.zoomReveal) {
+    capture.zoomReveal = false;
+    await shot(host.page, '04_zoom_out_reveal.png', { delay: 100 });
+    await assertPrimaryButton(host.page, 'Next Round');
+  }
+  await command(host.page, 'skipRound');
+  await waitState(
+    host.page,
+    (state) =>
+      state.phase !== 'reveal' && state.phase !== 'podium'
+        ? true
+        : state.phase === 'podium',
+    20000,
+    `zoom-out round ${round} advance`,
+  );
+}
+
 async function playClassicRound(host, bots, round, capture) {
   const start = await waitState(
     host.page,
@@ -556,6 +609,14 @@ async function playClassicRound(host, bots, round, capture) {
     25000,
     `classic round ${round}`,
   );
+  for (const bot of bots.slice(1)) {
+    await waitState(
+      bot.page,
+      (state) => state.phase === 'guessing',
+      20000,
+      `classic round ${round} on ${bot.name}`,
+    );
+  }
   await host.page.waitForTimeout(350);
   if (capture.classicRound) {
     capture.classicRound = false;
@@ -594,7 +655,8 @@ async function playClassicRound(host, bots, round, capture) {
   );
 }
 
-async function playMemeRound(host, bots, round, capture) {
+async function playMemeRound(host, bots, round, capture, options = {}) {
+  const sabotage = Boolean(options.sabotage);
   await waitState(
     host.page,
     (state) => state.phase === 'captionWriting',
@@ -602,21 +664,72 @@ async function playMemeRound(host, bots, round, capture) {
     `meme round ${round} writing`,
   );
   await host.page.waitForTimeout(400);
-  if (capture.memeCreate) {
-    capture.memeCreate = false;
-    await shot(host.page, '05_meme_create.png', { delay: 200 });
+  if (sabotage) {
     for (const bot of bots) {
-      await assertPrimaryButton(bot.page, 'Send meme');
+      await waitState(
+        bot.page,
+        (state) =>
+          state.phase === 'captionWriting' && Boolean(state.memeAssignment),
+        20000,
+        `sabotage assignment for ${bot.name}`,
+      );
+    }
+  }
+  const createKey = sabotage ? 'sabotageCreate' : 'memeCreate';
+  if (sabotage) {
+    const rect = await photoRect(host.page);
+    if (rect) {
+      // The accessibility overlay sits above the canvas. Turn its hit testing
+      // off for the drag so the marker actually reaches the drawing surface.
+      await host.page.evaluate(() => {
+        for (const el of document.querySelectorAll(
+          'flt-semantics, flt-semantics-host',
+        )) {
+          el.style.pointerEvents = 'none';
+        }
+      });
+      await host.page.mouse.move(
+        rect.x + rect.width * 0.28,
+        rect.y + rect.height * 0.32,
+      );
+      await host.page.mouse.down();
+      await host.page.mouse.move(
+        rect.x + rect.width * 0.62,
+        rect.y + rect.height * 0.58,
+        { steps: 10 },
+      );
+      await host.page.mouse.up();
+      await host.page.waitForTimeout(160);
+      await host.page.evaluate(() => {
+        for (const el of document.querySelectorAll(
+          'flt-semantics, flt-semantics-host',
+        )) {
+          el.style.pointerEvents = '';
+        }
+      });
+    }
+  }
+  if (capture[createKey]) {
+    capture[createKey] = false;
+    await shot(host.page, sabotage ? '05_sabotage_draw.png' : '05_meme_create.png', {
+      delay: 200,
+    });
+    for (const bot of bots) {
+      await assertPrimaryButton(bot.page, sabotage ? 'Send sabotage' : 'Send meme');
     }
     await assertPrimaryButton(host.page, 'Swap photo', 44);
   }
   for (let i = 0; i < bots.length; i++) {
-    await command(bots[i].page, 'memeSubmit', {
-      template: i % 2 === 0 ? 'classic' : 'pov',
-      topText: `${bots[i].name} roast ${round}`,
-      bottomText: 'bottom text',
-      snapY: 48,
-    });
+    if (sabotage) {
+      await command(bots[i].page, 'sabotageSubmit');
+    } else {
+      await command(bots[i].page, 'memeSubmit', {
+        template: i % 2 === 0 ? 'classic' : 'pov',
+        topText: `${bots[i].name} roast ${round}`,
+        bottomText: 'bottom text',
+        snapY: 48,
+      });
+    }
   }
   let voting = await waitState(
     host.page,
@@ -625,8 +738,9 @@ async function playMemeRound(host, bots, round, capture) {
     `meme round ${round} voting`,
   );
   await host.page.waitForTimeout(500);
-  if (capture.memeVote) {
-    capture.memeVote = false;
+  const voteKey = sabotage ? 'sabotageVote' : 'memeVote';
+  if (capture[voteKey]) {
+    capture[voteKey] = false;
     // If the focus happens to be the host's own meme, advance once so the
     // screenshot shows the normal (votable) state.
     if (voting.memeFocusId === voting.ownMemeId) {
@@ -641,7 +755,7 @@ async function playMemeRound(host, bots, round, capture) {
       );
     }
     await host.page.waitForTimeout(300);
-    await shot(host.page, '06_meme_vote.png', { delay: 100 });
+    await shot(host.page, sabotage ? '06_sabotage_vote.png' : '06_meme_vote.png', { delay: 100 });
     await assertPrimaryButton(host.page, 'End voting');
   }
 
@@ -665,9 +779,12 @@ async function playMemeRound(host, bots, round, capture) {
     `meme round ${round} reveal`,
   );
   await host.page.waitForTimeout(650);
-  if (capture.memeReveal) {
-    capture.memeReveal = false;
-    await shot(host.page, '10_meme_reveal.png', { delay: 100 });
+  const revealKey = sabotage ? 'sabotageReveal' : 'memeReveal';
+  if (capture[revealKey]) {
+    capture[revealKey] = false;
+    await shot(host.page, sabotage ? '10_sabotage_reveal.png' : '10_meme_reveal.png', {
+      delay: 100,
+    });
     await assertPrimaryButton(host.page, 'Next Round');
   }
   await command(host.page, 'advanceMemeReveal');
@@ -740,7 +857,11 @@ async function playRound(host, bots, round, capture) {
     `round ${round} start`,
   );
   if (current.phase === 'podium') return false;
-  if (current.activeMode === 'makeItMeme') {
+  if (current.activeMode === 'zoomOut') {
+    await playZoomRound(host, bots, round, capture);
+  } else if (current.activeMode === 'photoSabotage') {
+    await playMemeRound(host, bots, round, capture, { sabotage: true });
+  } else if (current.activeMode === 'makeItMeme') {
     await playMemeRound(host, bots, round, capture);
   } else if (current.activeMode === 'timeTraveler') {
     await playTimelineRound(host, bots, round, capture);
@@ -753,7 +874,7 @@ async function playRound(host, bots, round, capture) {
   return true;
 }
 
-async function podium(host, bots, captureTablet = true) {
+async function podium(host, bots, captureTablet = true, sabotage = false) {
   await waitState(host.page, (state) => state.phase === 'podium', 30000, 'podium');
   await host.page.waitForTimeout(1200);
   const state = await waitState(host.page, (s) => s.phase === 'podium');
@@ -764,17 +885,23 @@ async function podium(host, bots, captureTablet = true) {
       'top memes all have photo ids',
     );
     await host.page.mouse.move(host.viewport.width / 2, host.viewport.height / 2);
-    await host.page.mouse.wheel(0, 430);
+    await host.page.mouse.wheel(0, sabotage ? 620 : 430);
     await host.page.waitForTimeout(400);
-    await shot(host.page, '08_podium_top3_memes.png', { delay: 200 });
+    await shot(
+      host.page,
+      sabotage ? '08_podium_top3_creations.png' : '08_podium_top3_memes.png',
+      { delay: 200 },
+    );
     let save = await findButton(host.page, 'Save meme', { required: false });
+    save = save || (await findButton(host.page, 'Save sabotage', { required: false }));
     for (let rank = 2; rank <= state.topMemes.length; rank++) {
       await host.page.mouse.wheel(0, 520);
       await host.page.waitForTimeout(350);
       await shot(host.page, `08_top_meme_${rank}.png`, { delay: 150 });
       save = save || (await findButton(host.page, 'Save meme', { required: false }));
+      save = save || (await findButton(host.page, 'Save sabotage', { required: false }));
     }
-    check(Boolean(save), 'top meme Save meme button is not visible');
+    check(Boolean(save), 'top creation Save button is not visible');
     if (captureTablet) {
       const tablet = bots[bots.length - 1];
       await tablet.page.mouse.move(
@@ -869,7 +996,12 @@ async function playMatch(browser, baseUrl, mode, rounds, capture) {
       const played = await playRound(host, bots, round, capture);
       if (!played) break;
     }
-    await podium(host, bots, capture.tabletPodium);
+    await podium(
+      host,
+      bots,
+      capture.tabletPodium,
+      mode === 'sabotage',
+    );
     if (mode === 'classic' || mode === 'mixed') {
       const finalState = await readState(host.page);
       const mystery = finalState.awards.find(
@@ -1021,15 +1153,33 @@ async function main() {
         timelineZoom: true,
       });
     }
+    if (selected === 'all' || selected === 'zoom') {
+      await playMatch(browser, baseUrl, 'zoom', 3, {
+        zoomRound: true,
+        zoomReveal: true,
+      });
+    }
+    if (selected === 'all' || selected === 'sabotage') {
+      await playMatch(browser, baseUrl, 'sabotage', 3, {
+        sabotageCreate: true,
+        sabotageVote: true,
+        sabotageReveal: true,
+      });
+    }
     if (selected === 'all' || selected === 'mixed') {
       await playMatch(browser, baseUrl, 'mixed', 10, {
         lobby: true,
         vault: true,
         classicRound: true,
         classicReveal: true,
+        zoomRound: true,
+        zoomReveal: true,
         memeCreate: true,
         memeVote: true,
         memeReveal: true,
+        sabotageCreate: true,
+        sabotageVote: true,
+        sabotageReveal: true,
         timeline: true,
         timelineZoom: true,
         tabletPodium: true,
@@ -1046,8 +1196,12 @@ async function main() {
         '02_vault.png',
         '03_classic_round.png',
         '04_classic_reveal.png',
+        '03_zoom_out_round.png',
+        '04_zoom_out_reveal.png',
         '05_meme_create.png',
         '06_meme_vote.png',
+        '05_sabotage_draw.png',
+        '06_sabotage_vote.png',
         '07_time_traveler_zoom.png',
         '08_podium_top3_memes.png',
         '09_meme_empty_reveal.png',
@@ -1059,13 +1213,25 @@ async function main() {
         '11_time_traveler_round.png',
         '12_time_traveler_reveal.png',
       ],
+      zoom: ['03_zoom_out_round.png', '04_zoom_out_reveal.png'],
+      sabotage: [
+        '05_sabotage_draw.png',
+        '06_sabotage_vote.png',
+        '10_sabotage_reveal.png',
+        '08_podium_top3_creations.png',
+      ],
       mixed: [
         '01_lobby.png',
         '02_vault.png',
         '03_classic_round.png',
         '04_classic_reveal.png',
+        '03_zoom_out_round.png',
+        '04_zoom_out_reveal.png',
         '05_meme_create.png',
         '06_meme_vote.png',
+        '05_sabotage_draw.png',
+        '06_sabotage_vote.png',
+        '10_sabotage_reveal.png',
         '07_time_traveler_zoom.png',
         '08_podium_top3_memes.png',
       ],

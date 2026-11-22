@@ -63,6 +63,28 @@ class GameModeSkin {
     shapeB: Color(0xFFE7DEFF),
   );
 
+  static const GameModeSkin zoomOut = GameModeSkin(
+    id: 'zoom-out',
+    name: 'Zoom-Out',
+    base: Color(0xFF00B4D8),
+    deep: Color(0xFF0077A8),
+    accent: Color(0xFFFFE066),
+    onAccent: Color(0xFF052A33),
+    shapeA: Color(0xFF7BE0F0),
+    shapeB: Color(0xFFD6F8FF),
+  );
+
+  static const GameModeSkin sabotage = GameModeSkin(
+    id: 'photo-sabotage',
+    name: 'Foto-Sabotage',
+    base: Color(0xFFFF3E8A),
+    deep: Color(0xFFC2185B),
+    accent: Color(0xFFFFE66D),
+    onAccent: Color(0xFF3A0018),
+    shapeA: Color(0xFFFFA6C9),
+    shapeB: Color(0xFFFFE0EC),
+  );
+
   static const GameModeSkin time = GameModeSkin(
     id: 'time',
     name: 'Time Traveler',
@@ -77,7 +99,9 @@ class GameModeSkin {
   static GameModeSkin forMode(GameMode? mode, {bool lobby = false}) {
     if (lobby) return GameModeSkin.lobby;
     return switch (mode) {
+      GameMode.zoomOut => GameModeSkin.zoomOut,
       GameMode.makeItMeme || GameMode.captionThis => GameModeSkin.meme,
+      GameMode.photoSabotage => GameModeSkin.sabotage,
       GameMode.timeTraveler => GameModeSkin.time,
       GameMode.classic || GameMode.mixedParty || null => GameModeSkin.classic,
     };

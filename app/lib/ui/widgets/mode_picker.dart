@@ -16,7 +16,9 @@ class ModeInfo {
 
 const List<GameMode> playableGameModes = <GameMode>[
   GameMode.classic,
+  GameMode.zoomOut,
   GameMode.makeItMeme,
+  GameMode.photoSabotage,
   GameMode.timeTraveler,
   GameMode.mixedParty,
 ];
@@ -25,7 +27,9 @@ ModeInfo modeInfo(GameMode mode) => ModeInfo(
   icon: switch (mode) {
     GameMode.classic => Icons.photo_camera_outlined,
     GameMode.captionThis => Icons.chat_bubble_outline,
+    GameMode.zoomOut => Icons.zoom_in,
     GameMode.makeItMeme => Icons.emoji_emotions_outlined,
+    GameMode.photoSabotage => Icons.brush_outlined,
     GameMode.timeTraveler => Icons.history,
     GameMode.mixedParty => Icons.shuffle,
   },
@@ -34,7 +38,9 @@ ModeInfo modeInfo(GameMode mode) => ModeInfo(
 String modeLabel(AppLocalizations l10n, GameMode mode) => switch (mode) {
   GameMode.classic => l10n.modeClassic,
   GameMode.captionThis => l10n.modeCaptionThis,
+  GameMode.zoomOut => l10n.modeZoomOut,
   GameMode.makeItMeme => l10n.modeMakeItMeme,
+  GameMode.photoSabotage => l10n.modePhotoSabotage,
   GameMode.timeTraveler => l10n.modeTimeTraveler,
   GameMode.mixedParty => l10n.modeMixedParty,
 };
@@ -42,12 +48,14 @@ String modeLabel(AppLocalizations l10n, GameMode mode) => switch (mode) {
 String modeBlurb(AppLocalizations l10n, GameMode mode) => switch (mode) {
   GameMode.classic => l10n.modeClassicBlurb,
   GameMode.captionThis => l10n.modeCaptionThisBlurb,
+  GameMode.zoomOut => l10n.modeZoomOutBlurb,
   GameMode.makeItMeme => l10n.modeMakeItMemeBlurb,
+  GameMode.photoSabotage => l10n.modePhotoSabotageBlurb,
   GameMode.timeTraveler => l10n.modeTimeTravelerBlurb,
   GameMode.mixedParty => l10n.modeMixedPartyBlurb,
 };
 
-/// The host's 2x2 mode picker. The selected card carries the accent border.
+/// The host's six-mode picker. The selected card carries the accent border.
 class ModePicker extends StatelessWidget {
   const ModePicker({super.key, required this.mode, required this.onSelect});
 
@@ -62,7 +70,7 @@ class ModePicker extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       mainAxisSpacing: AppSpacing.s12,
       crossAxisSpacing: AppSpacing.s12,
-      childAspectRatio: 1.14,
+      childAspectRatio: 1.32,
       children: <Widget>[
         for (final value in playableGameModes)
           _ModeTile(
@@ -74,6 +82,164 @@ class ModePicker extends StatelessWidget {
             },
           ),
       ],
+    );
+  }
+}
+
+/// The three core modes a Mixed Party may include. Two must stay selected so
+/// every round has a real alternative and the schedule never degrades to one
+/// repeating mode.
+class MixedModePicker extends StatelessWidget {
+  const MixedModePicker({
+    super.key,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  static const List<GameMode> modes = <GameMode>[
+    GameMode.classic,
+    GameMode.zoomOut,
+    GameMode.makeItMeme,
+    GameMode.photoSabotage,
+    GameMode.timeTraveler,
+  ];
+
+  final Set<GameMode> selected;
+  final ValueChanged<Set<GameMode>> onChanged;
+
+  void _toggle(BuildContext context, GameMode mode) {
+    final next = Set<GameMode>.of(selected);
+    if (next.contains(mode)) {
+      if (next.length <= 2) {
+        unawaited(HapticFeedback.mediumImpact());
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(content: Text(context.l10n.mixedModesMinimum)),
+          );
+        return;
+      }
+      next.remove(mode);
+    } else {
+      unawaited(HapticFeedback.selectionClick());
+      next.add(mode);
+    }
+    onChanged(next);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = (constraints.maxWidth - AppSpacing.s8 * 2) / 3;
+        return Wrap(
+          spacing: AppSpacing.s8,
+          runSpacing: AppSpacing.s8,
+          children: <Widget>[
+            for (final mode in modes)
+              SizedBox(
+                width: width,
+                child: _MixedModeChip(
+                  mode: mode,
+                  selected: selected.contains(mode),
+                  onTap: () => _toggle(context, mode),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _MixedModeChip extends StatelessWidget {
+  const _MixedModeChip({
+    required this.mode,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final GameMode mode;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
+    final label = modeLabel(l10n, mode);
+    final ink = selected ? GamePalette.onGold : colors.ink;
+    return Semantics(
+      selected: selected,
+      button: true,
+      label: label,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadii.rControl),
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: selected ? GamePalette.onGold : colors.ink,
+              offset: const Offset(0, 3),
+              blurRadius: 0,
+            ),
+          ],
+        ),
+        child: Material(
+          color: selected ? GamePalette.gold : colors.card,
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadii.rControl),
+            side: BorderSide(color: ink, width: 2),
+          ),
+          child: InkWell(
+            onTap: onTap,
+            child: SizedBox(
+              height: 76,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: AppSpacing.s8,
+                ),
+                child: Stack(
+                  children: <Widget>[
+                    Align(
+                      alignment: Alignment.topLeft,
+                      child: Icon(
+                        modeInfo(mode).icon,
+                        size: 17,
+                        color: selected ? GamePalette.onGold : colors.ink2,
+                      ),
+                    ),
+                    if (selected)
+                      const Align(
+                        alignment: Alignment.topRight,
+                        child: Icon(
+                          Icons.check_circle,
+                          size: 14,
+                          color: GamePalette.onGold,
+                        ),
+                      ),
+                    Align(
+                      alignment: Alignment.bottomLeft,
+                      child: Text(
+                        label,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          height: 1.15,
+                          fontWeight: FontWeight.w700,
+                          color: ink,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -98,6 +264,8 @@ class _ModeTile extends StatelessWidget {
     final blurb = modeBlurb(l10n, mode);
     final ink = selected ? GamePalette.onGold : colors.ink;
     final ink2 = selected ? GamePalette.onGoldMuted : colors.ink2;
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final blurbLines = textScale > 1.3 ? 1 : 2;
     return Semantics(
       selected: selected,
       button: true,
@@ -173,7 +341,7 @@ class _ModeTile extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     blurb,
-                    maxLines: 2,
+                    maxLines: blurbLines,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 11, height: 1.25, color: ink2),
                   ),

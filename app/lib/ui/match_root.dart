@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/audio/game_audio_service.dart';
+import '../features/photo_sabotage/sabotage_screen.dart';
+import '../features/zoom_out/zoom_out_screen.dart';
 import '../core/diagnostics/bug_report_service.dart';
 import '../core/audio/soundboard_service.dart';
 import '../core/models/models.dart';
@@ -21,6 +23,7 @@ import 'screens/meme_screen.dart';
 import 'screens/podium_screen.dart';
 import 'screens/prepare_screen.dart';
 import 'screens/round_screen.dart';
+import 'screens/waiting_room_screen.dart';
 import 'screens/timeline_screen.dart';
 import 'widgets/firewall_prompt.dart';
 import 'widgets/idle_report_overlay.dart';
@@ -95,6 +98,9 @@ class _MatchRootState extends ConsumerState<MatchRoot> {
         demo: widget.demo,
       )
       ..updateScreen(MediaQuery.sizeOf(context));
+    if (state.waitingForMatch) {
+      return const WaitingRoomScreen();
+    }
     final settings = ref.watch(appSettingsProvider).value;
     if (settings != null) {
       coordinator.updateSettings(settings);
@@ -142,13 +148,16 @@ class _MatchRootState extends ConsumerState<MatchRoot> {
       RoundPhase.preparing => const PrepareScreen(
         key: ValueKey<String>('prepare'),
       ),
-      RoundPhase.countdown ||
-      RoundPhase.guessing ||
-      RoundPhase.reveal => const RoundScreen(key: ValueKey<String>('round')),
+      RoundPhase.countdown || RoundPhase.guessing || RoundPhase.reveal =>
+        state.activeMode == GameMode.zoomOut
+            ? const ZoomOutScreen(key: ValueKey<String>('zoom-out'))
+            : const RoundScreen(key: ValueKey<String>('round')),
       RoundPhase.captionWriting ||
       RoundPhase.captionVoting ||
       RoundPhase.captionReveal =>
-        state.activeMode == GameMode.makeItMeme
+        state.activeMode == GameMode.photoSabotage
+            ? const SabotageScreen(key: ValueKey<String>('sabotage'))
+            : state.activeMode == GameMode.makeItMeme
             ? const MemeScreen(key: ValueKey<String>('meme'))
             : const CaptionScreen(key: ValueKey<String>('caption')),
       RoundPhase.timelineGuessing || RoundPhase.timelineReveal =>
@@ -266,7 +275,9 @@ class _MatchRootState extends ConsumerState<MatchRoot> {
 String _diagnosticMode(GameMode mode) => switch (mode) {
   GameMode.classic => 'Classic',
   GameMode.captionThis => 'Caption This',
+  GameMode.zoomOut => 'Zoom-Out',
   GameMode.makeItMeme => 'Make It Meme',
+  GameMode.photoSabotage => 'Foto-Sabotage',
   GameMode.timeTraveler => 'Time Traveler',
   GameMode.mixedParty => 'Mixed Party',
 };
@@ -367,7 +378,9 @@ class _ArcadeSplash extends StatelessWidget {
     final modeName = switch (mode) {
       GameMode.classic => l10n.modeClassic,
       GameMode.captionThis => l10n.modeCaptionThis,
+      GameMode.zoomOut => l10n.modeZoomOut,
       GameMode.makeItMeme => l10n.modeMakeItMeme,
+      GameMode.photoSabotage => l10n.modePhotoSabotage,
       GameMode.timeTraveler => l10n.modeTimeTraveler,
       GameMode.mixedParty => l10n.modeMixedParty,
     };
@@ -375,11 +388,23 @@ class _ArcadeSplash extends StatelessWidget {
     final title = mixed
         ? l10n.roundSplash(round, modeName)
         : switch (mode) {
+            GameMode.zoomOut => <String>[
+              l10n.zoomSplashFocus,
+              l10n.zoomSplashWho,
+              l10n.zoomSplashEarly,
+              l10n.zoomSplashClose,
+            ][promptIndex],
             GameMode.makeItMeme => <String>[
               l10n.memeSplashRoast,
               l10n.memeSplashFunniest,
               l10n.memeSplashRidicule,
               l10n.memeSplashLaugh,
+            ][promptIndex],
+            GameMode.photoSabotage => <String>[
+              l10n.sabotageSplashMarker,
+              l10n.sabotageSplashRuin,
+              l10n.sabotageSplashRidiculous,
+              l10n.sabotageSplashDraw,
             ][promptIndex],
             GameMode.timeTraveler => <String>[
               l10n.timeSplashMachine,

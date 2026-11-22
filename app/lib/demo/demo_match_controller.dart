@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:math';
-import 'dart:ui' show Locale;
+import 'dart:ui' show Locale, Offset;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -76,7 +76,8 @@ class DemoMatchController {
         photos: hostPhotos,
         settings: SettingsRepository(),
         lastRooms: _roomsFor('host'),
-        hostTransportFactory: (room, secret, lan) => LoopbackHostTransport(_hub),
+        hostTransportFactory: (room, secret, lan) =>
+            LoopbackHostTransport(_hub),
         includeOnlineTransport: false,
         platformServices: false,
         random: Random(7),
@@ -111,7 +112,10 @@ class DemoMatchController {
         _bots.add(bot);
         await _guard('STEP_2 bot ${i + 1} start', bot.start);
         if (_disposed) return;
-        await _guard('STEP_3 bot ${i + 1} join', () => bot.join(host.state.inviteUrl!));
+        await _guard(
+          'STEP_3 bot ${i + 1} join',
+          () => bot.join(host.state.inviteUrl!),
+        );
         if (_disposed) return;
       }
       await _guard(
@@ -229,6 +233,27 @@ class DemoMatchController {
                 bottomText: meme.$3,
                 snapY: 48,
               ),
+            );
+          }
+        } else if (hostState.activeMode == GameMode.photoSabotage) {
+          if (state.memeAssignment == null || state.memeSubmitted) return;
+          if (DateTime.now().difference(_phaseStarted) <
+              const Duration(seconds: 3)) {
+            return;
+          }
+          if (_once('sabotage:${bot.index}:${hostState.currentRound}')) {
+            unawaited(
+              client.clientSubmitSabotage(<SabotageStroke>[
+                SabotageStroke(
+                  colorIndex: bot.index % 5,
+                  width: 0.01,
+                  points: <Offset>[
+                    const Offset(0.3, 0.35),
+                    const Offset(0.6, 0.45),
+                    const Offset(0.55, 0.7),
+                  ],
+                ),
+              ]),
             );
           }
         } else if (hostState.activeMode == GameMode.captionThis) {

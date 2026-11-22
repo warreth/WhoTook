@@ -79,6 +79,8 @@ class MemeCard {
     this.downVotes = 0,
     this.points = 0,
     this.isWinner = false,
+    this.isSabotage = false,
+    this.strokes = const <SabotageStroke>[],
   });
 
   final String id;
@@ -98,6 +100,8 @@ class MemeCard {
   final int downVotes;
   final int points;
   final bool isWinner;
+  final bool isSabotage;
+  final List<SabotageStroke> strokes;
 
   MemeCard copyWith({bool? isOwn, bool? isWinner, String? photoBase64}) =>
       MemeCard(
@@ -118,6 +122,8 @@ class MemeCard {
         downVotes: downVotes,
         points: points,
         isWinner: isWinner ?? this.isWinner,
+        isSabotage: isSabotage,
+        strokes: strokes,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -138,6 +144,8 @@ class MemeCard {
     'downVotes': downVotes,
     'points': points,
     'isWinner': isWinner,
+    'isSabotage': isSabotage,
+    'strokes': strokes.map((stroke) => stroke.toJson()).toList(),
   };
 
   factory MemeCard.fromJson(Map<String, dynamic> json) => MemeCard(
@@ -161,6 +169,11 @@ class MemeCard {
     downVotes: json['downVotes'] as int? ?? 0,
     points: json['points'] as int? ?? 0,
     isWinner: json['isWinner'] as bool? ?? false,
+    isSabotage: json['isSabotage'] as bool? ?? false,
+    strokes: (json['strokes'] as List<dynamic>? ?? const <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .map(SabotageStroke.fromJson)
+        .toList(growable: false),
   );
 }
 
@@ -193,6 +206,10 @@ class MatchUiState {
     this.avatarPhotos = const <String, String>{},
     this.activeRoundOptions = const <Player>[],
     this.lockedGuessOwnerId,
+    this.lastGuessCorrect,
+    this.lockedGuessScale,
+    this.zoomAnchorX = 0.5,
+    this.zoomAnchorY = 0.5,
     this.lastReveal,
     this.awards = const <MatchAward>[],
     this.screenshotAlerts = const <ScreenshotBanner>[],
@@ -242,6 +259,7 @@ class MatchUiState {
     this.versionWarning,
     this.versionWarningDismissed = false,
     this.reconnecting = false,
+    this.waitingForMatch = false,
     this.reconnectSecondsLeft = 0,
     this.roomThemeId = kDefaultRoomThemeId,
     this.lastSoundEffect,
@@ -278,6 +296,15 @@ class MatchUiState {
   final Map<String, String> avatarPhotos;
   final List<Player> activeRoundOptions;
   final String? lockedGuessOwnerId;
+
+  /// True when the local Zoom-Out guess was right, false when the player is
+  /// locked out for the rest of the round. Null before a guess.
+  final bool? lastGuessCorrect;
+
+  /// The zoom level frozen when this phone locked its guess.
+  final double? lockedGuessScale;
+  final double zoomAnchorX;
+  final double zoomAnchorY;
   final RoundReveal? lastReveal;
   final List<MatchAward> awards;
   final List<ScreenshotBanner> screenshotAlerts;
@@ -334,6 +361,11 @@ class MatchUiState {
   final bool reconnecting;
   final int reconnectSecondsLeft;
 
+  /// A player who scanned the QR while a match was running. They are held in
+  /// the room, see a clean waiting screen, and join the next match with a
+  /// normal photo check instead of desynchronising the active round.
+  final bool waitingForMatch;
+
   /// Shared premium theme selected by a Party Pass holder. Applies to every
   /// phone for the duration of the match.
   final String roomThemeId;
@@ -380,6 +412,10 @@ class MatchUiState {
     Map<String, String>? avatarPhotos,
     List<Player>? activeRoundOptions,
     String? lockedGuessOwnerId,
+    bool? lastGuessCorrect,
+    double? lockedGuessScale,
+    double? zoomAnchorX,
+    double? zoomAnchorY,
     RoundReveal? lastReveal,
     List<MatchAward>? awards,
     List<ScreenshotBanner>? screenshotAlerts,
@@ -430,6 +466,7 @@ class MatchUiState {
     bool? versionWarningDismissed,
     bool? reconnecting,
     int? reconnectSecondsLeft,
+    bool? waitingForMatch,
     String? roomThemeId,
     SoundEffectEvent? lastSoundEffect,
     bool? firewallPrompt,
@@ -470,6 +507,14 @@ class MatchUiState {
     lockedGuessOwnerId: clearGuess
         ? null
         : (lockedGuessOwnerId ?? this.lockedGuessOwnerId),
+    lastGuessCorrect: clearGuess
+        ? null
+        : (lastGuessCorrect ?? this.lastGuessCorrect),
+    lockedGuessScale: clearGuess
+        ? null
+        : (lockedGuessScale ?? this.lockedGuessScale),
+    zoomAnchorX: zoomAnchorX ?? this.zoomAnchorX,
+    zoomAnchorY: zoomAnchorY ?? this.zoomAnchorY,
     lastReveal: lastReveal ?? this.lastReveal,
     awards: awards ?? this.awards,
     screenshotAlerts: screenshotAlerts ?? this.screenshotAlerts,
@@ -588,6 +633,7 @@ class MatchUiState {
     versionWarningDismissed:
         versionWarningDismissed ?? this.versionWarningDismissed,
     reconnecting: reconnecting ?? this.reconnecting,
+    waitingForMatch: waitingForMatch ?? this.waitingForMatch,
     reconnectSecondsLeft: reconnectSecondsLeft ?? this.reconnectSecondsLeft,
     roomThemeId: roomThemeId ?? this.roomThemeId,
     lastSoundEffect: lastSoundEffect ?? this.lastSoundEffect,
@@ -629,6 +675,7 @@ class MatchCoordinator {
     this.revealDuration = const Duration(seconds: 6),
     this.captionRevealDuration = const Duration(seconds: 10),
     this.memeTallyDuration = const Duration(milliseconds: 2500),
+    this.sabotageDuration = const Duration(seconds: 35),
     this.emptyMemeAdvanceDuration = const Duration(milliseconds: 2500),
     this.timelineRevealDuration = const Duration(seconds: 10),
     this.extendWindow = const Duration(seconds: 10),
@@ -684,6 +731,10 @@ class MatchCoordinator {
   final Duration revealDuration;
   final Duration captionRevealDuration;
   final Duration memeTallyDuration;
+
+  /// Drawing window for Foto-Sabotage. Production is 35 s; the simulation
+  /// shortens it so a zero-submission round does not spend half a minute.
+  final Duration sabotageDuration;
   final Duration emptyMemeAdvanceDuration;
   final Duration timelineRevealDuration;
   final Duration extendWindow;
@@ -766,6 +817,8 @@ class MatchCoordinator {
   final Map<String, String> _clientPlayerIds = <String, String>{};
   final Map<String, String> _playerClientIds = <String, String>{};
   final Map<String, String> _playerTokens = <String, String>{};
+  final Map<String, Player> _waitingPlayers = <String, Player>{};
+  final Map<String, String> _waitingClientIds = <String, String>{};
   final Set<String> _blockedPlayers = <String>{};
   final Map<String, String> _avatarPhotos = <String, String>{};
   final Map<String, int> _clientBuilds = <String, int>{};
@@ -948,6 +1001,8 @@ class MatchCoordinator {
     _clientPlayerIds.clear();
     _playerClientIds.clear();
     _playerTokens.clear();
+    _waitingPlayers.clear();
+    _waitingClientIds.clear();
     _blockedPlayers.clear();
     _avatarPhotos.clear();
     final ownAvatarPhoto = _settingsValue.avatarPhoto;
@@ -1166,6 +1221,49 @@ class MatchCoordinator {
 
   /// Restores a player who dropped or restarted mid-match. The photo bytes go
   /// first, then one snapshot the client can apply atomically.
+  /// Gives a waiting client the current round immediately, so a mid-game QR
+  /// scan can spectate instead of staring at an empty card until the next
+  /// round. Later rounds arrive through the normal roundShow broadcast.
+  Future<void> _sendSpectatorSnapshot(String clientId) async {
+    final state = _state;
+    if (state.currentRound <= 0 || state.activePhotoId == null) return;
+    final photoId = state.activePhotoId!;
+    final bytes = state.activePhotoBytes;
+    if (bytes != null && bytes.isNotEmpty) {
+      for (final chunk in PhotoChunker.split(photoId, bytes)) {
+        await _hostTransport?.sendToClient(
+          clientId,
+          WireMessage(
+            type: WireType.photoChunk,
+            seq: _nextSeq(),
+            payload: chunk.toJson(),
+          ),
+        );
+      }
+    }
+    await _hostTransport?.sendToClient(
+      clientId,
+      WireMessage(
+        type: WireType.roundShow,
+        seq: _nextSeq(),
+        payload: <String, dynamic>{
+          'mode': state.activeMode.name,
+          'roundNumber': state.currentRound,
+          'totalRounds': state.totalRounds,
+          'photoId': photoId,
+          'isPanorama': state.activePhotoIsPanorama,
+          // Count down from what is left, not from the full round.
+          'durationMs': state.remainingMs > 0
+              ? state.remainingMs
+              : state.phaseDurationMs,
+          'options': state.activeRoundOptions
+              .map((player) => player.toJson())
+              .toList(),
+        },
+      ),
+    );
+  }
+
   Future<void> _sendRejoinState(String clientId, String playerId) async {
     final engine = _engine;
     if (engine == null) return;
@@ -1202,6 +1300,8 @@ class MatchCoordinator {
       'activeMode': _state.activeMode.name,
       'activePhotoId': activeId,
       'activePhotoIsPanorama': entry?.photo.isPanorama ?? false,
+      'zoomAnchorX': _state.zoomAnchorX,
+      'zoomAnchorY': _state.zoomAnchorY,
       'activeRoundOptions': engine.players.map((p) => p.toJson()).toList(),
       'localReady': player.ready,
       'photosNeeded': engine.photosNeeded,
@@ -1337,6 +1437,9 @@ class MatchCoordinator {
         _clientBuilds.remove(playerId);
         _clientVersions.remove(playerId);
         _partyPassPlayers.remove(playerId);
+        if (_waitingPlayers.remove(playerId) != null) {
+          _waitingClientIds.remove(clientId);
+        }
         _engine?.removePlayer(playerId);
         var newestVersion = appVersion;
         for (final version in _clientVersions.values) {
@@ -1397,6 +1500,50 @@ class MatchCoordinator {
           );
           return;
         }
+        final waiting = _waitingPlayers[playerId];
+        if (waiting != null) {
+          final expectedToken = _playerTokens[playerId];
+          if (expectedToken != null && token != expectedToken) {
+            await _hostTransport?.sendToClient(
+              clientId,
+              WireMessage(
+                type: WireType.kick,
+                seq: _nextSeq(),
+                payload: <String, dynamic>{'reason': 'identity'},
+              ),
+            );
+            return;
+          }
+          _waitingClientIds[clientId] = playerId;
+          _clientPlayerIds[clientId] = playerId;
+          _playerClientIds[playerId] = clientId;
+          waiting
+            ..connected = true
+            ..name = name
+            ..avatar = normalizeAvatar(payload['avatar'] as String?);
+          if (avatarPhoto != null && avatarPhoto.isNotEmpty) {
+            _avatarPhotos[playerId] = avatarPhoto;
+          }
+          if (build is int) {
+            _clientBuilds[playerId] = build;
+            _clientVersions[playerId] = version;
+          }
+          await _hostTransport?.sendToClient(
+            clientId,
+            WireMessage(
+              type: WireType.joinAck,
+              seq: _nextSeq(),
+              payload: <String, dynamic>{
+                'playerId': playerId,
+                'resumed': true,
+                'waiting': true,
+              },
+            ),
+          );
+          await _sendSpectatorSnapshot(clientId);
+          return;
+        }
+
         final existing = engine.player(playerId);
 
         if (existing != null) {
@@ -1460,14 +1607,44 @@ class MatchCoordinator {
         }
 
         if (engine.phase != RoundPhase.lobby) {
+          // A QR scan during a match joins the room's waiting area. The host
+          // adds these players to the fresh engine on the next rematch, so the
+          // active round and its scores are never disturbed.
+          final waitingPlayer = Player(
+            id: playerId,
+            name: name,
+            avatar: normalizeAvatar(payload['avatar'] as String?),
+            avatarColorIndex: payload['avatarColorIndex'] as int? ?? 0,
+          );
+          _waitingPlayers[playerId] = waitingPlayer;
+          _waitingClientIds[clientId] = playerId;
+          _clientPlayerIds[clientId] = playerId;
+          _playerClientIds[playerId] = clientId;
+          if (token.isNotEmpty) _playerTokens[playerId] = token;
+          if (avatarPhoto != null && avatarPhoto.isNotEmpty) {
+            _avatarPhotos[playerId] = avatarPhoto;
+          }
+          if (claimsPartyPass) {
+            _partyPassPlayers.add(playerId);
+          }
+          if (build is int) {
+            _clientBuilds[playerId] = build;
+            _clientVersions[playerId] = version;
+          }
           await _hostTransport?.sendToClient(
             clientId,
             WireMessage(
-              type: WireType.kick,
+              type: WireType.joinAck,
               seq: _nextSeq(),
-              payload: <String, dynamic>{'reason': 'started'},
+              payload: <String, dynamic>{
+                'playerId': playerId,
+                'resumed': false,
+                'waiting': true,
+                'phase': engine.phase.name,
+              },
             ),
           );
+          await _sendSpectatorSnapshot(clientId);
           return;
         }
         try {
@@ -1648,6 +1825,20 @@ class MatchCoordinator {
         } on EngineException {
           return;
         }
+        final record = engine.guessFor(playerId);
+        if (record != null) {
+          await _hostTransport?.sendToClient(
+            clientId,
+            WireMessage(
+              type: WireType.guessResult,
+              seq: _nextSeq(),
+              payload: <String, dynamic>{
+                'correct': record.isCorrect,
+                'points': record.pointsAwarded,
+              },
+            ),
+          );
+        }
         await _syncGuesses();
       case WireType.avatarUpdate:
         final playerId = _playerIdFor(clientId);
@@ -1776,6 +1967,11 @@ class MatchCoordinator {
           (value) => value.name == templateName,
           orElse: () => MemeTemplate.classic,
         );
+        final strokes = <SabotageStroke>[
+          for (final entry
+              in (payload['strokes'] as List<dynamic>? ?? const []))
+            if (entry is Map<String, dynamic>) SabotageStroke.fromJson(entry),
+        ];
         try {
           engine.submitMeme(
             playerId: playerId,
@@ -1783,6 +1979,7 @@ class MatchCoordinator {
             topText: payload['topText'] as String? ?? '',
             bottomText: payload['bottomText'] as String? ?? '',
             snapY: (payload['snapY'] as num?)?.toDouble() ?? 48,
+            strokes: strokes,
           );
         } on EngineException catch (error) {
           await _hostTransport?.sendToClient(
@@ -2157,7 +2354,9 @@ class MatchCoordinator {
     _memeTallying = false;
 
     final bytes = entry.photo.bytes;
-    final isMemeRound = entry.mode == GameMode.makeItMeme;
+    final isMemeRound =
+        entry.mode == GameMode.makeItMeme ||
+        entry.mode == GameMode.photoSabotage;
     if (isMemeRound) {
       await _ensureMemePhotoBytes(engine, entry.roundNumber);
     }
@@ -2170,7 +2369,9 @@ class MatchCoordinator {
     final duration = switch (mode) {
       GameMode.classic || GameMode.mixedParty => effectiveRoundDuration,
       GameMode.captionThis => Duration(seconds: pace.captionSeconds),
+      GameMode.zoomOut => const Duration(seconds: 15),
       GameMode.makeItMeme => Duration(seconds: pace.memeSeconds),
+      GameMode.photoSabotage => sabotageDuration,
       GameMode.timeTraveler => Duration(seconds: pace.timelineSeconds),
     };
     if (isMemeRound) {
@@ -2192,6 +2393,8 @@ class MatchCoordinator {
           'totalRounds': engine.totalRounds,
           'photoId': entry.photo.photoId,
           'isPanorama': entry.photo.isPanorama,
+          'zoomAnchorX': entry.zoomAnchorX,
+          'zoomAnchorY': entry.zoomAnchorY,
           'durationMs': duration.inMilliseconds,
           'options': engine.players.map((p) => p.toJson()).toList(),
         },
@@ -2207,6 +2410,8 @@ class MatchCoordinator {
         activePhotoBytes: bytes,
         activePhotoId: entry.photo.photoId,
         activePhotoIsPanorama: entry.photo.isPanorama,
+        zoomAnchorX: entry.zoomAnchorX,
+        zoomAnchorY: entry.zoomAnchorY,
         activeRoundOptions: engine.players,
         remainingMs: duration.inMilliseconds,
         phaseDurationMs: duration.inMilliseconds,
@@ -2228,7 +2433,10 @@ class MatchCoordinator {
         case GameMode.captionThis:
           unawaited(_startCaptionVoting());
         case GameMode.makeItMeme:
+        case GameMode.photoSabotage:
           unawaited(_startMemeVoting());
+        case GameMode.zoomOut:
+          unawaited(_finishRound());
         case GameMode.timeTraveler:
           unawaited(_finishTimelineRound());
       }
@@ -2416,6 +2624,8 @@ class MatchCoordinator {
           bottomText: option.bottomText,
           snapY: option.snapY,
           isOwn: engine.isOwnMeme(playerId, option.id),
+          isSabotage: option.isSabotage,
+          strokes: option.strokes,
         );
       }),
     );
@@ -2449,6 +2659,8 @@ class MatchCoordinator {
           downVotes: entry.downVotes,
           points: entry.points,
           isWinner: reveal.winnerIds.contains(entry.id),
+          isSabotage: entry.isSabotage,
+          strokes: entry.strokes,
         );
       }),
     );
@@ -2481,6 +2693,8 @@ class MatchCoordinator {
           downVotes: entry.downVotes,
           points: entry.points,
           isWinner: true,
+          isSabotage: entry.isSabotage,
+          strokes: entry.strokes,
         );
       }),
     );
@@ -2679,7 +2893,7 @@ class MatchCoordinator {
     };
     return state.copyWith(
       phase: RoundPhase.captionVoting,
-      activeMode: GameMode.makeItMeme,
+      activeMode: _engine?.activeMode ?? state.activeMode,
       memeFocusId: id.isEmpty ? null : id,
       memeFocusIndex: payload['index'] as int? ?? 0,
       memeFocusCount: payload['count'] as int? ?? 0,
@@ -2841,7 +3055,7 @@ class MatchCoordinator {
     _emit(
       _state.copyWith(
         phase: RoundPhase.captionReveal,
-        activeMode: GameMode.makeItMeme,
+        activeMode: engine.activeMode,
         lastMemeReveal: reveal,
         memeRevealCards: cards,
         memeCards: const <MemeCard>[],
@@ -2912,6 +3126,50 @@ class MatchCoordinator {
       ),
     );
     if (engine.allMemesSubmitted) await _startMemeVoting();
+  }
+
+  Future<void> submitSabotage(List<SabotageStroke> strokes) async {
+    final engine = _engine;
+    if (engine == null) return;
+    try {
+      engine.submitMeme(
+        playerId: 'host',
+        template: MemeTemplate.classic,
+        topText: '',
+        bottomText: '',
+        snapY: 50,
+        strokes: strokes,
+      );
+    } on EngineException catch (error) {
+      _emit(_state.copyWith(errorMessage: _engineError(error)));
+      return;
+    }
+    unawaited(GameAudioService.instance.pop());
+    unawaited(GameHaptics.instance.selection());
+    _emit(
+      _state.copyWith(
+        memeSubmitted: true,
+        memeSubmissions: engine.memeCount,
+        memeVotesSubmitted: engine.memeVoteCount,
+        clearError: true,
+      ),
+    );
+    if (engine.allMemesSubmitted) await _startMemeVoting();
+  }
+
+  Future<void> clientSubmitSabotage(List<SabotageStroke> strokes) async {
+    await _clientTransport?.send(
+      WireMessage(
+        type: WireType.memeSubmit,
+        seq: _nextSeq(),
+        payload: <String, dynamic>{
+          'sabotage': true,
+          'strokes': strokes.map((stroke) => stroke.toJson()).toList(),
+        },
+      ),
+    );
+    unawaited(GameAudioService.instance.pop());
+    _emit(_state.copyWith(memeSubmitted: true));
   }
 
   Future<void> clientSubmitMeme({
@@ -3403,6 +3661,28 @@ class MatchCoordinator {
     await _broadcastLobby();
   }
 
+  /// Host-only Mixed Party choice. The engine rejects fewer than two modes.
+  Future<void> setMixedModes(Set<GameMode> modes) async {
+    final normalized = modes.where(MatchConfig.coreMixedModes.contains).toSet();
+    if (normalized.length < 2) return;
+    final engine = _engine;
+    if (engine == null) {
+      _emit(
+        _state.copyWith(
+          config: _state.config.copyWith(enabledMixedModes: normalized),
+        ),
+      );
+      return;
+    }
+    try {
+      engine.setMixedModes(normalized);
+    } on EngineException {
+      return;
+    }
+    _emit(_state.copyWith(config: engine.config, clearError: true));
+    await _broadcastLobby();
+  }
+
   /// Host opens the prepare phase and draws its own candidates.
   Future<void> startPrepare() async {
     final engine = _engine;
@@ -3683,6 +3963,12 @@ class MatchCoordinator {
     );
   }
 
+  double get _currentZoomScale {
+    final total = _state.phaseDurationMs;
+    if (total <= 0) return 1;
+    return (1 + 5 * (_state.remainingMs / total)).clamp(1.0, 6.0);
+  }
+
   Future<void> submitGuess(String guessedOwnerId) async {
     final engine = _engine;
     if (engine == null || _state.lockedGuessOwnerId != null) return;
@@ -3690,7 +3976,14 @@ class MatchCoordinator {
     unawaited(GameAudioService.instance.tap());
     final elapsed = DateTime.now().millisecondsSinceEpoch - _roundStartMs;
     engine.submitGuess('host', guessedOwnerId, elapsed);
-    _emit(_state.copyWith(lockedGuessOwnerId: guessedOwnerId));
+    final record = engine.guessFor('host');
+    _emit(
+      _state.copyWith(
+        lockedGuessOwnerId: guessedOwnerId,
+        lastGuessCorrect: record?.isCorrect,
+        lockedGuessScale: _currentZoomScale,
+      ),
+    );
     await _syncGuesses();
   }
 
@@ -3904,6 +4197,9 @@ class MatchCoordinator {
     final engine = _engine;
     if (engine == null) return;
     final players = engine.players;
+    final waiting = List<Player>.of(_waitingPlayers.values);
+    _waitingPlayers.clear();
+    _waitingClientIds.clear();
     final config = _state.config;
     final fresh = HostGameEngine(
       config: config,
@@ -3911,7 +4207,7 @@ class MatchCoordinator {
       planterOverride: planterOverride,
     );
     _engine = fresh;
-    for (final player in players) {
+    for (final player in <Player>[...players, ...waiting]) {
       if (!player.connected) continue;
       try {
         fresh.addPlayer(
@@ -4282,7 +4578,12 @@ class MatchCoordinator {
             ),
           );
         }
-        _emit(_state.copyWith(localPlayerId: _currentPlayerId));
+        _emit(
+          _state.copyWith(
+            localPlayerId: _currentPlayerId,
+            waitingForMatch: payload['waiting'] == true,
+          ),
+        );
         _sendPartyPassClaim();
       case WireType.stateSync:
         _reconnectAck?.complete();
@@ -4390,6 +4691,8 @@ class MatchCoordinator {
             activePhotoId: activePhotoId,
             activePhotoIsPanorama:
                 payload['activePhotoIsPanorama'] as bool? ?? false,
+            zoomAnchorX: (payload['zoomAnchorX'] as num?)?.toDouble() ?? 0.5,
+            zoomAnchorY: (payload['zoomAnchorY'] as num?)?.toDouble() ?? 0.5,
             activeRoundOptions: options,
             localReady: payload['localReady'] as bool? ?? false,
             photosNeeded: payload['photosNeeded'] as int? ?? 0,
@@ -4557,6 +4860,8 @@ class MatchCoordinator {
             phase: parsedPhase,
             plantUnlocked: plantUnlocked,
             avatarPhotos: avatarPhotos,
+            waitingForMatch:
+                _state.waitingForMatch && parsedPhase != RoundPhase.lobby,
             roomThemeId: RoomThemeId.fromWire(payload['roomThemeId'] as String?)
                 .wireId,
           ),
@@ -4569,6 +4874,7 @@ class MatchCoordinator {
             photosNeeded: needed,
             candidates: const <PhotoCandidate>[],
             localReady: false,
+            waitingForMatch: false,
           ),
         );
         final permission = await _photos.requestPermission();
@@ -4673,6 +4979,13 @@ class MatchCoordinator {
             vaultSyncTotal: 0,
           ),
         );
+      case WireType.guessResult:
+        _emit(
+          _state.copyWith(
+            lastGuessCorrect: payload['correct'] as bool? ?? false,
+            lockedGuessScale: _currentZoomScale,
+          ),
+        );
       case WireType.roundShow:
         final options = <Player>[
           for (final entry
@@ -4685,10 +4998,12 @@ class MatchCoordinator {
           orElse: () => GameMode.classic,
         );
         final phase = switch (mode) {
-          GameMode.classic || GameMode.mixedParty => RoundPhase.guessing,
-          GameMode.captionThis => RoundPhase.captionWriting,
-          GameMode.makeItMeme => RoundPhase.captionWriting,
+          GameMode.classic || GameMode.zoomOut => RoundPhase.guessing,
+          GameMode.captionThis ||
+          GameMode.makeItMeme ||
+          GameMode.photoSabotage => RoundPhase.captionWriting,
           GameMode.timeTraveler => RoundPhase.timelineGuessing,
+          GameMode.mixedParty => RoundPhase.guessing,
         };
         _clientReadyRetry?.cancel();
         _clientReadyRetry = null;
@@ -4706,14 +5021,19 @@ class MatchCoordinator {
                 : _clientRoundPhotos[photoId],
             activePhotoId: photoId,
             activePhotoIsPanorama: payload['isPanorama'] as bool? ?? false,
+            zoomAnchorX: (payload['zoomAnchorX'] as num?)?.toDouble() ?? 0.5,
+            zoomAnchorY: (payload['zoomAnchorY'] as num?)?.toDouble() ?? 0.5,
             activeRoundOptions: options,
-            memeAssignment: mode == GameMode.makeItMeme
+            memeAssignment:
+                mode == GameMode.makeItMeme || mode == GameMode.photoSabotage
                 ? _state.memeAssignment
                 : null,
-            memePhotoBase64: mode == GameMode.makeItMeme
+            memePhotoBase64:
+                mode == GameMode.makeItMeme || mode == GameMode.photoSabotage
                 ? _state.memePhotoBase64
                 : null,
-            memeSwapsLeft: mode == GameMode.makeItMeme
+            memeSwapsLeft:
+                mode == GameMode.makeItMeme || mode == GameMode.photoSabotage
                 ? _state.memeSwapsLeft
                 : 5,
             clearGuess: true,
@@ -4819,7 +5139,7 @@ class MatchCoordinator {
           _withMemeFocus(
             _state.copyWith(
               phase: RoundPhase.captionVoting,
-              activeMode: GameMode.makeItMeme,
+              activeMode: _state.activeMode,
               memeCards: cards,
               memeVotedIds: votedIds,
               memeSubmissions: payload['submissions'] as int? ?? cards.length,
@@ -4862,7 +5182,7 @@ class MatchCoordinator {
         _emit(
           _state.copyWith(
             phase: RoundPhase.captionReveal,
-            activeMode: GameMode.makeItMeme,
+            activeMode: _state.activeMode,
             lastMemeReveal: reveal,
             memeRevealCards: cards,
             memeCards: const <MemeCard>[],

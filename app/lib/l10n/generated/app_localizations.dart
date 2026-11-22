@@ -461,7 +461,7 @@ abstract class AppLocalizations {
   /// No description provided for @chooseGameSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Classic, Make It Meme, Time Traveler or a bit of everything.'**
+  /// **'Classic, Zoom-Out, Make It Meme, Foto-Sabotage, Time Traveler or a bit of everything.'**
   String get chooseGameSubtitle;
 
   /// No description provided for @nextRounds.
@@ -569,7 +569,7 @@ abstract class AppLocalizations {
   /// No description provided for @paceMixedSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Each of the three modes keeps its own clock.'**
+  /// **'Each mode keeps its own clock.'**
   String get paceMixedSubtitle;
 
   /// No description provided for @paceFastClassic.
@@ -644,6 +644,54 @@ abstract class AppLocalizations {
   /// **'Every mode at its slow clock.'**
   String get paceSlowMixed;
 
+  /// No description provided for @paceZoomSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Fifteen seconds. One detail.'**
+  String get paceZoomSubtitle;
+
+  /// No description provided for @paceSabotageSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Draw, swap and submit.'**
+  String get paceSabotageSubtitle;
+
+  /// No description provided for @paceFastZoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Early eyes, big points.'**
+  String get paceFastZoom;
+
+  /// No description provided for @paceNormalZoom.
+  ///
+  /// In en, this message translates to:
+  /// **'The detail zooms out.'**
+  String get paceNormalZoom;
+
+  /// No description provided for @paceSlowZoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Every second counts.'**
+  String get paceSlowZoom;
+
+  /// No description provided for @paceFastSabotage.
+  ///
+  /// In en, this message translates to:
+  /// **'A quick doodle.'**
+  String get paceFastSabotage;
+
+  /// No description provided for @paceNormalSabotage.
+  ///
+  /// In en, this message translates to:
+  /// **'Time for one good joke.'**
+  String get paceNormalSabotage;
+
+  /// No description provided for @paceSlowSabotage.
+  ///
+  /// In en, this message translates to:
+  /// **'No rush, sabotage it.'**
+  String get paceSlowSabotage;
+
   /// No description provided for @mixed.
   ///
   /// In en, this message translates to:
@@ -716,6 +764,18 @@ abstract class AppLocalizations {
   /// **'Point any camera at the code. No app download needed to join.'**
   String get scanToJoinBody;
 
+  /// No description provided for @showRoomQr.
+  ///
+  /// In en, this message translates to:
+  /// **'Show room QR'**
+  String get showRoomQr;
+
+  /// No description provided for @roomQrShareText.
+  ///
+  /// In en, this message translates to:
+  /// **'Join my WhoTook room'**
+  String get roomQrShareText;
+
   /// No description provided for @roomCode.
   ///
   /// In en, this message translates to:
@@ -757,6 +817,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Waiting for the host to start'**
   String get waitingForHostToStart;
+
+  /// No description provided for @matchInProgressTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Match in progress'**
+  String get matchInProgressTitle;
+
+  /// No description provided for @matchInProgressBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You are in the room. The current game is finishing; you join the next one and approve your photos then.'**
+  String get matchInProgressBody;
+
+  /// No description provided for @watchingLive.
+  ///
+  /// In en, this message translates to:
+  /// **'Live from the table'**
+  String get watchingLive;
+
+  /// No description provided for @watchingRound.
+  ///
+  /// In en, this message translates to:
+  /// **'Watching round {current} of {total}'**
+  String watchingRound(int current, int total);
 
   /// No description provided for @playersJoined.
   ///
@@ -895,6 +979,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Mixed Party'**
   String get modeMixedParty;
+
+  /// No description provided for @modeZoomOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom-Out'**
+  String get modeZoomOut;
+
+  /// No description provided for @modePhotoSabotage.
+  ///
+  /// In en, this message translates to:
+  /// **'Foto-Sabotage'**
+  String get modePhotoSabotage;
 
   /// No description provided for @rerollAll.
   ///
@@ -1577,7 +1673,7 @@ abstract class AppLocalizations {
   /// No description provided for @demoTryModes.
   ///
   /// In en, this message translates to:
-  /// **'Change the mode in the lobby to try Classic, Make It Meme, Time Traveler or Mixed Party.'**
+  /// **'Change the mode in the lobby to try Classic, Zoom-Out, Make It Meme, Foto-Sabotage, Time Traveler or Mixed Party.'**
   String get demoTryModes;
 
   /// No description provided for @startDemo.
@@ -2242,8 +2338,38 @@ abstract class AppLocalizations {
   /// No description provided for @modeMixedPartyBlurb.
   ///
   /// In en, this message translates to:
-  /// **'All three, shuffled.'**
+  /// **'All five, shuffled.'**
   String get modeMixedPartyBlurb;
+
+  /// No description provided for @modeZoomOutBlurb.
+  ///
+  /// In en, this message translates to:
+  /// **'Guess the photo as it zooms out.'**
+  String get modeZoomOutBlurb;
+
+  /// No description provided for @modePhotoSabotageBlurb.
+  ///
+  /// In en, this message translates to:
+  /// **'Doodle on a friend\'s photo.'**
+  String get modePhotoSabotageBlurb;
+
+  /// No description provided for @mixedModesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Mixed Party modes'**
+  String get mixedModesLabel;
+
+  /// No description provided for @mixedModesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick at least two. Rounds stay balanced and never repeat the same mode twice in a row.'**
+  String get mixedModesHint;
+
+  /// No description provided for @mixedModesMinimum.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep at least two modes in Mixed Party.'**
+  String get mixedModesMinimum;
 
   /// No description provided for @modeSemantic.
   ///
@@ -2569,11 +2695,11 @@ abstract class AppLocalizations {
   /// **'Build the meme'**
   String get memeWritingLabel;
 
-  /// No description provided for @memeMatchSwaps.
+  /// No description provided for @memeRoundSwaps.
   ///
   /// In en, this message translates to:
-  /// **'Match swaps'**
-  String get memeMatchSwaps;
+  /// **'Round swaps'**
+  String get memeRoundSwaps;
 
   /// No description provided for @memeTemplate.
   ///
@@ -2713,11 +2839,11 @@ abstract class AppLocalizations {
   /// **'{count} left'**
   String memeSwapsLeft(int count);
 
-  /// No description provided for @memeSwapsMatchWide.
+  /// No description provided for @memeSwapsRoundWide.
   ///
   /// In en, this message translates to:
-  /// **'5 swaps for the whole match.'**
-  String get memeSwapsMatchWide;
+  /// **'5 swaps every round. Swapped photos go back into the pool.'**
+  String get memeSwapsRoundWide;
 
   /// No description provided for @memeVoteTitle.
   ///
@@ -2784,18 +2910,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Creator points'**
   String get memeCreatorPoints;
-
-  /// No description provided for @memeModelRoyalty.
-  ///
-  /// In en, this message translates to:
-  /// **'Model royalty'**
-  String get memeModelRoyalty;
-
-  /// No description provided for @memeRoyaltyBody.
-  ///
-  /// In en, this message translates to:
-  /// **'{name}\'s photo was in the winning meme. {name} gets +25.'**
-  String memeRoyaltyBody(String name);
 
   /// No description provided for @memeTopMemes.
   ///
@@ -3036,6 +3150,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Travel back in time!'**
   String get timeSplashBack;
+
+  /// No description provided for @zoomSplashFocus.
+  ///
+  /// In en, this message translates to:
+  /// **'Focus on the details!'**
+  String get zoomSplashFocus;
+
+  /// No description provided for @zoomSplashWho.
+  ///
+  /// In en, this message translates to:
+  /// **'Zooming out... whose photo is this?!'**
+  String get zoomSplashWho;
+
+  /// No description provided for @zoomSplashEarly.
+  ///
+  /// In en, this message translates to:
+  /// **'Dare to guess early?'**
+  String get zoomSplashEarly;
+
+  /// No description provided for @zoomSplashClose.
+  ///
+  /// In en, this message translates to:
+  /// **'The closer you look, the more you score!'**
+  String get zoomSplashClose;
+
+  /// No description provided for @sabotageSplashMarker.
+  ///
+  /// In en, this message translates to:
+  /// **'Grab your marker: sabotage time!'**
+  String get sabotageSplashMarker;
+
+  /// No description provided for @sabotageSplashRuin.
+  ///
+  /// In en, this message translates to:
+  /// **'Ruin your friend\'s photo!'**
+  String get sabotageSplashRuin;
+
+  /// No description provided for @sabotageSplashRidiculous.
+  ///
+  /// In en, this message translates to:
+  /// **'Draw something ridiculous!'**
+  String get sabotageSplashRidiculous;
+
+  /// No description provided for @sabotageSplashDraw.
+  ///
+  /// In en, this message translates to:
+  /// **'Make them laugh out loud!'**
+  String get sabotageSplashDraw;
 
   /// Full-screen arcade transition between rounds
   ///
@@ -3780,6 +3942,180 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Game photo'**
   String get gamePhoto;
+
+  /// No description provided for @zoomPotential.
+  ///
+  /// In en, this message translates to:
+  /// **'+{points} pts'**
+  String zoomPotential(int points);
+
+  /// No description provided for @zoomLockedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked in at {scale}!'**
+  String zoomLockedIn(String scale);
+
+  /// No description provided for @zoomWrongLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong! Locked out'**
+  String get zoomWrongLocked;
+
+  /// No description provided for @zoomEagleEye.
+  ///
+  /// In en, this message translates to:
+  /// **'Eagle Eye: {name} at {scale}!'**
+  String zoomEagleEye(String name, String scale);
+
+  /// No description provided for @zoomNoEagleEye.
+  ///
+  /// In en, this message translates to:
+  /// **'No eagle eyes this round.'**
+  String get zoomNoEagleEye;
+
+  /// No description provided for @zoomFullPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'The full photo'**
+  String get zoomFullPhoto;
+
+  /// No description provided for @sabotageDrawTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sabotage the photo'**
+  String get sabotageDrawTitle;
+
+  /// No description provided for @sabotageDrawHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Draw on {name}\'s photo.'**
+  String sabotageDrawHint(String name);
+
+  /// No description provided for @sabotageDrawFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Draw something first.'**
+  String get sabotageDrawFirst;
+
+  /// No description provided for @sabotagePreparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Getting your photo...'**
+  String get sabotagePreparing;
+
+  /// No description provided for @sabotageUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get sabotageUndo;
+
+  /// Marker colour 1
+  ///
+  /// In en, this message translates to:
+  /// **'Black'**
+  String get sabotageColor1;
+
+  /// Marker colour 2
+  ///
+  /// In en, this message translates to:
+  /// **'White'**
+  String get sabotageColor2;
+
+  /// Marker colour 3
+  ///
+  /// In en, this message translates to:
+  /// **'Red'**
+  String get sabotageColor3;
+
+  /// Marker colour 4
+  ///
+  /// In en, this message translates to:
+  /// **'Yellow'**
+  String get sabotageColor4;
+
+  /// Marker colour 5
+  ///
+  /// In en, this message translates to:
+  /// **'Green'**
+  String get sabotageColor5;
+
+  /// No description provided for @sabotageClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get sabotageClear;
+
+  /// No description provided for @sabotageThin.
+  ///
+  /// In en, this message translates to:
+  /// **'Thin'**
+  String get sabotageThin;
+
+  /// No description provided for @sabotageThick.
+  ///
+  /// In en, this message translates to:
+  /// **'Thick'**
+  String get sabotageThick;
+
+  /// No description provided for @sabotageSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send sabotage'**
+  String get sabotageSend;
+
+  /// No description provided for @sabotageSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Sabotage sent. Waiting for the others.'**
+  String get sabotageSent;
+
+  /// No description provided for @sabotageVoteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Which sabotage wins?'**
+  String get sabotageVoteTitle;
+
+  /// No description provided for @sabotageVoteSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'React to the drawing, not the photo.'**
+  String get sabotageVoteSubtitle;
+
+  /// No description provided for @sabotageWaitingVotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for votes: {current}/{total}'**
+  String sabotageWaitingVotes(int current, int total);
+
+  /// No description provided for @sabotageNoSubmissions.
+  ///
+  /// In en, this message translates to:
+  /// **'No sabotages this round.'**
+  String get sabotageNoSubmissions;
+
+  /// No description provided for @sabotageRevealTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The sabotage revealed'**
+  String get sabotageRevealTitle;
+
+  /// No description provided for @topCreations.
+  ///
+  /// In en, this message translates to:
+  /// **'Top 3 memes & sabotages'**
+  String get topCreations;
+
+  /// No description provided for @winningSabotage.
+  ///
+  /// In en, this message translates to:
+  /// **'WINNING SABOTAGE'**
+  String get winningSabotage;
+
+  /// No description provided for @sabotageSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save sabotage'**
+  String get sabotageSave;
 }
 
 class _AppLocalizationsDelegate

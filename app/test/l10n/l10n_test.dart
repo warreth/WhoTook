@@ -132,6 +132,8 @@ void main() {
       'avatarOption',
       'modeSemantic',
       'modeMakeItMeme',
+      'modeZoomOut',
+      'modePhotoSabotage',
       'memeTemplate',
       'memeTemplatePov',
       'memeTemplateBreaking',

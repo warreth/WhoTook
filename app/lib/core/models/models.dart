@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:ui' show Offset;
 
 import '../version.dart';
 
@@ -85,7 +86,15 @@ class Player {
   );
 }
 
-enum GameMode { classic, captionThis, makeItMeme, timeTraveler, mixedParty }
+enum GameMode {
+  classic,
+  captionThis,
+  zoomOut,
+  makeItMeme,
+  photoSabotage,
+  timeTraveler,
+  mixedParty,
+}
 
 /// Match shape chosen before the room opens.
 enum GamePace {
@@ -117,10 +126,16 @@ enum GamePace {
     GamePace.slow => 120,
   };
 
+  int get zoomOutSeconds => 15;
+
+  int get sabotageSeconds => 35;
+
   int mainSeconds(GameMode mode) => switch (mode) {
     GameMode.classic || GameMode.mixedParty => classicSeconds,
     GameMode.captionThis => captionSeconds,
+    GameMode.zoomOut => zoomOutSeconds,
     GameMode.makeItMeme => memeSeconds,
+    GameMode.photoSabotage => sabotageSeconds,
     GameMode.timeTraveler => timelineSeconds,
   };
 }
@@ -131,33 +146,62 @@ class MatchConfig {
     this.roundSeconds = 8,
     this.mode = GameMode.classic,
     this.pace = GamePace.normal,
+    this.enabledMixedModes = const <GameMode>{
+      GameMode.classic,
+      GameMode.zoomOut,
+      GameMode.makeItMeme,
+      GameMode.photoSabotage,
+      GameMode.timeTraveler,
+    },
   }) : assert(roundsK > 0),
        assert(roundSeconds > 0);
+
+  static const Set<GameMode> coreMixedModes = <GameMode>{
+    GameMode.classic,
+    GameMode.zoomOut,
+    GameMode.makeItMeme,
+    GameMode.photoSabotage,
+    GameMode.timeTraveler,
+  };
 
   final int roundsK;
   final int roundSeconds;
   final GameMode mode;
   final GamePace pace;
 
+  /// Mixed Party only deals these core modes. Normalized to at least two so a
+  /// malformed wire config can never create an empty or single-mode schedule.
+  final Set<GameMode> enabledMixedModes;
+
+  Set<GameMode> get activeMixedModes {
+    final filtered = enabledMixedModes.where(coreMixedModes.contains).toSet();
+    return filtered.length >= 2 ? filtered : coreMixedModes;
+  }
+
   int get roundMs => roundSeconds * 1000;
 
   /// Time Traveler needs a verified capture date, and a mixed match uses the
   /// same photo pool for its timeline rounds.
   bool get needsPhotoDates =>
-      mode == GameMode.timeTraveler || mode == GameMode.mixedParty;
+      mode == GameMode.timeTraveler ||
+      (mode == GameMode.mixedParty &&
+          activeMixedModes.contains(GameMode.timeTraveler));
 
-  bool get needsSixPhotoVault => mode == GameMode.makeItMeme;
+  bool get needsSixPhotoVault =>
+      mode == GameMode.makeItMeme || mode == GameMode.photoSabotage;
 
   MatchConfig copyWith({
     int? roundsK,
     int? roundSeconds,
     GameMode? mode,
     GamePace? pace,
+    Set<GameMode>? enabledMixedModes,
   }) => MatchConfig(
     roundsK: roundsK ?? this.roundsK,
     roundSeconds: roundSeconds ?? this.roundSeconds,
     mode: mode ?? this.mode,
     pace: pace ?? this.pace,
+    enabledMixedModes: enabledMixedModes ?? this.enabledMixedModes,
   );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -165,20 +209,32 @@ class MatchConfig {
     'roundSeconds': roundSeconds,
     'mode': mode.name,
     'pace': pace.name,
+    'enabledMixedModes': activeMixedModes.map((mode) => mode.name).toList(),
   };
 
-  factory MatchConfig.fromJson(Map<String, dynamic> json) => MatchConfig(
-    roundsK: (json['roundsK'] as int?) ?? 10,
-    roundSeconds: (json['roundSeconds'] as int?) ?? 8,
-    mode: GameMode.values.firstWhere(
-      (mode) => mode.name == json['mode'],
-      orElse: () => GameMode.classic,
-    ),
-    pace: GamePace.values.firstWhere(
-      (pace) => pace.name == json['pace'],
-      orElse: () => GamePace.normal,
-    ),
-  );
+  factory MatchConfig.fromJson(Map<String, dynamic> json) {
+    final rawModes = json['enabledMixedModes'];
+    final parsed = <GameMode>{
+      if (rawModes is List<dynamic>)
+        for (final value in rawModes)
+          if (value is String)
+            for (final mode in coreMixedModes)
+              if (mode.name == value) mode,
+    };
+    return MatchConfig(
+      roundsK: (json['roundsK'] as int?) ?? 10,
+      roundSeconds: (json['roundSeconds'] as int?) ?? 8,
+      mode: GameMode.values.firstWhere(
+        (mode) => mode.name == json['mode'],
+        orElse: () => GameMode.classic,
+      ),
+      pace: GamePace.values.firstWhere(
+        (pace) => pace.name == json['pace'],
+        orElse: () => GamePace.normal,
+      ),
+      enabledMixedModes: parsed.length >= 2 ? parsed : coreMixedModes,
+    );
+  }
 }
 
 /// A photo a player approved for the match. [bytes] is only carried on the
@@ -542,6 +598,47 @@ class CaptionReveal {
 
 enum MemeTemplate { classic, pov, breaking, live, poster, snap, split }
 
+/// One marker stroke on a sabotaged photo. Every point is normalized to the
+/// photo frame (0..1), so the same JSON paints identically on every screen.
+class SabotageStroke {
+  const SabotageStroke({
+    required this.colorIndex,
+    required this.width,
+    required this.points,
+  });
+
+  final int colorIndex;
+  final double width;
+  final List<Offset> points;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'c': colorIndex,
+    'w': double.parse(width.toStringAsFixed(4)),
+    'p': <double>[
+      for (final point in points) ...<double>[
+        double.parse(point.dx.toStringAsFixed(4)),
+        double.parse(point.dy.toStringAsFixed(4)),
+      ],
+    ],
+  };
+
+  factory SabotageStroke.fromJson(Map<String, dynamic> json) {
+    final flat = (json['p'] as List<dynamic>? ?? const <dynamic>[])
+        .whereType<num>()
+        .map((value) => value.toDouble())
+        .toList();
+    final points = <Offset>[];
+    for (var i = 0; i + 1 < flat.length; i += 2) {
+      points.add(Offset(flat[i], flat[i + 1]));
+    }
+    return SabotageStroke(
+      colorIndex: (json['c'] as int?) ?? 0,
+      width: ((json['w'] as num?) ?? 0.01).toDouble(),
+      points: List<Offset>.unmodifiable(points),
+    );
+  }
+}
+
 enum MemeVote { up, meh, down }
 
 /// Host-side assignment of one photo from another player's six-photo vault.
@@ -588,6 +685,8 @@ class MemeSubmission {
     required this.topText,
     required this.bottomText,
     required this.snapY,
+    this.isSabotage = false,
+    this.strokes = const <SabotageStroke>[],
   });
 
   final String id;
@@ -598,6 +697,8 @@ class MemeSubmission {
   final String topText;
   final String bottomText;
   final double snapY;
+  final bool isSabotage;
+  final List<SabotageStroke> strokes;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
     'id': id,
@@ -608,6 +709,8 @@ class MemeSubmission {
     'topText': topText,
     'bottomText': bottomText,
     'snapY': snapY,
+    'isSabotage': isSabotage,
+    'strokes': strokes.map((stroke) => stroke.toJson()).toList(),
   };
 }
 
@@ -620,6 +723,8 @@ class MemeOption {
     required this.topText,
     required this.bottomText,
     required this.snapY,
+    this.isSabotage = false,
+    this.strokes = const <SabotageStroke>[],
   });
 
   final String id;
@@ -628,6 +733,8 @@ class MemeOption {
   final String topText;
   final String bottomText;
   final double snapY;
+  final bool isSabotage;
+  final List<SabotageStroke> strokes;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
     'id': id,
@@ -636,6 +743,8 @@ class MemeOption {
     'topText': topText,
     'bottomText': bottomText,
     'snapY': snapY,
+    'isSabotage': isSabotage,
+    'strokes': strokes.map((stroke) => stroke.toJson()).toList(),
   };
 
   factory MemeOption.fromJson(Map<String, dynamic> json) => MemeOption(
@@ -648,6 +757,11 @@ class MemeOption {
     topText: (json['topText'] as String?) ?? '',
     bottomText: (json['bottomText'] as String?) ?? '',
     snapY: (json['snapY'] as num?)?.toDouble() ?? 48,
+    isSabotage: json['isSabotage'] as bool? ?? false,
+    strokes: (json['strokes'] as List<dynamic>? ?? const <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .map(SabotageStroke.fromJson)
+        .toList(growable: false),
   );
 }
 
@@ -695,6 +809,8 @@ class MemeEntry {
     required this.mehVotes,
     required this.downVotes,
     required this.points,
+    this.isSabotage = false,
+    this.strokes = const <SabotageStroke>[],
   });
 
   final String id;
@@ -711,6 +827,8 @@ class MemeEntry {
   final int mehVotes;
   final int downVotes;
   final int points;
+  final bool isSabotage;
+  final List<SabotageStroke> strokes;
 
   int get totalVotes => upVotes + mehVotes + downVotes;
 
@@ -729,6 +847,8 @@ class MemeEntry {
     'mehVotes': mehVotes,
     'downVotes': downVotes,
     'points': points,
+    'isSabotage': isSabotage,
+    'strokes': strokes.map((stroke) => stroke.toJson()).toList(),
   };
 
   factory MemeEntry.fromJson(Map<String, dynamic> json) => MemeEntry(
@@ -749,6 +869,11 @@ class MemeEntry {
     mehVotes: (json['mehVotes'] as int?) ?? 0,
     downVotes: (json['downVotes'] as int?) ?? 0,
     points: (json['points'] as int?) ?? 0,
+    isSabotage: json['isSabotage'] as bool? ?? false,
+    strokes: (json['strokes'] as List<dynamic>? ?? const <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .map(SabotageStroke.fromJson)
+        .toList(growable: false),
   );
 }
 

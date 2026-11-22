@@ -101,6 +101,7 @@ void main() {
         'round_countdown',
         'round_show',
         'submit_guess',
+        'guess_result',
         'screenshot_taken',
         'screenshot_alert',
         'sound_effect',

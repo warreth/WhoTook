@@ -20,18 +20,24 @@ class DeckEntry {
     required this.ownerId,
     required this.photo,
     this.mode = GameMode.classic,
+    this.zoomAnchorX = 0.5,
+    this.zoomAnchorY = 0.5,
   });
 
   final int roundNumber;
   final String ownerId;
   final PhotoCandidate photo;
   final GameMode mode;
+  final double zoomAnchorX;
+  final double zoomAnchorY;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
     'roundNumber': roundNumber,
     'ownerId': ownerId,
     'photo': photo.toJson(),
     'mode': mode.name,
+    'zoomAnchorX': zoomAnchorX,
+    'zoomAnchorY': zoomAnchorY,
   };
 }
 
@@ -47,6 +53,7 @@ class HostGameEngine {
        _roundSeconds = config.roundSeconds,
        _mode = config.mode,
        _pace = config.pace,
+       _enabledMixedModes = config.activeMixedModes,
        _random = random ?? Random(),
        _clock = clock ?? DateTime.now;
 
@@ -85,6 +92,11 @@ class HostGameEngine {
   final Map<String, PhotoCandidate> _memeAssignments =
       <String, PhotoCandidate>{};
   final Map<String, int> _memeSwaps = <String, int>{};
+  final Set<String> _zoomLockedOut = <String>{};
+  final Map<String, Set<String>> _memeSkippedThisRound =
+      <String, Set<String>>{};
+  final Set<String> _memeSkippedPool = <String>{};
+  final Map<String, String> _activeHeldPhotos = <String, String>{};
   final List<MemeEntry> _memeHistory = <MemeEntry>[];
   int _memeSerial = 0;
   MemeReveal? _lastMemeReveal;
@@ -96,6 +108,7 @@ class HostGameEngine {
   int _roundSeconds;
   GameMode _mode;
   GamePace _pace;
+  Set<GameMode> _enabledMixedModes;
   GameMode _activeMode = GameMode.classic;
   int _captionSerial = 0;
   RoundPhase _phase = RoundPhase.lobby;
@@ -117,6 +130,7 @@ class HostGameEngine {
     roundSeconds: _roundSeconds,
     mode: _mode,
     pace: _pace,
+    enabledMixedModes: _enabledMixedModes,
   );
   RoundPhase get phase => _phase;
   GameMode get mode => _mode;
@@ -157,6 +171,8 @@ class HostGameEngine {
             topText: meme.topText,
             bottomText: meme.bottomText,
             snapY: meme.snapY,
+            isSabotage: meme.isSabotage,
+            strokes: meme.strokes,
           );
         })
         .where((option) => option.id.isNotEmpty),
@@ -178,6 +194,9 @@ class HostGameEngine {
       _timelineGuesses[playerId];
   GuessRecord? guessFor(String playerId) => _guesses[playerId];
   int get roundsK => _roundsK;
+
+  /// Zoom-Out uses a fixed 15 second window; other modes use the lobby pace.
+  int get activeRoundMs => _activeMode == GameMode.zoomOut ? 15000 : roundMs;
   int get roundSeconds => _roundSeconds;
   int get roundMs => _roundSeconds * 1000;
   int get photosNeeded => _photosNeeded;
@@ -247,6 +266,9 @@ class HostGameEngine {
       return;
     }
     player.connected = false;
+    _activeHeldPhotos.remove(playerId);
+    _memeSkippedThisRound.remove(playerId);
+    _memeAssignments.remove(playerId);
   }
 
   void setConnected(String playerId, bool connected) {
@@ -289,6 +311,7 @@ class HostGameEngine {
     }
     _mode = mode;
     _roundSeconds = _pace.mainSeconds(mode);
+    _mixedModes.clear();
   }
 
   void setPace(GamePace pace) {
@@ -302,6 +325,26 @@ class HostGameEngine {
     _roundSeconds = pace.mainSeconds(_mode);
   }
 
+  /// Restricted to the lobby, like the other setup choices. At least two core
+  /// modes keep a Mixed Party schedule playable.
+  void setMixedModes(Set<GameMode> modes) {
+    if (_phase != RoundPhase.lobby) {
+      throw const EngineException(
+        'wrong_phase',
+        'the mixed modes can only change in the lobby',
+      );
+    }
+    final normalized = modes.where(MatchConfig.coreMixedModes.contains).toSet();
+    if (normalized.length < 2) {
+      throw const EngineException(
+        'invalid_mixed_modes',
+        'choose at least two mixed party modes',
+      );
+    }
+    _enabledMixedModes = normalized;
+    _mixedModes.clear();
+  }
+
   void startPrepare() {
     if (_phase != RoundPhase.lobby) {
       throw const EngineException('wrong_phase', 'prepare already started');
@@ -310,7 +353,12 @@ class HostGameEngine {
       throw const EngineException('no_players', 'need at least one player');
     }
     _usedPhotoIds.clear();
-    _photosNeeded = computePhotosNeeded(_roundsK, _players.length, mode: _mode);
+    _photosNeeded = computePhotosNeeded(
+      _roundsK,
+      _players.length,
+      mode: _mode,
+      enabledMixedModes: _enabledMixedModes,
+    );
     _planterId = _players.isEmpty
         ? null
         : (planterOverride ??
@@ -325,14 +373,27 @@ class HostGameEngine {
     int roundsK,
     int playerCount, {
     GameMode mode = GameMode.classic,
+    Set<GameMode> enabledMixedModes = MatchConfig.coreMixedModes,
   }) {
     if (playerCount <= 0) {
       return minPhotosNeeded;
     }
     final deckShare = (roundsK / playerCount).ceil();
+    final enabled = enabledMixedModes
+        .where(MatchConfig.coreMixedModes.contains)
+        .toSet();
+    final enabledCount = (enabled.length < 2 ? 5 : enabled.length).clamp(2, 5);
+    final creationCount = enabled
+        .where(
+          (candidate) =>
+              candidate == GameMode.makeItMeme ||
+              candidate == GameMode.photoSabotage,
+        )
+        .length;
     final memeRounds = switch (mode) {
-      GameMode.makeItMeme => roundsK,
-      GameMode.mixedParty => (roundsK / 3).ceil(),
+      GameMode.makeItMeme || GameMode.photoSabotage => roundsK,
+      GameMode.mixedParty =>
+        (roundsK * max(1, creationCount) / enabledCount).ceil(),
       _ => 0,
     };
     final swapReserve = memeRounds > 0 ? 5 : 0;
@@ -486,6 +547,7 @@ class HostGameEngine {
             needed - _mixedModes.length,
             _random,
             previous: _mixedModes.isEmpty ? null : _mixedModes.last,
+            enabled: _enabledMixedModes,
           ),
         );
       }
@@ -514,7 +576,12 @@ class HostGameEngine {
             ? _mixedModes[roundIndex]
             : _mode;
         if (mode == GameMode.timeTraveler && !photo.hasCaptureDate) {
-          mode = GameMode.classic;
+          mode = _enabledMixedModes.contains(GameMode.classic)
+              ? GameMode.classic
+              : _enabledMixedModes.firstWhere(
+                  (candidate) => candidate != GameMode.timeTraveler,
+                  orElse: () => GameMode.classic,
+                );
         }
         entries.add(
           DeckEntry(
@@ -522,6 +589,12 @@ class HostGameEngine {
             ownerId: ownerId,
             photo: photo,
             mode: mode,
+            zoomAnchorX: mode == GameMode.zoomOut
+                ? 0.25 + _random.nextDouble() * 0.5
+                : 0.5,
+            zoomAnchorY: mode == GameMode.zoomOut
+                ? 0.25 + _random.nextDouble() * 0.5
+                : 0.5,
           ),
         );
       }
@@ -581,6 +654,9 @@ class HostGameEngine {
     _memeSwaps
       ..clear()
       ..addEntries(_players.keys.map((id) => MapEntry(id, 5)));
+    _activeHeldPhotos.clear();
+    _memeSkippedThisRound.clear();
+    _memeSkippedPool.clear();
     _usedPhotoIds.clear();
     _buildDeck(_roundsK);
     if (_deck.isEmpty) {
@@ -612,6 +688,15 @@ class HostGameEngine {
     _memeAssignments.clear();
     _memeSerial = 0;
     _lastMemeReveal = null;
+    _memeSkippedThisRound.clear();
+    _activeHeldPhotos.clear();
+    _zoomLockedOut.clear();
+    if (_deck[_currentRound - 1].mode == GameMode.makeItMeme ||
+        _deck[_currentRound - 1].mode == GameMode.photoSabotage) {
+      for (final player in _players.values) {
+        _memeSwaps[player.id] = 5;
+      }
+    }
     _roundDeltas
       ..clear()
       ..addEntries(_players.keys.map((id) => MapEntry(id, 0)));
@@ -622,13 +707,15 @@ class HostGameEngine {
     final entry = _deck[_currentRound - 1];
     _activeMode = entry.mode;
     _phase = switch (entry.mode) {
-      GameMode.classic => RoundPhase.guessing,
-      GameMode.captionThis => RoundPhase.captionWriting,
-      GameMode.makeItMeme => RoundPhase.captionWriting,
+      GameMode.classic || GameMode.zoomOut => RoundPhase.guessing,
+      GameMode.captionThis ||
+      GameMode.makeItMeme ||
+      GameMode.photoSabotage => RoundPhase.captionWriting,
       GameMode.timeTraveler => RoundPhase.timelineGuessing,
       GameMode.mixedParty => RoundPhase.guessing,
     };
-    if (entry.mode == GameMode.makeItMeme) {
+    if (entry.mode == GameMode.makeItMeme ||
+        entry.mode == GameMode.photoSabotage) {
       _assignMemePhotos();
     }
     return entry;
@@ -639,6 +726,9 @@ class HostGameEngine {
     if (_phase != RoundPhase.guessing) {
       throw const EngineException('wrong_phase', 'not guessing');
     }
+    if (_zoomLockedOut.contains(playerId)) {
+      throw const EngineException('locked_out', 'guess is locked');
+    }
     final entry = _deck[_currentRound - 1];
     if (!_players.containsKey(guessedOwnerId)) {
       throw const EngineException('unknown_player', 'guess target not in room');
@@ -646,17 +736,26 @@ class HostGameEngine {
     if (_guesses.containsKey(playerId)) {
       throw const EngineException('already_guessed', 'guess is locked');
     }
-    final clamped = elapsedMs.clamp(0, roundMs);
+    final totalMs = activeRoundMs;
+    final clamped = elapsedMs.clamp(0, totalMs);
     final isOwnPhoto = entry.ownerId == playerId;
     final isCorrect = entry.ownerId == guessedOwnerId;
 
     var points = 0;
     if (isCorrect) {
-      final remaining = roundMs - clamped;
-      points =
-          correctBasePoints +
-          (correctSpeedPoints * remaining) ~/ roundMs +
-          _streakBonus(player.streak);
+      final remaining = totalMs - clamped;
+      if (_activeMode == GameMode.zoomOut) {
+        // High-risk early lock-in: 1000 at the start, 300 at the buzzer.
+        points = 300 + (700 * remaining) ~/ totalMs;
+      } else {
+        points =
+            correctBasePoints +
+            (correctSpeedPoints * remaining) ~/ totalMs +
+            _streakBonus(player.streak);
+      }
+    } else if (_activeMode == GameMode.zoomOut) {
+      // A wrong early guess is locked out for the rest of this round.
+      _zoomLockedOut.add(playerId);
     }
 
     if (isCorrect) {
@@ -868,25 +967,64 @@ class HostGameEngine {
         .where((player) => player.connected)
         .toList();
     for (final player in connected) {
-      final pool = <PhotoCandidate>[];
-      for (final other in connected) {
-        if (other.id == player.id) continue;
-        for (final photo in _photoQueue[other.id] ?? const <PhotoCandidate>[]) {
-          if (!_usedPhotoIds.contains(photo.photoId)) pool.add(photo);
-        }
-      }
-      if (pool.isEmpty) {
-        for (final photo
-            in _photoQueue[player.id] ?? const <PhotoCandidate>[]) {
-          if (!_usedPhotoIds.contains(photo.photoId)) pool.add(photo);
-        }
-      }
-      if (pool.isEmpty) continue;
-      final next = pool[_random.nextInt(pool.length)];
-      _usedPhotoIds.add(next.photoId);
+      var next = _pickMemePhoto(player.id, allowUsed: false);
+      // The permanent pool can run low in very long matches. Reuse older
+      // unsubmitted photos before a round is ever allowed to stall.
+      next ??= _pickMemePhoto(player.id, allowUsed: true);
+      if (next == null) continue;
       _memeAssignments[player.id] = next;
-      _memeSwaps[player.id] = _memeSwaps[player.id] ?? 5;
+      _activeHeldPhotos[player.id] = next.photoId;
+      _memeSwaps[player.id] = 5;
     }
+  }
+
+  /// Photos nobody else is holding. Own photos are only used when every other
+  /// player's pool is empty, which keeps the "make a meme from a friend" feel.
+  List<PhotoCandidate> _memeCandidatesFor(
+    String playerId, {
+    required bool allowUsed,
+    Set<String> excluded = const <String>{},
+    bool preferOthers = true,
+  }) {
+    final others = <PhotoCandidate>[];
+    final own = <PhotoCandidate>[];
+    final held = _activeHeldPhotos.values.toSet();
+    for (final player in _players.values) {
+      if (!player.connected) continue;
+      for (final photo in _photoQueue[player.id] ?? const <PhotoCandidate>[]) {
+        if (held.contains(photo.photoId)) continue;
+        if (!allowUsed && _usedPhotoIds.contains(photo.photoId)) continue;
+        if (excluded.contains(photo.photoId)) continue;
+        if (player.id == playerId) {
+          own.add(photo);
+        } else {
+          others.add(photo);
+        }
+      }
+    }
+    if (preferOthers && others.isNotEmpty) return others;
+    return <PhotoCandidate>[...others, ...own];
+  }
+
+  PhotoCandidate? _pickMemePhoto(
+    String playerId, {
+    required bool allowUsed,
+    Set<String> excluded = const <String>{},
+  }) {
+    var pool = _memeCandidatesFor(
+      playerId,
+      allowUsed: allowUsed,
+      excluded: excluded,
+    );
+    if (pool.isEmpty) return null;
+    if (allowUsed) {
+      // Recycle photos that were swapped away and never submitted first.
+      final skipped = pool
+          .where((photo) => _memeSkippedPool.contains(photo.photoId))
+          .toList();
+      if (skipped.isNotEmpty) pool = skipped;
+    }
+    return pool[_random.nextInt(pool.length)];
   }
 
   MemeAssignment? memeAssignmentFor(String playerId) {
@@ -982,21 +1120,28 @@ class HostGameEngine {
     if (current == null) {
       throw const EngineException('no_photo', 'no photo assigned');
     }
-    final pool = <PhotoCandidate>[];
-    for (final player in _players.values) {
-      if (player.id == playerId || !player.connected) continue;
-      for (final photo in _photoQueue[player.id] ?? const <PhotoCandidate>[]) {
-        if (photo.photoId != current.photoId &&
-            !_usedPhotoIds.contains(photo.photoId)) {
-          pool.add(photo);
-        }
-      }
+
+    // Swapping gives the old photo back to the pool. Only a submitted meme
+    // makes a photo permanently used, so a heavy swap round never dries up.
+    final skip = _memeSkippedThisRound.putIfAbsent(playerId, () => <String>{});
+    skip.add(current.photoId);
+    _memeSkippedPool.add(current.photoId);
+
+    var next = _pickMemePhoto(playerId, allowUsed: false, excluded: skip);
+    if (next == null) {
+      // No unseen photo left for this player: cycle the skip list cleanly.
+      skip.clear();
+      next = _pickMemePhoto(playerId, allowUsed: false);
     }
-    if (pool.isEmpty) {
+    next ??= _pickMemePhoto(playerId, allowUsed: true, excluded: skip);
+    if (next == null) {
+      skip.clear();
+      next = _pickMemePhoto(playerId, allowUsed: true);
+    }
+    if (next == null) {
       throw const EngineException('no_swap_photo', 'no other photo available');
     }
-    final next = pool[_random.nextInt(pool.length)];
-    _usedPhotoIds.add(next.photoId);
+    _activeHeldPhotos[playerId] = next.photoId;
     _memeAssignments[playerId] = next;
     _memeSwaps[playerId] = left - 1;
     return next;
@@ -1008,6 +1153,7 @@ class HostGameEngine {
     required String topText,
     required String bottomText,
     required double snapY,
+    List<SabotageStroke> strokes = const <SabotageStroke>[],
   }) {
     _requirePlayer(playerId);
     if (_phase != RoundPhase.captionWriting) {
@@ -1020,13 +1166,20 @@ class HostGameEngine {
     if (_memes.containsKey(playerId)) {
       throw const EngineException('already_captioned', 'meme is locked');
     }
+    final sabotage = _activeMode == GameMode.photoSabotage;
     final top = topText.trim();
     final bottom = bottomText.trim();
-    if (top.isEmpty && bottom.isEmpty) {
-      throw const EngineException('empty_caption', 'write something first');
-    }
-    if (top.length > 70 || bottom.length > 70) {
-      throw const EngineException('caption_too_long', 'keep it under 70');
+    if (sabotage) {
+      if (strokes.isEmpty) {
+        throw const EngineException('empty_drawing', 'draw something first');
+      }
+    } else {
+      if (top.isEmpty && bottom.isEmpty) {
+        throw const EngineException('empty_caption', 'write something first');
+      }
+      if (top.length > 70 || bottom.length > 70) {
+        throw const EngineException('caption_too_long', 'keep it under 70');
+      }
     }
     final id = 'meme-${_memeSerial++}';
     final meme = MemeSubmission(
@@ -1035,13 +1188,20 @@ class HostGameEngine {
       photoId: assignment.photoId,
       photoOwnerId: assignment.ownerId,
       template: template,
-      topText: top,
-      bottomText: bottom,
-      snapY: snapY.clamp(10, 90),
+      topText: sabotage ? '' : top,
+      bottomText: sabotage ? '' : bottom,
+      snapY: sabotage ? 50 : snapY.clamp(10, 90),
+      isSabotage: sabotage,
+      strokes: sabotage ? strokes : const <SabotageStroke>[],
     );
     _memes[playerId] = meme;
     _memeIdByPlayer[playerId] = id;
     _memePlayerById[id] = playerId;
+    // Submitting is the moment a photo becomes permanently used. A swap never
+    // does this, so every unplayed photo stays available for a later round.
+    _usedPhotoIds.add(assignment.photoId);
+    _memeSkippedPool.remove(assignment.photoId);
+    _activeHeldPhotos.remove(playerId);
   }
 
   void beginMemeVoting() {
@@ -1117,6 +1277,8 @@ class HostGameEngine {
           mehVotes: meh,
           downVotes: down,
           points: points,
+          isSabotage: meme.isSabotage,
+          strokes: meme.strokes,
         ),
       );
     }
@@ -1134,13 +1296,6 @@ class HostGameEngine {
               if (entry.points == maxPoints) entry.id,
           ]
         : const <String>[];
-    final royaltyWinners = <MemeEntry>[
-      for (final entry in entries)
-        if (winners.contains(entry.id)) entry,
-    ];
-    for (final winner in royaltyWinners) {
-      deltas[winner.photoOwnerId] = (deltas[winner.photoOwnerId] ?? 0) + 25;
-    }
     for (final player in _players.values) {
       player.score += deltas[player.id] ?? 0;
     }

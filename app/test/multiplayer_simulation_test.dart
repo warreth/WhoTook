@@ -55,6 +55,7 @@ class Simulation {
       captionRevealDuration: const Duration(seconds: 5),
       timelineRevealDuration: const Duration(seconds: 5),
       memeTallyDuration: const Duration(milliseconds: 30),
+      sabotageDuration: const Duration(milliseconds: 500),
       emptyMemeAdvanceDuration: const Duration(milliseconds: 80),
       extendWindow: const Duration(milliseconds: 200),
       reconnectAttemptDelay: const Duration(milliseconds: 30),
@@ -254,14 +255,92 @@ Future<void> playTimelineRound(Simulation sim, {required int round}) async {
   await _waitForNextRound(host);
 }
 
+Future<void> playZoomRound(Simulation sim, {required int round}) async {
+  final host = sim.host;
+  await _waitForPhase(host, RoundPhase.guessing);
+  for (final client in sim.peers.skip(1)) {
+    await _waitForPhase(client, RoundPhase.guessing);
+    expect(client.state.zoomAnchorX, closeTo(host.state.zoomAnchorX, 0.0001));
+    expect(client.state.zoomAnchorY, closeTo(host.state.zoomAnchorY, 0.0001));
+  }
+  final options = host.state.activeRoundOptions;
+  final target = options[(round - 1) % options.length].id;
+  await host.submitGuess(target);
+  for (final client in sim.peers.skip(1)) {
+    await client.clientSubmitGuess(target);
+  }
+  await _waitForPhase(host, RoundPhase.reveal);
+  expect(host.state.lastReveal, isNotNull);
+  await host.skipRound();
+  await _waitForNextRound(host);
+}
+
+Future<void> playSabotageRound(Simulation sim, {required int round}) async {
+  final host = sim.host;
+  await _waitForPhase(host, RoundPhase.captionWriting);
+  for (final client in sim.peers.skip(1)) {
+    await _waitForPhase(client, RoundPhase.captionWriting);
+  }
+  final strokes = <SabotageStroke>[
+    SabotageStroke(
+      colorIndex: round % 5,
+      width: 0.01,
+      points: const <Offset>[
+        Offset(0.25, 0.3),
+        Offset(0.55, 0.45),
+        Offset(0.7, 0.7),
+      ],
+    ),
+  ];
+  await host.submitSabotage(strokes);
+  for (var i = 0; i < sim.clients; i++) {
+    await sim.peers[i + 1].clientSubmitSabotage(strokes);
+  }
+  await _waitForPhase(host, RoundPhase.captionVoting);
+  for (final client in sim.peers.skip(1)) {
+    await _waitForPhase(client, RoundPhase.captionVoting);
+  }
+  var guard = 0;
+  while (host.state.phase == RoundPhase.captionVoting && guard < 12) {
+    guard += 1;
+    final focus = host.state.memeFocusId;
+    if (focus == null || focus.isEmpty) break;
+    for (final peer in sim.peers) {
+      final cards = peer.state.memeCards;
+      if (cards.isEmpty) continue;
+      final ownId = cards.where((card) => card.isOwn).firstOrNull?.id;
+      if (ownId == focus) continue;
+      if (peer == host) {
+        await host.voteMeme(focus, MemeVote.up);
+      } else {
+        await peer.clientVoteMeme(focus, MemeVote.up);
+      }
+    }
+    await waitFor(
+      () => host.state.memeFocusId != focus,
+      timeout: const Duration(seconds: 10),
+      reason: 'sabotage focus never advanced',
+    );
+  }
+  await _waitForPhase(host, RoundPhase.captionReveal);
+  expect(host.state.memeRevealCards, isNotEmpty);
+  expect(host.state.memeRevealCards.every((card) => card.isSabotage), isTrue);
+  await host.advanceMemeReveal();
+  await _waitForNextRound(host);
+}
+
 Future<void> playRound(Simulation sim, {required int round}) async {
   final mode = sim.host.state.activeMode;
   switch (mode) {
     case GameMode.classic:
     case GameMode.captionThis:
       await playClassicRound(sim, round: round);
+    case GameMode.zoomOut:
+      await playZoomRound(sim, round: round);
     case GameMode.makeItMeme:
       await playMemeRound(sim, round: round);
+    case GameMode.photoSabotage:
+      await playSabotageRound(sim, round: round);
     case GameMode.timeTraveler:
       await playTimelineRound(sim, round: round);
     case GameMode.mixedParty:
@@ -458,50 +537,78 @@ void main() {
     expect(entry.ownerId, isNotEmpty);
   });
 
-  test(
-    'mixed party is 4 classic / 3 meme / 3 traveler with unique photos',
-    () async {
-      final sim = Simulation();
-      addTearDown(sim.dispose);
-      await sim.start(mode: GameMode.mixedParty, rounds: 10);
-      await sim.prepare();
+  test('zoom-out keeps every phone on the same anchor', () async {
+    final sim = Simulation();
+    addTearDown(sim.dispose);
+    await sim.start(mode: GameMode.zoomOut, rounds: 2);
+    await sim.prepare();
+    for (var round = 1; round <= 2; round++) {
+      await playZoomRound(sim, round: round);
+    }
+    await _waitForPhase(sim.host, RoundPhase.podium);
+    expect(sim.host.state.awards, isNotEmpty);
+  }, timeout: const Timeout(Duration(seconds: 90)));
 
-      final modes = <GameMode>[];
-      final photos = <String>[];
-      for (var round = 1; round <= 10; round++) {
-        await waitFor(
-          () =>
-              sim.host.state.phase == RoundPhase.guessing ||
-              sim.host.state.phase == RoundPhase.captionWriting ||
-              sim.host.state.phase == RoundPhase.timelineGuessing ||
-              sim.host.state.phase == RoundPhase.podium,
-          timeout: const Duration(seconds: 20),
-        );
-        if (sim.host.state.phase == RoundPhase.podium) break;
-        final mode = sim.host.state.activeMode;
-        modes.add(mode);
-        final photoId = mode == GameMode.makeItMeme
-            ? sim.host.state.memeAssignment?.photoId
-            : sim.host.state.activePhotoId;
-        expect(photoId, isNotNull, reason: 'round $round has no photo');
-        photos.add(photoId!);
-        await playRound(sim, round: round);
-      }
-      await _waitForPhase(sim.host, RoundPhase.podium);
+  test('an empty sabotage round skips cleanly', () async {
+    final sim = Simulation();
+    addTearDown(sim.dispose);
+    await sim.start(mode: GameMode.photoSabotage, rounds: 1);
+    await sim.prepare();
+    await _waitForPhase(sim.host, RoundPhase.captionWriting);
+    await _waitForPhase(
+      sim.host,
+      RoundPhase.captionReveal,
+      timeout: const Duration(seconds: 5),
+    );
+    expect(sim.host.state.memeRevealCards, isEmpty);
+    await sim.host.advanceMemeReveal();
+    await _waitForPhase(sim.host, RoundPhase.podium);
+  }, timeout: const Timeout(Duration(seconds: 30)));
 
-      expect(modes, hasLength(10));
-      expect(modes.where((mode) => mode == GameMode.classic), hasLength(4));
-      expect(modes.where((mode) => mode == GameMode.makeItMeme), hasLength(3));
-      expect(
-        modes.where((mode) => mode == GameMode.timeTraveler),
-        hasLength(3),
+  test('mixed party is two of each mode with unique photos', () async {
+    final sim = Simulation();
+    addTearDown(sim.dispose);
+    await sim.start(mode: GameMode.mixedParty, rounds: 10);
+    await sim.prepare();
+
+    final modes = <GameMode>[];
+    final photos = <String>[];
+    for (var round = 1; round <= 10; round++) {
+      await waitFor(
+        () =>
+            sim.host.state.phase == RoundPhase.guessing ||
+            sim.host.state.phase == RoundPhase.captionWriting ||
+            sim.host.state.phase == RoundPhase.timelineGuessing ||
+            sim.host.state.phase == RoundPhase.podium,
+        timeout: const Duration(seconds: 20),
       );
-      for (var i = 1; i < modes.length; i++) {
-        expect(modes[i], isNot(modes[i - 1]), reason: 'consecutive mode $i');
-      }
-      expect(photos.toSet(), hasLength(photos.length));
-      expect(sim.host.state.awards, isNotEmpty);
-    },
-    timeout: const Timeout(Duration(seconds: 180)),
-  );
+      if (sim.host.state.phase == RoundPhase.podium) break;
+      final mode = sim.host.state.activeMode;
+      modes.add(mode);
+      final photoId =
+          mode == GameMode.makeItMeme || mode == GameMode.photoSabotage
+          ? sim.host.state.memeAssignment?.photoId
+          : sim.host.state.activePhotoId;
+      expect(photoId, isNotNull, reason: 'round $round has no photo');
+      photos.add(photoId!);
+      await playRound(sim, round: round);
+    }
+    await _waitForPhase(sim.host, RoundPhase.podium);
+
+    expect(modes, hasLength(10));
+    for (final mode in <GameMode>[
+      GameMode.classic,
+      GameMode.zoomOut,
+      GameMode.makeItMeme,
+      GameMode.photoSabotage,
+      GameMode.timeTraveler,
+    ]) {
+      expect(modes.where((candidate) => candidate == mode), hasLength(2));
+    }
+    for (var i = 1; i < modes.length; i++) {
+      expect(modes[i], isNot(modes[i - 1]), reason: 'consecutive mode $i');
+    }
+    expect(photos.toSet(), hasLength(photos.length));
+    expect(sim.host.state.awards, isNotEmpty);
+  }, timeout: const Timeout(Duration(seconds: 180)));
 }

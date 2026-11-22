@@ -74,7 +74,7 @@
   },
   "invalidInvite": "That invite is not valid. Scan the QR code again.",
   "chooseGame": "Choose the game",
-  "chooseGameSubtitle": "Classic, Make It Meme, Time Traveler or a bit of everything.",
+  "chooseGameSubtitle": "Classic, Zoom-Out, Make It Meme, Foto-Sabotage, Time Traveler or a bit of everything.",
   "nextRounds": "Next: rounds",
   "howManyRounds": "How many rounds?",
   "roundsSubtitle": "Short and sharp. You can always add five more at the podium.",
@@ -106,7 +106,7 @@
   "paceClassicSubtitle": "How long does everyone get to guess each photo?",
   "paceCaptionSubtitle": "How long does everyone get to write a caption?",
   "paceTimelineSubtitle": "How long does everyone get to choose a date?",
-  "paceMixedSubtitle": "Each of the three modes keeps its own clock.",
+  "paceMixedSubtitle": "Each mode keeps its own clock.",
   "paceFastClassic": "Snap decisions.",
   "paceNormalClassic": "The party standard.",
   "paceSlowClassic": "For the big table.",
@@ -119,6 +119,14 @@
   "paceFastMixed": "Every mode at its fast clock.",
   "paceNormalMixed": "Every mode at its normal clock.",
   "paceSlowMixed": "Every mode at its slow clock.",
+  "paceZoomSubtitle": "Fifteen seconds. One detail.",
+  "paceSabotageSubtitle": "Draw, swap and submit.",
+  "paceFastZoom": "Early eyes, big points.",
+  "paceNormalZoom": "The detail zooms out.",
+  "paceSlowZoom": "Every second counts.",
+  "paceFastSabotage": "A quick doodle.",
+  "paceNormalSabotage": "Time for one good joke.",
+  "paceSlowSabotage": "No rush, sabotage it.",
   "mixed": "Mixed",
   "secondsShort": "{seconds}s",
   "@secondsShort": {
@@ -151,6 +159,8 @@
   "leaveMatch": "Leave match",
   "scanToJoin": "Scan to join",
   "scanToJoinBody": "Point any camera at the code. No app download needed to join.",
+  "showRoomQr": "Show room QR",
+  "roomQrShareText": "Join my WhoTook room",
   "roomCode": "ROOM {roomId}",
   "@roomCode": {
     "placeholders": {
@@ -165,6 +175,20 @@
   "shareInviteLink": "Share invite link",
   "hostStartsPhotoCheck": "The host starts the photo check when everyone is here.",
   "waitingForHostToStart": "Waiting for the host to start",
+  "matchInProgressTitle": "Match in progress",
+  "matchInProgressBody": "You are in the room. The current game is finishing; you join the next one and approve your photos then.",
+  "watchingLive": "Live from the table",
+  "watchingRound": "Watching round {current} of {total}",
+  "@watchingRound": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
   "playersJoined": "{count, plural, =1{1 player joined} other{{count} players joined}}",
   "@playersJoined": {
     "placeholders": {
@@ -202,6 +226,8 @@
   "modeCaptionThis": "Caption This",
   "modeTimeTraveler": "Time Traveler",
   "modeMixedParty": "Mixed Party",
+  "modeZoomOut": "Zoom-Out",
+  "modePhotoSabotage": "Foto-Sabotage",
   "rerollAll": "Reroll all",
   "waitingForPlayersButton": "Waiting for players",
   "forceStartMatch": "Force start match",
@@ -547,7 +573,7 @@
   "demoIntroNotice": "Everything here is simulated. Nothing leaves this phone.",
   "demoLineup": "Your table",
   "demoBotRoles": "You are the host. Lotte, Sam and Noor answer automatically, but you still get to play every round.",
-  "demoTryModes": "Change the mode in the lobby to try Classic, Make It Meme, Time Traveler or Mixed Party.",
+  "demoTryModes": "Change the mode in the lobby to try Classic, Zoom-Out, Make It Meme, Foto-Sabotage, Time Traveler or Mixed Party.",
   "startDemo": "Start demo",
   "demoLobbyTitle": "Your demo table",
   "demoLobbyBody": "Three bots are ready. Start the photo check when you want to play.",
@@ -750,7 +776,12 @@
   "modeClassicBlurb": "Guess who took it.",
   "modeCaptionThisBlurb": "Write the funniest caption.",
   "modeTimeTravelerBlurb": "Guess the year and month.",
-  "modeMixedPartyBlurb": "All three, shuffled.",
+  "modeMixedPartyBlurb": "All five, shuffled.",
+  "modeZoomOutBlurb": "Guess the photo as it zooms out.",
+  "modePhotoSabotageBlurb": "Doodle on a friend's photo.",
+  "mixedModesLabel": "Mixed Party modes",
+  "mixedModesHint": "Pick at least two. Rounds stay balanced and never repeat the same mode twice in a row.",
+  "mixedModesMinimum": "Keep at least two modes in Mixed Party.",
   "modeSemantic": "{label}. {blurb}",
   "@modeSemantic": {
     "placeholders": {
@@ -839,7 +870,7 @@
   "memeVaultReady": "Ready",
   "memeVaultReroll": "Reroll all",
   "memeWritingLabel": "Build the meme",
-  "memeMatchSwaps": "Match swaps",
+  "memeRoundSwaps": "Round swaps",
   "memeTemplate": "Template",
   "memeTemplateClassic": "Classic",
   "memeTemplatePov": "POV",
@@ -863,7 +894,7 @@
   "memeSentWaiting": "Meme sent. Waiting for the others.",
   "memeSwapPhoto": "Swap photo",
   "memeSwapsLeft": "{count} left",
-  "memeSwapsMatchWide": "5 swaps for the whole match.",
+  "memeSwapsRoundWide": "5 swaps every round. Swapped photos go back into the pool.",
   "memeVoteTitle": "Vote on this meme.",
   "memeVoteSubtitle": "Upvote, Meh or Downvote. You cannot vote for your own meme.",
   "memeUpvote": "Upvote",
@@ -875,8 +906,6 @@
   "memeTapToVote": "Tap one to vote.",
   "memeRoundWinner": "Round winner",
   "memeCreatorPoints": "Creator points",
-  "memeModelRoyalty": "Model royalty",
-  "memeRoyaltyBody": "{name}'s photo was in the winning meme. {name} gets +25.",
   "memeTopMemes": "Top 3 memes",
   "memeFinalRound": "Final round: everyone gets the same photo. Double points.",
   "memeDownload": "Save meme",
@@ -988,6 +1017,14 @@
   "timeSplashYear": "What year was this?!",
   "timeSplashHair": "Check the haircuts and clothes!",
   "timeSplashBack": "Travel back in time!",
+  "zoomSplashFocus": "Focus on the details!",
+  "zoomSplashWho": "Zooming out... whose photo is this?!",
+  "zoomSplashEarly": "Dare to guess early?",
+  "zoomSplashClose": "The closer you look, the more you score!",
+  "sabotageSplashMarker": "Grab your marker: sabotage time!",
+  "sabotageSplashRuin": "Ruin your friend's photo!",
+  "sabotageSplashRidiculous": "Draw something ridiculous!",
+  "sabotageSplashDraw": "Make them laugh out loud!",
   "roundSplash": "ROUND {round}: {mode}!",
   "@roundSplash": {
     "description": "Full-screen arcade transition between rounds",
@@ -1013,13 +1050,6 @@
     "placeholders": {
       "count": {
         "type": "int"
-      }
-    }
-  },
-  "@memeRoyaltyBody": {
-    "placeholders": {
-      "name": {
-        "type": "String"
       }
     }
   },
@@ -1226,5 +1256,80 @@
   "errorHostStarting": "The host is still opening the room. Try again in a moment.",
   "errorInviteExpired": "This invite has expired. Ask the host for a new QR code.",
   "roomThemePreviewBadge": "PREVIEW",
-  "gamePhoto": "Game photo"
+  "gamePhoto": "Game photo",
+  "zoomPotential": "+{points} pts",
+  "zoomLockedIn": "Locked in at {scale}!",
+  "zoomWrongLocked": "Wrong! Locked out",
+  "zoomEagleEye": "Eagle Eye: {name} at {scale}!",
+  "zoomNoEagleEye": "No eagle eyes this round.",
+  "zoomFullPhoto": "The full photo",
+  "sabotageDrawTitle": "Sabotage the photo",
+  "sabotageDrawHint": "Draw on {name}'s photo.",
+  "sabotageDrawFirst": "Draw something first.",
+  "sabotagePreparing": "Getting your photo...",
+  "sabotageUndo": "Undo",
+  "sabotageColor1": "Black",
+  "sabotageColor2": "White",
+  "sabotageColor3": "Red",
+  "sabotageColor4": "Yellow",
+  "sabotageColor5": "Green",
+  "sabotageClear": "Clear",
+  "sabotageThin": "Thin",
+  "sabotageThick": "Thick",
+  "sabotageSend": "Send sabotage",
+  "sabotageSent": "Sabotage sent. Waiting for the others.",
+  "sabotageVoteTitle": "Which sabotage wins?",
+  "sabotageVoteSubtitle": "React to the drawing, not the photo.",
+  "sabotageWaitingVotes": "Waiting for votes: {current}/{total}",
+  "sabotageNoSubmissions": "No sabotages this round.",
+  "sabotageRevealTitle": "The sabotage revealed",
+  "topCreations": "Top 3 memes & sabotages",
+  "winningSabotage": "WINNING SABOTAGE",
+  "sabotageSave": "Save sabotage",
+  "@zoomPotential": {
+    "placeholders": {
+      "points": {
+        "type": "int"
+      }
+    }
+  },
+  "@zoomLockedIn": {
+    "placeholders": {
+      "scale": {
+        "type": "String"
+      }
+    }
+  },
+  "@zoomEagleEye": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "scale": {
+        "type": "String"
+      }
+    }
+  },
+  "@sabotageDrawHint": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "@sabotageWaitingVotes": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "@sabotageColor1": { "description": "Marker colour 1" },
+  "@sabotageColor2": { "description": "Marker colour 2" },
+  "@sabotageColor3": { "description": "Marker colour 3" },
+  "@sabotageColor4": { "description": "Marker colour 4" },
+  "@sabotageColor5": { "description": "Marker colour 5" }
 }

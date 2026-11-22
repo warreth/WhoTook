@@ -204,7 +204,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chooseGameSubtitle =>
-      'Classic, Make It Meme, Time Traveler or a bit of everything.';
+      'Classic, Zoom-Out, Make It Meme, Foto-Sabotage, Time Traveler or a bit of everything.';
 
   @override
   String get nextRounds => 'Next: rounds';
@@ -272,8 +272,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'How long does everyone get to choose a date?';
 
   @override
-  String get paceMixedSubtitle =>
-      'Each of the three modes keeps its own clock.';
+  String get paceMixedSubtitle => 'Each mode keeps its own clock.';
 
   @override
   String get paceFastClassic => 'Snap decisions.';
@@ -310,6 +309,30 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get paceSlowMixed => 'Every mode at its slow clock.';
+
+  @override
+  String get paceZoomSubtitle => 'Fifteen seconds. One detail.';
+
+  @override
+  String get paceSabotageSubtitle => 'Draw, swap and submit.';
+
+  @override
+  String get paceFastZoom => 'Early eyes, big points.';
+
+  @override
+  String get paceNormalZoom => 'The detail zooms out.';
+
+  @override
+  String get paceSlowZoom => 'Every second counts.';
+
+  @override
+  String get paceFastSabotage => 'A quick doodle.';
+
+  @override
+  String get paceNormalSabotage => 'Time for one good joke.';
+
+  @override
+  String get paceSlowSabotage => 'No rush, sabotage it.';
 
   @override
   String get mixed => 'Mixed';
@@ -353,6 +376,12 @@ class AppLocalizationsEn extends AppLocalizations {
       'Point any camera at the code. No app download needed to join.';
 
   @override
+  String get showRoomQr => 'Show room QR';
+
+  @override
+  String get roomQrShareText => 'Join my WhoTook room';
+
+  @override
   String roomCode(String roomId) {
     return 'ROOM $roomId';
   }
@@ -376,6 +405,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get waitingForHostToStart => 'Waiting for the host to start';
+
+  @override
+  String get matchInProgressTitle => 'Match in progress';
+
+  @override
+  String get matchInProgressBody =>
+      'You are in the room. The current game is finishing; you join the next one and approve your photos then.';
+
+  @override
+  String get watchingLive => 'Live from the table';
+
+  @override
+  String watchingRound(int current, int total) {
+    return 'Watching round $current of $total';
+  }
 
   @override
   String playersJoined(int count) {
@@ -458,6 +502,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get modeMixedParty => 'Mixed Party';
+
+  @override
+  String get modeZoomOut => 'Zoom-Out';
+
+  @override
+  String get modePhotoSabotage => 'Foto-Sabotage';
 
   @override
   String get rerollAll => 'Reroll all';
@@ -928,7 +978,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get demoTryModes =>
-      'Change the mode in the lobby to try Classic, Make It Meme, Time Traveler or Mixed Party.';
+      'Change the mode in the lobby to try Classic, Zoom-Out, Make It Meme, Foto-Sabotage, Time Traveler or Mixed Party.';
 
   @override
   String get startDemo => 'Start demo';
@@ -1317,7 +1367,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modeTimeTravelerBlurb => 'Guess the year and month.';
 
   @override
-  String get modeMixedPartyBlurb => 'All three, shuffled.';
+  String get modeMixedPartyBlurb => 'All five, shuffled.';
+
+  @override
+  String get modeZoomOutBlurb => 'Guess the photo as it zooms out.';
+
+  @override
+  String get modePhotoSabotageBlurb => 'Doodle on a friend\'s photo.';
+
+  @override
+  String get mixedModesLabel => 'Mixed Party modes';
+
+  @override
+  String get mixedModesHint =>
+      'Pick at least two. Rounds stay balanced and never repeat the same mode twice in a row.';
+
+  @override
+  String get mixedModesMinimum => 'Keep at least two modes in Mixed Party.';
 
   @override
   String modeSemantic(String label, String blurb) {
@@ -1508,7 +1574,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get memeWritingLabel => 'Build the meme';
 
   @override
-  String get memeMatchSwaps => 'Match swaps';
+  String get memeRoundSwaps => 'Round swaps';
 
   @override
   String get memeTemplate => 'Template';
@@ -1582,7 +1648,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get memeSwapsMatchWide => '5 swaps for the whole match.';
+  String get memeSwapsRoundWide =>
+      '5 swaps every round. Swapped photos go back into the pool.';
 
   @override
   String get memeVoteTitle => 'Vote on this meme.';
@@ -1617,14 +1684,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get memeCreatorPoints => 'Creator points';
-
-  @override
-  String get memeModelRoyalty => 'Model royalty';
-
-  @override
-  String memeRoyaltyBody(String name) {
-    return '$name\'s photo was in the winning meme. $name gets +25.';
-  }
 
   @override
   String get memeTopMemes => 'Top 3 memes';
@@ -1758,6 +1817,30 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get timeSplashBack => 'Travel back in time!';
+
+  @override
+  String get zoomSplashFocus => 'Focus on the details!';
+
+  @override
+  String get zoomSplashWho => 'Zooming out... whose photo is this?!';
+
+  @override
+  String get zoomSplashEarly => 'Dare to guess early?';
+
+  @override
+  String get zoomSplashClose => 'The closer you look, the more you score!';
+
+  @override
+  String get sabotageSplashMarker => 'Grab your marker: sabotage time!';
+
+  @override
+  String get sabotageSplashRuin => 'Ruin your friend\'s photo!';
+
+  @override
+  String get sabotageSplashRidiculous => 'Draw something ridiculous!';
+
+  @override
+  String get sabotageSplashDraw => 'Make them laugh out loud!';
 
   @override
   String roundSplash(int round, String mode) {
@@ -2188,4 +2271,101 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get gamePhoto => 'Game photo';
+
+  @override
+  String zoomPotential(int points) {
+    return '+$points pts';
+  }
+
+  @override
+  String zoomLockedIn(String scale) {
+    return 'Locked in at $scale!';
+  }
+
+  @override
+  String get zoomWrongLocked => 'Wrong! Locked out';
+
+  @override
+  String zoomEagleEye(String name, String scale) {
+    return 'Eagle Eye: $name at $scale!';
+  }
+
+  @override
+  String get zoomNoEagleEye => 'No eagle eyes this round.';
+
+  @override
+  String get zoomFullPhoto => 'The full photo';
+
+  @override
+  String get sabotageDrawTitle => 'Sabotage the photo';
+
+  @override
+  String sabotageDrawHint(String name) {
+    return 'Draw on $name\'s photo.';
+  }
+
+  @override
+  String get sabotageDrawFirst => 'Draw something first.';
+
+  @override
+  String get sabotagePreparing => 'Getting your photo...';
+
+  @override
+  String get sabotageUndo => 'Undo';
+
+  @override
+  String get sabotageColor1 => 'Black';
+
+  @override
+  String get sabotageColor2 => 'White';
+
+  @override
+  String get sabotageColor3 => 'Red';
+
+  @override
+  String get sabotageColor4 => 'Yellow';
+
+  @override
+  String get sabotageColor5 => 'Green';
+
+  @override
+  String get sabotageClear => 'Clear';
+
+  @override
+  String get sabotageThin => 'Thin';
+
+  @override
+  String get sabotageThick => 'Thick';
+
+  @override
+  String get sabotageSend => 'Send sabotage';
+
+  @override
+  String get sabotageSent => 'Sabotage sent. Waiting for the others.';
+
+  @override
+  String get sabotageVoteTitle => 'Which sabotage wins?';
+
+  @override
+  String get sabotageVoteSubtitle => 'React to the drawing, not the photo.';
+
+  @override
+  String sabotageWaitingVotes(int current, int total) {
+    return 'Waiting for votes: $current/$total';
+  }
+
+  @override
+  String get sabotageNoSubmissions => 'No sabotages this round.';
+
+  @override
+  String get sabotageRevealTitle => 'The sabotage revealed';
+
+  @override
+  String get topCreations => 'Top 3 memes & sabotages';
+
+  @override
+  String get winningSabotage => 'WINNING SABOTAGE';
+
+  @override
+  String get sabotageSave => 'Save sabotage';
 }

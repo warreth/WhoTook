@@ -77,7 +77,9 @@ class _SpeedSetupScreenState extends ConsumerState<SpeedSetupScreen> {
 String _subtitle(GameMode mode, AppLocalizations l10n) => switch (mode) {
   GameMode.classic => l10n.paceClassicSubtitle,
   GameMode.captionThis => l10n.paceCaptionSubtitle,
+  GameMode.zoomOut => l10n.paceZoomSubtitle,
   GameMode.makeItMeme => l10n.paceMemeSubtitle,
+  GameMode.photoSabotage => l10n.paceSabotageSubtitle,
   GameMode.timeTraveler => l10n.paceTimelineSubtitle,
   GameMode.mixedParty => l10n.paceMixedSubtitle,
 };
@@ -181,6 +183,46 @@ List<_PaceOption> _paceOptions(GameMode mode, AppLocalizations l10n) =>
           pace: GamePace.slow,
           blurb: l10n.paceSlowTimeline,
           seconds: GamePace.slow.timelineSeconds,
+          icon: Icons.hourglass_empty,
+        ),
+      ],
+      GameMode.zoomOut => <_PaceOption>[
+        _PaceOption(
+          pace: GamePace.fast,
+          blurb: l10n.paceFastZoom,
+          seconds: GamePace.fast.zoomOutSeconds,
+          icon: Icons.bolt_outlined,
+        ),
+        _PaceOption(
+          pace: GamePace.normal,
+          blurb: l10n.paceNormalZoom,
+          seconds: GamePace.normal.zoomOutSeconds,
+          icon: Icons.zoom_in,
+        ),
+        _PaceOption(
+          pace: GamePace.slow,
+          blurb: l10n.paceSlowZoom,
+          seconds: GamePace.slow.zoomOutSeconds,
+          icon: Icons.hourglass_empty,
+        ),
+      ],
+      GameMode.photoSabotage => <_PaceOption>[
+        _PaceOption(
+          pace: GamePace.fast,
+          blurb: l10n.paceFastSabotage,
+          seconds: GamePace.fast.sabotageSeconds,
+          icon: Icons.bolt_outlined,
+        ),
+        _PaceOption(
+          pace: GamePace.normal,
+          blurb: l10n.paceNormalSabotage,
+          seconds: GamePace.normal.sabotageSeconds,
+          icon: Icons.brush_outlined,
+        ),
+        _PaceOption(
+          pace: GamePace.slow,
+          blurb: l10n.paceSlowSabotage,
+          seconds: GamePace.slow.sabotageSeconds,
           icon: Icons.hourglass_empty,
         ),
       ],

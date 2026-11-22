@@ -172,15 +172,39 @@ class _PartyBackdropPainter extends CustomPainter {
       canvas.save();
       canvas.translate(centre.dx, centre.dy);
       canvas.rotate((random.nextDouble() - 0.5) * 0.7 + progress * 0.12);
-      switch (kind) {
-        case 0:
-          _polaroid(canvas, color, 28 * scale);
-        case 1:
-          _shutter(canvas, color, 18 * scale);
-        case 2:
-          _star(canvas, color, 11 * scale);
-        default:
-          canvas.drawCircle(Offset.zero, 3.5 * scale, Paint()..color = color);
+      if (skin.id == 'zoom-out') {
+        switch (kind) {
+          case 0:
+            _magnifier(canvas, color, 17 * scale);
+          case 1:
+            _focusRing(canvas, color, 20 * scale);
+          case 2:
+            _shutter(canvas, color, 15 * scale);
+          default:
+            canvas.drawCircle(Offset.zero, 3.5 * scale, Paint()..color = color);
+        }
+      } else if (skin.id == 'photo-sabotage') {
+        switch (kind) {
+          case 0:
+            _brush(canvas, color, 24 * scale);
+          case 1:
+            _star(canvas, color, 11 * scale);
+          case 2:
+            _polaroid(canvas, color, 22 * scale);
+          default:
+            canvas.drawCircle(Offset.zero, 3.5 * scale, Paint()..color = color);
+        }
+      } else {
+        switch (kind) {
+          case 0:
+            _polaroid(canvas, color, 28 * scale);
+          case 1:
+            _shutter(canvas, color, 18 * scale);
+          case 2:
+            _star(canvas, color, 11 * scale);
+          default:
+            canvas.drawCircle(Offset.zero, 3.5 * scale, Paint()..color = color);
+        }
       }
       canvas.restore();
     }
@@ -240,6 +264,58 @@ class _PartyBackdropPainter extends CustomPainter {
       );
       canvas.drawLine(start, end, paint);
     }
+  }
+
+  void _magnifier(Canvas canvas, Color color, double size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.4
+      ..strokeCap = StrokeCap.round;
+    canvas.drawCircle(Offset(-size * 0.18, -size * 0.18), size * 0.58, paint);
+    canvas.drawLine(
+      Offset(size * 0.25, size * 0.25),
+      Offset(size * 0.72, size * 0.72),
+      paint,
+    );
+  }
+
+  void _focusRing(Canvas canvas, Color color, double size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.2;
+    canvas.drawCircle(Offset.zero, size * 0.62, paint);
+    for (var i = 0; i < 4; i++) {
+      final angle = i * math.pi / 2;
+      canvas.drawLine(
+        Offset(math.cos(angle) * size * 0.3, math.sin(angle) * size * 0.3),
+        Offset(math.cos(angle) * size * 0.85, math.sin(angle) * size * 0.85),
+        paint,
+      );
+    }
+  }
+
+  void _brush(Canvas canvas, Color color, double size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 4.2
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(
+      Offset(-size * 0.45, size * 0.55),
+      Offset(size * 0.45, -size * 0.5),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(size * 0.45, -size * 0.5),
+      Offset(size * 0.65, -size * 0.72),
+      paint..strokeWidth = 1.8,
+    );
+    canvas.drawCircle(
+      Offset(-size * 0.52, size * 0.7),
+      size * 0.1,
+      Paint()..color = color,
+    );
   }
 
   void _star(Canvas canvas, Color color, double radius) {

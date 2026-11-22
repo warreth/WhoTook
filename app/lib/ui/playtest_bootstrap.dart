@@ -70,7 +70,9 @@ class _PlaytestBootstrapState extends ConsumerState<PlaytestBootstrap> {
   GameMode _modeFrom(String? value) => switch (value) {
     'classic' => GameMode.classic,
     'meme' || 'makeItMeme' => GameMode.makeItMeme,
+    'sabotage' || 'photoSabotage' => GameMode.photoSabotage,
     'time' || 'timeTraveler' => GameMode.timeTraveler,
+    'zoom' || 'zoomOut' => GameMode.zoomOut,
     _ => GameMode.mixedParty,
   };
 
@@ -140,6 +142,28 @@ class _PlaytestBootstrapState extends ConsumerState<PlaytestBootstrap> {
             bottomText: map['bottomText'] as String? ?? '',
             snapY: 48,
           );
+        }
+      case 'sabotageSubmit':
+        final strokes = <SabotageStroke>[
+          SabotageStroke(
+            colorIndex: 2,
+            width: 0.012,
+            points: const <Offset>[
+              Offset(0.24, 0.3),
+              Offset(0.52, 0.42),
+              Offset(0.7, 0.68),
+            ],
+          ),
+          SabotageStroke(
+            colorIndex: 4,
+            width: 0.02,
+            points: const <Offset>[Offset(0.35, 0.7), Offset(0.6, 0.55)],
+          ),
+        ];
+        if (coordinator.state.isHosting) {
+          await coordinator.submitSabotage(strokes);
+        } else {
+          await coordinator.clientSubmitSabotage(strokes);
         }
       case 'memeVote':
         final focus = coordinator.state.memeFocusId;

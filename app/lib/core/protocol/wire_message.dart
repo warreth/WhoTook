@@ -22,6 +22,7 @@ abstract final class WireType {
   static const String roundCountdown = 'round_countdown';
   static const String roundShow = 'round_show';
   static const String submitGuess = 'submit_guess';
+  static const String guessResult = 'guess_result';
   static const String screenshotTaken = 'screenshot_taken';
   static const String screenshotAlert = 'screenshot_alert';
   static const String soundEffect = 'sound_effect';
@@ -68,6 +69,7 @@ abstract final class WireType {
     roundCountdown,
     roundShow,
     submitGuess,
+    guessResult,
     screenshotTaken,
     screenshotAlert,
     soundEffect,

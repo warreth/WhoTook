@@ -204,7 +204,7 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get chooseGameSubtitle =>
-      'Klassiek, Make It Meme, Tijdreiziger of van alles wat.';
+      'Klassiek, Zoom-Out, Make It Meme, Foto-Sabotage, Tijdreiziger of van alles wat.';
 
   @override
   String get nextRounds => 'Volgende: rondes';
@@ -311,6 +311,30 @@ class AppLocalizationsNl extends AppLocalizations {
   String get paceSlowMixed => 'Elke modus op rustig tempo.';
 
   @override
+  String get paceZoomSubtitle => 'Vijftien seconden. Eén detail.';
+
+  @override
+  String get paceSabotageSubtitle => 'Teken, wissel en stuur in.';
+
+  @override
+  String get paceFastZoom => 'Vroege ogen, veel punten.';
+
+  @override
+  String get paceNormalZoom => 'Het detail zoomt uit.';
+
+  @override
+  String get paceSlowZoom => 'Elke seconde telt.';
+
+  @override
+  String get paceFastSabotage => 'Een snelle krabbel.';
+
+  @override
+  String get paceNormalSabotage => 'Tijd voor één goede grap.';
+
+  @override
+  String get paceSlowSabotage => 'Geen haast, saboteer het.';
+
+  @override
   String get mixed => 'Gemengd';
 
   @override
@@ -352,6 +376,12 @@ class AppLocalizationsNl extends AppLocalizations {
       'Richt een camera op de code. Je hebt geen app nodig om mee te doen.';
 
   @override
+  String get showRoomQr => 'Toon QR-code';
+
+  @override
+  String get roomQrShareText => 'Doe mee met mijn WhoTook-room';
+
+  @override
   String roomCode(String roomId) {
     return 'RUIMTE $roomId';
   }
@@ -375,6 +405,21 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get waitingForHostToStart => 'Wachten tot de host start';
+
+  @override
+  String get matchInProgressTitle => 'Spel is bezig';
+
+  @override
+  String get matchInProgressBody =>
+      'Je zit in de room. Het huidige spel rondt af; daarna doe je mee en keur je je foto\'s goed.';
+
+  @override
+  String get watchingLive => 'Live vanaf tafel';
+
+  @override
+  String watchingRound(int current, int total) {
+    return 'Je kijkt naar ronde $current van $total';
+  }
 
   @override
   String playersJoined(int count) {
@@ -456,6 +501,12 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get modeMixedParty => 'Feestmix';
+
+  @override
+  String get modeZoomOut => 'Zoom-Out';
+
+  @override
+  String get modePhotoSabotage => 'Foto-Sabotage';
 
   @override
   String get rerollAll => 'Nieuwe foto\'s';
@@ -931,7 +982,7 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get demoTryModes =>
-      'Kies in de lobby een andere modus om Classic, Make It Meme, Time Traveler of Mixed Party te proberen.';
+      'Kies in de lobby een andere modus om Classic, Zoom-Out, Make It Meme, Foto-Sabotage, Time Traveler of Mixed Party te proberen.';
 
   @override
   String get startDemo => 'Demo starten';
@@ -1323,7 +1374,23 @@ class AppLocalizationsNl extends AppLocalizations {
   String get modeTimeTravelerBlurb => 'Raad het jaar en de maand.';
 
   @override
-  String get modeMixedPartyBlurb => 'Alle drie, door elkaar.';
+  String get modeMixedPartyBlurb => 'Alle vijf, door elkaar.';
+
+  @override
+  String get modeZoomOutBlurb => 'Raad de foto terwijl hij uitzoomt.';
+
+  @override
+  String get modePhotoSabotageBlurb => 'Klieder op de foto van een vriend.';
+
+  @override
+  String get mixedModesLabel => 'Mixed Party-modi';
+
+  @override
+  String get mixedModesHint =>
+      'Kies er minstens twee. De rondes blijven verdeeld en nooit twee keer dezelfde modus na elkaar.';
+
+  @override
+  String get mixedModesMinimum => 'Houd minstens twee modi in Mixed Party.';
 
   @override
   String modeSemantic(String label, String blurb) {
@@ -1515,7 +1582,7 @@ class AppLocalizationsNl extends AppLocalizations {
   String get memeWritingLabel => 'Bouw de meme';
 
   @override
-  String get memeMatchSwaps => 'Swaps in het spel';
+  String get memeRoundSwaps => 'Swaps deze ronde';
 
   @override
   String get memeTemplate => 'Template';
@@ -1589,7 +1656,8 @@ class AppLocalizationsNl extends AppLocalizations {
   }
 
   @override
-  String get memeSwapsMatchWide => '5 swaps voor het hele spel.';
+  String get memeSwapsRoundWide =>
+      '5 swaps per ronde. Weggewisselde foto\'s gaan terug in de pool.';
 
   @override
   String get memeVoteTitle => 'Stem op deze meme.';
@@ -1624,14 +1692,6 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get memeCreatorPoints => 'Punten maker';
-
-  @override
-  String get memeModelRoyalty => 'Modelroyalty';
-
-  @override
-  String memeRoyaltyBody(String name) {
-    return 'De foto van $name zit in de winnende meme. $name krijgt +25.';
-  }
 
   @override
   String get memeTopMemes => 'Top 3 memes';
@@ -1765,6 +1825,30 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get timeSplashBack => 'Reis terug in de tijd!';
+
+  @override
+  String get zoomSplashFocus => 'Focus op de details!';
+
+  @override
+  String get zoomSplashWho => 'Zoom uit... wie is dit?!';
+
+  @override
+  String get zoomSplashEarly => 'Durf jij vroeg te gokken?';
+
+  @override
+  String get zoomSplashClose => 'Hoe dichterbij, hoe meer punten!';
+
+  @override
+  String get sabotageSplashMarker => 'Pak je stift: sabotage tijd!';
+
+  @override
+  String get sabotageSplashRuin => 'Verpest de foto van je vriend!';
+
+  @override
+  String get sabotageSplashRidiculous => 'Teken er iets belachelijks op!';
+
+  @override
+  String get sabotageSplashDraw => 'Laat ze hardop lachen!';
 
   @override
   String roundSplash(int round, String mode) {
@@ -2198,4 +2282,101 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get gamePhoto => 'Spelfoto';
+
+  @override
+  String zoomPotential(int points) {
+    return '+$points pt';
+  }
+
+  @override
+  String zoomLockedIn(String scale) {
+    return 'Vastgeklikt op $scale!';
+  }
+
+  @override
+  String get zoomWrongLocked => 'Fout! Je ligt eruit';
+
+  @override
+  String zoomEagleEye(String name, String scale) {
+    return 'Adelaarsoog: $name op $scale!';
+  }
+
+  @override
+  String get zoomNoEagleEye => 'Deze ronde geen adelaarsoog.';
+
+  @override
+  String get zoomFullPhoto => 'De hele foto';
+
+  @override
+  String get sabotageDrawTitle => 'Saboteer de foto';
+
+  @override
+  String sabotageDrawHint(String name) {
+    return 'Teken op de foto van $name.';
+  }
+
+  @override
+  String get sabotageDrawFirst => 'Teken eerst iets.';
+
+  @override
+  String get sabotagePreparing => 'Je foto wordt klaargezet...';
+
+  @override
+  String get sabotageUndo => 'Ongedaan';
+
+  @override
+  String get sabotageColor1 => 'Zwart';
+
+  @override
+  String get sabotageColor2 => 'Wit';
+
+  @override
+  String get sabotageColor3 => 'Rood';
+
+  @override
+  String get sabotageColor4 => 'Geel';
+
+  @override
+  String get sabotageColor5 => 'Groen';
+
+  @override
+  String get sabotageClear => 'Wissen';
+
+  @override
+  String get sabotageThin => 'Dun';
+
+  @override
+  String get sabotageThick => 'Dik';
+
+  @override
+  String get sabotageSend => 'Sabotage sturen';
+
+  @override
+  String get sabotageSent => 'Sabotage verstuurd. Wachten op de rest.';
+
+  @override
+  String get sabotageVoteTitle => 'Welke sabotage wint?';
+
+  @override
+  String get sabotageVoteSubtitle => 'Reageer op de tekening, niet op de foto.';
+
+  @override
+  String sabotageWaitingVotes(int current, int total) {
+    return 'Wachten op stemmen: $current/$total';
+  }
+
+  @override
+  String get sabotageNoSubmissions => 'Deze ronde geen sabotages.';
+
+  @override
+  String get sabotageRevealTitle => 'De sabotage onthuld';
+
+  @override
+  String get topCreations => 'Top 3 creaties';
+
+  @override
+  String get winningSabotage => 'WINNENDE SABOTAGE';
+
+  @override
+  String get sabotageSave => 'Sabotage bewaren';
 }

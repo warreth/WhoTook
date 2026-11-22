@@ -11,12 +11,15 @@ import '../../core/models/models.dart';
 import '../../core/theme/game_skin.dart';
 import '../../core/theme/responsive_game_layout.dart';
 import '../../core/theme/whotook_theme.dart';
+import '../../core/media/photo_memory_cache.dart';
+import '../../features/photo_sabotage/sabotage_art.dart';
 import '../../l10n/l10n.dart';
 import '../../state/match_coordinator.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
 import '../widgets/game_background.dart';
 import '../widgets/game_widgets.dart';
+import '../widgets/host_controls.dart';
 
 /// The finish line: a champion frame, centered steps, a burst of paper and the
 /// Top 3 memes from a Make It Meme match.
@@ -72,6 +75,8 @@ class PodiumScreen extends ConsumerWidget {
                                 ),
                               ),
                             ),
+                            const HostControlsButton(),
+                            const SizedBox(width: AppSpacing.s4),
                             StickerBadge(
                               label: l10n.roundsCount(state.totalRounds),
                               background: skin.accent,
@@ -327,7 +332,7 @@ class _TopMemesSection extends StatelessWidget {
             const Icon(Icons.emoji_events, color: GamePalette.goldDeep),
             const SizedBox(width: AppSpacing.s8),
             Text(
-              l10n.memeTopMemes,
+              l10n.topCreations,
               style: gameDisplay(size: 20, color: colors.ink),
             ),
           ],
@@ -443,7 +448,10 @@ class _TopMemeCardState extends State<_TopMemeCard> {
                   children: <Widget>[
                     if (widget.rank == 1)
                       Text(
-                        l10n.winningMemeTitle.toUpperCase(),
+                        (meme.isSabotage
+                                ? l10n.winningSabotage
+                                : l10n.winningMemeTitle)
+                            .toUpperCase(),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -487,34 +495,31 @@ class _TopMemeCardState extends State<_TopMemeCard> {
           const SizedBox(height: AppSpacing.s8),
           RepaintBoundary(
             key: _key,
-            child: MemeCanvas(
-              bytes: _decodeMeme(meme.photoBase64),
-              photoId: meme.photoId,
-              template: meme.template,
-              topText: meme.topText,
-              bottomText: meme.bottomText,
-              snapY: meme.snapY,
-              showWatermark: true,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.s8),
-          Row(
-            children: <Widget>[
-              Icon(Icons.photo_camera_outlined, size: 14, color: colors.ink3),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  l10n.memeRoyaltyBody(meme.photoOwnerName ?? ''),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 10, color: colors.ink3),
-                ),
-              ),
-            ],
+            child: meme.isSabotage
+                ? AspectRatio(
+                    aspectRatio: 4 / 5,
+                    child: SabotageArt(
+                      photoId: meme.photoId,
+                      photoBytes: PhotoMemoryCache.instance.bytesFor(
+                        meme.photoId,
+                      ),
+                      strokes: meme.strokes,
+                      showWatermark: true,
+                    ),
+                  )
+                : MemeCanvas(
+                    bytes: _decodeMeme(meme.photoBase64),
+                    photoId: meme.photoId,
+                    template: meme.template,
+                    topText: meme.topText,
+                    bottomText: meme.bottomText,
+                    snapY: meme.snapY,
+                    showWatermark: true,
+                  ),
           ),
           const SizedBox(height: AppSpacing.s8),
           GameButton(
-            label: l10n.memeDownload,
+            label: meme.isSabotage ? l10n.sabotageSave : l10n.memeDownload,
             onPressed: _saving ? null : _save,
             variant: GameButtonVariant.gold,
             icon: Icons.download_outlined,
