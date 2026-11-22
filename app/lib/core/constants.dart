@@ -11,8 +11,8 @@ const String kPrivacyUrl = '$kSiteUrl/privacy';
 
 /// Keep these in step with pubspec `version:` and the Android versionCode on
 /// every release. They are what the room compares between phones.
-const String kAppVersion = '1.10.0';
-const int kAppBuildNumber = 18;
+const String kAppVersion = '1.11.0';
+const int kAppBuildNumber = 19;
 
 const String kAndroidStoreUrl =
     'https://play.google.com/store/apps/details?id=party.whotook.app';
