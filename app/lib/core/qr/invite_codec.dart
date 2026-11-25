@@ -20,6 +20,7 @@ class InvitePayload {
     this.version = 1,
     this.lanEndpoints = const <String>[],
     this.signalingUrl,
+    this.hostName = '',
   });
 
   static const int currentVersion = 1;
@@ -31,6 +32,10 @@ class InvitePayload {
   final String? signalingUrl;
   final String secret;
 
+  /// The host's display name, so the invite page can say whose room it is.
+  /// Older invites omit it and the page falls back to a neutral label.
+  final String hostName;
+
   Map<String, dynamic> toJson() => <String, dynamic>{
     'v': version,
     'room': roomId,
@@ -38,6 +43,7 @@ class InvitePayload {
     'lan': lanEndpoints,
     'sig': signalingUrl,
     'secret': secret,
+    if (hostName.isNotEmpty) 'hostName': hostName,
   };
 
   factory InvitePayload.fromJson(Map<String, dynamic> json) {
@@ -75,6 +81,11 @@ class InvitePayload {
     if (sig != null && (sig is! String || sig.isEmpty)) {
       throw const InvalidInviteException('invalid signaling url');
     }
+    final hostName = json['hostName'];
+    if (hostName != null &&
+        (hostName is! String || hostName.trim().length > 64)) {
+      throw const InvalidInviteException('invalid host name');
+    }
     return InvitePayload(
       version: version,
       roomId: room,
@@ -82,6 +93,7 @@ class InvitePayload {
       secret: secret,
       lanEndpoints: List<String>.unmodifiable(endpoints),
       signalingUrl: sig as String?,
+      hostName: (hostName as String?)?.trim() ?? '',
     );
   }
 
@@ -129,7 +141,13 @@ String? _extractFragment(String raw) {
     if (isHttp) {
       final uri = Uri.tryParse(head);
       final path = uri?.path ?? '';
-      if (path != '/j' && !path.endsWith('/j')) {
+      // The web page redirects /j to /j/, so both forms are valid invites.
+      final isInvitePath =
+          path == '/j' ||
+          path.endsWith('/j') ||
+          path == '/j/' ||
+          path.endsWith('/j/');
+      if (!isInvitePath) {
         throw const InvalidInviteException('invite path must be /j');
       }
       return body;

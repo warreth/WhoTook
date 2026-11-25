@@ -4,6 +4,8 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/deep_links/deferred_invite_service.dart';
+import '../core/models/models.dart';
 import '../core/navigation.dart';
 import '../state/providers.dart';
 import 'screens/join_confirm_screen.dart';
@@ -27,11 +29,18 @@ class _DeepLinkListenerState extends ConsumerState<DeepLinkListener> {
   StreamSubscription<Uri>? _subscription;
   String? _handled;
   DateTime? _handledAt;
+  bool _deferredStarted = false;
 
   @override
   void initState() {
     super.initState();
     unawaited(_readInitial());
+    // Wait for the first route before offering a deferred invite. A post-frame
+    // callback keeps this out of the test timer invariants and gives the
+    // confirm screen a real navigator.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_readDeferredInvite());
+    });
     _subscription = _links.uriLinkStream.listen(
       _handle,
       onError: (Object _) {},
@@ -47,8 +56,37 @@ class _DeepLinkListenerState extends ConsumerState<DeepLinkListener> {
     }
   }
 
-  void _handle(Uri uri) {
-    final raw = uri.toString();
+  void _handle(Uri uri) => _handleString(uri.toString());
+
+  Future<void> _readDeferredInvite() async {
+    if (_deferredStarted) return;
+    _deferredStarted = true;
+    final AppSettings settings;
+    try {
+      settings = await ref.read(appSettingsProvider.future);
+    } on Object {
+      _deferredStarted = false;
+      return;
+    }
+    if (!settings.onboardingCompleted) {
+      // A first-run player gets the clipboard/referrer offer after onboarding.
+      _deferredStarted = false;
+      return;
+    }
+    // A missing native install referrer simply returns null.
+    if (!mounted) return;
+    final String? invite;
+    try {
+      invite = await DeferredInviteService.instance.takePendingInvite();
+    } on Object {
+      _deferredStarted = false;
+      return;
+    }
+    if (invite == null || !mounted) return;
+    _handleString(invite);
+  }
+
+  void _handleString(String raw) {
     final coordinator = ref.read(matchCoordinatorProvider);
     final now = DateTime.now();
     final handledAt = _handledAt;
@@ -85,5 +123,13 @@ class _DeepLinkListenerState extends ConsumerState<DeepLinkListener> {
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) {
+    ref.listen(appSettingsProvider, (previous, next) {
+      if (_deferredStarted) return;
+      if (next.value?.onboardingCompleted == true) {
+        unawaited(_readDeferredInvite());
+      }
+    });
+    return widget.child;
+  }
 }

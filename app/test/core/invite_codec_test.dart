@@ -9,6 +9,7 @@ const InvitePayload sample = InvitePayload(
   secret: '0123456789abcdef0123456789abcdef',
   lanEndpoints: <String>['192.168.1.42:8765'],
   signalingUrl: 'wss://signal.whotook.party',
+  hostName: 'Lotte',
 );
 
 Matcher throwsInvalidInvite([String? reasonPart]) => throwsA(
@@ -49,6 +50,7 @@ void main() {
       expect(json['lan'], <String>['192.168.1.42:8765']);
       expect(json['sig'], 'wss://signal.whotook.party');
       expect(json['secret'], sample.secret);
+      expect(json['hostName'], 'Lotte');
     });
   });
 
@@ -60,12 +62,21 @@ void main() {
       expect(parsed.secret, sample.secret);
       expect(parsed.lanEndpoints, <String>['192.168.1.42:8765']);
       expect(parsed.signalingUrl, 'wss://signal.whotook.party');
+      expect(parsed.hostName, 'Lotte');
       expect(parsed.version, 1);
     });
 
     test('accepts a custom domain with /j#', () {
       final url = encodeInviteUrl(sample, baseUrl: 'https://my.server/j');
       expect(tryParseInvite(url).roomId, 'k8m2p9x4');
+    });
+
+    test('accepts the redirected /j/ page URL', () {
+      final fragment = encodeInviteUrl(sample).split('#').last;
+      expect(
+        tryParseInvite('https://whotook.party/j/#$fragment').roomId,
+        'k8m2p9x4',
+      );
     });
 
     test('accepts the whotook://join app link', () {
@@ -103,6 +114,7 @@ void main() {
       final parsed = tryParseInvite(encodeInviteUrl(minimal));
       expect(parsed.lanEndpoints, isEmpty);
       expect(parsed.signalingUrl, isNull);
+      expect(parsed.hostName, isEmpty);
     });
   });
 

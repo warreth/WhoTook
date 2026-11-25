@@ -9,6 +9,8 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
 import androidx.annotation.RequiresApi
+import com.android.installreferrer.api.InstallReferrerClient
+import com.android.installreferrer.api.InstallReferrerStateListener
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
@@ -20,6 +22,7 @@ class MainActivity : FlutterActivity() {
     private var eventSink: EventChannel.EventSink? = null
     private var mediaObserver: ContentObserver? = null
     private var lastScreenshotAt = 0L
+    private var installReferrer: String? = null
 
     // API 34 callback must be unregistered with the same instance that was registered.
     private var captureCallback: Any? = null
@@ -45,6 +48,14 @@ class MainActivity : FlutterActivity() {
         MethodChannel(messenger, SCREENSHOT_CHANNEL).setMethodCallHandler { call, result ->
             if (call.method == "isSupported") result.success(true) else result.notImplemented()
         }
+        MethodChannel(messenger, INSTALL_REFERRER_CHANNEL).setMethodCallHandler { call, result ->
+            if (call.method == "getInstallReferrer") {
+                val cached = installReferrer
+                if (cached != null) result.success(cached) else readInstallReferrer(result)
+            } else {
+                result.notImplemented()
+            }
+        }
     }
 
     override fun onStart() {
@@ -65,6 +76,50 @@ class MainActivity : FlutterActivity() {
         stopWatching()
         eventSink = null
         super.onDestroy()
+    }
+
+    /// Reads the Play install referrer once. The Dart side stores a consumed
+    /// marker so the same install cannot join the same room again later.
+    private fun readInstallReferrer(result: MethodChannel.Result) {
+        val client = InstallReferrerClient.newBuilder(this).build()
+        var replied = false
+
+        fun finish(value: String?) {
+            if (replied) return
+            replied = true
+            installReferrer = value
+            try {
+                client.endConnection()
+            } catch (_: Exception) {
+                // The connection may already be gone.
+            }
+            result.success(value)
+        }
+
+        try {
+            client.startConnection(object : InstallReferrerStateListener {
+                override fun onInstallReferrerSetupFinished(responseCode: Int) {
+                    if (responseCode == InstallReferrerClient.InstallReferrerResponse.OK) {
+                        try {
+                            finish(client.installReferrer.installReferrer)
+                        } catch (_: Exception) {
+                            finish(null)
+                        }
+                    } else {
+                        finish(null)
+                    }
+                }
+
+                override fun onInstallReferrerServiceDisconnected() {
+                    finish(null)
+                }
+            })
+            // A device without Play services can otherwise leave the channel
+            // pending forever. The Dart side treats null as "no referrer".
+            Handler(Looper.getMainLooper()).postDelayed({ finish(null) }, 4_000L)
+        } catch (_: Exception) {
+            finish(null)
+        }
     }
 
     private fun startWatching() {
@@ -183,6 +238,7 @@ class MainActivity : FlutterActivity() {
 
     companion object {
         private const val SCREENSHOT_CHANNEL = "app.whotook/screenshots"
+        private const val INSTALL_REFERRER_CHANNEL = "app.whotook/install_referrer"
         private const val DEDUPE_WINDOW_MS = 2_000L
     }
 }

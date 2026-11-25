@@ -1067,6 +1067,7 @@ class MatchCoordinator {
       secret: secret,
       lanEndpoints: List<String>.unmodifiable(lan),
       signalingUrl: _settings.resolveSignalingUrl(_settingsValue),
+      hostName: _displayName,
     );
 
     // Online players are optional, except in the browser playtest, which has
