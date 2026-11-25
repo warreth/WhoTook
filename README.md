@@ -10,24 +10,26 @@ rejoin your last room after a restart.
 
 | Round | Lobby | Make It Meme vault | Podium |
 | --- | --- | --- | --- |
-| <img src="docs/screenshots/round.webp" width="190" alt="A Classic round with a party dog photo and a round clock"> | <img src="docs/screenshots/lobby.webp" width="190" alt="Lobby with a QR code and the chosen setup"> | <img src="docs/screenshots/prepare.webp" width="190" alt="Make It Meme six-photo vault with six player photos"> | <img src="docs/screenshots/podium.webp" width="190" alt="Podium with the winning meme and match awards"> |
+| <img src="docs/screenshots/round.webp" width="190" alt="A Classic round with a party dog photo and a round clock"> | <img src="docs/screenshots/lobby.webp" width="190" alt="Lobby with a QR code and the chosen setup"> | <img src="docs/screenshots/prepare.webp" width="190" alt="Make It Meme photo check with player photos"> | <img src="docs/screenshots/podium.webp" width="190" alt="Podium with the winning meme and match awards"> |
 
 ## Game modes
 
 - **Classic:** guess who took the photo.
-- **Make It Meme:** everyone brings six photos, you get one from someone else, build a template with live text on the photo, then vote up, meh or down.
+- **Zoom-Out:** a tiny detail zooms out over 15 seconds. Guess early for up to 1000 points; a wrong guess locks you out for the round.
+- **Make It Meme:** everyone brings six to twelve photos, you get one from someone else, build a template with live text on the photo, then vote up, meh or down.
+- **Foto-Sabotage:** draw on a friend's photo with five marker colours, then vote for the best sabotage.
 - **Time Traveler:** pick a decade, year and month, then read the evidence timeline.
-- **Mixed Party:** Classic, Make It Meme and Time Traveler, shuffled.
+- **Mixed Party:** all five round modes, shuffled into one match.
 
 | Pick a mode | Make It Meme | Time Traveler |
 | --- | --- | --- |
-| <img src="docs/screenshots/modes.webp" width="190" alt="Setup screen with four game modes"> | <img src="docs/screenshots/meme-editor.webp" width="190" alt="Make It Meme editor with live text on a friend's photo"> | <img src="docs/screenshots/timeline-reveal.webp" width="190" alt="Time Traveler evidence timeline with staggered player pins"> |
+| <img src="docs/screenshots/modes.webp" width="190" alt="Setup screen with six game modes"> | <img src="docs/screenshots/meme-editor.webp" width="190" alt="Make It Meme editor with live text on a friend's photo"> | <img src="docs/screenshots/timeline-reveal.webp" width="190" alt="Time Traveler evidence timeline with staggered player pins"> |
 
 ## Download
 
 - **Android:** [WhoTook.apk](https://github.com/warreth/WhoTook/releases/latest/download/WhoTook.apk) is the universal build, Android 7.0 and newer. Most phones can use the smaller `WhoTook-<version>-arm64-v8a.apk` from the release page.
-- **Automatic updates:** [Add to Obtainium](https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fadd%2Fhttps%3A%2F%2Fgithub.com%2Farreth%2FWhoTook), or paste the repository URL in Obtainium.
-- **iPhone:** sideload `WhoTook-<version>-unsigned.ipa` (or the stable `WhoTook-unsigned.ipa`) with SideStore or AltStore, or build from source. App Store release is coming.
+- **Automatic updates:** [Add to Obtainium](https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fadd%2Fhttps%3A%2F%2Fgithub.com%2Fwarreth%2FWhoTook), or paste the repository URL in Obtainium.
+- **iPhone:** join the public TestFlight beta at [testflight.apple.com/join/J2VmHSS1](https://testflight.apple.com/join/J2VmHSS1). You can also sideload `WhoTook-<version>-unsigned.ipa` (or the stable `WhoTook-unsigned.ipa`) with SideStore or AltStore, or build from source. The App Store release is coming.
   Add the source in the app: `https://whotook.party/altstore.json`.
 - **Website:** [whotook.party](https://whotook.party).
 - **Support:** [hello@whotook.party](mailto:hello@whotook.party) or [whotook.party/support](https://whotook.party/support).
@@ -35,9 +37,9 @@ rejoin your last room after a restart.
 ## How it plays
 
 1. **Set the table.** Pick a game mode, the rounds and the pace. Open the room and show the QR code.
-2. **Join and fill the vault.** Everyone joins from their own phone, picks a name and avatar, then approves their photos (six for Make It Meme). A selfie, a gallery photo or an icon all work as an avatar.
-3. **Guess, meme or time travel.** Classic asks who took it. Make It Meme gives you a friend's photo, seven templates and five match-wide swaps. Time Traveler asks for the date. If a connection drops, the phone reconnects to the same room and picks up the round.
-4. **Crown a winner.** The podium shows the match-winning meme, hands out awards and saves the top memes. Play five more rounds, head back to the lobby to change the game or add players, or skip a stuck round from the host menu.
+2. **Join and fill the vault.** Everyone joins from their own phone, picks a name and avatar, then approves their photos (six to twelve, depending on the mode and rounds). A selfie, a gallery photo or an icon all work as an avatar.
+3. **Guess, meme, draw or time travel.** Classic asks who took it. Zoom-Out starts on one detail and zooms out. Make It Meme gives you a friend's photo, seven templates and five swaps every round. Foto-Sabotage hands you a marker. Time Traveler asks for the date. If a connection drops, the phone reconnects to the same room and picks up the round.
+4. **Crown a winner.** The podium shows the top memes and sabotages, hands out awards and saves the best creations. Play five more rounds, head back to the lobby to change the game or add players, or skip a stuck round from the host menu.
 
 Two to twelve players. No accounts, no ads, no analytics.
 
@@ -45,7 +47,8 @@ Two to twelve players. No accounts, no ads, no analytics.
 
 Photos are resized and stripped of EXIF on the phone that owns them, shared only
 with the players in the match, and held in memory. On the same Wi-Fi or hotspot,
-the host phone runs the game and nothing leaves the network. Online play uses an
+the host phone runs the game and nothing leaves the network. That local
+connection is not encrypted, so use a network you trust. Online play uses an
 encrypted WebRTC connection and a small Cloudflare Worker for signaling.
 
 Read the [privacy notes](https://whotook.party/privacy) or the
