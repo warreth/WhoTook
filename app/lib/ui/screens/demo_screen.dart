@@ -8,16 +8,25 @@ import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
 import '../widgets/game_background.dart';
+import '../widgets/game_widgets.dart';
+import '../widgets/mode_picker.dart';
 import 'demo_game_screen.dart';
 
 /// Launcher for the offline demo. The demo itself runs the production host and
 /// three production clients over an in-process transport, so the screens,
 /// rules and new features are the real game.
-class DemoScreen extends ConsumerWidget {
+class DemoScreen extends ConsumerStatefulWidget {
   const DemoScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DemoScreen> createState() => _DemoScreenState();
+}
+
+class _DemoScreenState extends ConsumerState<DemoScreen> {
+  GameMode _mode = GameMode.mixedParty;
+
+  @override
+  Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
     final l10n = context.l10n;
     final settings =
@@ -38,7 +47,7 @@ class DemoScreen extends ConsumerWidget {
         ],
       ),
       bottomNavigationBar: ColoredBox(
-        color: GameModeSkin.lobby.base,
+        color: GameModeSkin.forMode(_mode).base,
         child: SafeArea(
           minimum: const EdgeInsets.fromLTRB(
             AppSpacing.s20,
@@ -57,8 +66,16 @@ class DemoScreen extends ConsumerWidget {
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (_) =>
-                            DemoGameScreen(settings: settings, locale: locale),
+                        builder: (_) => DemoGameScreen(
+                          settings: settings,
+                          locale: locale,
+                          config: MatchConfig(
+                            roundsK: 5,
+                            roundSeconds: GamePace.fast.mainSeconds(_mode),
+                            mode: _mode,
+                            pace: GamePace.fast,
+                          ),
+                        ),
                       ),
                     );
                   },
@@ -74,7 +91,7 @@ class DemoScreen extends ConsumerWidget {
         ),
       ),
       body: GameBackdrop(
-        mode: GameMode.mixedParty,
+        mode: _mode,
         lobby: true,
         child: SafeArea(
           top: false,
@@ -106,6 +123,38 @@ class DemoScreen extends ConsumerWidget {
                   NoticeBanner(
                     message: l10n.demoIntroNotice,
                     icon: Icons.science_outlined,
+                  ),
+                  const SizedBox(height: AppSpacing.s16),
+                  SectionLabel(l10n.modeLabel),
+                  const SizedBox(height: AppSpacing.s8),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final width = (constraints.maxWidth - AppSpacing.s8) / 2;
+                      return Wrap(
+                        spacing: AppSpacing.s8,
+                        runSpacing: AppSpacing.s8,
+                        children: <Widget>[
+                          for (final mode in playableGameModes)
+                            SizedBox(
+                              width: width,
+                              child: _DemoModeChip(
+                                mode: mode,
+                                selected: mode == _mode,
+                                onTap: () => setState(() => _mode = mode),
+                              ),
+                            ),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.s8),
+                  Text(
+                    l10n.demoTryModes,
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.4,
+                      color: colors.ink2,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.s16),
                   SurfaceCard(
@@ -157,18 +206,74 @@ class DemoScreen extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.s16),
-                  Text(
-                    l10n.demoTryModes,
-                    style: TextStyle(
-                      fontSize: 13,
-                      height: 1.45,
-                      color: colors.ink2,
-                    ),
-                  ),
                 ],
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DemoModeChip extends StatelessWidget {
+  const _DemoModeChip({
+    required this.mode,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final GameMode mode;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
+    final info = modeInfo(mode);
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: modeLabel(l10n, mode),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 46,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: selected ? GamePalette.gold : colors.card,
+            borderRadius: BorderRadius.circular(AppRadii.rControl),
+            border: Border.all(color: colors.ink, width: 2),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: colors.ink,
+                offset: const Offset(0, 3),
+                blurRadius: 0,
+              ),
+            ],
+          ),
+          child: Row(
+            children: <Widget>[
+              Icon(
+                info.icon,
+                size: 17,
+                color: selected ? GamePalette.onGold : colors.ink2,
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  modeLabel(l10n, mode),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: selected ? GamePalette.onGold : colors.ink,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

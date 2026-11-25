@@ -378,11 +378,20 @@ class LobbyScreen extends ConsumerWidget {
   }
 
   Future<void> _openSetupEditor(BuildContext context) {
+    // The demo keeps its coordinator in a nested ProviderScope. A modal route
+    // is mounted above that scope, so it needs the demo container explicitly.
+    final container = ProviderScope.containerOf(context, listen: false);
+    final demo = container.read(demoModeProvider);
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => const _LobbySetupSheet(),
+      builder: (_) => demo
+          ? UncontrolledProviderScope(
+              container: container,
+              child: const _LobbySetupSheet(),
+            )
+          : const _LobbySetupSheet(),
     );
   }
 

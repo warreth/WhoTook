@@ -982,7 +982,7 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get demoTryModes =>
-      'Kies in de lobby een andere modus om Classic, Zoom-Out, Make It Meme, Foto-Sabotage, Time Traveler of Mixed Party te proberen.';
+      'Kies hier een modus, of wissel in de lobby voordat de fotocheck start.';
 
   @override
   String get startDemo => 'Demo starten';

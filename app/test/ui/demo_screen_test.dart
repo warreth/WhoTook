@@ -74,6 +74,55 @@ void main() {
     await tester.pump();
   });
 
+  testWidgets('demo launcher starts the mode the tester picked', (
+    tester,
+  ) async {
+    final view = tester.view;
+    view.physicalSize = const Size(390, 844);
+    view.devicePixelRatio = 1;
+    addTearDown(() {
+      view.resetPhysicalSize();
+      view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [appSettingsProvider.overrideWith(_DemoSettings.new)],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          debugShowCheckedModeBanner: false,
+          theme: buildWhoTookTheme(Brightness.light),
+          home: const DemoScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final classic = find.ancestor(
+      of: find.text('Classic'),
+      matching: find.byType(GestureDetector),
+    );
+    expect(classic, findsOneWidget);
+    await tester.ensureVisible(classic);
+    await tester.tap(classic);
+    await tester.pump();
+
+    final startButton = find.widgetWithText(PrimaryButton, 'Start demo');
+    await tester.ensureVisible(startButton);
+    await tester.tap(startButton);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 5));
+
+    expect(find.text('Your demo table'), findsOneWidget);
+    expect(find.text('Classic'), findsWidgets);
+    expect(find.text('Mixed Party'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+
   testWidgets('demo lobby uses the real screens and hides the real invite', (
     tester,
   ) async {
@@ -124,6 +173,61 @@ void main() {
       find.byType(LobbyScreen),
       matchesGoldenFile('goldens/demo-lobby.png'),
     );
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+  });
+  testWidgets('demo lobby can switch mode from the edit sheet', (tester) async {
+    final view = tester.view;
+    view.physicalSize = const Size(390, 844);
+    view.devicePixelRatio = 1;
+    addTearDown(() {
+      view.resetPhysicalSize();
+      view.resetDevicePixelRatio();
+    });
+    final controller = DemoMatchController(
+      baseSettings: const AppSettings(nickname: 'Bram'),
+      config: const MatchConfig(
+        roundsK: 3,
+        roundSeconds: 4,
+        mode: GameMode.mixedParty,
+        pace: GamePace.fast,
+      ),
+      countdownDuration: Duration.zero,
+      revealDuration: const Duration(milliseconds: 50),
+      captionRevealDuration: const Duration(milliseconds: 50),
+      roundDuration: const Duration(milliseconds: 400),
+    );
+    addTearDown(controller.dispose);
+    await tester.runAsync(controller.start);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        debugShowCheckedModeBanner: false,
+        theme: buildWhoTookTheme(Brightness.light),
+        home: DemoMatchScope(
+          controller: controller,
+          child: const MatchRoot(demo: true),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.text('Edit'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final classic = find.ancestor(
+      of: find.text('Classic'),
+      matching: find.byType(InkWell),
+    );
+    expect(classic, findsWidgets);
+    await tester.ensureVisible(classic.first);
+    await tester.tap(classic.first);
+    await tester.pump();
+
+    expect(controller.host.state.config.mode, GameMode.classic);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
   });

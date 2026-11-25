@@ -978,7 +978,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get demoTryModes =>
-      'Change the mode in the lobby to try Classic, Zoom-Out, Make It Meme, Foto-Sabotage, Time Traveler or Mixed Party.';
+      'Pick a mode here, or change it in the lobby before the photo check.';
 
   @override
   String get startDemo => 'Start demo';
