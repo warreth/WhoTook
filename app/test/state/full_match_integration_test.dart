@@ -666,6 +666,39 @@ void main() {
     );
   }, timeout: const Timeout(Duration(seconds: 45)));
 
+  test(
+    'late joiner exits waiting room at podium and joins extendMatch',
+    () async {
+      await prepareAndStart(rounds: 2);
+      final late = _client(hub, seed: 10);
+      addTearDown(late.dispose);
+      await late.loadSettings();
+      await late.joinMatch(inviteUrl);
+      await _waitFor(() => late.state.waitingForMatch);
+      expect(host.state.waitingPlayersCount, 1);
+
+      await playUntilPodium();
+      await _waitFor(
+        () => late.state.phase == RoundPhase.podium && !late.state.waitingForMatch,
+      );
+      expect(late.state.waitingForMatch, isFalse);
+
+      await host.extendMatch(extraRounds: 2, extraPhotos: 2);
+      await _waitFor(() => late.state.phase == RoundPhase.extendPrompt);
+      await _waitFor(() => late.state.extensionCandidates.isNotEmpty);
+      expect(
+        host.state.players.any((p) => p.id == late.state.localPlayerId),
+        isTrue,
+      );
+      await clientOne.clientApproveExtension();
+      await clientTwo.clientApproveExtension();
+      await late.clientApproveExtension();
+      await host.approveExtension();
+      await _waitFor(() => late.state.phase == RoundPhase.guessing);
+    },
+    timeout: const Timeout(Duration(seconds: 45)),
+  );
+
   test('a client can rejoin the current round after a restart', () async {
     await prepareAndStart(rounds: 3);
     await _waitFor(() => host.state.phase == RoundPhase.guessing);

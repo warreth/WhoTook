@@ -271,6 +271,27 @@ class HostGameEngine {
     _memeAssignments.remove(playerId);
   }
 
+  /// Adds a player who scanned in while a match was running once the match
+  /// reaches the podium (for `+5` rounds) or returns to the lobby.
+  void promoteWaitingPlayer(Player player) {
+    if (_phase != RoundPhase.podium && _phase != RoundPhase.lobby) {
+      throw const EngineException(
+        'wrong_phase',
+        'cannot promote waiting player during an active round',
+      );
+    }
+    if (!player.connected || _players.containsKey(player.id)) {
+      return;
+    }
+    _players[player.id] = Player(
+      id: player.id,
+      name: player.name,
+      avatar: player.avatar,
+      avatarColorIndex: player.avatarColorIndex,
+      isHost: player.isHost,
+    );
+  }
+
   void setConnected(String playerId, bool connected) {
     final player = _requirePlayer(playerId);
     player.connected = connected;

@@ -260,6 +260,7 @@ class MatchUiState {
     this.versionWarningDismissed = false,
     this.reconnecting = false,
     this.waitingForMatch = false,
+    this.waitingPlayersCount = 0,
     this.reconnectSecondsLeft = 0,
     this.roomThemeId = kDefaultRoomThemeId,
     this.lastSoundEffect,
@@ -365,6 +366,7 @@ class MatchUiState {
   /// the room, see a clean waiting screen, and join the next match with a
   /// normal photo check instead of desynchronising the active round.
   final bool waitingForMatch;
+  final int waitingPlayersCount;
 
   /// Shared premium theme selected by a Party Pass holder. Applies to every
   /// phone for the duration of the match.
@@ -467,6 +469,7 @@ class MatchUiState {
     bool? reconnecting,
     int? reconnectSecondsLeft,
     bool? waitingForMatch,
+    int? waitingPlayersCount,
     String? roomThemeId,
     SoundEffectEvent? lastSoundEffect,
     bool? firewallPrompt,
@@ -634,6 +637,7 @@ class MatchUiState {
         versionWarningDismissed ?? this.versionWarningDismissed,
     reconnecting: reconnecting ?? this.reconnecting,
     waitingForMatch: waitingForMatch ?? this.waitingForMatch,
+    waitingPlayersCount: waitingPlayersCount ?? this.waitingPlayersCount,
     reconnectSecondsLeft: reconnectSecondsLeft ?? this.reconnectSecondsLeft,
     roomThemeId: roomThemeId ?? this.roomThemeId,
     lastSoundEffect: lastSoundEffect ?? this.lastSoundEffect,
@@ -1220,6 +1224,33 @@ class MatchCoordinator {
     }
   }
 
+  int get _connectedWaitingCount =>
+      _waitingPlayers.values.where((player) => player.connected).length;
+
+  Future<void> _sendPodiumSnapshot(String clientId) async {
+    final engine = _engine;
+    if (engine == null) return;
+    final awards = _state.awards.isNotEmpty
+        ? _state.awards
+        : engine.buildPodiumAwards();
+    final topMemes = _state.topMemes.isNotEmpty
+        ? _state.topMemes
+        : _topMemeCards();
+    await _hostTransport?.sendToClient(
+      clientId,
+      WireMessage(
+        type: WireType.gamePodium,
+        seq: _nextSeq(),
+        payload: <String, dynamic>{
+          'awards': awards.map((a) => a.toJson()).toList(),
+          'players': engine.players.map((p) => p.toJson()).toList(),
+          'topMemes': topMemes.map((card) => card.toJson()).toList(),
+          'waitingCount': _connectedWaitingCount,
+        },
+      ),
+    );
+  }
+
   /// Restores a player who dropped or restarted mid-match. The photo bytes go
   /// first, then one snapshot the client can apply atomically.
   /// Gives a waiting client the current round immediately, so a mid-game QR
@@ -1227,6 +1258,10 @@ class MatchCoordinator {
   /// round. Later rounds arrive through the normal roundShow broadcast.
   Future<void> _sendSpectatorSnapshot(String clientId) async {
     final state = _state;
+    if (state.phase == RoundPhase.podium) {
+      await _sendPodiumSnapshot(clientId);
+      return;
+    }
     if (state.currentRound <= 0 || state.activePhotoId == null) return;
     final photoId = state.activePhotoId!;
     final bytes = state.activePhotoBytes;
@@ -1438,8 +1473,14 @@ class MatchCoordinator {
         _clientBuilds.remove(playerId);
         _clientVersions.remove(playerId);
         _partyPassPlayers.remove(playerId);
-        if (_waitingPlayers.remove(playerId) != null) {
+        final waiting = _waitingPlayers[playerId];
+        if (waiting != null) {
           _waitingClientIds.remove(clientId);
+          if (_engine?.phase == RoundPhase.lobby) {
+            _waitingPlayers.remove(playerId);
+          } else {
+            waiting.connected = false;
+          }
         }
         _engine?.removePlayer(playerId);
         var newestVersion = appVersion;
@@ -1451,6 +1492,7 @@ class MatchCoordinator {
         _emit(
           _state.copyWith(
             players: _engine?.players ?? _state.players,
+            waitingPlayersCount: _connectedWaitingCount,
             clearVersionWarning: !isNewerAppVersion(newestVersion, appVersion),
           ),
         );
@@ -1529,6 +1571,8 @@ class MatchCoordinator {
             _clientBuilds[playerId] = build;
             _clientVersions[playerId] = version;
           }
+          final atPodium = engine.phase == RoundPhase.podium;
+          _emit(_state.copyWith(waitingPlayersCount: _connectedWaitingCount));
           await _hostTransport?.sendToClient(
             clientId,
             WireMessage(
@@ -1537,7 +1581,8 @@ class MatchCoordinator {
               payload: <String, dynamic>{
                 'playerId': playerId,
                 'resumed': true,
-                'waiting': true,
+                'waiting': !atPodium,
+                'phase': engine.phase.name,
               },
             ),
           );
@@ -1632,6 +1677,8 @@ class MatchCoordinator {
             _clientBuilds[playerId] = build;
             _clientVersions[playerId] = version;
           }
+          final atPodium = engine.phase == RoundPhase.podium;
+          _emit(_state.copyWith(waitingPlayersCount: _connectedWaitingCount));
           await _hostTransport?.sendToClient(
             clientId,
             WireMessage(
@@ -1640,7 +1687,7 @@ class MatchCoordinator {
               payload: <String, dynamic>{
                 'playerId': playerId,
                 'resumed': false,
-                'waiting': true,
+                'waiting': !atPodium,
                 'phase': engine.phase.name,
               },
             ),
@@ -3533,6 +3580,7 @@ class MatchCoordinator {
             'awards': awards.map((a) => a.toJson()).toList(),
             'players': engine.players.map((p) => p.toJson()).toList(),
             'topMemes': topMemes.map((card) => card.toJson()).toList(),
+            'waitingCount': _connectedWaitingCount,
           },
         ),
       );
@@ -3541,6 +3589,7 @@ class MatchCoordinator {
           phase: RoundPhase.podium,
           awards: awards,
           players: engine.players,
+          waitingPlayersCount: _connectedWaitingCount,
           hostDeciding: true,
           activePhotoBytes: null,
           topMemes: topMemes,
@@ -4014,6 +4063,15 @@ class MatchCoordinator {
   Future<void> extendMatch({int extraRounds = 5, int extraPhotos = 3}) async {
     final engine = _engine;
     if (engine == null) return;
+    final waiting = List<Player>.of(_waitingPlayers.values);
+    _waitingPlayers.clear();
+    _waitingClientIds.clear();
+    for (final player in waiting) {
+      if (player.connected) {
+        engine.promoteWaitingPlayer(player);
+      }
+    }
+    _vaultPreloaded = false;
     final deadline = engine.extendGame(
       extraRounds: extraRounds,
       extraPhotos: extraPhotos,
@@ -4022,6 +4080,8 @@ class MatchCoordinator {
     _emit(
       _state.copyWith(
         phase: RoundPhase.extendPrompt,
+        players: engine.players,
+        waitingPlayersCount: 0,
         hostDeciding: false,
         extensionSecondsLeft: seconds,
         extensionCandidates: const <PhotoCandidate>[],
@@ -4036,6 +4096,7 @@ class MatchCoordinator {
         payload: <String, dynamic>{
           'extraPhotos': extraPhotos,
           'timeoutMs': extendWindow.inMilliseconds,
+          'players': engine.players.map((p) => p.toJson()).toList(),
         },
       ),
     );
@@ -4139,6 +4200,7 @@ class MatchCoordinator {
           'awards': awards.map((a) => a.toJson()).toList(),
           'players': engine.players.map((p) => p.toJson()).toList(),
           'topMemes': topMemes.map((card) => card.toJson()).toList(),
+          'waitingCount': _connectedWaitingCount,
         },
       ),
     );
@@ -4146,6 +4208,8 @@ class MatchCoordinator {
       _state.copyWith(
         phase: RoundPhase.podium,
         awards: awards,
+        players: engine.players,
+        waitingPlayersCount: _connectedWaitingCount,
         hostDeciding: false,
         topMemes: topMemes,
         activePhotoBytes: null,
@@ -4225,6 +4289,11 @@ class MatchCoordinator {
     _remotePhotos.clear();
     _assembledHostBytes.clear();
     _clientRoundPhotos.clear();
+    _memePhotoBytes.clear();
+    _pendingMemeAssignments.clear();
+    _photoRequestAttempts.clear();
+    _assemblers.clear();
+    _vaultPreloaded = false;
     PhotoMemoryCache.instance.clear();
     _memeTallyTimer?.cancel();
     _memeFocusOrder = <String>[];
@@ -4238,6 +4307,7 @@ class MatchCoordinator {
         localPlayerId: 'host',
         phase: RoundPhase.lobby,
         players: fresh.players,
+        waitingPlayersCount: 0,
         avatarPhotos: Map<String, String>.unmodifiable(_avatarPhotos),
         config: config,
         connectionMode: _state.connectionMode,
@@ -4260,6 +4330,7 @@ class MatchCoordinator {
           'phase': engine.phase.name,
           'avatarPhotos': _avatarPhotos,
           'roomThemeId': _state.roomThemeId,
+          'waitingCount': _connectedWaitingCount,
         },
       ),
     );
@@ -4268,6 +4339,7 @@ class MatchCoordinator {
         players: engine.players,
         config: engine.config,
         avatarPhotos: Map<String, String>.unmodifiable(_avatarPhotos),
+        waitingPlayersCount: _connectedWaitingCount,
       ),
     );
   }
@@ -4863,6 +4935,7 @@ class MatchCoordinator {
             avatarPhotos: avatarPhotos,
             waitingForMatch:
                 _state.waitingForMatch && parsedPhase != RoundPhase.lobby,
+            waitingPlayersCount: payload['waitingCount'] as int? ?? 0,
             roomThemeId: RoomThemeId.fromWire(payload['roomThemeId'] as String?)
                 .wireId,
           ),
@@ -5222,9 +5295,19 @@ class MatchCoordinator {
         );
       case WireType.extendPrepare:
         final timeoutMs = payload['timeoutMs'] as int? ?? 10000;
+        final rawPlayers = payload['players'] as List<dynamic>?;
+        final updatedPlayers = rawPlayers == null
+            ? _state.players
+            : <Player>[
+                for (final entry in rawPlayers)
+                  if (entry is Map<String, dynamic>) Player.fromJson(entry),
+              ];
         _emit(
           _state.copyWith(
             phase: RoundPhase.extendPrompt,
+            players: updatedPlayers,
+            waitingForMatch: false,
+            waitingPlayersCount: 0,
             extensionSecondsLeft: (timeoutMs / 1000).ceil(),
             extensionApproved: false,
           ),
@@ -5255,6 +5338,8 @@ class MatchCoordinator {
         _emit(
           _state.copyWith(
             phase: RoundPhase.podium,
+            waitingForMatch: false,
+            waitingPlayersCount: payload['waitingCount'] as int? ?? 0,
             awards: awards,
             players: players,
             activePhotoBytes: null,
@@ -5811,6 +5896,11 @@ class MatchCoordinator {
     _assemblers.clear();
     _assembledHostBytes.clear();
     _clientRoundPhotos.clear();
+    _memePhotoBytes.clear();
+    _pendingMemeAssignments.clear();
+    _photoRequestAttempts.clear();
+    _waitingPlayers.clear();
+    _waitingClientIds.clear();
     _clientBuilds.clear();
     _clientVersions.clear();
     _clientPlayerIds.clear();
