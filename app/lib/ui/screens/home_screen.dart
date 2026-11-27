@@ -645,7 +645,7 @@ class _BigAction extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppRadii.rCard),
               border: Border.all(
-                color: filled ? colors.ink : colors.ink,
+                color: colors.ink,
                 width: 2,
               ),
             ),

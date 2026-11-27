@@ -9,6 +9,8 @@ import '../../core/theme/whotook_theme.dart';
 import '../../l10n/l10n.dart';
 import '../../state/providers.dart';
 import '../widgets/common.dart';
+import '../widgets/game_background.dart';
+import '../widgets/game_widgets.dart';
 
 /// Five more rounds: three fresh frames, a short window to swap them, and one
 /// approve action so nobody stalls the group.
@@ -25,8 +27,11 @@ class ExtendScreen extends ConsumerWidget {
     final approved = state.extensionApproved;
 
     return Scaffold(
-      body: SafeArea(
-        child: ListView(
+      backgroundColor: Colors.transparent,
+      body: GameBackdrop(
+        mode: state.config.mode,
+        child: SafeArea(
+          child: ListView(
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.s20,
             AppSpacing.s16,
@@ -90,9 +95,10 @@ class ExtendScreen extends ConsumerWidget {
             Row(
               children: <Widget>[
                 Expanded(
-                  child: SecondaryButton(
+                  child: GameButton(
                     label: l10n.rerollAll,
                     icon: Icons.refresh,
+                    variant: GameButtonVariant.secondary,
                     onPressed: approved
                         ? null
                         : () => unawaited(
@@ -104,7 +110,7 @@ class ExtendScreen extends ConsumerWidget {
                 ),
                 const SizedBox(width: AppSpacing.s12),
                 Expanded(
-                  child: PrimaryButton(
+                  child: GameButton(
                     label: approved
                         ? l10n.waitingForPlayersButton
                         : l10n.approve,
@@ -128,6 +134,7 @@ class ExtendScreen extends ConsumerWidget {
               ),
             ],
           ],
+          ),
         ),
       ),
     );

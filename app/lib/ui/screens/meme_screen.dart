@@ -18,6 +18,7 @@ import '../widgets/game_background.dart';
 import '../widgets/game_widgets.dart';
 import '../widgets/host_controls.dart';
 import '../widgets/photo_precache.dart';
+import '../widgets/round_scoreboard.dart';
 
 /// Make It Meme: one photo from another player, seven templates, five
 /// match-wide swaps, anonymous votes, and a downloadable round winner.
@@ -1622,6 +1623,14 @@ class _MemeReveal extends StatelessWidget {
           variant: GameButtonVariant.gold,
           icon: Icons.download_outlined,
           fullWidth: true,
+        ),
+        const SizedBox(height: AppSpacing.s16),
+        RoundScoreboard(
+          players: state.players,
+          scoreDeltas: reveal.scoreDeltas,
+          avatarPhotos: state.avatarPhotos,
+          localPlayerId: state.localPlayerId,
+          doublePoints: state.isFinalDoubleRound,
         ),
         const SizedBox(height: AppSpacing.s16),
         Text(

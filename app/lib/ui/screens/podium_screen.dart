@@ -35,8 +35,12 @@ class PodiumScreen extends ConsumerWidget {
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
     final board = state.leaderboard;
     final top = board.take(3).toList();
+    final rest = board.skip(3).toList();
     final champion = top.isEmpty ? null : top.first;
     final runners = top.skip(1).toList();
+    final displayAwards = state.awards
+        .where((award) => award.kind != MatchAwardKind.champion)
+        .toList();
     final skin = state.topMemes.isNotEmpty
         ? GameModeSkin.meme
         : GameModeSkin.forMode(state.config.mode);
@@ -95,18 +99,100 @@ class PodiumScreen extends ConsumerWidget {
                             colors: colors,
                           ),
                         ),
+                        if (rest.isNotEmpty) ...<Widget>[
+                          const SizedBox(height: AppSpacing.s12),
+                          SurfaceCard(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                SectionLabel(l10n.standingsLabel),
+                                for (var i = 0; i < rest.length; i++)
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 5,
+                                    ),
+                                    child: Row(
+                                      children: <Widget>[
+                                        SizedBox(
+                                          width: 28,
+                                          child: Text(
+                                            '#${i + 4}',
+                                            style: tabularFigures(
+                                              TextStyle(
+                                                fontFamily: 'JetBrainsMono',
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                                color: colors.ink2,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        PlayerAvatar(
+                                          initial: rest[i].name,
+                                          avatar: rest[i].avatar,
+                                          photoBase64:
+                                              state.avatarPhotos[rest[i].id],
+                                          isHost: rest[i].isHost,
+                                          size: 26,
+                                        ),
+                                        const SizedBox(width: AppSpacing.s8),
+                                        Expanded(
+                                          child: Text(
+                                            rest[i].id == state.localPlayerId
+                                                ? '${rest[i].name} (${l10n.you})'
+                                                : rest[i].name,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight:
+                                                  rest[i].id ==
+                                                      state.localPlayerId
+                                                  ? FontWeight.w700
+                                                  : FontWeight.w500,
+                                              color: colors.ink,
+                                            ),
+                                          ),
+                                        ),
+                                        Text(
+                                          l10n.points(rest[i].score),
+                                          style: tabularFigures(
+                                            TextStyle(
+                                              fontFamily: 'JetBrainsMono',
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: colors.ink,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        if (state.waitingPlayersCount > 0) ...<Widget>[
+                          const SizedBox(height: AppSpacing.s12),
+                          NoticeBanner(
+                            message: l10n.waitingPlayersNextGame(
+                              state.waitingPlayersCount,
+                            ),
+                            icon: Icons.person_add_outlined,
+                          ),
+                        ],
                         if (state.topMemes.isNotEmpty) ...<Widget>[
                           const SizedBox(height: AppSpacing.s16),
                           _TopMemesSection(state: state),
                         ],
-                        if (state.awards.isNotEmpty) ...<Widget>[
+                        if (displayAwards.isNotEmpty) ...<Widget>[
                           const SizedBox(height: AppSpacing.s12),
                           SurfaceCard(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: <Widget>[
                                 SectionLabel(l10n.matchAwards),
-                                for (final award in state.awards)
+                                for (final award in displayAwards)
                                   _AwardRow(award: award),
                               ],
                             ),
@@ -504,6 +590,7 @@ class _TopMemeCardState extends State<_TopMemeCard> {
                         meme.photoId,
                       ),
                       strokes: meme.strokes,
+                      stickers: meme.stickers,
                       showWatermark: true,
                     ),
                   )
@@ -732,7 +819,7 @@ class _PodiumStep extends StatelessWidget {
             ),
           ),
           Text(
-            '${player.score}',
+            l10n.points(player.score),
             style: TextStyle(
               fontFamily: 'JetBrainsMono',
               fontSize: 10,
@@ -783,24 +870,30 @@ class _AwardRow extends StatelessWidget {
       MatchAwardKind.crowdFavorite => ' ${l10n.awardUpvotes(award.value ?? 0)}',
       MatchAwardKind.champion => ' ${l10n.awardPoints(award.value ?? 0)}',
     };
-    return SizedBox(
-      height: 40,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
           Icon(icon, size: 16, color: colors.ink3),
           const SizedBox(width: AppSpacing.s8),
-          SizedBox(
-            width: 150,
+          Expanded(
+            flex: 5,
             child: Text(
               label,
               maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(fontSize: 13, color: colors.ink2),
             ),
           ),
+          const SizedBox(width: AppSpacing.s8),
           Expanded(
+            flex: 6,
             child: Text(
               '${award.playerName}$suffix',
               textAlign: TextAlign.right,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(fontSize: 13, color: colors.ink),
             ),
           ),

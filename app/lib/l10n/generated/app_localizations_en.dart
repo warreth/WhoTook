@@ -113,7 +113,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Guess a photo, build a meme or travel through time.';
 
   @override
-  String get heroFact => '2–12 players · Same Wi-Fi or online';
+  String get heroFact => '2-12 players · Same Wi-Fi or online';
 
   @override
   String get heroTitle => 'Whose camera\nroll is this?';
@@ -741,7 +741,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get yourCaptionZero => 'Your caption got zero votes. Brutal.';
+  String get yourCaptionZero => 'No votes this round.';
 
   @override
   String yourCaptionVotes(int count) {
@@ -1373,7 +1373,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modeZoomOutBlurb => 'Guess the photo as it zooms out.';
 
   @override
-  String get modePhotoSabotageBlurb => 'Doodle on a friend\'s photo.';
+  String get modePhotoSabotageBlurb => 'Edit the same photo with markers and stickers.';
 
   @override
   String get mixedModesLabel => 'Mixed Party modes';
@@ -1689,10 +1689,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get memeTopMemes => 'Top 3 memes';
 
   @override
-  String get memeFinalRound =>
-      'Final round: everyone gets the same photo. Double points.';
-
-  @override
   String get memeDownload => 'Save meme';
 
   @override
@@ -1775,76 +1771,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String memeVoteTally(int up, int meh, int down) {
     return '$up up · $meh meh · $down down';
-  }
-
-  @override
-  String roundSplashKicker(int round) {
-    return 'ROUND $round';
-  }
-
-  @override
-  String get classicSplashPhotographer => 'Guess the photographer!';
-
-  @override
-  String get classicSplashGallery => 'Whose gallery is this from?';
-
-  @override
-  String get classicSplashDetails => 'Look closely at the details!';
-
-  @override
-  String get classicSplashWho => 'Who took this shot?';
-
-  @override
-  String get memeSplashRoast => 'Time to roast!';
-
-  @override
-  String get memeSplashFunniest => 'Think of the funniest meme!';
-
-  @override
-  String get memeSplashRidicule => 'Make your friends ridiculous!';
-
-  @override
-  String get memeSplashLaugh => 'Make the room laugh!';
-
-  @override
-  String get timeSplashMachine => 'Start the time machine!';
-
-  @override
-  String get timeSplashYear => 'What year was this?!';
-
-  @override
-  String get timeSplashHair => 'Check the haircuts and clothes!';
-
-  @override
-  String get timeSplashBack => 'Travel back in time!';
-
-  @override
-  String get zoomSplashFocus => 'Focus on the details!';
-
-  @override
-  String get zoomSplashWho => 'Zooming out... whose photo is this?!';
-
-  @override
-  String get zoomSplashEarly => 'Dare to guess early?';
-
-  @override
-  String get zoomSplashClose => 'The closer you look, the more you score!';
-
-  @override
-  String get sabotageSplashMarker => 'Grab your marker: sabotage time!';
-
-  @override
-  String get sabotageSplashRuin => 'Ruin your friend\'s photo!';
-
-  @override
-  String get sabotageSplashRidiculous => 'Draw something ridiculous!';
-
-  @override
-  String get sabotageSplashDraw => 'Make them laugh out loud!';
-
-  @override
-  String roundSplash(int round, String mode) {
-    return 'ROUND $round: $mode!';
   }
 
   @override
@@ -2332,12 +2258,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sabotageClear => 'Clear';
 
   @override
-  String get sabotageThin => 'Thin';
-
-  @override
-  String get sabotageThick => 'Thick';
-
-  @override
   String get sabotageSend => 'Send sabotage';
 
   @override
@@ -2345,9 +2265,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sabotageVoteTitle => 'Which sabotage wins?';
-
-  @override
-  String get sabotageVoteSubtitle => 'React to the drawing, not the photo.';
 
   @override
   String sabotageWaitingVotes(int current, int total) {
@@ -2434,4 +2351,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sabotagePrompt8 => 'Add a terribly suspicious disguise';
+
+  @override
+  String get standingsLabel => 'Standings';
+
+  @override
+  String get finalRoundDoubleBadge => '2X FINAL ROUND';
+
+  @override
+  String get memeYourOwn => 'Your own sabotage. Waiting for votes.';
+
+  @override
+  String waitingPlayersNextGame(int count) =>
+      '$count waiting for the next game';
 }

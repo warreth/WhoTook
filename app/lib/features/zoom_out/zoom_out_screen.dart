@@ -16,6 +16,7 @@ import '../../ui/widgets/common.dart';
 import '../../ui/widgets/game_background.dart';
 import '../../ui/widgets/game_widgets.dart';
 import '../../ui/widgets/host_controls.dart';
+import '../../ui/widgets/round_scoreboard.dart';
 
 /// Adrenaline photo guessing: a detail opens up over fifteen seconds while the
 /// room races to lock the right photographer. A wrong early guess is out.
@@ -89,6 +90,7 @@ class _ZoomOutScreenState extends ConsumerState<ZoomOutScreen> {
                           1,
                           9,
                         ),
+                        isFinalDoubleRound: state.isFinalDoubleRound,
                       ),
                     )
                   else if (state.phase == RoundPhase.reveal)
@@ -131,9 +133,13 @@ class _ZoomOutScreenState extends ConsumerState<ZoomOutScreen> {
 }
 
 class _ZoomCountdown extends StatelessWidget {
-  const _ZoomCountdown({required this.seconds});
+  const _ZoomCountdown({
+    required this.seconds,
+    this.isFinalDoubleRound = false,
+  });
 
   final int seconds;
+  final bool isFinalDoubleRound;
 
   @override
   Widget build(BuildContext context) {
@@ -148,6 +154,14 @@ class _ZoomCountdown extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
+            if (isFinalDoubleRound) ...<Widget>[
+              StickerBadge(
+                label: l10n.finalRoundDoubleBadge,
+                background: GamePalette.gold,
+                foreground: GamePalette.onGold,
+              ),
+              const SizedBox(height: AppSpacing.s8),
+            ],
             Text(
               l10n.getReady,
               style: TextStyle(fontSize: 15, color: colors.ink2),
@@ -481,7 +495,14 @@ class _ZoomReveal extends ConsumerWidget {
           icon: Icons.visibility_outlined,
         ),
         const SizedBox(height: AppSpacing.s12),
-        _ZoomScores(reveal: reveal, state: state),
+        RoundScoreboard(
+          players: state.players,
+          scoreDeltas: reveal.scoreDeltas,
+          streaks: reveal.streaks,
+          avatarPhotos: state.avatarPhotos,
+          localPlayerId: state.localPlayerId,
+          doublePoints: state.isFinalDoubleRound,
+        ),
         const SizedBox(height: AppSpacing.s16),
         if (state.isHosting)
           GameButton(
@@ -496,63 +517,6 @@ class _ZoomReveal extends ConsumerWidget {
             icon: Icons.hourglass_empty,
           ),
       ],
-    );
-  }
-}
-
-class _ZoomScores extends StatelessWidget {
-  const _ZoomScores({required this.reveal, required this.state});
-
-  final RoundReveal reveal;
-  final MatchUiState state;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = WhoTookColors.of(context);
-    final l10n = context.l10n;
-    final rows = <Widget>[];
-    for (final player in state.players) {
-      final delta = reveal.scoreDeltas[player.id] ?? 0;
-      if (delta == 0) continue;
-      rows.add(
-        Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.s4),
-          child: Row(
-            children: <Widget>[
-              PlayerAvatar(
-                initial: player.name,
-                avatar: player.avatar,
-                photoBase64: state.avatarPhotos[player.id],
-                isHost: player.isHost,
-                size: 24,
-              ),
-              const SizedBox(width: AppSpacing.s8),
-              Expanded(
-                child: Text(
-                  player.name,
-                  style: TextStyle(fontSize: 13, color: colors.ink),
-                ),
-              ),
-              Text(
-                l10n.points(delta),
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: colors.positive,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-    if (rows.isEmpty) return const SizedBox.shrink();
-    return SurfaceCard(
-      padding: const EdgeInsets.all(AppSpacing.s12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: rows,
-      ),
     );
   }
 }

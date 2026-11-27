@@ -413,37 +413,67 @@ class _DemoBot {
       MemeTemplate.snap,
       MemeTemplate.split,
     ];
-    const tops = <String>[
-      'When the cake hits the floor',
-      'POV: someone says one more round',
-      'BREAKING: the group chat is awake',
-      'LIVE from the kitchen',
-      'Nobody:',
-      'Me arriving with six photos',
-      'The photo they did not expect',
-    ];
-    const bottoms = <String>[
-      'and the room heard you',
-      'we are still here',
-      'nobody is going home',
-      'it is 2am',
-      'this is the whole story',
-      'same room, same Wi-Fi',
-      'and somehow it won',
-    ];
+    final isNl = locale.languageCode == 'nl';
+    final tops = isNl
+        ? const <String>[
+            'Wanneer de taart op de grond belandt',
+            'POV: nog eentje dan',
+            'BREKEND: de groepsapp is wakker',
+            'LIVE vanuit de keuken',
+            'Niemand:',
+            'Ik met zes random fotos',
+            'De foto die niemand verwachtte',
+          ]
+        : const <String>[
+            'When the cake hits the floor',
+            'POV: someone says one more round',
+            'BREAKING: the group chat is awake',
+            'LIVE from the kitchen',
+            'Nobody:',
+            'Me arriving with six photos',
+            'The photo they did not expect',
+          ];
+    final bottoms = isNl
+        ? const <String>[
+            'en heel de kamer hoort het',
+            'we zitten er nog steeds',
+            'niemand gaat naar huis',
+            'om 2 uur snachts',
+            'dit verklaart alles',
+            'zelfde tafel, zelfde wifi',
+            'en toch won hij',
+          ]
+        : const <String>[
+            'and the room heard you',
+            'we are still here',
+            'nobody is going home',
+            'it is 2am',
+            'this is the whole story',
+            'same room, same Wi-Fi',
+            'and somehow it won',
+          ];
     final pick = (round + index) % templates.length;
     return (templates[pick], tops[pick], bottoms[pick]);
   }
 
   String caption(int round) {
-    const lines = <String>[
-      'This is going to be a long night.',
-      'I can explain. Probably.',
-      'The cake did not survive.',
-      'Nobody move, I am thinking.',
-      'This is why we cannot have nice things.',
-      'Same room, same Wi-Fi, same chaos.',
-    ];
+    final lines = locale.languageCode == 'nl'
+        ? const <String>[
+            'Dit wordt een lange avond.',
+            'Ik kan dit uitleggen. Denk ik.',
+            'De taart heeft het niet overleefd.',
+            'Niet lachen, ik denk na.',
+            'Daarom mogen wij geen mooie dingen.',
+            'Zelfde kamer, zelfde chaos.',
+          ]
+        : const <String>[
+            'This is going to be a long night.',
+            'I can explain. Probably.',
+            'The cake did not survive.',
+            'Nobody move, I am thinking.',
+            'This is why we cannot have nice things.',
+            'Same room, same Wi-Fi, same chaos.',
+          ];
     return lines[(round + index) % lines.length];
   }
 }

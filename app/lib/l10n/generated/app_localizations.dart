@@ -2917,12 +2917,6 @@ abstract class AppLocalizations {
   /// **'Top 3 memes'**
   String get memeTopMemes;
 
-  /// No description provided for @memeFinalRound.
-  ///
-  /// In en, this message translates to:
-  /// **'Final round: everyone gets the same photo. Double points.'**
-  String get memeFinalRound;
-
   /// No description provided for @memeDownload.
   ///
   /// In en, this message translates to:
@@ -3072,138 +3066,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{up} up · {meh} meh · {down} down'**
   String memeVoteTally(int up, int meh, int down);
-
-  /// No description provided for @roundSplashKicker.
-  ///
-  /// In en, this message translates to:
-  /// **'ROUND {round}'**
-  String roundSplashKicker(int round);
-
-  /// No description provided for @classicSplashPhotographer.
-  ///
-  /// In en, this message translates to:
-  /// **'Guess the photographer!'**
-  String get classicSplashPhotographer;
-
-  /// No description provided for @classicSplashGallery.
-  ///
-  /// In en, this message translates to:
-  /// **'Whose gallery is this from?'**
-  String get classicSplashGallery;
-
-  /// No description provided for @classicSplashDetails.
-  ///
-  /// In en, this message translates to:
-  /// **'Look closely at the details!'**
-  String get classicSplashDetails;
-
-  /// No description provided for @classicSplashWho.
-  ///
-  /// In en, this message translates to:
-  /// **'Who took this shot?'**
-  String get classicSplashWho;
-
-  /// No description provided for @memeSplashRoast.
-  ///
-  /// In en, this message translates to:
-  /// **'Time to roast!'**
-  String get memeSplashRoast;
-
-  /// No description provided for @memeSplashFunniest.
-  ///
-  /// In en, this message translates to:
-  /// **'Think of the funniest meme!'**
-  String get memeSplashFunniest;
-
-  /// No description provided for @memeSplashRidicule.
-  ///
-  /// In en, this message translates to:
-  /// **'Make your friends ridiculous!'**
-  String get memeSplashRidicule;
-
-  /// No description provided for @memeSplashLaugh.
-  ///
-  /// In en, this message translates to:
-  /// **'Make the room laugh!'**
-  String get memeSplashLaugh;
-
-  /// No description provided for @timeSplashMachine.
-  ///
-  /// In en, this message translates to:
-  /// **'Start the time machine!'**
-  String get timeSplashMachine;
-
-  /// No description provided for @timeSplashYear.
-  ///
-  /// In en, this message translates to:
-  /// **'What year was this?!'**
-  String get timeSplashYear;
-
-  /// No description provided for @timeSplashHair.
-  ///
-  /// In en, this message translates to:
-  /// **'Check the haircuts and clothes!'**
-  String get timeSplashHair;
-
-  /// No description provided for @timeSplashBack.
-  ///
-  /// In en, this message translates to:
-  /// **'Travel back in time!'**
-  String get timeSplashBack;
-
-  /// No description provided for @zoomSplashFocus.
-  ///
-  /// In en, this message translates to:
-  /// **'Focus on the details!'**
-  String get zoomSplashFocus;
-
-  /// No description provided for @zoomSplashWho.
-  ///
-  /// In en, this message translates to:
-  /// **'Zooming out... whose photo is this?!'**
-  String get zoomSplashWho;
-
-  /// No description provided for @zoomSplashEarly.
-  ///
-  /// In en, this message translates to:
-  /// **'Dare to guess early?'**
-  String get zoomSplashEarly;
-
-  /// No description provided for @zoomSplashClose.
-  ///
-  /// In en, this message translates to:
-  /// **'The closer you look, the more you score!'**
-  String get zoomSplashClose;
-
-  /// No description provided for @sabotageSplashMarker.
-  ///
-  /// In en, this message translates to:
-  /// **'Grab your marker: sabotage time!'**
-  String get sabotageSplashMarker;
-
-  /// No description provided for @sabotageSplashRuin.
-  ///
-  /// In en, this message translates to:
-  /// **'Ruin your friend\'s photo!'**
-  String get sabotageSplashRuin;
-
-  /// No description provided for @sabotageSplashRidiculous.
-  ///
-  /// In en, this message translates to:
-  /// **'Draw something ridiculous!'**
-  String get sabotageSplashRidiculous;
-
-  /// No description provided for @sabotageSplashDraw.
-  ///
-  /// In en, this message translates to:
-  /// **'Make them laugh out loud!'**
-  String get sabotageSplashDraw;
-
-  /// Full-screen arcade transition between rounds
-  ///
-  /// In en, this message translates to:
-  /// **'ROUND {round}: {mode}!'**
-  String roundSplash(int round, String mode);
 
   /// No description provided for @selfieStickerTitle.
   ///
@@ -4045,18 +3907,6 @@ abstract class AppLocalizations {
   /// **'Clear'**
   String get sabotageClear;
 
-  /// No description provided for @sabotageThin.
-  ///
-  /// In en, this message translates to:
-  /// **'Thin'**
-  String get sabotageThin;
-
-  /// No description provided for @sabotageThick.
-  ///
-  /// In en, this message translates to:
-  /// **'Thick'**
-  String get sabotageThick;
-
   /// No description provided for @sabotageSend.
   ///
   /// In en, this message translates to:
@@ -4074,12 +3924,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Which sabotage wins?'**
   String get sabotageVoteTitle;
-
-  /// No description provided for @sabotageVoteSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'React to the drawing, not the photo.'**
-  String get sabotageVoteSubtitle;
 
   /// No description provided for @sabotageWaitingVotes.
   ///
@@ -4139,6 +3983,10 @@ abstract class AppLocalizations {
   String get sabotagePrompt6;
   String get sabotagePrompt7;
   String get sabotagePrompt8;
+  String get standingsLabel;
+  String get finalRoundDoubleBadge;
+  String get memeYourOwn;
+  String waitingPlayersNextGame(int count);
 }
 
 class _AppLocalizationsDelegate

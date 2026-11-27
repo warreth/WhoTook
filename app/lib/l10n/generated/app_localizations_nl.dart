@@ -112,7 +112,7 @@ class AppLocalizationsNl extends AppLocalizations {
       'Raad een foto, maak een meme of reis door de tijd.';
 
   @override
-  String get heroFact => '2–12 spelers · Zelfde wifi of online';
+  String get heroFact => '2-12 spelers · Zelfde wifi of online';
 
   @override
   String get heroTitle => 'Wiens foto\'s\nzijn dit?';
@@ -744,7 +744,7 @@ class AppLocalizationsNl extends AppLocalizations {
   }
 
   @override
-  String get yourCaptionZero => 'Je bijschrift kreeg geen stemmen. Genadeloos.';
+  String get yourCaptionZero => 'Geen stemmen deze ronde.';
 
   @override
   String yourCaptionVotes(int count) {
@@ -1380,7 +1380,7 @@ class AppLocalizationsNl extends AppLocalizations {
   String get modeZoomOutBlurb => 'Raad de foto terwijl hij uitzoomt.';
 
   @override
-  String get modePhotoSabotageBlurb => 'Klieder op de foto van een vriend.';
+  String get modePhotoSabotageBlurb => 'Bewerk dezelfde foto met stiften en plakkers.';
 
   @override
   String get mixedModesLabel => 'Mixed Party-modi';
@@ -1697,10 +1697,6 @@ class AppLocalizationsNl extends AppLocalizations {
   String get memeTopMemes => 'Top 3 memes';
 
   @override
-  String get memeFinalRound =>
-      'Laatste ronde: iedereen krijgt dezelfde foto. Dubbele punten.';
-
-  @override
   String get memeDownload => 'Meme bewaren';
 
   @override
@@ -1783,76 +1779,6 @@ class AppLocalizationsNl extends AppLocalizations {
   @override
   String memeVoteTally(int up, int meh, int down) {
     return '$up op · $meh meh · $down neer';
-  }
-
-  @override
-  String roundSplashKicker(int round) {
-    return 'RONDE $round';
-  }
-
-  @override
-  String get classicSplashPhotographer => 'Raad de fotograaf!';
-
-  @override
-  String get classicSplashGallery => 'Uit wiens galerij komt deze?';
-
-  @override
-  String get classicSplashDetails => 'Kijk goed naar de details!';
-
-  @override
-  String get classicSplashWho => 'Wie nam dit kiekje?';
-
-  @override
-  String get memeSplashRoast => 'Tijd om te roasten!';
-
-  @override
-  String get memeSplashFunniest => 'Bedenk de grappigste meme!';
-
-  @override
-  String get memeSplashRidicule => 'Maak je vrienden belachelijk!';
-
-  @override
-  String get memeSplashLaugh => 'Laat de kamer lachen!';
-
-  @override
-  String get timeSplashMachine => 'Start de tijdmachine!';
-
-  @override
-  String get timeSplashYear => 'Welk jaar was dit?!';
-
-  @override
-  String get timeSplashHair => 'Check de kapsels en kleding!';
-
-  @override
-  String get timeSplashBack => 'Reis terug in de tijd!';
-
-  @override
-  String get zoomSplashFocus => 'Focus op de details!';
-
-  @override
-  String get zoomSplashWho => 'Zoom uit... wie is dit?!';
-
-  @override
-  String get zoomSplashEarly => 'Durf jij vroeg te gokken?';
-
-  @override
-  String get zoomSplashClose => 'Hoe dichterbij, hoe meer punten!';
-
-  @override
-  String get sabotageSplashMarker => 'Pak je stift: sabotage tijd!';
-
-  @override
-  String get sabotageSplashRuin => 'Verpest de foto van je vriend!';
-
-  @override
-  String get sabotageSplashRidiculous => 'Teken er iets belachelijks op!';
-
-  @override
-  String get sabotageSplashDraw => 'Laat ze hardop lachen!';
-
-  @override
-  String roundSplash(int round, String mode) {
-    return 'RONDE $round: $mode!';
   }
 
   @override
@@ -2343,12 +2269,6 @@ class AppLocalizationsNl extends AppLocalizations {
   String get sabotageClear => 'Wissen';
 
   @override
-  String get sabotageThin => 'Dun';
-
-  @override
-  String get sabotageThick => 'Dik';
-
-  @override
   String get sabotageSend => 'Sabotage sturen';
 
   @override
@@ -2356,9 +2276,6 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get sabotageVoteTitle => 'Welke sabotage wint?';
-
-  @override
-  String get sabotageVoteSubtitle => 'Reageer op de tekening, niet op de foto.';
 
   @override
   String sabotageWaitingVotes(int current, int total) {
@@ -2445,4 +2362,17 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get sabotagePrompt8 => 'Geef iemand een verdachte vermomming';
+
+  @override
+  String get standingsLabel => 'Tussenstand';
+
+  @override
+  String get finalRoundDoubleBadge => '2X LAATSTE RONDE';
+
+  @override
+  String get memeYourOwn => 'Jouw eigen sabotage. Wachten op stemmen.';
+
+  @override
+  String waitingPlayersNextGame(int count) =>
+      '$count in de wachtrij voor volgend spel';
 }

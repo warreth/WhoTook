@@ -291,7 +291,7 @@ class LobbyScreen extends ConsumerWidget {
                               _SetupChip(
                                 icon: Icons.timer_outlined,
                                 label:
-                                    '${_paceName(l10n, state.config.roundSeconds)} · ${l10n.secondsShort(state.config.roundSeconds)}',
+                                    '${_paceOptionName(l10n, state.config.pace)} · ${l10n.secondsShort(state.config.roundSeconds)}',
                               ),
                             ],
                           ),
@@ -436,12 +436,6 @@ class LobbyScreen extends ConsumerWidget {
     );
   }
 }
-
-String _paceName(AppLocalizations l10n, int seconds) => switch (seconds) {
-  6 => l10n.paceFast,
-  12 => l10n.paceSlow,
-  _ => l10n.paceNormal,
-};
 
 String _paceOptionName(AppLocalizations l10n, GamePace pace) => switch (pace) {
   GamePace.fast => l10n.paceFast,

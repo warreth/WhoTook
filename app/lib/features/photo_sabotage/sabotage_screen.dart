@@ -18,6 +18,7 @@ import '../../ui/widgets/common.dart';
 import '../../ui/widgets/game_background.dart';
 import '../../ui/widgets/game_widgets.dart';
 import '../../ui/widgets/host_controls.dart';
+import '../../ui/widgets/round_scoreboard.dart';
 import 'sabotage_art.dart';
 import 'sabotage_painter.dart';
 import 'sabotage_stroke_utils.dart';
@@ -1156,6 +1157,14 @@ class _SabotageRevealState extends ConsumerState<_SabotageReveal> {
               ),
             ),
         ],
+        const SizedBox(height: AppSpacing.s12),
+        RoundScoreboard(
+          players: state.players,
+          scoreDeltas: reveal.scoreDeltas,
+          avatarPhotos: state.avatarPhotos,
+          localPlayerId: state.localPlayerId,
+          doublePoints: state.isFinalDoubleRound,
+        ),
         const SizedBox(height: AppSpacing.s12),
         if (state.isHosting)
           GameButton(

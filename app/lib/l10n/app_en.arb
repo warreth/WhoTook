@@ -40,7 +40,7 @@
   "guideScanInBody": "Friends join from the QR.",
   "guidePlay": "Play",
   "guidePlayBody": "Guess a photo, build a meme or travel through time.",
-  "heroFact": "2–12 players · Same Wi-Fi or online",
+  "heroFact": "2-12 players · Same Wi-Fi or online",
   "heroTitle": "Whose camera\nroll is this?",
   "heroSubtitle": "One photo at a time. Everyone guesses whose it is.",
   "onlineRelayUsed": "Online relay is used up today. Use the same Wi-Fi to keep playing.",
@@ -391,7 +391,7 @@
       }
     }
   },
-  "yourCaptionZero": "Your caption got zero votes. Brutal.",
+  "yourCaptionZero": "No votes this round.",
   "yourCaptionVotes": "{count, plural, =1{Your caption got 1 vote.} other{Your caption got {count} votes.}}",
   "@yourCaptionVotes": {
     "placeholders": {
@@ -778,7 +778,7 @@
   "modeTimeTravelerBlurb": "Guess the year and month.",
   "modeMixedPartyBlurb": "All five, shuffled.",
   "modeZoomOutBlurb": "Guess the photo as it zooms out.",
-  "modePhotoSabotageBlurb": "Doodle on a friend's photo.",
+  "modePhotoSabotageBlurb": "Edit the same photo with markers and stickers.",
   "mixedModesLabel": "Mixed Party modes",
   "mixedModesHint": "Pick at least two. Rounds stay balanced and never repeat the same mode twice in a row.",
   "mixedModesMinimum": "Keep at least two modes in Mixed Party.",
@@ -907,7 +907,6 @@
   "memeRoundWinner": "Round winner",
   "memeCreatorPoints": "Creator points",
   "memeTopMemes": "Top 3 memes",
-  "memeFinalRound": "Final round: everyone gets the same photo. Double points.",
   "memeDownload": "Save meme",
   "memeSaved": "Meme saved.",
   "memeSaveFailed": "Could not save the meme.",
@@ -994,46 +993,6 @@
     "placeholders": {
       "round": {
         "type": "int"
-      }
-    }
-  },
-  "roundSplashKicker": "ROUND {round}",
-  "@roundSplashKicker": {
-    "placeholders": {
-      "round": {
-        "type": "int"
-      }
-    }
-  },
-  "classicSplashPhotographer": "Guess the photographer!",
-  "classicSplashGallery": "Whose gallery is this from?",
-  "classicSplashDetails": "Look closely at the details!",
-  "classicSplashWho": "Who took this shot?",
-  "memeSplashRoast": "Time to roast!",
-  "memeSplashFunniest": "Think of the funniest meme!",
-  "memeSplashRidicule": "Make your friends ridiculous!",
-  "memeSplashLaugh": "Make the room laugh!",
-  "timeSplashMachine": "Start the time machine!",
-  "timeSplashYear": "What year was this?!",
-  "timeSplashHair": "Check the haircuts and clothes!",
-  "timeSplashBack": "Travel back in time!",
-  "zoomSplashFocus": "Focus on the details!",
-  "zoomSplashWho": "Zooming out... whose photo is this?!",
-  "zoomSplashEarly": "Dare to guess early?",
-  "zoomSplashClose": "The closer you look, the more you score!",
-  "sabotageSplashMarker": "Grab your marker: sabotage time!",
-  "sabotageSplashRuin": "Ruin your friend's photo!",
-  "sabotageSplashRidiculous": "Draw something ridiculous!",
-  "sabotageSplashDraw": "Make them laugh out loud!",
-  "roundSplash": "ROUND {round}: {mode}!",
-  "@roundSplash": {
-    "description": "Full-screen arcade transition between rounds",
-    "placeholders": {
-      "round": {
-        "type": "int"
-      },
-      "mode": {
-        "type": "String"
       }
     }
   },
@@ -1274,12 +1233,9 @@
   "sabotageColor4": "Yellow",
   "sabotageColor5": "Green",
   "sabotageClear": "Clear",
-  "sabotageThin": "Thin",
-  "sabotageThick": "Thick",
   "sabotageSend": "Send sabotage",
   "sabotageSent": "Sabotage sent. Waiting for the others.",
   "sabotageVoteTitle": "Which sabotage wins?",
-  "sabotageVoteSubtitle": "React to the drawing, not the photo.",
   "sabotageWaitingVotes": "Waiting for votes: {current}/{total}",
   "sabotageNoSubmissions": "No sabotages this round.",
   "sabotageRevealTitle": "The sabotage revealed",
@@ -1361,5 +1317,14 @@
   "sabotagePrompt5": "Add an unexpected weather disaster",
   "sabotagePrompt6": "Turn a random object into the hero",
   "sabotagePrompt7": "Make it look like breaking news",
-  "sabotagePrompt8": "Add a terribly suspicious disguise"
+  "sabotagePrompt8": "Add a terribly suspicious disguise",
+  "standingsLabel": "Standings",
+  "finalRoundDoubleBadge": "2X FINAL ROUND",
+  "memeYourOwn": "Your own sabotage. Waiting for votes.",
+  "waitingPlayersNextGame": "{count} waiting for the next game",
+  "@waitingPlayersNextGame": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  }
 }

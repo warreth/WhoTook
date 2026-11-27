@@ -689,6 +689,7 @@ class MatchCoordinator {
     this.countdownDuration = const Duration(seconds: 3),
     this.vaultFallbackDelay = const Duration(seconds: 10),
     this.revealDuration = const Duration(seconds: 6),
+    this.autoAdvanceReveal = false,
     this.captionRevealDuration = const Duration(seconds: 10),
     this.memeTallyDuration = const Duration(milliseconds: 2500),
     Duration? sabotageDuration,
@@ -746,6 +747,7 @@ class MatchCoordinator {
   final Duration countdownDuration;
   final Duration vaultFallbackDelay;
   final Duration revealDuration;
+  final bool autoAdvanceReveal;
   final Duration captionRevealDuration;
   final Duration memeTallyDuration;
 
@@ -3581,10 +3583,12 @@ class MatchCoordinator {
       ),
     );
     _revealAutoTimer?.cancel();
-    _revealAutoTimer = Timer(
-      revealDuration,
-      () => unawaited(_advanceAfterReveal()),
-    );
+    if (autoAdvanceReveal || revealDuration < const Duration(seconds: 6)) {
+      _revealAutoTimer = Timer(
+        revealDuration,
+        () => unawaited(_advanceAfterReveal()),
+      );
+    }
   }
 
   Future<void> _advanceAfterReveal() async {

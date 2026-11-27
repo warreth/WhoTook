@@ -33,7 +33,7 @@
   "guideScanInBody": "Vrienden komen binnen via de QR.",
   "guidePlay": "Spelen",
   "guidePlayBody": "Raad een foto, maak een meme of reis door de tijd.",
-  "heroFact": "2–12 spelers · Zelfde wifi of online",
+  "heroFact": "2-12 spelers · Zelfde wifi of online",
   "heroTitle": "Wiens foto's\nzijn dit?",
   "heroSubtitle": "Eén foto per keer. Iedereen raadt wie hem nam.",
   "onlineRelayUsed": "De online relay is vandaag op. Speel verder op dezelfde wifi.",
@@ -209,7 +209,7 @@
   "thisRoundMovesOn": "Deze ronde gaat verder.",
   "tableHasSpoken": "De groep heeft gesproken",
   "photoBy": "Foto van {name}",
-  "yourCaptionZero": "Je bijschrift kreeg geen stemmen. Genadeloos.",
+  "yourCaptionZero": "Geen stemmen deze ronde.",
   "yourCaptionVotes": "{count, plural, =1{Je bijschrift kreeg 1 stem.} other{Je bijschrift kreeg {count} stemmen.}}",
   "zeroVotes": "Geen stemmen",
   "groupMenace": "Groepsgevaar",
@@ -381,7 +381,7 @@
   "modeTimeTravelerBlurb": "Raad het jaar en de maand.",
   "modeMixedPartyBlurb": "Alle vijf, door elkaar.",
   "modeZoomOutBlurb": "Raad de foto terwijl hij uitzoomt.",
-  "modePhotoSabotageBlurb": "Klieder op de foto van een vriend.",
+  "modePhotoSabotageBlurb": "Bewerk dezelfde foto met stiften en plakkers.",
   "mixedModesLabel": "Mixed Party-modi",
   "mixedModesHint": "Kies er minstens twee. De rondes blijven verdeeld en nooit twee keer dezelfde modus na elkaar.",
   "mixedModesMinimum": "Houd minstens twee modi in Mixed Party.",
@@ -476,7 +476,6 @@
   "memeRoundWinner": "Rondewinnaar",
   "memeCreatorPoints": "Punten maker",
   "memeTopMemes": "Top 3 memes",
-  "memeFinalRound": "Laatste ronde: iedereen krijgt dezelfde foto. Dubbele punten.",
   "memeDownload": "Meme bewaren",
   "memeSaved": "Meme bewaard.",
   "memeSaveFailed": "De meme kon niet worden bewaard.",
@@ -535,39 +534,6 @@
       },
       "down": {
         "type": "int"
-      }
-    }
-  },
-  "roundSplashKicker": "RONDE {round}",
-  "classicSplashPhotographer": "Raad de fotograaf!",
-  "classicSplashGallery": "Uit wiens galerij komt deze?",
-  "classicSplashDetails": "Kijk goed naar de details!",
-  "classicSplashWho": "Wie nam dit kiekje?",
-  "memeSplashRoast": "Tijd om te roasten!",
-  "memeSplashFunniest": "Bedenk de grappigste meme!",
-  "memeSplashRidicule": "Maak je vrienden belachelijk!",
-  "memeSplashLaugh": "Laat de kamer lachen!",
-  "timeSplashMachine": "Start de tijdmachine!",
-  "timeSplashYear": "Welk jaar was dit?!",
-  "timeSplashHair": "Check de kapsels en kleding!",
-  "timeSplashBack": "Reis terug in de tijd!",
-  "zoomSplashFocus": "Focus op de details!",
-  "zoomSplashWho": "Zoom uit... wie is dit?!",
-  "zoomSplashEarly": "Durf jij vroeg te gokken?",
-  "zoomSplashClose": "Hoe dichterbij, hoe meer punten!",
-  "sabotageSplashMarker": "Pak je stift: sabotage tijd!",
-  "sabotageSplashRuin": "Verpest de foto van je vriend!",
-  "sabotageSplashRidiculous": "Teken er iets belachelijks op!",
-  "sabotageSplashDraw": "Laat ze hardop lachen!",
-  "roundSplash": "RONDE {round}: {mode}!",
-  "@roundSplash": {
-    "description": "Full-screen arcade transition between rounds",
-    "placeholders": {
-      "round": {
-        "type": "int"
-      },
-      "mode": {
-        "type": "String"
       }
     }
   },
@@ -773,12 +739,9 @@
   "sabotageColor4": "Geel",
   "sabotageColor5": "Groen",
   "sabotageClear": "Wissen",
-  "sabotageThin": "Dun",
-  "sabotageThick": "Dik",
   "sabotageSend": "Sabotage sturen",
   "sabotageSent": "Sabotage verstuurd. Wachten op de rest.",
   "sabotageVoteTitle": "Welke sabotage wint?",
-  "sabotageVoteSubtitle": "Reageer op de tekening, niet op de foto.",
   "sabotageWaitingVotes": "Wachten op stemmen: {current}/{total}",
   "sabotageNoSubmissions": "Deze ronde geen sabotages.",
   "sabotageRevealTitle": "De sabotage onthuld",
@@ -806,5 +769,9 @@
   "sabotagePrompt5": "Voeg een onverwachte weerramp toe",
   "sabotagePrompt6": "Maak de hoofdrolspeler van een random voorwerp",
   "sabotagePrompt7": "Laat dit op groot nieuws lijken",
-  "sabotagePrompt8": "Geef iemand een verdachte vermomming"
+  "sabotagePrompt8": "Geef iemand een verdachte vermomming",
+  "standingsLabel": "Tussenstand",
+  "finalRoundDoubleBadge": "2X LAATSTE RONDE",
+  "memeYourOwn": "Jouw eigen sabotage. Wachten op stemmen.",
+  "waitingPlayersNextGame": "{count} in de wachtrij voor volgend spel"
 }
