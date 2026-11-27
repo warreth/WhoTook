@@ -3,6 +3,7 @@
 // dependency: a newline-delimited JSON-RPC loop over stdin/stdout is enough for
 // OpenCode, Claude and other MCP hosts.
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -10,14 +11,10 @@ import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../..');
 const appDir = path.join(repoRoot, 'app');
-const reportPath = path.join(
-  repoRoot,
-  '.private_prototypes/auto_playtest/report.json',
-);
-const screenshotDir = path.join(
-  repoRoot,
-  '.private_prototypes/auto_playtest/screenshots',
-);
+const playtestOutput = process.env.PLAYTEST_OUTPUT_DIR ||
+  path.join(os.tmpdir(), 'opencode', 'whotook_playtest');
+const reportPath = path.join(playtestOutput, 'auto_playtest', 'report.json');
+const screenshotDir = path.join(playtestOutput, 'auto_playtest', 'screenshots');
 
 const tools = [
   {

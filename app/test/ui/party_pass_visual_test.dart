@@ -91,8 +91,10 @@ Future<void> _capture(WidgetTester tester, GlobalKey key, String name) async {
         key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
     final image = await boundary.toImage(pixelRatio: 2);
     final data = await image.toByteData(format: ui.ImageByteFormat.png);
-    final dir = Directory('../.private_prototypes/screens')
-      ..createSync(recursive: true);
+    final dir = Directory(
+      Platform.environment['WHOTOOK_VISUAL_DIR'] ??
+          '${Directory.systemTemp.path}/whotook-visual/screens',
+    )..createSync(recursive: true);
     File('${dir.path}/$name.png').writeAsBytesSync(data!.buffer.asUint8List());
     image.dispose();
   });
