@@ -28,11 +28,10 @@ void main() {
     });
     expect(restored.needsPhotoDates, isFalse);
     expect(
-      const MatchConfig(
-        mode: GameMode.mixedParty,
-        enabledMixedModes: <GameMode>{GameMode.classic, GameMode.timeTraveler},
-      ).needsPhotoDates,
-      isTrue,
+      MatchConfig.fromJson(<String, dynamic>{
+        'mode': 'timeTraveler',
+      }).mode,
+      GameMode.classic,
     );
 
     const malformed = MatchConfig(

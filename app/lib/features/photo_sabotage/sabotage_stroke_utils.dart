@@ -56,14 +56,14 @@ double _distanceToSegment(Offset point, Offset start, Offset end) {
   return (point - closest).distance;
 }
 
-/// Hard ceiling for one sabotage submission. The wire carries only strokes,
-/// but a very determined scribbler still must not push the JSON past this.
-const int sabotageMaxPayloadBytes = 5000;
+/// Hard ceiling for one sabotage submission. The wire carries only strokes
+/// and optional stickers, keeping JSON compact for WebRTC DataChannels.
+const int sabotageMaxPayloadBytes = 16000;
 
 /// Normalizes and simplifies every local stroke before it is submitted.
 List<SabotageStroke> simplifySabotageStrokes(
   List<SabotageStroke> strokes, {
-  int maxStrokes = 12,
+  int maxStrokes = 40,
   int maxPoints = 64,
 }) {
   final result = <SabotageStroke>[];
@@ -77,7 +77,7 @@ List<SabotageStroke> simplifySabotageStrokes(
           .toList(),
       maxPoints: maxPoints,
     );
-    if (points.length < 2) continue;
+    if (points.isEmpty) continue;
     result.add(
       SabotageStroke(
         colorIndex: stroke.colorIndex,
@@ -89,7 +89,7 @@ List<SabotageStroke> simplifySabotageStrokes(
   return _fitSabotagePayload(result);
 }
 
-/// Trims the drawing until its real UTF-8 JSON fits the five kilobyte budget.
+/// Trims the drawing until its real UTF-8 JSON fits the payload budget.
 /// Strokes are dropped from the oldest end first, then the longest stroke is
 /// halved, so the most recent marks survive.
 List<SabotageStroke> _fitSabotagePayload(List<SabotageStroke> strokes) {
@@ -127,10 +127,15 @@ List<SabotageStroke> _fitSabotagePayload(List<SabotageStroke> strokes) {
 
 /// Real UTF-8 JSON size of the sabotage payload, used by the unit test and
 /// the editor's pre-send guard.
-int sabotagePayloadBytes(List<SabotageStroke> strokes) {
+int sabotagePayloadBytes(
+  List<SabotageStroke> strokes, {
+  List<SabotageSticker> stickers = const <SabotageSticker>[],
+}) {
   final json = <String, dynamic>{
     'sabotage': true,
     'strokes': strokes.map((stroke) => stroke.toJson()).toList(),
+    if (stickers.isNotEmpty)
+      'stickers': stickers.map((sticker) => sticker.toJson()).toList(),
   };
   return utf8.encode(jsonEncode(json)).length;
 }

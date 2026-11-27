@@ -35,6 +35,7 @@ class _MemeScreenState extends ConsumerState<MemeScreen> {
   MemeTemplate _template = MemeTemplate.classic;
   double _snapY = 48;
   int? _round;
+  int? _autoSubmittedRound;
   int _reactionTrigger = 0;
   MemeVote? _reactionKind;
   final Set<String> _requestedPhotos = <String>{};
@@ -75,6 +76,37 @@ class _MemeScreenState extends ConsumerState<MemeScreen> {
     final coordinator = ref.read(matchCoordinatorProvider);
     final state = ref.watch(matchStateProvider).value ?? coordinator.state;
     _resetForRound(state.currentRound);
+    if (state.phase == RoundPhase.captionWriting &&
+        state.activeMode == GameMode.makeItMeme &&
+        !state.memeSubmitted &&
+        state.remainingMs > 0 &&
+        state.remainingMs <= 1000 &&
+        (_top.text.trim().isNotEmpty || _bottom.text.trim().isNotEmpty) &&
+        _autoSubmittedRound != state.currentRound) {
+      _autoSubmittedRound = state.currentRound;
+      final template = _template;
+      final top = _top.text;
+      final bottom = _bottom.text;
+      final snapY = _snapY;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        unawaited(
+          state.isHosting
+              ? coordinator.submitMeme(
+                  template: template,
+                  topText: top,
+                  bottomText: bottom,
+                  snapY: snapY,
+                )
+              : coordinator.clientSubmitMeme(
+                  template: template,
+                  topText: top,
+                  bottomText: bottom,
+                  snapY: snapY,
+                ),
+        );
+      });
+    }
     final photoId = state.memeAssignment?.photoId;
     if (photoId != null &&
         photoId.isNotEmpty &&
@@ -1442,7 +1474,7 @@ class _MemeReveal extends StatelessWidget {
     final winner =
         cards.where((card) => card.isWinner).firstOrNull ?? cards.first;
     final winnerAuthor = state.players
-        .where((player) => player.name == winner.authorName)
+        .where((player) => player.id == winner.authorId)
         .firstOrNull;
     return ListView(
       padding: const EdgeInsets.fromLTRB(
@@ -1606,11 +1638,6 @@ class _MemeReveal extends StatelessWidget {
             card: cards.where((c) => c.id == card.id).firstOrNull,
             entry: card,
           ),
-        const SizedBox(height: AppSpacing.s12),
-        Text(
-          l10n.memeFinalRound,
-          style: TextStyle(fontSize: 11, height: 1.4, color: colors.ink3),
-        ),
       ],
     );
   }
@@ -1700,7 +1727,11 @@ class _MemeResultRow extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '${entry.upVotes} up · ${entry.mehVotes} meh · ${entry.downVotes} down',
+                  context.l10n.memeVoteTally(
+                    entry.upVotes,
+                    entry.mehVotes,
+                    entry.downVotes,
+                  ),
                   style: TextStyle(fontSize: 10, color: colors.ink2),
                 ),
               ],

@@ -69,11 +69,13 @@ class PrepareScreen extends ConsumerWidget {
                           : l10n.rerollAll,
                       icon: Icons.refresh,
                       variant: GameButtonVariant.secondary,
-                      onPressed: () => unawaited(
-                        isHost
-                            ? coordinator.rerollCandidates()
-                            : coordinator.clientRerollAll(),
-                      ),
+                      onPressed: state.localReady
+                          ? null
+                          : () => unawaited(
+                              isHost
+                                  ? coordinator.rerollCandidates()
+                                  : coordinator.clientRerollAll(),
+                            ),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.s12),
@@ -232,6 +234,7 @@ class PrepareScreen extends ConsumerWidget {
                     ),
                   const SizedBox(height: AppSpacing.s16),
                   if (state.config.mode != GameMode.makeItMeme &&
+                      state.config.mode != GameMode.photoSabotage &&
                       state.plantUnlocked &&
                       state.plantEligible &&
                       !state.plantUsed)

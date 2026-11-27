@@ -4116,6 +4116,29 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Save sabotage'**
   String get sabotageSave;
+
+  String get sabotageColor6;
+  String get sabotageColor7;
+  String get sabotageColor8;
+  String get crowdFavorite;
+  String awardUpvotes(int count);
+  String get sabotageBrushSize;
+  String get sabotageStickers;
+  String get sabotageStickerEyes;
+  String get sabotageStickerMustache;
+  String get sabotageStickerCrown;
+  String get sabotageStickerShades;
+  String get sabotageStickerCensor;
+  String get sabotageStickerHeart;
+  String get sabotageHoldToCompare;
+  String get sabotagePrompt1;
+  String get sabotagePrompt2;
+  String get sabotagePrompt3;
+  String get sabotagePrompt4;
+  String get sabotagePrompt5;
+  String get sabotagePrompt6;
+  String get sabotagePrompt7;
+  String get sabotagePrompt8;
 }
 
 class _AppLocalizationsDelegate

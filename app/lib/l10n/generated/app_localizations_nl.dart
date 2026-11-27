@@ -2379,4 +2379,70 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get sabotageSave => 'Sabotage bewaren';
+
+  @override
+  String get sabotageColor6 => 'Blauw';
+
+  @override
+  String get sabotageColor7 => 'Roze';
+
+  @override
+  String get sabotageColor8 => 'Oranje';
+
+  @override
+  String get crowdFavorite => 'Publieksfavoriet';
+
+  @override
+  String awardUpvotes(int count) => '$count duimpjes';
+
+  @override
+  String get sabotageBrushSize => 'Penseeldikte';
+
+  @override
+  String get sabotageStickers => 'Plakkers';
+
+  @override
+  String get sabotageStickerEyes => 'Ogen';
+
+  @override
+  String get sabotageStickerMustache => 'Snor';
+
+  @override
+  String get sabotageStickerCrown => 'Kroon';
+
+  @override
+  String get sabotageStickerShades => 'Zonnebril';
+
+  @override
+  String get sabotageStickerCensor => 'Censuur';
+
+  @override
+  String get sabotageStickerHeart => 'Hart';
+
+  @override
+  String get sabotageHoldToCompare => 'Houd ingedrukt voor het origineel';
+
+  @override
+  String get sabotagePrompt1 => 'Maak een superschurk van iemand op de foto';
+
+  @override
+  String get sabotagePrompt2 => 'Verstop een vreemd wezen op de achtergrond';
+
+  @override
+  String get sabotagePrompt3 => 'Maak hier een dramatische filmposter van';
+
+  @override
+  String get sabotagePrompt4 => 'Geef iemand een compleet andere uitdrukking';
+
+  @override
+  String get sabotagePrompt5 => 'Voeg een onverwachte weerramp toe';
+
+  @override
+  String get sabotagePrompt6 => 'Maak de hoofdrolspeler van een random voorwerp';
+
+  @override
+  String get sabotagePrompt7 => 'Laat dit op groot nieuws lijken';
+
+  @override
+  String get sabotagePrompt8 => 'Geef iemand een verdachte vermomming';
 }

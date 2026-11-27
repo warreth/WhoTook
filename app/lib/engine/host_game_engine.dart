@@ -98,7 +98,10 @@ class HostGameEngine {
   final Set<String> _memeSkippedPool = <String>{};
   final Map<String, String> _activeHeldPhotos = <String, String>{};
   final List<MemeEntry> _memeHistory = <MemeEntry>[];
+  final Map<String, int> _memeUpVotesByPlayer = <String, int>{};
   int _memeSerial = 0;
+  int? _currentSabotagePromptIndex;
+  int? _lastSabotagePromptIndex;
   MemeReveal? _lastMemeReveal;
   final List<GameMode> _mixedModes = <GameMode>[];
   final Map<String, List<PhotoCandidate>> _pendingExtension =
@@ -150,6 +153,9 @@ class HostGameEngine {
     for (final entry in _memeVotes.entries)
       if (entry.value.containsKey(playerId)) entry.key,
   };
+  int? get currentSabotagePromptIndex => _currentSabotagePromptIndex;
+  bool get isFinalDoubleRound =>
+      _deck.length >= 5 && _currentRound == _deck.length;
   List<MemeOption> get memeOptions => List<MemeOption>.unmodifiable(
     _memePlayerById.entries
         .map((entry) {
@@ -173,6 +179,7 @@ class HostGameEngine {
             snapY: meme.snapY,
             isSabotage: meme.isSabotage,
             strokes: meme.strokes,
+            stickers: meme.stickers,
           );
         })
         .where((option) => option.id.isNotEmpty),
@@ -403,18 +410,13 @@ class HostGameEngine {
     final enabled = enabledMixedModes
         .where(MatchConfig.coreMixedModes.contains)
         .toSet();
-    final enabledCount = (enabled.length < 2 ? 5 : enabled.length).clamp(2, 5);
-    final creationCount = enabled
-        .where(
-          (candidate) =>
-              candidate == GameMode.makeItMeme ||
-              candidate == GameMode.photoSabotage,
-        )
-        .length;
+    final totalCore = MatchConfig.coreMixedModes.length;
+    final enabledCount = (enabled.length < 2 ? totalCore : enabled.length)
+        .clamp(2, totalCore);
+    final memeWeight = enabled.contains(GameMode.makeItMeme) ? 1 : 0;
     final memeRounds = switch (mode) {
-      GameMode.makeItMeme || GameMode.photoSabotage => roundsK,
-      GameMode.mixedParty =>
-        (roundsK * max(1, creationCount) / enabledCount).ceil(),
+      GameMode.makeItMeme => roundsK,
+      GameMode.mixedParty => (roundsK * memeWeight / enabledCount).ceil(),
       _ => 0,
     };
     final swapReserve = memeRounds > 0 ? 5 : 0;
@@ -678,6 +680,8 @@ class HostGameEngine {
     _activeHeldPhotos.clear();
     _memeSkippedThisRound.clear();
     _memeSkippedPool.clear();
+    _memeHistory.clear();
+    _memeUpVotesByPlayer.clear();
     _usedPhotoIds.clear();
     _buildDeck(_roundsK);
     if (_deck.isEmpty) {
@@ -712,10 +716,15 @@ class HostGameEngine {
     _memeSkippedThisRound.clear();
     _activeHeldPhotos.clear();
     _zoomLockedOut.clear();
-    if (_deck[_currentRound - 1].mode == GameMode.makeItMeme ||
-        _deck[_currentRound - 1].mode == GameMode.photoSabotage) {
+    _currentSabotagePromptIndex = null;
+    final entry = _deck[_currentRound - 1];
+    if (entry.mode == GameMode.makeItMeme) {
       for (final player in _players.values) {
         _memeSwaps[player.id] = 5;
+      }
+    } else if (entry.mode == GameMode.photoSabotage) {
+      for (final player in _players.values) {
+        _memeSwaps[player.id] = 0;
       }
     }
     _roundDeltas
@@ -725,7 +734,6 @@ class HostGameEngine {
       player.ready = false;
     }
     _roundStartedAtMs = _clock().millisecondsSinceEpoch;
-    final entry = _deck[_currentRound - 1];
     _activeMode = entry.mode;
     _phase = switch (entry.mode) {
       GameMode.classic || GameMode.zoomOut => RoundPhase.guessing,
@@ -735,9 +743,10 @@ class HostGameEngine {
       GameMode.timeTraveler => RoundPhase.timelineGuessing,
       GameMode.mixedParty => RoundPhase.guessing,
     };
-    if (entry.mode == GameMode.makeItMeme ||
-        entry.mode == GameMode.photoSabotage) {
+    if (entry.mode == GameMode.makeItMeme) {
       _assignMemePhotos();
+    } else if (entry.mode == GameMode.photoSabotage) {
+      _assignSabotagePhoto(entry);
     }
     return entry;
   }
@@ -766,13 +775,18 @@ class HostGameEngine {
     if (isCorrect) {
       final remaining = totalMs - clamped;
       if (_activeMode == GameMode.zoomOut) {
-        // High-risk early lock-in: 1000 at the start, 300 at the buzzer.
-        points = 300 + (700 * remaining) ~/ totalMs;
+        // High-risk early lock-in: 1000 at the start, 300 at the buzzer, plus
+        // any active streak bonus.
+        points =
+            300 + (700 * remaining) ~/ totalMs + _streakBonus(player.streak);
       } else {
         points =
             correctBasePoints +
             (correctSpeedPoints * remaining) ~/ totalMs +
             _streakBonus(player.streak);
+      }
+      if (isFinalDoubleRound) {
+        points *= 2;
       }
     } else if (_activeMode == GameMode.zoomOut) {
       // A wrong early guess is locked out for the rest of this round.
@@ -983,6 +997,20 @@ class HostGameEngine {
 
   // Make It Meme -----------------------------------------------------------
 
+  void _assignSabotagePhoto(DeckEntry entry) {
+    var nextPrompt = _random.nextInt(8);
+    if (nextPrompt == _lastSabotagePromptIndex) {
+      nextPrompt = (nextPrompt + 1 + _random.nextInt(7)) % 8;
+    }
+    _currentSabotagePromptIndex = nextPrompt;
+    _lastSabotagePromptIndex = nextPrompt;
+    for (final player in _players.values) {
+      if (!player.connected) continue;
+      _memeAssignments[player.id] = entry.photo;
+      _memeSwaps[player.id] = 0;
+    }
+  }
+
   void _assignMemePhotos() {
     final connected = _players.values
         .where((player) => player.connected)
@@ -1058,6 +1086,9 @@ class HostGameEngine {
       ownerId: photo.ownerId,
       ownerName: owner?.name ?? '',
       isPanorama: photo.isPanorama,
+      promptIndex: _activeMode == GameMode.photoSabotage
+          ? _currentSabotagePromptIndex
+          : null,
     );
   }
 
@@ -1175,6 +1206,7 @@ class HostGameEngine {
     required String bottomText,
     required double snapY,
     List<SabotageStroke> strokes = const <SabotageStroke>[],
+    List<SabotageSticker> stickers = const <SabotageSticker>[],
   }) {
     _requirePlayer(playerId);
     if (_phase != RoundPhase.captionWriting) {
@@ -1191,7 +1223,7 @@ class HostGameEngine {
     final top = topText.trim();
     final bottom = bottomText.trim();
     if (sabotage) {
-      if (strokes.isEmpty) {
+      if (strokes.isEmpty && stickers.isEmpty) {
         throw const EngineException('empty_drawing', 'draw something first');
       }
     } else {
@@ -1214,6 +1246,7 @@ class HostGameEngine {
       snapY: sabotage ? 50 : snapY.clamp(10, 90),
       isSabotage: sabotage,
       strokes: sabotage ? strokes : const <SabotageStroke>[],
+      stickers: sabotage ? stickers : const <SabotageSticker>[],
     );
     _memes[playerId] = meme;
     _memeIdByPlayer[playerId] = id;
@@ -1269,7 +1302,18 @@ class HostGameEngine {
     final deltas = <String, int>{
       for (final player in _players.values) player.id: 0,
     };
-    final entries = <MemeEntry>[];
+    final scored =
+        <
+          ({
+            MemeSubmission meme,
+            Player author,
+            Player? owner,
+            int up,
+            int meh,
+            int down,
+            int basePoints,
+          })
+        >[];
     for (final mapEntry in _memePlayerById.entries) {
       final meme = _memes[mapEntry.value];
       if (meme == null) continue;
@@ -1280,26 +1324,51 @@ class HostGameEngine {
       final up = votes.values.where((vote) => vote == MemeVote.up).length;
       final meh = votes.values.where((vote) => vote == MemeVote.meh).length;
       final down = votes.values.where((vote) => vote == MemeVote.down).length;
-      final points = up * 100 - down * 50;
-      deltas[author.id] = (deltas[author.id] ?? 0) + points;
+      final basePoints = up * 250 + meh * 50 - down * 50;
+      _memeUpVotesByPlayer[author.id] =
+          (_memeUpVotesByPlayer[author.id] ?? 0) + up;
+      scored.add((
+        meme: meme,
+        author: author,
+        owner: owner,
+        up: up,
+        meh: meh,
+        down: down,
+        basePoints: basePoints,
+      ));
+    }
+    final topBase = scored.isEmpty
+        ? 0
+        : scored.map((item) => item.basePoints).reduce(max);
+    final entries = <MemeEntry>[];
+    for (final item in scored) {
+      var points = item.basePoints;
+      if (topBase > 0 && item.basePoints == topBase) {
+        points += 150;
+      }
+      if (isFinalDoubleRound && points > 0) {
+        points *= 2;
+      }
+      deltas[item.author.id] = (deltas[item.author.id] ?? 0) + points;
       entries.add(
         MemeEntry(
-          id: meme.id,
-          authorId: author.id,
-          authorName: author.name,
-          photoId: meme.photoId,
-          photoOwnerId: meme.photoOwnerId,
-          photoOwnerName: owner?.name ?? '',
-          template: meme.template,
-          topText: meme.topText,
-          bottomText: meme.bottomText,
-          snapY: meme.snapY,
-          upVotes: up,
-          mehVotes: meh,
-          downVotes: down,
+          id: item.meme.id,
+          authorId: item.author.id,
+          authorName: item.author.name,
+          photoId: item.meme.photoId,
+          photoOwnerId: item.meme.photoOwnerId,
+          photoOwnerName: item.owner?.name ?? '',
+          template: item.meme.template,
+          topText: item.meme.topText,
+          bottomText: item.meme.bottomText,
+          snapY: item.meme.snapY,
+          upVotes: item.up,
+          mehVotes: item.meh,
+          downVotes: item.down,
           points: points,
-          isSabotage: meme.isSabotage,
-          strokes: meme.strokes,
+          isSabotage: item.meme.isSabotage,
+          strokes: item.meme.strokes,
+          stickers: item.meme.stickers,
         ),
       );
     }
@@ -1489,7 +1558,8 @@ class HostGameEngine {
 
     owner.wrongGuessCount += fooled;
     if (fooled > 0) {
-      final bonus = mysteryBonusPerFooledOpponent * fooled;
+      var bonus = mysteryBonusPerFooledOpponent * fooled;
+      if (isFinalDoubleRound) bonus *= 2;
       owner.mysteryPointsEarned += bonus;
       _roundDeltas[entry.ownerId] = (_roundDeltas[entry.ownerId] ?? 0) + bonus;
     }
@@ -1752,6 +1822,21 @@ class HostGameEngine {
           playerId: owner.id,
           playerName: owner.name,
           value: _plantedFooledCount,
+        ),
+      );
+    }
+
+    final crowdFavorite = _best(
+      all.where((p) => (_memeUpVotesByPlayer[p.id] ?? 0) >= 2).toList(),
+      (p) => _memeUpVotesByPlayer[p.id] ?? 0,
+    );
+    if (crowdFavorite != null) {
+      awards.add(
+        MatchAward(
+          kind: MatchAwardKind.crowdFavorite,
+          playerId: crowdFavorite.id,
+          playerName: crowdFavorite.name,
+          value: _memeUpVotesByPlayer[crowdFavorite.id] ?? 0,
         ),
       );
     }

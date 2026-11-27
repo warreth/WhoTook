@@ -11,9 +11,8 @@ void main() {
       GameMode.zoomOut,
       GameMode.makeItMeme,
       GameMode.photoSabotage,
-      GameMode.timeTraveler,
     ];
-    for (final rounds in <int>[3, 5, 6, 10, 15]) {
+    for (final rounds in <int>[3, 5, 6, 8, 10, 15]) {
       for (var seed = 0; seed < 1000; seed++) {
         final queue = balancedMixedPartyModes(rounds, Random(seed));
         expect(queue, hasLength(rounds), reason: 'seed $seed rounds $rounds');
@@ -46,26 +45,26 @@ void main() {
   test('remainders go to Classic first', () {
     const three = <GameMode>{
       GameMode.classic,
+      GameMode.zoomOut,
       GameMode.makeItMeme,
-      GameMode.timeTraveler,
     };
     final ten = balancedMixedPartyModes(10, Random(3), enabled: three);
     expect(ten.where((mode) => mode == GameMode.classic), hasLength(4));
+    expect(ten.where((mode) => mode == GameMode.zoomOut), hasLength(3));
     expect(ten.where((mode) => mode == GameMode.makeItMeme), hasLength(3));
-    expect(ten.where((mode) => mode == GameMode.timeTraveler), hasLength(3));
     final eleven = balancedMixedPartyModes(11, Random(4), enabled: three);
     expect(eleven.where((mode) => mode == GameMode.classic), hasLength(4));
-    expect(eleven.where((mode) => mode == GameMode.makeItMeme), hasLength(4));
-    expect(eleven.where((mode) => mode == GameMode.timeTraveler), hasLength(3));
+    expect(eleven.where((mode) => mode == GameMode.zoomOut), hasLength(4));
+    expect(eleven.where((mode) => mode == GameMode.makeItMeme), hasLength(3));
   });
 
-  test('all five modes share an even schedule', () {
-    final ten = balancedMixedPartyModes(10, Random(7));
+  test('all four core modes share an even schedule', () {
+    final eight = balancedMixedPartyModes(8, Random(7));
     for (final mode in MatchConfig.coreMixedModes) {
-      expect(ten.where((candidate) => candidate == mode), hasLength(2));
+      expect(eight.where((candidate) => candidate == mode), hasLength(2));
     }
-    final eleven = balancedMixedPartyModes(11, Random(8));
-    expect(eleven.where((mode) => mode == GameMode.classic), hasLength(3));
+    final nine = balancedMixedPartyModes(9, Random(8));
+    expect(nine.where((mode) => mode == GameMode.classic), hasLength(3));
   });
 
   test('short queues use distinct modes when possible', () {
@@ -78,8 +77,8 @@ void main() {
   test('two enabled modes stay balanced and never repeat a neighbour', () {
     const pairs = <Set<GameMode>>[
       <GameMode>{GameMode.classic, GameMode.makeItMeme},
-      <GameMode>{GameMode.classic, GameMode.timeTraveler},
-      <GameMode>{GameMode.makeItMeme, GameMode.timeTraveler},
+      <GameMode>{GameMode.classic, GameMode.zoomOut},
+      <GameMode>{GameMode.makeItMeme, GameMode.photoSabotage},
     ];
     for (final enabled in pairs) {
       for (final rounds in <int>[5, 6, 10, 11]) {

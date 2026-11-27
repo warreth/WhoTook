@@ -26,7 +26,7 @@ void main() {
     Set<GameMode> selected = <GameMode>{
       GameMode.classic,
       GameMode.makeItMeme,
-      GameMode.timeTraveler,
+      GameMode.zoomOut,
     };
     late Set<GameMode> lastChanged;
     await tester.pumpWidget(
@@ -54,11 +54,11 @@ void main() {
 
     expect(find.text('Classic'), findsOneWidget);
     expect(find.text('Make It Meme'), findsOneWidget);
-    expect(find.text('Time Traveler'), findsOneWidget);
+    expect(find.text('Zoom-Out'), findsOneWidget);
 
     await tester.tap(find.text('Make It Meme'));
     await tester.pump();
-    expect(lastChanged, <GameMode>{GameMode.classic, GameMode.timeTraveler});
+    expect(lastChanged, <GameMode>{GameMode.classic, GameMode.zoomOut});
     expect(selected, hasLength(2));
 
     await tester.tap(find.text('Classic'));

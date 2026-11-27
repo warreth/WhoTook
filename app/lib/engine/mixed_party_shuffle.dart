@@ -23,7 +23,6 @@ List<GameMode> balancedMixedPartyModes(
       GameMode.zoomOut,
       GameMode.makeItMeme,
       GameMode.photoSabotage,
-      GameMode.timeTraveler,
     ])
       if (enabled.contains(mode)) mode,
   ];
@@ -46,8 +45,8 @@ List<GameMode> balancedMixedPartyModes(
   final counts = <GameMode, int>{
     for (final mode in modes) mode: rounds ~/ modes.length,
   };
-  // Remainders go to Classic first, then Make It Meme, then Time Traveler.
-  // With two enabled modes the classic half gets the odd round.
+  // Remainders go to the earliest enabled modes first. With two enabled modes
+  // the first half gets the odd round.
   for (var i = 0; i < rounds % modes.length; i++) {
     counts[modes[i]] = counts[modes[i]]! + 1;
   }

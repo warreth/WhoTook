@@ -427,43 +427,32 @@ void main() {
         players: 3,
         roundsK: 6,
         mode: GameMode.mixedParty,
-        datedPhotos: true,
+        datedPhotos: false,
       );
       engine.startGame();
       final modes = engine.deck.map((entry) => entry.mode).toList();
       expect(modes, hasLength(6));
-      expect(modes.toSet(), hasLength(5));
+      expect(modes.toSet(), hasLength(4));
       expect(modes.where((m) => m == GameMode.classic), hasLength(2));
-      for (final mode in <GameMode>[
-        GameMode.zoomOut,
-        GameMode.makeItMeme,
-        GameMode.photoSabotage,
-        GameMode.timeTraveler,
-      ]) {
-        expect(modes.where((m) => m == mode), hasLength(1));
-      }
+      expect(modes.where((m) => m == GameMode.zoomOut), hasLength(2));
+      expect(modes.where((m) => m == GameMode.makeItMeme), hasLength(1));
+      expect(modes.where((m) => m == GameMode.photoSabotage), hasLength(1));
       for (var i = 1; i < modes.length; i++) {
         expect(modes[i], isNot(modes[i - 1]));
       }
     });
 
-    test('10 rounds give every mode two turns', () {
+    test('8 rounds give every core mode two turns', () {
       final engine = readyEngine(
         players: 4,
-        roundsK: 10,
+        roundsK: 8,
         mode: GameMode.mixedParty,
-        datedPhotos: true,
+        datedPhotos: false,
       );
       engine.startGame();
       final modes = engine.deck.map((entry) => entry.mode).toList();
-      expect(modes, hasLength(10));
-      for (final mode in <GameMode>[
-        GameMode.classic,
-        GameMode.zoomOut,
-        GameMode.makeItMeme,
-        GameMode.photoSabotage,
-        GameMode.timeTraveler,
-      ]) {
+      expect(modes, hasLength(8));
+      for (final mode in MatchConfig.coreMixedModes) {
         expect(modes.where((m) => m == mode), hasLength(2));
       }
       for (var i = 1; i < modes.length; i++) {
@@ -506,22 +495,22 @@ void main() {
           ),
         ),
       );
-      engine.setMixedModes(<GameMode>{GameMode.classic, GameMode.timeTraveler});
+      engine.setMixedModes(<GameMode>{GameMode.classic, GameMode.zoomOut});
       expect(engine.config.enabledMixedModes, <GameMode>{
         GameMode.classic,
-        GameMode.timeTraveler,
+        GameMode.zoomOut,
       });
 
       final prepared = readyEngine(
         players: 3,
         roundsK: 6,
         mode: GameMode.mixedParty,
-        datedPhotos: true,
-        enabledMixedModes: <GameMode>{GameMode.classic, GameMode.timeTraveler},
+        datedPhotos: false,
+        enabledMixedModes: <GameMode>{GameMode.classic, GameMode.zoomOut},
       );
       prepared.startGame();
       final modes = prepared.deck.map((entry) => entry.mode).toSet();
-      expect(modes, <GameMode>{GameMode.classic, GameMode.timeTraveler});
+      expect(modes, <GameMode>{GameMode.classic, GameMode.zoomOut});
     });
 
     test('a match never draws the same photo twice', () {
@@ -1365,36 +1354,28 @@ void main() {
   });
 
   group('Foto-Sabotage', () {
-    test('shares the unique photo lock and the five swaps', () {
+    test('deals one shared deck photo with a sabotage prompt and zero swaps', () {
       final engine = readyEngine(
         players: 6,
         roundsK: 2,
         mode: GameMode.photoSabotage,
-        photosPerPlayer: 8,
+        photosPerPlayer: 6,
       );
       engine.startGame();
-      engine.startRound();
+      final deckEntry = engine.startRound();
       final held = <String>{
         for (final player in engine.players)
           engine.memeAssignmentFor(player.id)!.photoId,
       };
-      expect(held, hasLength(6));
-      for (var i = 0; i < 5; i++) {
-        for (final player in engine.players) {
-          engine.swapMemePhoto(player.id);
-          final now = <String>{
-            for (final other in engine.players)
-              engine.memeAssignmentFor(other.id)!.photoId,
-          };
-          expect(now, hasLength(6));
-        }
-      }
+      expect(held, <String>{deckEntry.photo.photoId});
       for (final player in engine.players) {
+        final assignment = engine.memeAssignmentFor(player.id)!;
+        expect(assignment.promptIndex, isNotNull);
         expect(engine.memeSwapsLeft(player.id), 0);
       }
     });
 
-    test('stroke submissions vote and pay only the creator', () {
+    test('stroke and sticker submissions vote and pay the creator', () {
       final engine = readyEngine(
         players: 3,
         roundsK: 2,
@@ -1403,25 +1384,43 @@ void main() {
       );
       engine.startGame();
       engine.startRound();
-      for (final player in engine.players) {
+      for (var i = 0; i < engine.players.length; i++) {
+        final player = engine.players[i];
         engine.submitMeme(
           playerId: player.id,
           template: MemeTemplate.classic,
           topText: '',
           bottomText: '',
           snapY: 50,
-          strokes: <SabotageStroke>[
-            SabotageStroke(
-              colorIndex: 2,
-              width: 0.01,
-              points: const <Offset>[Offset(0.2, 0.2), Offset(0.6, 0.6)],
-            ),
-          ],
+          strokes: i == 0
+              ? const <SabotageStroke>[]
+              : <SabotageStroke>[
+                  SabotageStroke(
+                    colorIndex: 2,
+                    width: 0.01,
+                    points: const <Offset>[Offset(0.2, 0.2), Offset(0.6, 0.6)],
+                  ),
+                ],
+          stickers: i == 0
+              ? const <SabotageSticker>[
+                  SabotageSticker(
+                    kind: SabotageStickerKind.googlyEyes,
+                    x: 0.4,
+                    y: 0.3,
+                  ),
+                ]
+              : const <SabotageSticker>[],
         );
       }
       final options = engine.memeOptions;
       expect(options.every((option) => option.isSabotage), isTrue);
-      expect(options.every((option) => option.strokes.isNotEmpty), isTrue);
+      expect(
+        options.every(
+          (option) =>
+              option.strokes.isNotEmpty || option.stickers.isNotEmpty,
+        ),
+        isTrue,
+      );
       engine.beginMemeVoting();
       for (final voter in engine.players) {
         for (final option in options) {
@@ -1437,8 +1436,9 @@ void main() {
       final reveal = engine.finishMemeRound();
       expect(reveal.entries.every((entry) => entry.isSabotage), isTrue);
       for (final entry in reveal.entries) {
-        expect(entry.points, 200);
-        expect(reveal.scoreDeltas[entry.photoOwnerId], 200);
+        // 2 up votes * 250 + 150 top bonus = 650.
+        expect(entry.points, 650);
+        expect(reveal.scoreDeltas[entry.authorId], 650);
       }
     });
 
@@ -1538,16 +1538,45 @@ void main() {
       for (final entry in reveal.entries) {
         expect(entry.authorName, isNotEmpty);
         expect(entry.photoOwnerName, isNotEmpty);
-        expect(entry.points, 200);
+        expect(entry.points, 650);
       }
       final scoreDeltas = reveal.scoreDeltas;
       for (final entry in reveal.entries) {
-        expect(scoreDeltas[entry.authorId], 200);
+        expect(scoreDeltas[entry.authorId], 650);
         // No +25: a photo owner scores only through their own meme.
-        expect(scoreDeltas[entry.photoOwnerId], 200);
+        expect(scoreDeltas[entry.photoOwnerId], 650);
       }
       expect(engine.phase, RoundPhase.captionReveal);
       expect(engine.topMemes, isNotEmpty);
+      final awards = engine.buildPodiumAwards();
+      expect(
+        awards.any((award) => award.kind == MatchAwardKind.crowdFavorite),
+        isTrue,
+      );
+    });
+
+    test('final round of 5+ rounds doubles points', () {
+      final engine = readyEngine(
+        players: 3,
+        roundsK: 5,
+        mode: GameMode.classic,
+        photosPerPlayer: 6,
+      );
+      engine.startGame();
+      for (var r = 1; r <= 4; r++) {
+        engine.startRound();
+        expect(engine.isFinalDoubleRound, isFalse);
+        playAllCorrect(engine, elapsedMs: 4000);
+        engine.finishRound();
+        engine.advanceAfterReveal();
+      }
+      final last = engine.startRound();
+      expect(engine.isFinalDoubleRound, isTrue);
+      final guesser = engine.players.firstWhere((p) => p.id != last.ownerId).id;
+      engine.submitGuess(guesser, last.ownerId, 4000);
+      final reveal = engine.finishRound();
+      // Base 500 + speed 250 + streak 300 = 1050, doubled to 2100.
+      expect(reveal.scoreDeltas[guesser], 2100);
     });
   });
 }

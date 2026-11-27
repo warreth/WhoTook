@@ -184,30 +184,21 @@ class _ZoomPhoto extends StatelessWidget {
       container: true,
       image: true,
       label: l10n.gamePhoto,
-      child: GestureDetector(
-        onTap: bytes == null || bytes.isEmpty
-            ? null
-            : () => showPhotoLightbox(
-                context,
-                bytes: bytes,
-                photoId: photoId,
-                caption: l10n.tapToZoomBody,
-              ),
-        child: Stack(
-          fit: StackFit.expand,
-          children: <Widget>[
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppRadii.rCard),
-                border: Border.all(color: colors.ink, width: 2),
-                boxShadow: <BoxShadow>[
-                  BoxShadow(
-                    color: colors.ink,
-                    offset: const Offset(0, 5),
-                    blurRadius: 0,
-                  ),
-                ],
-              ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadii.rCard),
+              border: Border.all(color: colors.ink, width: 2),
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: colors.ink,
+                  offset: const Offset(0, 5),
+                  blurRadius: 0,
+                ),
+              ],
+            ),
               clipBehavior: Clip.antiAlias,
               child: ClipRect(
                 child: bytes == null
@@ -257,7 +248,6 @@ class _ZoomPhoto extends StatelessWidget {
             ),
           ],
         ),
-      ),
     );
   }
 }
@@ -280,13 +270,10 @@ class _ZoomLockFeedbackState extends State<_ZoomLockFeedback> {
     final next = widget.state.lastGuessCorrect;
     if (next != null && next != _last) {
       _last = next;
-      if (next) {
-        unawaited(GameAudioService.instance.voteUp());
-        unawaited(GameHaptics.instance.light());
-      } else {
-        unawaited(GameAudioService.instance.voteDown());
-        unawaited(GameHaptics.instance.heavy());
-      }
+      // Neutral feedback while others are still guessing so audio never leaks
+      // whether a nearby player guessed right or got locked out.
+      unawaited(GameAudioService.instance.pop());
+      unawaited(GameHaptics.instance.light());
     }
   }
 

@@ -2368,4 +2368,70 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sabotageSave => 'Save sabotage';
+
+  @override
+  String get sabotageColor6 => 'Blue';
+
+  @override
+  String get sabotageColor7 => 'Pink';
+
+  @override
+  String get sabotageColor8 => 'Orange';
+
+  @override
+  String get crowdFavorite => 'Crowd favorite';
+
+  @override
+  String awardUpvotes(int count) => '$count upvotes';
+
+  @override
+  String get sabotageBrushSize => 'Brush size';
+
+  @override
+  String get sabotageStickers => 'Stickers';
+
+  @override
+  String get sabotageStickerEyes => 'Eyes';
+
+  @override
+  String get sabotageStickerMustache => 'Mustache';
+
+  @override
+  String get sabotageStickerCrown => 'Crown';
+
+  @override
+  String get sabotageStickerShades => 'Shades';
+
+  @override
+  String get sabotageStickerCensor => 'Censor';
+
+  @override
+  String get sabotageStickerHeart => 'Heart';
+
+  @override
+  String get sabotageHoldToCompare => 'Hold photo to compare original';
+
+  @override
+  String get sabotagePrompt1 => 'Turn someone into a supervillain';
+
+  @override
+  String get sabotagePrompt2 => 'Hide a weird creature in the background';
+
+  @override
+  String get sabotagePrompt3 => 'Make it look like a movie poster';
+
+  @override
+  String get sabotagePrompt4 => 'Give someone a completely wrong expression';
+
+  @override
+  String get sabotagePrompt5 => 'Add an unexpected weather disaster';
+
+  @override
+  String get sabotagePrompt6 => 'Turn a random object into the hero';
+
+  @override
+  String get sabotagePrompt7 => 'Make it look like breaking news';
+
+  @override
+  String get sabotagePrompt8 => 'Add a terribly suspicious disguise';
 }

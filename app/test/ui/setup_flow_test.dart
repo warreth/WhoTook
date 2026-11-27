@@ -92,7 +92,7 @@ void main() {
     await tester.tap(find.text('Host a game'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Time Traveler'));
+    await tester.tap(find.text('Zoom-Out'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Next: rounds'));
     await tester.pumpAndSettle();
@@ -115,9 +115,9 @@ void main() {
     expect(find.text('Scan to join'), findsOneWidget);
     expect(coordinator.state.roomId, isNotNull);
     expect(coordinator.state.config.roundsK, 15);
-    expect(coordinator.state.config.roundSeconds, 15);
+    expect(coordinator.state.config.roundSeconds, 12);
     expect(coordinator.state.config.pace, GamePace.fast);
-    expect(coordinator.state.config.mode, GameMode.timeTraveler);
+    expect(coordinator.state.config.mode, GameMode.zoomOut);
     expect(coordinator.state.candidates, isEmpty);
 
     await tester.tap(find.text('Edit'));

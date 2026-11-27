@@ -126,9 +126,17 @@ enum GamePace {
     GamePace.slow => 120,
   };
 
-  int get zoomOutSeconds => 15;
+  int get zoomOutSeconds => switch (this) {
+    GamePace.fast => 12,
+    GamePace.normal => 15,
+    GamePace.slow => 20,
+  };
 
-  int get sabotageSeconds => 35;
+  int get sabotageSeconds => switch (this) {
+    GamePace.fast => 30,
+    GamePace.normal => 45,
+    GamePace.slow => 60,
+  };
 
   int mainSeconds(GameMode mode) => switch (mode) {
     GameMode.classic || GameMode.mixedParty => classicSeconds,
@@ -151,7 +159,6 @@ class MatchConfig {
       GameMode.zoomOut,
       GameMode.makeItMeme,
       GameMode.photoSabotage,
-      GameMode.timeTraveler,
     },
   }) : assert(roundsK > 0),
        assert(roundSeconds > 0);
@@ -161,7 +168,6 @@ class MatchConfig {
     GameMode.zoomOut,
     GameMode.makeItMeme,
     GameMode.photoSabotage,
-    GameMode.timeTraveler,
   };
 
   final int roundsK;
@@ -180,15 +186,10 @@ class MatchConfig {
 
   int get roundMs => roundSeconds * 1000;
 
-  /// Time Traveler needs a verified capture date, and a mixed match uses the
-  /// same photo pool for its timeline rounds.
-  bool get needsPhotoDates =>
-      mode == GameMode.timeTraveler ||
-      (mode == GameMode.mixedParty &&
-          activeMixedModes.contains(GameMode.timeTraveler));
+  /// Time Traveler is retired; no photo mode requires EXIF capture dates.
+  bool get needsPhotoDates => false;
 
-  bool get needsSixPhotoVault =>
-      mode == GameMode.makeItMeme || mode == GameMode.photoSabotage;
+  bool get needsSixPhotoVault => mode == GameMode.makeItMeme;
 
   MatchConfig copyWith({
     int? roundsK,
@@ -221,13 +222,16 @@ class MatchConfig {
             for (final mode in coreMixedModes)
               if (mode.name == value) mode,
     };
+    final decodedMode = GameMode.values.firstWhere(
+      (mode) => mode.name == json['mode'],
+      orElse: () => GameMode.classic,
+    );
     return MatchConfig(
       roundsK: (json['roundsK'] as int?) ?? 10,
       roundSeconds: (json['roundSeconds'] as int?) ?? 8,
-      mode: GameMode.values.firstWhere(
-        (mode) => mode.name == json['mode'],
-        orElse: () => GameMode.classic,
-      ),
+      mode: decodedMode == GameMode.timeTraveler
+          ? GameMode.classic
+          : decodedMode,
       pace: GamePace.values.firstWhere(
         (pace) => pace.name == json['pace'],
         orElse: () => GamePace.normal,
@@ -470,6 +474,7 @@ enum MatchAwardKind {
   masterOfMystery,
   paparazzi,
   smoothPlanter,
+  crowdFavorite,
 }
 
 class MatchAward {
@@ -639,6 +644,48 @@ class SabotageStroke {
   }
 }
 
+enum SabotageStickerKind {
+  googlyEyes,
+  mustache,
+  crown,
+  sunglasses,
+  censorBar,
+  heart,
+}
+
+/// One placed sticker on a sabotaged photo, normalized to 0..1 coordinates.
+class SabotageSticker {
+  const SabotageSticker({
+    required this.kind,
+    required this.x,
+    required this.y,
+    this.scale = 1.0,
+  });
+
+  final SabotageStickerKind kind;
+  final double x;
+  final double y;
+  final double scale;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'k': kind.name,
+    'x': double.parse(x.clamp(0.0, 1.0).toStringAsFixed(4)),
+    'y': double.parse(y.clamp(0.0, 1.0).toStringAsFixed(4)),
+    's': double.parse(scale.clamp(0.5, 2.0).toStringAsFixed(2)),
+  };
+
+  factory SabotageSticker.fromJson(Map<String, dynamic> json) =>
+      SabotageSticker(
+        kind: SabotageStickerKind.values.firstWhere(
+          (value) => value.name == json['k'],
+          orElse: () => SabotageStickerKind.googlyEyes,
+        ),
+        x: ((json['x'] as num?) ?? 0.5).toDouble().clamp(0.0, 1.0),
+        y: ((json['y'] as num?) ?? 0.5).toDouble().clamp(0.0, 1.0),
+        scale: ((json['s'] as num?) ?? 1.0).toDouble().clamp(0.5, 2.0),
+      );
+}
+
 enum MemeVote { up, meh, down }
 
 /// Host-side assignment of one photo from another player's six-photo vault.
@@ -649,6 +696,7 @@ class MemeAssignment {
     required this.ownerId,
     required this.ownerName,
     this.isPanorama = false,
+    this.promptIndex,
   });
 
   final String playerId;
@@ -656,6 +704,7 @@ class MemeAssignment {
   final String ownerId;
   final String ownerName;
   final bool isPanorama;
+  final int? promptIndex;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
     'playerId': playerId,
@@ -663,6 +712,7 @@ class MemeAssignment {
     'ownerId': ownerId,
     'ownerName': ownerName,
     'isPanorama': isPanorama,
+    if (promptIndex != null) 'promptIndex': promptIndex,
   };
 
   factory MemeAssignment.fromJson(Map<String, dynamic> json) => MemeAssignment(
@@ -671,6 +721,7 @@ class MemeAssignment {
     ownerId: json['ownerId'] as String? ?? '',
     ownerName: json['ownerName'] as String? ?? '',
     isPanorama: json['isPanorama'] as bool? ?? false,
+    promptIndex: json['promptIndex'] as int?,
   );
 }
 
@@ -687,6 +738,7 @@ class MemeSubmission {
     required this.snapY,
     this.isSabotage = false,
     this.strokes = const <SabotageStroke>[],
+    this.stickers = const <SabotageSticker>[],
   });
 
   final String id;
@@ -699,6 +751,7 @@ class MemeSubmission {
   final double snapY;
   final bool isSabotage;
   final List<SabotageStroke> strokes;
+  final List<SabotageSticker> stickers;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
     'id': id,
@@ -711,6 +764,7 @@ class MemeSubmission {
     'snapY': snapY,
     'isSabotage': isSabotage,
     'strokes': strokes.map((stroke) => stroke.toJson()).toList(),
+    'stickers': stickers.map((sticker) => sticker.toJson()).toList(),
   };
 }
 
@@ -725,6 +779,7 @@ class MemeOption {
     required this.snapY,
     this.isSabotage = false,
     this.strokes = const <SabotageStroke>[],
+    this.stickers = const <SabotageSticker>[],
   });
 
   final String id;
@@ -735,6 +790,7 @@ class MemeOption {
   final double snapY;
   final bool isSabotage;
   final List<SabotageStroke> strokes;
+  final List<SabotageSticker> stickers;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
     'id': id,
@@ -745,6 +801,7 @@ class MemeOption {
     'snapY': snapY,
     'isSabotage': isSabotage,
     'strokes': strokes.map((stroke) => stroke.toJson()).toList(),
+    'stickers': stickers.map((sticker) => sticker.toJson()).toList(),
   };
 
   factory MemeOption.fromJson(Map<String, dynamic> json) => MemeOption(
@@ -761,6 +818,10 @@ class MemeOption {
     strokes: (json['strokes'] as List<dynamic>? ?? const <dynamic>[])
         .whereType<Map<String, dynamic>>()
         .map(SabotageStroke.fromJson)
+        .toList(growable: false),
+    stickers: (json['stickers'] as List<dynamic>? ?? const <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .map(SabotageSticker.fromJson)
         .toList(growable: false),
   );
 }
@@ -811,6 +872,7 @@ class MemeEntry {
     required this.points,
     this.isSabotage = false,
     this.strokes = const <SabotageStroke>[],
+    this.stickers = const <SabotageSticker>[],
   });
 
   final String id;
@@ -829,6 +891,7 @@ class MemeEntry {
   final int points;
   final bool isSabotage;
   final List<SabotageStroke> strokes;
+  final List<SabotageSticker> stickers;
 
   int get totalVotes => upVotes + mehVotes + downVotes;
 
@@ -849,6 +912,7 @@ class MemeEntry {
     'points': points,
     'isSabotage': isSabotage,
     'strokes': strokes.map((stroke) => stroke.toJson()).toList(),
+    'stickers': stickers.map((sticker) => sticker.toJson()).toList(),
   };
 
   factory MemeEntry.fromJson(Map<String, dynamic> json) => MemeEntry(
@@ -873,6 +937,10 @@ class MemeEntry {
     strokes: (json['strokes'] as List<dynamic>? ?? const <dynamic>[])
         .whereType<Map<String, dynamic>>()
         .map(SabotageStroke.fromJson)
+        .toList(growable: false),
+    stickers: (json['stickers'] as List<dynamic>? ?? const <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .map(SabotageSticker.fromJson)
         .toList(growable: false),
   );
 }

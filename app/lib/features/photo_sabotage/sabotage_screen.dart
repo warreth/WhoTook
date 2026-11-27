@@ -121,10 +121,10 @@ class SabotageScreen extends ConsumerWidget {
             ? coordinator.swapMemePhoto()
             : coordinator.clientSwapMemePhoto(),
       ),
-      onSubmit: (strokes) => unawaited(
+      onSubmit: (strokes, stickers) => unawaited(
         state.isHosting
-            ? coordinator.submitSabotage(strokes)
-            : coordinator.clientSubmitSabotage(strokes),
+            ? coordinator.submitSabotage(strokes, stickers: stickers)
+            : coordinator.clientSubmitSabotage(strokes, stickers: stickers),
       ),
     );
   }
@@ -142,18 +142,29 @@ class _SabotageEditor extends StatefulWidget {
   final MatchUiState state;
   final MemeAssignment assignment;
   final VoidCallback onSwap;
-  final ValueChanged<List<SabotageStroke>> onSubmit;
+  final void Function(
+    List<SabotageStroke> strokes,
+    List<SabotageSticker> stickers,
+  )
+  onSubmit;
 
   @override
   State<_SabotageEditor> createState() => _SabotageEditorState();
 }
 
 class _SabotageEditorState extends State<_SabotageEditor> {
+  static const List<double> _brushWidths = <double>[0.006, 0.012, 0.024];
+
   final List<SabotageStroke> _strokes = <SabotageStroke>[];
+  final List<SabotageSticker> _stickers = <SabotageSticker>[];
+  final List<bool> _undoIsStroke = <bool>[];
   SabotageStroke? _live;
   int _colorIndex = 0;
-  bool _thick = false;
+  int _widthIndex = 1;
+  bool _showStickers = false;
+  SabotageStickerKind? _activeSticker;
   bool _sending = false;
+  int? _autoSubmittedRound;
 
   List<SabotageStroke> get _visibleStrokes => <SabotageStroke>[
     ..._strokes,
@@ -168,19 +179,40 @@ class _SabotageEditorState extends State<_SabotageEditor> {
 
   void _start(Offset position, Size size) {
     if (widget.state.memeSubmitted) return;
+    final point = _normalized(position, size);
+    final sticker = _activeSticker;
+    if (sticker != null) {
+      setState(() {
+        _stickers.add(SabotageSticker(kind: sticker, x: point.dx, y: point.dy));
+        _undoIsStroke.add(false);
+      });
+      return;
+    }
     setState(() {
       _live = SabotageStroke(
         colorIndex: _colorIndex,
-        width: _thick ? 0.018 : 0.008,
-        points: <Offset>[_normalized(position, size)],
+        width: _brushWidths[_widthIndex],
+        points: <Offset>[point],
       );
     });
   }
 
   void _update(Offset position, Size size) {
+    final point = _normalized(position, size);
+    if (_activeSticker != null && _stickers.isNotEmpty) {
+      setState(() {
+        final last = _stickers.last;
+        _stickers[_stickers.length - 1] = SabotageSticker(
+          kind: last.kind,
+          x: point.dx,
+          y: point.dy,
+          scale: last.scale,
+        );
+      });
+      return;
+    }
     final live = _live;
     if (live == null) return;
-    final point = _normalized(position, size);
     if ((point - live.points.last).distance < 0.002) return;
     setState(() {
       _live = SabotageStroke(
@@ -192,10 +224,35 @@ class _SabotageEditorState extends State<_SabotageEditor> {
   }
 
   void _end() {
+    if (_activeSticker != null) return;
     final live = _live;
     if (live == null) return;
     setState(() {
-      if (live.points.length >= 2) _strokes.add(live);
+      if (live.points.isNotEmpty) {
+        _strokes.add(live);
+        _undoIsStroke.add(true);
+      }
+      _live = null;
+    });
+  }
+
+  void _undo() {
+    if (_undoIsStroke.isEmpty) return;
+    setState(() {
+      final isStroke = _undoIsStroke.removeLast();
+      if (isStroke) {
+        if (_strokes.isNotEmpty) _strokes.removeLast();
+      } else {
+        if (_stickers.isNotEmpty) _stickers.removeLast();
+      }
+    });
+  }
+
+  void _clear() {
+    setState(() {
+      _strokes.clear();
+      _stickers.clear();
+      _undoIsStroke.clear();
       _live = null;
     });
   }
@@ -205,16 +262,20 @@ class _SabotageEditorState extends State<_SabotageEditor> {
     (position.dy / size.height).clamp(0.0, 1.0),
   );
 
-  void _send() {
+  void _send({bool automatic = false}) {
+    if (_sending || widget.state.memeSubmitted) return;
     final simplified = simplifySabotageStrokes(_visibleStrokes);
-    if (simplified.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(context.l10n.sabotageDrawFirst)));
+    final stickers = List<SabotageSticker>.of(_stickers);
+    if (simplified.isEmpty && stickers.isEmpty) {
+      if (!automatic && mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.l10n.sabotageDrawFirst)));
+      }
       return;
     }
     setState(() => _sending = true);
-    widget.onSubmit(simplified);
+    widget.onSubmit(simplified, stickers);
     unawaited(GameHaptics.instance.light());
     unawaited(GameAudioService.instance.pop());
   }
@@ -229,6 +290,20 @@ class _SabotageEditorState extends State<_SabotageEditor> {
         widget.state.errorMessage != oldWidget.state.errorMessage) {
       _sending = false;
     }
+    final state = widget.state;
+    if (state.phase == RoundPhase.captionWriting &&
+        state.activeMode == GameMode.photoSabotage &&
+        !state.memeSubmitted &&
+        !_sending &&
+        state.remainingMs > 0 &&
+        state.remainingMs <= 1000 &&
+        (_strokes.isNotEmpty || _stickers.isNotEmpty) &&
+        _autoSubmittedRound != state.currentRound) {
+      _autoSubmittedRound = state.currentRound;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _send(automatic: true);
+      });
+    }
   }
 
   @override
@@ -239,6 +314,7 @@ class _SabotageEditorState extends State<_SabotageEditor> {
     final owner = state.players
         .where((player) => player.id == widget.assignment.ownerId)
         .firstOrNull;
+    final promptIndex = widget.assignment.promptIndex;
     final bytes = _bytes;
     if (bytes == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -267,15 +343,24 @@ class _SabotageEditorState extends State<_SabotageEditor> {
             const SizedBox(width: 6),
             Expanded(
               child: Text(
-                l10n.sabotageDrawHint(
-                  owner?.name ?? widget.assignment.ownerName,
-                ),
-                maxLines: 1,
+                promptIndex != null
+                    ? _sabotagePrompt(l10n, promptIndex)
+                    : l10n.sabotageDrawHint(
+                        owner?.name ?? widget.assignment.ownerName,
+                      ),
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 11, color: colors.ink2),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: promptIndex != null ? colors.ink : colors.ink2,
+                ),
               ),
             ),
-            _SwapBadge(left: state.memeSwapsLeft),
+            if (state.memeSwapsLeft > 0) ...<Widget>[
+              const SizedBox(width: 6),
+              _SwapBadge(left: state.memeSwapsLeft),
+            ],
           ],
         ),
         const SizedBox(height: 5),
@@ -307,6 +392,7 @@ class _SabotageEditorState extends State<_SabotageEditor> {
                             photoId: widget.assignment.photoId,
                             photoBytes: bytes,
                             strokes: _visibleStrokes,
+                            stickers: _stickers,
                             borderColor: colors.ink,
                           ),
                         );
@@ -319,25 +405,35 @@ class _SabotageEditorState extends State<_SabotageEditor> {
           const SizedBox(height: 5),
           _Toolbar(
             colorIndex: _colorIndex,
-            thick: _thick,
-            canUndo: _strokes.isNotEmpty,
+            widthIndex: _widthIndex,
+            showStickers: _showStickers,
+            activeSticker: _activeSticker,
+            canUndo: _undoIsStroke.isNotEmpty,
             canSwap: state.memeSwapsLeft > 0 && !_sending,
             sending: _sending,
             swapsLeft: state.memeSwapsLeft,
-            onColor: (index) => setState(() => _colorIndex = index),
-            onThick: () => setState(() => _thick = !_thick),
-            onUndo: () => setState(() {
-              if (_strokes.isNotEmpty) _strokes.removeLast();
+            onColor: (index) => setState(() {
+              _colorIndex = index;
+              _activeSticker = null;
             }),
-            onClear: () => setState(_strokes.clear),
+            onWidth: () => setState(() {
+              _widthIndex = (_widthIndex + 1) % _brushWidths.length;
+              _activeSticker = null;
+            }),
+            onToggleStickers: () => setState(() {
+              _showStickers = !_showStickers;
+              if (!_showStickers) _activeSticker = null;
+            }),
+            onSelectSticker: (kind) => setState(() {
+              _activeSticker = _activeSticker == kind ? null : kind;
+            }),
+            onUndo: _undo,
+            onClear: _clear,
             onSwap: () {
-              setState(() {
-                _strokes.clear();
-                _live = null;
-              });
+              _clear();
               widget.onSwap();
             },
-            onSend: _send,
+            onSend: () => _send(),
           ),
         ],
       ],
@@ -376,13 +472,17 @@ class _SwapBadge extends StatelessWidget {
 class _Toolbar extends StatelessWidget {
   const _Toolbar({
     required this.colorIndex,
-    required this.thick,
+    required this.widthIndex,
+    required this.showStickers,
+    required this.activeSticker,
     required this.canUndo,
     required this.canSwap,
     required this.sending,
     required this.swapsLeft,
     required this.onColor,
-    required this.onThick,
+    required this.onWidth,
+    required this.onToggleStickers,
+    required this.onSelectSticker,
     required this.onUndo,
     required this.onClear,
     required this.onSwap,
@@ -390,13 +490,17 @@ class _Toolbar extends StatelessWidget {
   });
 
   final int colorIndex;
-  final bool thick;
+  final int widthIndex;
+  final bool showStickers;
+  final SabotageStickerKind? activeSticker;
   final bool canUndo;
   final bool canSwap;
   final bool sending;
   final int swapsLeft;
   final ValueChanged<int> onColor;
-  final VoidCallback onThick;
+  final VoidCallback onWidth;
+  final VoidCallback onToggleStickers;
+  final ValueChanged<SabotageStickerKind> onSelectSticker;
   final VoidCallback onUndo;
   final VoidCallback onClear;
   final VoidCallback onSwap;
@@ -411,50 +515,78 @@ class _Toolbar extends StatelessWidget {
       children: <Widget>[
         Row(
           children: <Widget>[
-            for (var i = 0; i < sabotageColors.length; i++) ...<Widget>[
-              if (i > 0) const SizedBox(width: 2),
-              Semantics(
-                button: true,
-                selected: i == colorIndex,
-                label: _colorLabel(l10n, i),
-                child: Tooltip(
-                  message: _colorLabel(l10n, i),
-                  child: InkResponse(
-                    onTap: () => onColor(i),
-                    radius: 20,
-                    child: SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: Center(
-                        child: AnimatedScale(
-                          duration: const Duration(milliseconds: 120),
-                          scale: i == colorIndex ? 1.18 : 1,
-                          child: Container(
-                            width: 30,
-                            height: 30,
-                            decoration: BoxDecoration(
-                              color: sabotageColors[i],
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: i == colorIndex
-                                    ? colors.accent
-                                    : colors.ink,
-                                width: i == colorIndex ? 3 : 2,
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: <Widget>[
+                    for (var i = 0; i < sabotageColors.length; i++) ...<Widget>[
+                      if (i > 0) const SizedBox(width: 2),
+                      Semantics(
+                        button: true,
+                        selected: activeSticker == null && i == colorIndex,
+                        label: _colorLabel(l10n, i),
+                        child: Tooltip(
+                          message: _colorLabel(l10n, i),
+                          child: InkResponse(
+                            onTap: () => onColor(i),
+                            radius: 18,
+                            child: SizedBox(
+                              width: 34,
+                              height: 36,
+                              child: Center(
+                                child: AnimatedScale(
+                                  duration: const Duration(milliseconds: 120),
+                                  scale:
+                                      activeSticker == null && i == colorIndex
+                                      ? 1.18
+                                      : 1,
+                                  child: Container(
+                                    width: 26,
+                                    height: 26,
+                                    decoration: BoxDecoration(
+                                      color: sabotageColors[i],
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color:
+                                            activeSticker == null &&
+                                                i == colorIndex
+                                            ? colors.accent
+                                            : colors.ink,
+                                        width:
+                                            activeSticker == null &&
+                                                i == colorIndex
+                                            ? 3
+                                            : 2,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
+                    ],
+                  ],
                 ),
               ),
-            ],
-            const Spacer(),
+            ),
+            const SizedBox(width: 4),
             _ToolButton(
-              icon: thick ? Icons.line_weight : Icons.horizontal_rule,
-              label: thick ? l10n.sabotageThick : l10n.sabotageThin,
-              onTap: onThick,
+              icon: Icons.emoji_emotions_outlined,
+              label: l10n.sabotageStickers,
+              highlighted: showStickers || activeSticker != null,
+              onTap: onToggleStickers,
+            ),
+            _ToolButton(
+              icon: switch (widthIndex) {
+                0 => Icons.lens_outlined,
+                1 => Icons.circle,
+                _ => Icons.adjust,
+              },
+              label: l10n.sabotageBrushSize,
+              onTap: onWidth,
             ),
             _ToolButton(
               icon: Icons.undo,
@@ -468,19 +600,41 @@ class _Toolbar extends StatelessWidget {
             ),
           ],
         ),
+        if (showStickers) ...<Widget>[
+          const SizedBox(height: 4),
+          SizedBox(
+            height: 36,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: <Widget>[
+                for (final kind in SabotageStickerKind.values) ...<Widget>[
+                  ChoiceChip(
+                    label: Text(_stickerLabel(l10n, kind)),
+                    selected: activeSticker == kind,
+                    onSelected: (_) => onSelectSticker(kind),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  const SizedBox(width: 6),
+                ],
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 5),
         Row(
           children: <Widget>[
-            Expanded(
-              child: GameButton(
-                label: '${l10n.memeSwapPhoto} ${l10n.memeSwapsLeft(swapsLeft)}',
-                icon: Icons.swap_horiz,
-                variant: GameButtonVariant.secondary,
-                small: true,
-                onPressed: canSwap ? onSwap : null,
+            if (swapsLeft > 0) ...<Widget>[
+              Expanded(
+                child: GameButton(
+                  label: '${l10n.memeSwapPhoto} ${l10n.memeSwapsLeft(swapsLeft)}',
+                  icon: Icons.swap_horiz,
+                  variant: GameButtonVariant.secondary,
+                  small: true,
+                  onPressed: canSwap ? onSwap : null,
+                ),
               ),
-            ),
-            const SizedBox(width: AppSpacing.s8),
+              const SizedBox(width: AppSpacing.s8),
+            ],
             Expanded(
               child: GameButton(
                 label: l10n.sabotageSend,
@@ -501,7 +655,31 @@ String _colorLabel(AppLocalizations l10n, int index) => switch (index) {
   1 => l10n.sabotageColor2,
   2 => l10n.sabotageColor3,
   3 => l10n.sabotageColor4,
-  _ => l10n.sabotageColor5,
+  4 => l10n.sabotageColor5,
+  5 => l10n.sabotageColor6,
+  6 => l10n.sabotageColor7,
+  _ => l10n.sabotageColor8,
+};
+
+String _stickerLabel(AppLocalizations l10n, SabotageStickerKind kind) =>
+    switch (kind) {
+      SabotageStickerKind.googlyEyes => l10n.sabotageStickerEyes,
+      SabotageStickerKind.mustache => l10n.sabotageStickerMustache,
+      SabotageStickerKind.crown => l10n.sabotageStickerCrown,
+      SabotageStickerKind.sunglasses => l10n.sabotageStickerShades,
+      SabotageStickerKind.censorBar => l10n.sabotageStickerCensor,
+      SabotageStickerKind.heart => l10n.sabotageStickerHeart,
+    };
+
+String _sabotagePrompt(AppLocalizations l10n, int index) => switch (index % 8) {
+  0 => l10n.sabotagePrompt1,
+  1 => l10n.sabotagePrompt2,
+  2 => l10n.sabotagePrompt3,
+  3 => l10n.sabotagePrompt4,
+  4 => l10n.sabotagePrompt5,
+  5 => l10n.sabotagePrompt6,
+  6 => l10n.sabotagePrompt7,
+  _ => l10n.sabotagePrompt8,
 };
 
 class _ToolButton extends StatelessWidget {
@@ -509,11 +687,13 @@ class _ToolButton extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
+    this.highlighted = false,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
+  final bool highlighted;
 
   @override
   Widget build(BuildContext context) {
@@ -521,25 +701,37 @@ class _ToolButton extends StatelessWidget {
     return IconButton(
       tooltip: label,
       onPressed: onTap,
-      constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+      constraints: const BoxConstraints.tightFor(width: 36, height: 36),
       padding: EdgeInsets.zero,
       visualDensity: VisualDensity.compact,
       icon: Icon(
         icon,
-        size: 22,
-        color: onTap == null ? colors.ink3 : colors.ink,
+        size: 20,
+        color: onTap == null
+            ? colors.ink3
+            : highlighted
+            ? colors.accent
+            : colors.ink,
       ),
     );
   }
 }
 
-class _SabotageVoting extends ConsumerWidget {
+class _SabotageVoting extends ConsumerStatefulWidget {
   const _SabotageVoting({required this.state});
 
   final MatchUiState state;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_SabotageVoting> createState() => _SabotageVotingState();
+}
+
+class _SabotageVotingState extends ConsumerState<_SabotageVoting> {
+  bool _comparing = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = widget.state;
     final colors = WhoTookColors.of(context);
     final l10n = context.l10n;
     final coordinator = ref.read(matchCoordinatorProvider);
@@ -562,104 +754,129 @@ class _SabotageVoting extends ConsumerWidget {
         : cards.where((item) => !item.isOwn).length;
     final bytes = PhotoMemoryCache.instance.bytesFor(card.photoId);
     final reduce = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Stack(
       children: <Widget>[
-        Text(
-          l10n.sabotageVoteTitle,
-          style: gameDisplay(size: 24, height: 0.98, color: colors.ink),
+        PhotoPrecache(
+          photoIds: <String>[
+            for (final item in cards) item.photoId,
+          ],
         ),
-        Text(
-          l10n.sabotageVoteSubtitle,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: 11, color: colors.ink2),
-        ),
-        const SizedBox(height: 5),
-        Expanded(
-          child: Center(
-            child: AspectRatio(
-              aspectRatio: 4 / 5,
-              child: TweenAnimationBuilder<double>(
-                tween: Tween<double>(begin: reduce ? 1 : 0, end: 1),
-                duration: reduce
-                    ? Duration.zero
-                    : const Duration(milliseconds: 800),
-                builder: (context, progress, _) => SabotageArt(
-                  photoId: card.photoId,
-                  photoBytes: bytes,
-                  strokes: card.strokes,
-                  progress: progress,
-                  borderColor: colors.ink,
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Text(
+              l10n.sabotageVoteTitle,
+              style: gameDisplay(size: 24, height: 0.98, color: colors.ink),
+            ),
+            Text(
+              l10n.sabotageHoldToCompare,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 11, color: colors.ink2),
+            ),
+            const SizedBox(height: 5),
+            Expanded(
+              child: Center(
+                child: AspectRatio(
+                  aspectRatio: 4 / 5,
+                  child: GestureDetector(
+                    onLongPressStart: (_) => setState(() => _comparing = true),
+                    onLongPressEnd: (_) => setState(() => _comparing = false),
+                    onLongPressCancel: () => setState(() => _comparing = false),
+                    child: TweenAnimationBuilder<double>(
+                      key: ValueKey<String>('sabotage-replay-${card.id}'),
+                      tween: Tween<double>(begin: reduce ? 1 : 0, end: 1),
+                      duration: reduce
+                          ? Duration.zero
+                          : const Duration(milliseconds: 900),
+                      builder: (context, progress, _) => SabotageArt(
+                        photoId: card.photoId,
+                        photoBytes: bytes,
+                        strokes: _comparing
+                            ? const <SabotageStroke>[]
+                            : card.strokes,
+                        stickers: _comparing
+                            ? const <SabotageSticker>[]
+                            : card.stickers,
+                        progress: progress,
+                        borderColor: colors.ink,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
-        ),
-        const SizedBox(height: 5),
-        Text(
-          l10n.sabotageWaitingVotes(waiting, eligible),
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 11, color: colors.ink2),
-        ),
-        const SizedBox(height: 5),
-        if (state.memeTallying)
-          _TallyStrip(state: state)
-        else if (!voted && !card.isOwn)
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: _VoteButton(
-                  icon: Icons.thumb_up_alt_outlined,
-                  label: l10n.memeVotesUp,
-                  onTap: () => unawaited(
-                    state.isHosting
-                        ? coordinator.voteMeme(card.id, MemeVote.up)
-                        : coordinator.clientVoteMeme(card.id, MemeVote.up),
+            const SizedBox(height: 5),
+            Text(
+              l10n.sabotageWaitingVotes(waiting, eligible),
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 11, color: colors.ink2),
+            ),
+            const SizedBox(height: 5),
+            if (state.memeTallying)
+              _TallyStrip(state: state)
+            else if (card.isOwn)
+              NoticeBanner(
+                message: l10n.memeYourOwn,
+                icon: Icons.brush_outlined,
+              )
+            else if (!voted)
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: _VoteButton(
+                      icon: Icons.thumb_up_alt_outlined,
+                      label: l10n.memeVotesUp,
+                      onTap: () => unawaited(
+                        state.isHosting
+                            ? coordinator.voteMeme(card.id, MemeVote.up)
+                            : coordinator.clientVoteMeme(card.id, MemeVote.up),
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _VoteButton(
+                      icon: Icons.remove_circle_outline,
+                      label: l10n.memeVotesMeh,
+                      onTap: () => unawaited(
+                        state.isHosting
+                            ? coordinator.voteMeme(card.id, MemeVote.meh)
+                            : coordinator.clientVoteMeme(card.id, MemeVote.meh),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _VoteButton(
+                      icon: Icons.thumb_down_alt_outlined,
+                      label: l10n.memeVotesDown,
+                      onTap: () => unawaited(
+                        state.isHosting
+                            ? coordinator.voteMeme(card.id, MemeVote.down)
+                            : coordinator.clientVoteMeme(card.id, MemeVote.down),
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            else
+              NoticeBanner(
+                message: l10n.lockedInWaiting,
+                icon: Icons.hourglass_empty,
               ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: _VoteButton(
-                  icon: Icons.remove_circle_outline,
-                  label: l10n.memeVotesMeh,
-                  onTap: () => unawaited(
-                    state.isHosting
-                        ? coordinator.voteMeme(card.id, MemeVote.meh)
-                        : coordinator.clientVoteMeme(card.id, MemeVote.meh),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: _VoteButton(
-                  icon: Icons.thumb_down_alt_outlined,
-                  label: l10n.memeVotesDown,
-                  onTap: () => unawaited(
-                    state.isHosting
-                        ? coordinator.voteMeme(card.id, MemeVote.down)
-                        : coordinator.clientVoteMeme(card.id, MemeVote.down),
-                  ),
-                ),
+            if (state.isHosting) ...<Widget>[
+              const SizedBox(height: 5),
+              GameButton(
+                label: l10n.endVoting,
+                onPressed: () => unawaited(coordinator.endMemeVoting()),
+                variant: GameButtonVariant.secondary,
+                small: true,
+                fullWidth: true,
               ),
             ],
-          )
-        else
-          NoticeBanner(
-            message: l10n.lockedInWaiting,
-            icon: Icons.hourglass_empty,
-          ),
-        if (state.isHosting) ...<Widget>[
-          const SizedBox(height: 5),
-          GameButton(
-            label: l10n.endVoting,
-            onPressed: () => unawaited(coordinator.endMemeVoting()),
-            variant: GameButtonVariant.secondary,
-            small: true,
-            fullWidth: true,
-          ),
-        ],
+          ],
+        ),
       ],
     );
   }
@@ -743,13 +960,21 @@ class _VoteButton extends StatelessWidget {
   }
 }
 
-class _SabotageReveal extends ConsumerWidget {
+class _SabotageReveal extends ConsumerStatefulWidget {
   const _SabotageReveal({required this.state});
 
   final MatchUiState state;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_SabotageReveal> createState() => _SabotageRevealState();
+}
+
+class _SabotageRevealState extends ConsumerState<_SabotageReveal> {
+  bool _comparing = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = widget.state;
     final colors = WhoTookColors.of(context);
     final l10n = context.l10n;
     final coordinator = ref.read(matchCoordinatorProvider);
@@ -823,23 +1048,39 @@ class _SabotageReveal extends ConsumerWidget {
               const SizedBox(height: AppSpacing.s8),
               AspectRatio(
                 aspectRatio: 4 / 5,
-                child: TweenAnimationBuilder<double>(
-                  tween: Tween<double>(begin: reduce ? 1 : 0, end: 1),
-                  duration: reduce
-                      ? Duration.zero
-                      : const Duration(milliseconds: 800),
-                  builder: (context, progress, _) => SabotageArt(
-                    photoId: winner.photoId,
-                    photoBytes: PhotoMemoryCache.instance.bytesFor(
-                      winner.photoId,
+                child: GestureDetector(
+                  onLongPressStart: (_) => setState(() => _comparing = true),
+                  onLongPressEnd: (_) => setState(() => _comparing = false),
+                  onLongPressCancel: () => setState(() => _comparing = false),
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween<double>(begin: reduce ? 1 : 0, end: 1),
+                    duration: reduce
+                        ? Duration.zero
+                        : const Duration(milliseconds: 900),
+                    builder: (context, progress, _) => SabotageArt(
+                      photoId: winner.photoId,
+                      photoBytes: PhotoMemoryCache.instance.bytesFor(
+                        winner.photoId,
+                      ),
+                      strokes: _comparing
+                          ? const <SabotageStroke>[]
+                          : winner.strokes,
+                      stickers: _comparing
+                          ? const <SabotageSticker>[]
+                          : winner.stickers,
+                      progress: progress,
+                      borderColor: colors.ink,
                     ),
-                    strokes: winner.strokes,
-                    progress: progress,
-                    borderColor: colors.ink,
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.s8),
+              const SizedBox(height: 4),
+              Text(
+                l10n.sabotageHoldToCompare,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 10, color: colors.ink3),
+              ),
+              const SizedBox(height: AppSpacing.s4),
               Text(
                 l10n.memeVoteTally(
                   winner.upVotes,
@@ -851,6 +1092,70 @@ class _SabotageReveal extends ConsumerWidget {
             ],
           ),
         ),
+        if (reveal.entries.length > 1) ...<Widget>[
+          const SizedBox(height: AppSpacing.s12),
+          for (final entry in reveal.entries.skip(1))
+            Container(
+              margin: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: colors.card,
+                borderRadius: BorderRadius.circular(AppRadii.rControl),
+                border: Border.all(color: colors.hairline),
+              ),
+              child: Row(
+                children: <Widget>[
+                  SizedBox(
+                    width: 48,
+                    height: 60,
+                    child: SabotageArt(
+                      photoId: entry.photoId,
+                      strokes: entry.strokes,
+                      stickers: entry.stickers,
+                      borderColor: colors.hairline,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.s8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          entry.authorName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: colors.ink,
+                          ),
+                        ),
+                        Text(
+                          l10n.memeVoteTally(
+                            entry.upVotes,
+                            entry.mehVotes,
+                            entry.downVotes,
+                          ),
+                          style: TextStyle(fontSize: 11, color: colors.ink2),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    l10n.points(entry.points),
+                    style: TextStyle(
+                      fontFamily: 'JetBrainsMono',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: entry.points >= 0
+                          ? colors.positive
+                          : colors.negative,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
         const SizedBox(height: AppSpacing.s12),
         if (state.isHosting)
           GameButton(

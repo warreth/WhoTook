@@ -19,7 +19,6 @@ const List<GameMode> playableGameModes = <GameMode>[
   GameMode.zoomOut,
   GameMode.makeItMeme,
   GameMode.photoSabotage,
-  GameMode.timeTraveler,
   GameMode.mixedParty,
 ];
 
@@ -86,7 +85,7 @@ class ModePicker extends StatelessWidget {
   }
 }
 
-/// The three core modes a Mixed Party may include. Two must stay selected so
+/// The four core modes a Mixed Party may include. Two must stay selected so
 /// every round has a real alternative and the schedule never degrades to one
 /// repeating mode.
 class MixedModePicker extends StatelessWidget {
@@ -101,7 +100,6 @@ class MixedModePicker extends StatelessWidget {
     GameMode.zoomOut,
     GameMode.makeItMeme,
     GameMode.photoSabotage,
-    GameMode.timeTraveler,
   ];
 
   final Set<GameMode> selected;
@@ -131,7 +129,7 @@ class MixedModePicker extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = (constraints.maxWidth - AppSpacing.s8 * 2) / 3;
+        final width = (constraints.maxWidth - AppSpacing.s8) / 2;
         return Wrap(
           spacing: AppSpacing.s8,
           runSpacing: AppSpacing.s8,

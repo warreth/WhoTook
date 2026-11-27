@@ -1331,5 +1331,35 @@
   "@sabotageColor2": { "description": "Marker colour 2" },
   "@sabotageColor3": { "description": "Marker colour 3" },
   "@sabotageColor4": { "description": "Marker colour 4" },
-  "@sabotageColor5": { "description": "Marker colour 5" }
+  "@sabotageColor5": { "description": "Marker colour 5" },
+  "sabotageColor6": "Blue",
+  "@sabotageColor6": { "description": "Marker colour 6" },
+  "sabotageColor7": "Pink",
+  "@sabotageColor7": { "description": "Marker colour 7" },
+  "sabotageColor8": "Orange",
+  "@sabotageColor8": { "description": "Marker colour 8" },
+  "crowdFavorite": "Crowd favorite",
+  "awardUpvotes": "{count} upvotes",
+  "@awardUpvotes": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "sabotageBrushSize": "Brush size",
+  "sabotageStickers": "Stickers",
+  "sabotageStickerEyes": "Eyes",
+  "sabotageStickerMustache": "Mustache",
+  "sabotageStickerCrown": "Crown",
+  "sabotageStickerShades": "Shades",
+  "sabotageStickerCensor": "Censor",
+  "sabotageStickerHeart": "Heart",
+  "sabotageHoldToCompare": "Hold photo to compare original",
+  "sabotagePrompt1": "Turn someone into a supervillain",
+  "sabotagePrompt2": "Hide a weird creature in the background",
+  "sabotagePrompt3": "Make it look like a movie poster",
+  "sabotagePrompt4": "Give someone a completely wrong expression",
+  "sabotagePrompt5": "Add an unexpected weather disaster",
+  "sabotagePrompt6": "Turn a random object into the hero",
+  "sabotagePrompt7": "Make it look like breaking news",
+  "sabotagePrompt8": "Add a terribly suspicious disguise"
 }

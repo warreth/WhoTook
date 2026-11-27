@@ -81,6 +81,7 @@ class MemeCard {
     this.isWinner = false,
     this.isSabotage = false,
     this.strokes = const <SabotageStroke>[],
+    this.stickers = const <SabotageSticker>[],
   });
 
   final String id;
@@ -102,6 +103,7 @@ class MemeCard {
   final bool isWinner;
   final bool isSabotage;
   final List<SabotageStroke> strokes;
+  final List<SabotageSticker> stickers;
 
   MemeCard copyWith({bool? isOwn, bool? isWinner, String? photoBase64}) =>
       MemeCard(
@@ -124,6 +126,7 @@ class MemeCard {
         isWinner: isWinner ?? this.isWinner,
         isSabotage: isSabotage,
         strokes: strokes,
+        stickers: stickers,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -146,6 +149,7 @@ class MemeCard {
     'isWinner': isWinner,
     'isSabotage': isSabotage,
     'strokes': strokes.map((stroke) => stroke.toJson()).toList(),
+    'stickers': stickers.map((sticker) => sticker.toJson()).toList(),
   };
 
   factory MemeCard.fromJson(Map<String, dynamic> json) => MemeCard(
@@ -174,6 +178,10 @@ class MemeCard {
         .whereType<Map<String, dynamic>>()
         .map(SabotageStroke.fromJson)
         .toList(growable: false),
+    stickers: (json['stickers'] as List<dynamic>? ?? const <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .map(SabotageSticker.fromJson)
+        .toList(growable: false),
   );
 }
 
@@ -198,6 +206,7 @@ class MatchUiState {
     this.plantEligible = false,
     this.currentRound = 0,
     this.totalRounds = 0,
+    this.isFinalDoubleRound = false,
     this.remainingMs = 0,
     this.phaseDurationMs = 0,
     this.activePhotoBytes,
@@ -357,6 +366,7 @@ class MatchUiState {
   final int? lockedTimelineYear;
   final int? lockedTimelineMonth;
   final TimelineReveal? lastTimelineReveal;
+  final bool isFinalDoubleRound;
   final VersionWarning? versionWarning;
   final bool versionWarningDismissed;
   final bool reconnecting;
@@ -406,6 +416,7 @@ class MatchUiState {
     bool? plantEligible,
     int? currentRound,
     int? totalRounds,
+    bool? isFinalDoubleRound,
     int? remainingMs,
     int? phaseDurationMs,
     Uint8List? activePhotoBytes,
@@ -500,6 +511,7 @@ class MatchUiState {
     plantEligible: plantEligible ?? this.plantEligible,
     currentRound: currentRound ?? this.currentRound,
     totalRounds: totalRounds ?? this.totalRounds,
+    isFinalDoubleRound: isFinalDoubleRound ?? this.isFinalDoubleRound,
     remainingMs: remainingMs ?? this.remainingMs,
     phaseDurationMs: phaseDurationMs ?? this.phaseDurationMs,
     activePhotoBytes: activePhotoBytes ?? this.activePhotoBytes,
@@ -679,7 +691,7 @@ class MatchCoordinator {
     this.revealDuration = const Duration(seconds: 6),
     this.captionRevealDuration = const Duration(seconds: 10),
     this.memeTallyDuration = const Duration(milliseconds: 2500),
-    this.sabotageDuration = const Duration(seconds: 35),
+    Duration? sabotageDuration,
     this.emptyMemeAdvanceDuration = const Duration(milliseconds: 2500),
     this.timelineRevealDuration = const Duration(seconds: 10),
     this.extendWindow = const Duration(seconds: 10),
@@ -687,7 +699,8 @@ class MatchCoordinator {
        _lastRooms = lastRooms ?? LastRoomRepository(),
        _connector = connector ?? HybridConnector(turnRelay: turnRelay),
        _screenshots = screenshots ?? ScreenshotDetector(),
-       _roundDurationOverride = roundDuration;
+       _roundDurationOverride = roundDuration,
+       _sabotageDurationOverride = sabotageDuration;
 
   final PhotoLibraryService _photos;
   final SettingsRepository _settings;
@@ -736,12 +749,15 @@ class MatchCoordinator {
   final Duration captionRevealDuration;
   final Duration memeTallyDuration;
 
-  /// Drawing window for Foto-Sabotage. Production is 35 s; the simulation
-  /// shortens it so a zero-submission round does not spend half a minute.
-  final Duration sabotageDuration;
+  /// Drawing window for Foto-Sabotage, overridden in fast simulation tests.
+  final Duration? _sabotageDurationOverride;
   final Duration emptyMemeAdvanceDuration;
   final Duration timelineRevealDuration;
   final Duration extendWindow;
+
+  Duration get sabotageDuration =>
+      _sabotageDurationOverride ??
+      Duration(seconds: (_engine?.config ?? _state.config).pace.sabotageSeconds);
 
   /// The live round length, following the lobby timer once the engine exists.
   Duration get effectiveRoundDuration =>
@@ -1331,6 +1347,7 @@ class MatchCoordinator {
       'avatarPhotos': _avatarPhotos,
       'currentRound': _state.currentRound,
       'totalRounds': _state.totalRounds,
+      'isFinalDoubleRound': engine.isFinalDoubleRound,
       'remainingMs': _state.remainingMs,
       'phaseDurationMs': _state.phaseDurationMs,
       'activeMode': _state.activeMode.name,
@@ -2020,6 +2037,11 @@ class MatchCoordinator {
               in (payload['strokes'] as List<dynamic>? ?? const []))
             if (entry is Map<String, dynamic>) SabotageStroke.fromJson(entry),
         ];
+        final stickers = <SabotageSticker>[
+          for (final entry
+              in (payload['stickers'] as List<dynamic>? ?? const []))
+            if (entry is Map<String, dynamic>) SabotageSticker.fromJson(entry),
+        ];
         try {
           engine.submitMeme(
             playerId: playerId,
@@ -2028,6 +2050,7 @@ class MatchCoordinator {
             bottomText: payload['bottomText'] as String? ?? '',
             snapY: (payload['snapY'] as num?)?.toDouble() ?? 48,
             strokes: strokes,
+            stickers: stickers,
           );
         } on EngineException catch (error) {
           await _hostTransport?.sendToClient(
@@ -2417,7 +2440,7 @@ class MatchCoordinator {
     final duration = switch (mode) {
       GameMode.classic || GameMode.mixedParty => effectiveRoundDuration,
       GameMode.captionThis => Duration(seconds: pace.captionSeconds),
-      GameMode.zoomOut => const Duration(seconds: 15),
+      GameMode.zoomOut => Duration(seconds: pace.zoomOutSeconds),
       GameMode.makeItMeme => Duration(seconds: pace.memeSeconds),
       GameMode.photoSabotage => sabotageDuration,
       GameMode.timeTraveler => Duration(seconds: pace.timelineSeconds),
@@ -2439,6 +2462,7 @@ class MatchCoordinator {
           'mode': mode.name,
           'roundNumber': entry.roundNumber,
           'totalRounds': engine.totalRounds,
+          'isFinalDoubleRound': engine.isFinalDoubleRound,
           'photoId': entry.photo.photoId,
           'isPanorama': entry.photo.isPanorama,
           'zoomAnchorX': entry.zoomAnchorX,
@@ -2455,6 +2479,7 @@ class MatchCoordinator {
         activeMode: mode,
         currentRound: entry.roundNumber,
         totalRounds: engine.totalRounds,
+        isFinalDoubleRound: engine.isFinalDoubleRound,
         activePhotoBytes: bytes,
         activePhotoId: entry.photo.photoId,
         activePhotoIsPanorama: entry.photo.isPanorama,
@@ -2674,6 +2699,7 @@ class MatchCoordinator {
           isOwn: engine.isOwnMeme(playerId, option.id),
           isSabotage: option.isSabotage,
           strokes: option.strokes,
+          stickers: option.stickers,
         );
       }),
     );
@@ -2709,6 +2735,7 @@ class MatchCoordinator {
           isWinner: reveal.winnerIds.contains(entry.id),
           isSabotage: entry.isSabotage,
           strokes: entry.strokes,
+          stickers: entry.stickers,
         );
       }),
     );
@@ -2743,6 +2770,7 @@ class MatchCoordinator {
           isWinner: true,
           isSabotage: entry.isSabotage,
           strokes: entry.strokes,
+          stickers: entry.stickers,
         );
       }),
     );
@@ -3176,7 +3204,10 @@ class MatchCoordinator {
     if (engine.allMemesSubmitted) await _startMemeVoting();
   }
 
-  Future<void> submitSabotage(List<SabotageStroke> strokes) async {
+  Future<void> submitSabotage(
+    List<SabotageStroke> strokes, {
+    List<SabotageSticker> stickers = const <SabotageSticker>[],
+  }) async {
     final engine = _engine;
     if (engine == null) return;
     try {
@@ -3187,6 +3218,7 @@ class MatchCoordinator {
         bottomText: '',
         snapY: 50,
         strokes: strokes,
+        stickers: stickers,
       );
     } on EngineException catch (error) {
       _emit(_state.copyWith(errorMessage: _engineError(error)));
@@ -3205,7 +3237,10 @@ class MatchCoordinator {
     if (engine.allMemesSubmitted) await _startMemeVoting();
   }
 
-  Future<void> clientSubmitSabotage(List<SabotageStroke> strokes) async {
+  Future<void> clientSubmitSabotage(
+    List<SabotageStroke> strokes, {
+    List<SabotageSticker> stickers = const <SabotageSticker>[],
+  }) async {
     await _clientTransport?.send(
       WireMessage(
         type: WireType.memeSubmit,
@@ -3213,6 +3248,7 @@ class MatchCoordinator {
         payload: <String, dynamic>{
           'sabotage': true,
           'strokes': strokes.map((stroke) => stroke.toJson()).toList(),
+          'stickers': stickers.map((sticker) => sticker.toJson()).toList(),
         },
       ),
     );
@@ -4757,6 +4793,7 @@ class MatchCoordinator {
             currentRound:
                 payload['currentRound'] as int? ?? _state.currentRound,
             totalRounds: payload['totalRounds'] as int? ?? _state.totalRounds,
+            isFinalDoubleRound: payload['isFinalDoubleRound'] as bool? ?? false,
             remainingMs: payload['remainingMs'] as int? ?? 0,
             phaseDurationMs: payload['phaseDurationMs'] as int? ?? 0,
             activeMode: activeMode,
@@ -5088,6 +5125,7 @@ class MatchCoordinator {
             activeMode: mode,
             currentRound: payload['roundNumber'] as int? ?? 0,
             totalRounds: payload['totalRounds'] as int? ?? _state.totalRounds,
+            isFinalDoubleRound: payload['isFinalDoubleRound'] as bool? ?? false,
             remainingMs: payload['durationMs'] as int? ?? 8000,
             phaseDurationMs: payload['durationMs'] as int? ?? 8000,
             activePhotoBytes: photoId == null

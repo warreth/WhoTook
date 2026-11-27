@@ -767,6 +767,10 @@ class _AwardRow extends StatelessWidget {
         l10n.smoothPlanter,
         Icons.local_florist_outlined,
       ),
+      MatchAwardKind.crowdFavorite => (
+        l10n.crowdFavorite,
+        Icons.thumb_up_alt_outlined,
+      ),
     };
     final suffix = switch (award.kind) {
       MatchAwardKind.quickestDraw =>
@@ -776,6 +780,7 @@ class _AwardRow extends StatelessWidget {
         ' ${l10n.awardWrongGuesses(award.value ?? 0)}',
       MatchAwardKind.paparazzi => ' ${l10n.awardFrames(award.value ?? 0)}',
       MatchAwardKind.smoothPlanter => ' ${l10n.awardFooled(award.value ?? 0)}',
+      MatchAwardKind.crowdFavorite => ' ${l10n.awardUpvotes(award.value ?? 0)}',
       MatchAwardKind.champion => ' ${l10n.awardPoints(award.value ?? 0)}',
     };
     return SizedBox(

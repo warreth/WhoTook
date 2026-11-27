@@ -22,11 +22,11 @@ void main() {
     expect(restored.points.first.dx, closeTo(0.1, 0.0001));
   });
 
-  test('a long drawing stays under five kilobytes on the wire', () {
+  test('a long drawing stays under the payload limit on the wire', () {
     final strokes = <SabotageStroke>[
       for (var stroke = 0; stroke < 6; stroke++)
         SabotageStroke(
-          colorIndex: stroke % 5,
+          colorIndex: stroke % 8,
           width: 0.01,
           points: <Offset>[
             for (var i = 0; i < 180; i++)
@@ -43,7 +43,7 @@ void main() {
       simplified.fold<int>(0, (sum, stroke) => sum + stroke.points.length),
       lessThan(6 * 180),
     );
-    expect(sabotagePayloadBytes(simplified), lessThan(5000));
+    expect(sabotagePayloadBytes(simplified), lessThan(sabotageMaxPayloadBytes));
     for (final stroke in simplified) {
       expect(stroke.points, isNotEmpty);
       for (final point in stroke.points) {
@@ -53,11 +53,11 @@ void main() {
     }
   });
 
-  test('the worst case twelve-stroke scribble still fits five kilobytes', () {
+  test('many-stroke scribbles and stickers fit the payload budget', () {
     final strokes = <SabotageStroke>[
-      for (var stroke = 0; stroke < 12; stroke++)
+      for (var stroke = 0; stroke < 40; stroke++)
         SabotageStroke(
-          colorIndex: stroke % 5,
+          colorIndex: stroke % 8,
           width: 0.012,
           points: <Offset>[
             for (var i = 0; i < 64; i++)
@@ -70,10 +70,19 @@ void main() {
     ];
     final simplified = simplifySabotageStrokes(strokes);
     expect(simplified, isNotEmpty);
-    expect(sabotagePayloadBytes(simplified), lessThan(5000));
+    const stickers = <SabotageSticker>[
+      SabotageSticker(kind: SabotageStickerKind.googlyEyes, x: 0.4, y: 0.3),
+      SabotageSticker(kind: SabotageStickerKind.crown, x: 0.5, y: 0.15),
+    ];
+    expect(
+      sabotagePayloadBytes(simplified, stickers: stickers),
+      lessThanOrEqualTo(sabotageMaxPayloadBytes),
+    );
+    final restoredSticker = SabotageSticker.fromJson(stickers.first.toJson());
+    expect(restoredSticker.kind, SabotageStickerKind.googlyEyes);
   });
 
-  test('the simplifier keeps endpoints and clamps stray points', () {
+  test('keeps single-point tap dots and clamps stray points', () {
     final points = <Offset>[
       const Offset(-0.2, 0.2),
       const Offset(0.4, 0.4),
@@ -82,8 +91,15 @@ void main() {
     ];
     final simplified = simplifySabotageStrokes(<SabotageStroke>[
       SabotageStroke(colorIndex: 0, width: 0.01, points: points),
-    ]).single;
-    expect(simplified.points.first.dx, 0);
-    expect(simplified.points.last.dx, 1);
+      const SabotageStroke(
+        colorIndex: 1,
+        width: 0.012,
+        points: <Offset>[Offset(0.5, 0.5)],
+      ),
+    ]);
+    expect(simplified, hasLength(2));
+    expect(simplified.first.points.first.dx, 0);
+    expect(simplified.first.points.last.dx, 1);
+    expect(simplified.last.points, hasLength(1));
   });
 }
