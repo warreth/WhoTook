@@ -116,8 +116,10 @@ void main() {
     expect(find.text('Theme'), findsOneWidget);
     expect(find.text('Classic Party'), findsOneWidget);
     expect(find.text('Soundboard'), findsOneWidget);
-    expect(find.text('Pass only'), findsOneWidget);
+    expect(find.text('Optional'), findsOneWidget);
     expect(find.text('Same Wi-Fi'), findsOneWidget);
+    expect(find.text('Optional: Play online & soundboard'), findsOneWidget);
+    expect(find.text('Same Wi-Fi or hotspot is always free.'), findsOneWidget);
     expect(find.text('Party Pass (€2.99)'), findsOneWidget);
   });
 

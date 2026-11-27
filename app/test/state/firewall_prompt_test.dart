@@ -22,6 +22,7 @@ class _RelayFailingConnector extends HybridConnector {
   Future<ClientTransport> connect({
     required InvitePayload invite,
     required AppSettings settings,
+    bool discoverLan = false,
   }) async {
     calls += 1;
     throw RelayRequiredException(

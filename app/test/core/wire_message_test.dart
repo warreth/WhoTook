@@ -127,6 +127,8 @@ void main() {
         'extend_submit',
         'game_podium',
         'state_sync',
+        'ping',
+        'pong',
         'room_closed',
         'error_notice',
       });

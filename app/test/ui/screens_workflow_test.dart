@@ -12,10 +12,13 @@ import 'package:whotook/state/match_coordinator.dart';
 import 'package:whotook/state/providers.dart';
 import 'package:whotook/ui/screens/caption_screen.dart';
 import 'package:whotook/ui/screens/extend_screen.dart';
+import 'package:whotook/ui/screens/lobby_screen.dart';
 import 'package:whotook/ui/screens/podium_screen.dart';
 import 'package:whotook/ui/screens/round_screen.dart';
 import 'package:whotook/ui/screens/settings_screen.dart';
 import 'package:whotook/ui/widgets/common.dart';
+import 'package:whotook/ui/widgets/host_controls.dart';
+import 'package:whotook/ui/widgets/room_qr_dialog.dart';
 
 import '../support/test_photo_library.dart';
 
@@ -169,6 +172,36 @@ void main() {
     expect(find.text('Password'), findsOneWidget);
     expect(find.text('Save relay'), findsOneWidget);
     expect(find.text('Reset to default'), findsOneWidget);
+  });
+
+  testWidgets('non-host players can open the join QR from lobby and controls', (
+    tester,
+  ) async {
+    final guestLobbyState = MatchUiState(
+      isHosting: false,
+      roomId: 'k8m2p9x4',
+      inviteUrl: 'https://whotook.party/j#guest-invite',
+      localPlayerId: 'c1',
+      connectionMode: ConnectionMode.localLan,
+      phase: RoundPhase.lobby,
+      players: _players(),
+    );
+    await _pumpMatchScreen(tester, const LobbyScreen(), guestLobbyState);
+    expect(find.text('Show room QR'), findsOneWidget);
+    expect(find.byTooltip('Show room QR'), findsWidgets);
+
+    await tester.tap(find.text('Show room QR').first);
+    await tester.pumpAndSettle();
+    expect(find.byType(RoomQrDialog), findsOneWidget);
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+
+    await _pumpMatchScreen(
+      tester,
+      const Scaffold(body: Center(child: HostControlsButton())),
+      guestLobbyState.copyWith(phase: RoundPhase.guessing),
+    );
+    expect(find.byTooltip('Show room QR'), findsOneWidget);
   });
 }
 

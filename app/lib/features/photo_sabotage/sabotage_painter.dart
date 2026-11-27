@@ -27,11 +27,13 @@ class SabotageDrawingPainter extends CustomPainter {
   SabotageDrawingPainter({
     required this.strokes,
     this.stickers = const <SabotageSticker>[],
+    this.selectedStickerIndex,
     this.progress = 1.0,
   });
 
   final List<SabotageStroke> strokes;
   final List<SabotageSticker> stickers;
+  final int? selectedStickerIndex;
   final double progress;
 
   @override
@@ -79,184 +81,382 @@ class SabotageDrawingPainter extends CustomPainter {
               .ceil()
               .clamp(0, stickers.length);
     for (var i = 0; i < visibleStickers; i++) {
-      _paintSticker(canvas, size, stickers[i]);
+      paintSabotageSticker(
+        canvas,
+        size,
+        stickers[i],
+        selected: selectedStickerIndex == i,
+      );
     }
-  }
-
-  void _paintSticker(Canvas canvas, Size size, SabotageSticker sticker) {
-    final center = Offset(sticker.x * size.width, sticker.y * size.height);
-    final unit = size.shortestSide * 0.14 * sticker.scale;
-    canvas.save();
-    canvas.translate(center.dx, center.dy);
-    switch (sticker.kind) {
-      case SabotageStickerKind.googlyEyes:
-        final r = unit * 0.34;
-        final sep = r * 1.15;
-        final white = Paint()..color = Colors.white;
-        final border = Paint()
-          ..color = const Color(0xFF16120F)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = math.max(1.5, unit * 0.08);
-        final pupil = Paint()..color = const Color(0xFF16120F);
-        for (final dx in <double>[-sep, sep]) {
-          final eyeCenter = Offset(dx, 0);
-          canvas.drawCircle(eyeCenter, r, white);
-          canvas.drawCircle(eyeCenter, r, border);
-          canvas.drawCircle(
-            Offset(dx + r * 0.28, -r * 0.12),
-            r * 0.45,
-            pupil,
-          );
-        }
-      case SabotageStickerKind.mustache:
-        final fill = Paint()..color = const Color(0xFF16120F);
-        final path = Path()
-          ..moveTo(0, -unit * 0.1)
-          ..cubicTo(
-            -unit * 0.3,
-            -unit * 0.35,
-            -unit * 0.7,
-            unit * 0.35,
-            -unit * 0.95,
-            0,
-          )
-          ..cubicTo(
-            -unit * 0.65,
-            unit * 0.55,
-            -unit * 0.2,
-            unit * 0.2,
-            0,
-            unit * 0.15,
-          )
-          ..cubicTo(
-            unit * 0.2,
-            unit * 0.2,
-            unit * 0.65,
-            unit * 0.55,
-            unit * 0.95,
-            0,
-          )
-          ..cubicTo(
-            unit * 0.7,
-            unit * 0.35,
-            unit * 0.3,
-            -unit * 0.35,
-            0,
-            -unit * 0.1,
-          )
-          ..close();
-        canvas.drawPath(path, fill);
-      case SabotageStickerKind.crown:
-        final fill = Paint()..color = const Color(0xFFFFD400);
-        final border = Paint()
-          ..color = const Color(0xFF16120F)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = math.max(1.5, unit * 0.08)
-          ..strokeJoin = StrokeJoin.round;
-        final path = Path()
-          ..moveTo(-unit * 0.65, unit * 0.35)
-          ..lineTo(-unit * 0.75, -unit * 0.3)
-          ..lineTo(-unit * 0.3, unit * 0.02)
-          ..lineTo(0, -unit * 0.48)
-          ..lineTo(unit * 0.3, unit * 0.02)
-          ..lineTo(unit * 0.75, -unit * 0.3)
-          ..lineTo(unit * 0.65, unit * 0.35)
-          ..close();
-        canvas.drawPath(path, fill);
-        canvas.drawPath(path, border);
-        final gem = Paint()..color = const Color(0xFFE53935);
-        canvas.drawCircle(Offset(0, unit * 0.14), unit * 0.09, gem);
-      case SabotageStickerKind.sunglasses:
-        final dark = Paint()..color = const Color(0xFF16120F);
-        final glare = Paint()
-          ..color = Colors.white
-          ..strokeWidth = math.max(1.5, unit * 0.07)
-          ..strokeCap = StrokeCap.round;
-        final leftLens = RRect.fromRectAndRadius(
-          Rect.fromCenter(
-            center: Offset(-unit * 0.42, 0),
-            width: unit * 0.66,
-            height: unit * 0.44,
-          ),
-          Radius.circular(unit * 0.08),
-        );
-        final rightLens = RRect.fromRectAndRadius(
-          Rect.fromCenter(
-            center: Offset(unit * 0.42, 0),
-            width: unit * 0.66,
-            height: unit * 0.44,
-          ),
-          Radius.circular(unit * 0.08),
-        );
-        canvas.drawRect(
-          Rect.fromCenter(
-            center: Offset(0, -unit * 0.08),
-            width: unit * 1.65,
-            height: unit * 0.1,
-          ),
-          dark,
-        );
-        canvas.drawRRect(leftLens, dark);
-        canvas.drawRRect(rightLens, dark);
-        canvas.drawLine(
-          Offset(-unit * 0.6, -unit * 0.12),
-          Offset(-unit * 0.42, unit * 0.12),
-          glare,
-        );
-        canvas.drawLine(
-          Offset(unit * 0.24, -unit * 0.12),
-          Offset(unit * 0.42, unit * 0.12),
-          glare,
-        );
-      case SabotageStickerKind.censorBar:
-        final rect = RRect.fromRectAndRadius(
-          Rect.fromCenter(
-            center: Offset.zero,
-            width: unit * 1.9,
-            height: unit * 0.56,
-          ),
-          Radius.circular(unit * 0.06),
-        );
-        canvas.drawRRect(rect, Paint()..color = const Color(0xFF16120F));
-        final stripe = Paint()
-          ..color = const Color(0xFFE53935)
-          ..strokeWidth = math.max(1.5, unit * 0.07);
-        canvas.drawLine(
-          Offset(-unit * 0.72, 0),
-          Offset(unit * 0.72, 0),
-          stripe,
-        );
-      case SabotageStickerKind.heart:
-        final fill = Paint()..color = const Color(0xFFE53935);
-        final border = Paint()
-          ..color = Colors.white
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = math.max(1.2, unit * 0.07);
-        final path = Path()
-          ..moveTo(0, unit * 0.48)
-          ..cubicTo(
-            -unit * 0.85,
-            unit * 0.05,
-            -unit * 0.72,
-            -unit * 0.58,
-            0,
-            -unit * 0.14,
-          )
-          ..cubicTo(
-            unit * 0.72,
-            -unit * 0.58,
-            unit * 0.85,
-            unit * 0.05,
-            0,
-            unit * 0.48,
-          )
-          ..close();
-        canvas.drawPath(path, fill);
-        canvas.drawPath(path, border);
-    }
-    canvas.restore();
   }
 
   @override
   bool shouldRepaint(covariant SabotageDrawingPainter oldDelegate) => true;
+}
+
+/// Draws a single cartoon sticker onto [canvas] using normalized coordinates or
+/// an explicit [unitOverride] for icon previews.
+void paintSabotageSticker(
+  Canvas canvas,
+  Size size,
+  SabotageSticker sticker, {
+  bool selected = false,
+  double? unitOverride,
+}) {
+  final center = Offset(sticker.x * size.width, sticker.y * size.height);
+  final unit = unitOverride ?? (size.shortestSide * 0.14 * sticker.scale);
+  final ink = const Color(0xFF16120F);
+  final outlineWidth = math.max(1.4, unit * 0.085);
+
+  if (selected) {
+    final box = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: center, width: unit * 2.35, height: unit * 1.75),
+      Radius.circular(unit * 0.25),
+    );
+    canvas.drawRRect(
+      box,
+      Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4,
+    );
+    canvas.drawRRect(
+      box,
+      Paint()
+        ..color = const Color(0xFFFFD400)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2,
+    );
+  }
+
+  canvas.save();
+  canvas.translate(center.dx, center.dy);
+  switch (sticker.kind) {
+    case SabotageStickerKind.googlyEyes:
+      final r = unit * 0.36;
+      final sep = r * 1.1;
+      final white = Paint()..color = Colors.white;
+      final border = Paint()
+        ..color = ink
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = outlineWidth;
+      final pupil = Paint()..color = ink;
+      for (final dx in <double>[-sep, sep]) {
+        final eyeCenter = Offset(dx, 0);
+        canvas.drawCircle(eyeCenter, r, white);
+        canvas.drawCircle(eyeCenter, r, border);
+        canvas.drawCircle(
+          Offset(dx + r * 0.26, -r * 0.12),
+          r * 0.45,
+          pupil,
+        );
+      }
+    case SabotageStickerKind.mustache:
+      final fill = Paint()..color = ink;
+      final edge = Paint()
+        ..color = Colors.white.withValues(alpha: 0.7)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = math.max(1.0, unit * 0.045);
+      final path = Path()
+        ..moveTo(0, -unit * 0.1)
+        ..cubicTo(
+          -unit * 0.3,
+          -unit * 0.35,
+          -unit * 0.7,
+          unit * 0.35,
+          -unit * 0.95,
+          0,
+        )
+        ..cubicTo(
+          -unit * 0.65,
+          unit * 0.55,
+          -unit * 0.2,
+          unit * 0.2,
+          0,
+          unit * 0.15,
+        )
+        ..cubicTo(
+          unit * 0.2,
+          unit * 0.2,
+          unit * 0.65,
+          unit * 0.55,
+          unit * 0.95,
+          0,
+        )
+        ..cubicTo(
+          unit * 0.7,
+          unit * 0.35,
+          unit * 0.3,
+          -unit * 0.35,
+          0,
+          -unit * 0.1,
+        )
+        ..close();
+      canvas.drawPath(path, fill);
+      canvas.drawPath(path, edge);
+    case SabotageStickerKind.crown:
+      final fill = Paint()..color = const Color(0xFFFFD400);
+      final border = Paint()
+        ..color = ink
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = outlineWidth
+        ..strokeJoin = StrokeJoin.round;
+      final path = Path()
+        ..moveTo(-unit * 0.68, unit * 0.36)
+        ..lineTo(-unit * 0.78, -unit * 0.32)
+        ..lineTo(-unit * 0.3, unit * 0.02)
+        ..lineTo(0, -unit * 0.5)
+        ..lineTo(unit * 0.3, unit * 0.02)
+        ..lineTo(unit * 0.78, -unit * 0.32)
+        ..lineTo(unit * 0.68, unit * 0.36)
+        ..close();
+      canvas.drawPath(path, fill);
+      canvas.drawPath(path, border);
+      canvas.drawCircle(
+        Offset(0, unit * 0.14),
+        unit * 0.1,
+        Paint()..color = const Color(0xFFE53935),
+      );
+    case SabotageStickerKind.sunglasses:
+      final dark = Paint()..color = ink;
+      final rim = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = math.max(1.0, unit * 0.05);
+      final glare = Paint()
+        ..color = Colors.white
+        ..strokeWidth = math.max(1.4, unit * 0.07)
+        ..strokeCap = StrokeCap.round;
+      final leftLens = RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: Offset(-unit * 0.42, 0),
+          width: unit * 0.68,
+          height: unit * 0.46,
+        ),
+        Radius.circular(unit * 0.09),
+      );
+      final rightLens = RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: Offset(unit * 0.42, 0),
+          width: unit * 0.68,
+          height: unit * 0.46,
+        ),
+        Radius.circular(unit * 0.09),
+      );
+      canvas.drawRect(
+        Rect.fromCenter(
+          center: Offset(0, -unit * 0.08),
+          width: unit * 1.65,
+          height: unit * 0.11,
+        ),
+        dark,
+      );
+      canvas.drawRRect(leftLens, dark);
+      canvas.drawRRect(rightLens, dark);
+      canvas.drawRRect(leftLens, rim);
+      canvas.drawRRect(rightLens, rim);
+      canvas.drawLine(
+        Offset(-unit * 0.58, -unit * 0.11),
+        Offset(-unit * 0.4, unit * 0.11),
+        glare,
+      );
+      canvas.drawLine(
+        Offset(unit * 0.24, -unit * 0.11),
+        Offset(unit * 0.42, unit * 0.11),
+        glare,
+      );
+    case SabotageStickerKind.censorBar:
+      final rect = RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: Offset.zero,
+          width: unit * 1.85,
+          height: unit * 0.54,
+        ),
+        Radius.circular(unit * 0.08),
+      );
+      canvas.drawRRect(rect, Paint()..color = ink);
+      canvas.drawRRect(
+        rect,
+        Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = math.max(1.0, unit * 0.05),
+      );
+      final stripe = Paint()
+        ..color = const Color(0xFFE53935)
+        ..strokeWidth = math.max(1.5, unit * 0.08)
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(
+        Offset(-unit * 0.68, 0),
+        Offset(unit * 0.68, 0),
+        stripe,
+      );
+    case SabotageStickerKind.heart:
+      final fill = Paint()..color = const Color(0xFFE53935);
+      final border = Paint()
+        ..color = ink
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = outlineWidth
+        ..strokeJoin = StrokeJoin.round;
+      final path = Path()
+        ..moveTo(0, unit * 0.52)
+        ..cubicTo(
+          -unit * 0.9,
+          unit * 0.05,
+          -unit * 0.76,
+          -unit * 0.62,
+          0,
+          -unit * 0.14,
+        )
+        ..cubicTo(
+          unit * 0.76,
+          -unit * 0.62,
+          unit * 0.9,
+          unit * 0.05,
+          0,
+          unit * 0.52,
+        )
+        ..close();
+      canvas.drawPath(path, fill);
+      canvas.drawPath(path, border);
+    case SabotageStickerKind.clownNose:
+      final r = unit * 0.46;
+      canvas.drawCircle(Offset.zero, r, Paint()..color = const Color(0xFFE53935));
+      canvas.drawCircle(
+        Offset.zero,
+        r,
+        Paint()
+          ..color = ink
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = outlineWidth,
+      );
+      canvas.drawCircle(
+        Offset(-r * 0.3, -r * 0.28),
+        r * 0.22,
+        Paint()..color = Colors.white.withValues(alpha: 0.9),
+      );
+    case SabotageStickerKind.devilHorns:
+      final fill = Paint()..color = const Color(0xFFE53935);
+      final border = Paint()
+        ..color = ink
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = outlineWidth
+        ..strokeJoin = StrokeJoin.round;
+      for (final sign in <double>[-1, 1]) {
+        final horn = Path()
+          ..moveTo(sign * unit * 0.22, unit * 0.34)
+          ..quadraticBezierTo(
+            sign * unit * 0.88,
+            unit * 0.06,
+            sign * unit * 0.68,
+            -unit * 0.56,
+          )
+          ..quadraticBezierTo(
+            sign * unit * 0.48,
+            -unit * 0.05,
+            sign * unit * 0.54,
+            unit * 0.34,
+          )
+          ..close();
+        canvas.drawPath(horn, fill);
+        canvas.drawPath(horn, border);
+      }
+    case SabotageStickerKind.halo:
+      final rect = Rect.fromCenter(
+        center: Offset.zero,
+        width: unit * 1.48,
+        height: unit * 0.52,
+      );
+      canvas.drawOval(
+        rect,
+        Paint()
+          ..color = ink
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = outlineWidth + math.max(3.0, unit * 0.16),
+      );
+      canvas.drawOval(
+        rect,
+        Paint()
+          ..color = const Color(0xFFFFD400)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = math.max(2.6, unit * 0.15),
+      );
+    case SabotageStickerKind.partyHat:
+      final cone = Path()
+        ..moveTo(0, -unit * 0.62)
+        ..lineTo(-unit * 0.52, unit * 0.48)
+        ..lineTo(unit * 0.52, unit * 0.48)
+        ..close();
+      canvas.drawPath(cone, Paint()..color = const Color(0xFF2979FF));
+      final stripe = Path()
+        ..moveTo(-unit * 0.26, -unit * 0.07)
+        ..lineTo(unit * 0.26, -unit * 0.07)
+        ..lineTo(unit * 0.39, unit * 0.21)
+        ..lineTo(-unit * 0.39, unit * 0.21)
+        ..close();
+      canvas.drawPath(stripe, Paint()..color = const Color(0xFFFFD400));
+      canvas.drawPath(
+        cone,
+        Paint()
+          ..color = ink
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = outlineWidth
+          ..strokeJoin = StrokeJoin.round,
+      );
+      final pomCenter = Offset(0, -unit * 0.64);
+      final pomR = unit * 0.16;
+      canvas.drawCircle(pomCenter, pomR, Paint()..color = const Color(0xFFEC4899));
+      canvas.drawCircle(
+        pomCenter,
+        pomR,
+        Paint()
+          ..color = ink
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = math.max(1.2, outlineWidth * 0.8),
+      );
+  }
+  canvas.restore();
+}
+
+/// Compact vector icon widget rendering a sticker in the sabotage picker bar
+/// without any text labels.
+class SabotageStickerIcon extends StatelessWidget {
+  const SabotageStickerIcon({
+    super.key,
+    required this.kind,
+    this.size = 28,
+  });
+
+  final SabotageStickerKind kind;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.square(
+      dimension: size,
+      child: CustomPaint(
+        painter: _StickerIconPainter(kind: kind),
+      ),
+    );
+  }
+}
+
+class _StickerIconPainter extends CustomPainter {
+  const _StickerIconPainter({required this.kind});
+
+  final SabotageStickerKind kind;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    paintSabotageSticker(
+      canvas,
+      size,
+      SabotageSticker(kind: kind, x: 0.5, y: 0.5),
+      unitOverride: size.shortestSide * 0.44,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _StickerIconPainter oldDelegate) =>
+      oldDelegate.kind != kind;
 }

@@ -1004,6 +1004,214 @@ void main() {
     expect(host.state.awards, isEmpty);
     expect(host.state.currentRound, 0);
   }, timeout: const Timeout(Duration(seconds: 60)));
+
+  test('non-host clients receive inviteUrl upon joining', () async {
+    expect(clientOne.state.inviteUrl, isNotNull);
+    expect(clientOne.state.inviteUrl, contains('whotook.party/j#'));
+    expect(clientTwo.state.inviteUrl, clientOne.state.inviteUrl);
+  });
+
+  test('disconnect during sabotage voting unblocks and finishes the round', () async {
+    await host.setMode(GameMode.photoSabotage);
+    await host.setRounds(1);
+    await host.startPrepare();
+    await _waitFor(() => host.state.candidates.isNotEmpty);
+    await _waitFor(() => clientOne.state.candidates.isNotEmpty);
+    await _waitFor(() => clientTwo.state.candidates.isNotEmpty);
+    await host.markLocalReady();
+    await clientOne.clientMarkReady();
+    await clientTwo.clientMarkReady();
+    await _waitFor(
+      () =>
+          host.state.phase == RoundPhase.captionWriting &&
+          host.state.memeAssignment != null,
+    );
+
+    const stroke = SabotageStroke(
+      colorIndex: 2,
+      width: 0.012,
+      points: <Offset>[Offset(0.2, 0.2), Offset(0.7, 0.7)],
+    );
+    await host.submitSabotage(<SabotageStroke>[stroke]);
+    await clientOne.clientSubmitSabotage(<SabotageStroke>[stroke]);
+    await clientTwo.clientSubmitSabotage(<SabotageStroke>[stroke]);
+    await _waitFor(
+      () =>
+          host.state.phase == RoundPhase.captionVoting &&
+          host.state.memeFocusId != null,
+    );
+
+    // Drop clientTwo mid-voting; host and clientOne only vote once each.
+    await clientTwo.leaveMatch();
+    await _waitFor(() => host.state.players.where((p) => p.connected).length == 2);
+
+    while (host.state.phase == RoundPhase.captionVoting) {
+      final focusId = host.state.memeFocusId;
+      if (focusId != null && !host.state.memeTallying) {
+        final hostCard = host.state.memeCards
+            .where((c) => c.id == focusId)
+            .firstOrNull;
+        if (hostCard != null &&
+            !hostCard.isOwn &&
+            !host.state.memeVotedIds.contains(focusId)) {
+          await host.voteMeme(focusId, MemeVote.up);
+        }
+        final c1Card = clientOne.state.memeCards
+            .where((c) => c.id == focusId)
+            .firstOrNull;
+        if (c1Card != null &&
+            !c1Card.isOwn &&
+            !clientOne.state.memeVotedIds.contains(focusId)) {
+          await clientOne.clientVoteMeme(focusId, MemeVote.meh);
+        }
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+    await _waitFor(() => host.state.phase == RoundPhase.captionReveal);
+  }, timeout: const Timeout(Duration(seconds: 30)));
+
+  test('afk host reveal auto-advances after timeout', () async {
+    final quickHub = LoopbackHub();
+    final afkHost = MatchCoordinator(
+      photos: TestPhotoLibrary(seed: 21),
+      settings: SettingsRepository(),
+      hostTransportFactory: (roomId, secret, lan) =>
+          LoopbackHostTransport(quickHub),
+      planterOverride: 'host',
+      roundDuration: const Duration(milliseconds: 400),
+      countdownDuration: Duration.zero,
+      revealDuration: const Duration(seconds: 6),
+      hostAfkRevealTimeout: const Duration(milliseconds: 250),
+    );
+    final guest = _client(quickHub, seed: 22);
+    addTearDown(() async {
+      await guest.dispose();
+      await afkHost.dispose();
+      await quickHub.dispose();
+    });
+    await afkHost.loadSettings();
+    await guest.loadSettings();
+    await afkHost.hostMatch(config: const MatchConfig(roundsK: 1));
+    await guest.joinMatch(afkHost.state.inviteUrl!);
+    await _waitFor(() => afkHost.state.players.length == 2);
+    await afkHost.startPrepare();
+    await _waitFor(() => afkHost.state.candidates.isNotEmpty);
+    await _waitFor(() => guest.state.candidates.isNotEmpty);
+    await afkHost.markLocalReady();
+    await guest.clientMarkReady();
+    await _waitFor(() => afkHost.state.phase == RoundPhase.guessing);
+
+    final ids = afkHost.state.activeRoundOptions.map((p) => p.id).toList();
+    await afkHost.submitGuess(ids.first);
+    await guest.clientSubmitGuess(ids.first);
+    await _waitFor(() => afkHost.state.phase == RoundPhase.reveal);
+    // Do NOT tap Next; hostAfkRevealTimeout (250ms) advances to podium automatically.
+    await _waitFor(() => afkHost.state.phase == RoundPhase.podium);
+  }, timeout: const Timeout(Duration(seconds: 20)));
+
+  test(
+    'abrupt host loss migrates host after grace and preserves player scores',
+    () async {
+      final migHub = LoopbackHub();
+      final migHost = MatchCoordinator(
+        photos: TestPhotoLibrary(seed: 31),
+        settings: SettingsRepository(),
+        hostTransportFactory: (roomId, secret, lan) =>
+            LoopbackHostTransport(migHub),
+        includeOnlineTransport: false,
+        platformServices: false,
+        planterOverride: 'host',
+        roundDuration: const Duration(milliseconds: 800),
+        countdownDuration: Duration.zero,
+        revealDuration: const Duration(milliseconds: 40),
+      );
+      MatchCoordinator makeMigratingClient(int seed) => MatchCoordinator(
+        photos: TestPhotoLibrary(seed: seed),
+        settings: SettingsRepository(),
+        lastRooms: LastRoomRepository(storageKey: 'whotook.test.mig.$seed'),
+        playerIdOverride: 'm$seed',
+        playerTokenOverride: 'tok-$seed',
+        includeOnlineTransport: false,
+        platformServices: false,
+        hostTransportFactory: (roomId, secret, lan) =>
+            LoopbackHostTransport(migHub),
+        reconnectAttemptDelay: const Duration(milliseconds: 50),
+        reconnectWindowSeconds: 2,
+        migrationRetrySeconds: 6,
+        migrationFollowerDelay: const Duration(milliseconds: 250),
+        connector: HybridConnector(
+          onlineClientFactory: () => LoopbackClientTransport(migHub),
+        ),
+        roundDuration: const Duration(milliseconds: 800),
+        countdownDuration: Duration.zero,
+        revealDuration: const Duration(milliseconds: 40),
+      );
+      final c1 = makeMigratingClient(32);
+      final c2 = makeMigratingClient(33);
+      addTearDown(() async {
+        await c2.dispose();
+        await c1.dispose();
+        await migHost.dispose();
+        await migHub.dispose();
+      });
+      await migHost.loadSettings();
+      await c1.loadSettings();
+      await c2.loadSettings();
+
+      await migHost.hostMatch(config: const MatchConfig(roundsK: 2));
+      await c1.joinMatch(migHost.state.inviteUrl!);
+      await c2.joinMatch(migHost.state.inviteUrl!);
+      await _waitFor(() => migHost.state.players.length == 3);
+      await migHost.startPrepare();
+      await _waitFor(() => c1.state.candidates.isNotEmpty);
+      await _waitFor(() => c2.state.candidates.isNotEmpty);
+      await migHost.markLocalReady();
+      await c1.clientMarkReady();
+      await c2.clientMarkReady();
+      await _waitFor(() => migHost.state.phase == RoundPhase.guessing);
+
+      final ownerId = migHost.engine!.currentEntry!.ownerId;
+      await c1.clientSubmitGuess(ownerId);
+      await c2.clientSubmitGuess(ownerId);
+      await migHost.submitGuess(ownerId);
+      await _waitFor(() => migHost.state.phase == RoundPhase.reveal);
+      await _waitFor(() => c1.state.players.any((p) => p.score > 0));
+
+      final c1ScoreBefore = c1.state.players
+          .firstWhere((p) => p.id == c1.state.localPlayerId)
+          .score;
+      final c2ScoreBefore = c2.state.players
+          .firstWhere((p) => p.id == c2.state.localPlayerId)
+          .score;
+      expect(c1ScoreBefore, greaterThan(0));
+      expect(c2ScoreBefore, greaterThan(0));
+
+      // Simulate original host disconnecting abruptly without roomClosed.
+      await migHost.debugDropHostConnection();
+
+      // c1 promotes to host and c2 reconnects to c1 with scores preserved.
+      await _waitFor(
+        () =>
+            c1.state.isHosting &&
+            c1.state.phase == RoundPhase.lobby &&
+            !c2.state.reconnecting &&
+            c2.state.phase == RoundPhase.lobby &&
+            c1.state.players.length == 2,
+        timeout: const Duration(seconds: 15),
+      );
+      expect(c1.state.hostMigratedNotice, isNotNull);
+      expect(c2.state.hostMigratedNotice, isNotNull);
+      expect(
+        c1.state.players.firstWhere((p) => p.id == 'host').score,
+        c1ScoreBefore,
+      );
+      expect(
+        c1.state.players.firstWhere((p) => p.id == 'm33').score,
+        c2ScoreBefore,
+      );
+    },
+    timeout: const Timeout(Duration(seconds: 30)),
+  );
 }
 
 MatchCoordinator _client(LoopbackHub hub, {required int seed}) =>

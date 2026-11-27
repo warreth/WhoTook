@@ -2038,7 +2038,7 @@ class AppLocalizationsNl extends AppLocalizations {
   String get lobbySoundboardOn => 'Klaar';
 
   @override
-  String get lobbySoundboardOff => 'Alleen met pass';
+  String get lobbySoundboardOff => 'Optioneel';
 
   @override
   String get relayStatusLocal => 'Zelfde wifi';
@@ -2053,7 +2053,7 @@ class AppLocalizationsNl extends AppLocalizations {
   String get relayStatusCustom => 'Eigen TURN';
 
   @override
-  String get relayStatusOffline => 'Niet verbonden';
+  String get relayStatusOffline => 'Offline modus';
 
   @override
   String get soundboardTitle => 'Soundboard';
@@ -2484,5 +2484,96 @@ class AppLocalizationsNl extends AppLocalizations {
   @override
   String openSupportEmail(String email) {
     return 'Mail support ($email)';
+  }
+
+  @override
+  String get sabotageStickerClownNose => 'Clownsneus';
+
+  @override
+  String get sabotageStickerDevilHorns => 'Duivelshoorns';
+
+  @override
+  String get sabotageStickerHalo => 'Stralenkrans';
+
+  @override
+  String get sabotageStickerPartyHat => 'Feestmuts';
+
+  @override
+  String get sabotageStickerSmaller => 'Kleiner';
+
+  @override
+  String get sabotageStickerLarger => 'Groter';
+
+  @override
+  String get sabotageStickerDelete => 'Plakker verwijderen';
+
+  @override
+  String get partyPassLobbyOptionalTitle =>
+      'Optioneel: speel online & soundboard';
+
+  @override
+  String get partyPassLobbyOptionalBody =>
+      'Zelfde wifi of hotspot is altijd gratis.';
+
+  @override
+  String get onboardingOfflineTitle => 'Speel overal, ook helemaal offline';
+
+  @override
+  String get onboardingOfflineBody =>
+      'In het vliegtuig, in de bergen of op vakantie zonder 4G of wifi? Alleen de telefoons in de kamer zijn genoeg.';
+
+  @override
+  String get onboardingHotspotTitle => 'Hotspot-tip, geen internet nodig';
+
+  @override
+  String get onboardingHotspotBody =>
+      'Eén persoon zet gewoon een persoonlijke hotspot aan zonder 4G of wifi. Iedereen verbindt daarmee zodat alle telefoons direct met elkaar praten.';
+
+  @override
+  String get onboardingNext => 'Volgende';
+
+  @override
+  String get onboardingPrivacyTitle => '100% open-source & privé';
+
+  @override
+  String get onboardingPrivacyDirectTitle =>
+      'Telefoon-naar-telefoon zonder server';
+
+  @override
+  String get onboardingPrivacyDirectBody =>
+      'Via wifi of hotspot gaan foto\'s en keuzes direct van telefoon naar telefoon en langs geen enkele server.';
+
+  @override
+  String get onboardingPrivacyNoDataTitle => 'Geen data of foto\'s verzameld';
+
+  @override
+  String get onboardingPrivacyNoDataBody =>
+      'Geen accounts, geen tracking en geen opgeslagen foto\'s. Ook online verloopt alles direct P2P.';
+
+  @override
+  String get onboardingPrivacyOpenSourceTitle => 'Volledig open-source';
+
+  @override
+  String get onboardingPrivacyOpenSourceBody =>
+      'De volledige broncode van de app staat openbaar op GitHub zodat iedereen kan meekijken.';
+
+  @override
+  String get onboardingViewSource => 'Bekijk code op GitHub';
+
+  @override
+  String get hostMigratingTitle => 'Host overdragen...';
+
+  @override
+  String hostMigratingBody(int seconds) {
+    return 'De host is weggevallen. Verbinden met de nieuwe host (${seconds}s).';
+  }
+
+  @override
+  String get hostMigratedSelfNotice =>
+      'De vorige host is weggevallen, dus jij bent nu de host. Alle punten zijn bewaard.';
+
+  @override
+  String hostMigratedNotice(String name) {
+    return '$name is nu de nieuwe host. Alle punten zijn bewaard.';
   }
 }

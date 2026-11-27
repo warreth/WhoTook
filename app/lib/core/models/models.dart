@@ -133,9 +133,9 @@ enum GamePace {
   };
 
   int get sabotageSeconds => switch (this) {
-    GamePace.fast => 30,
-    GamePace.normal => 45,
-    GamePace.slow => 60,
+    GamePace.fast => 60,
+    GamePace.normal => 90,
+    GamePace.slow => 120,
   };
 
   int mainSeconds(GameMode mode) => switch (mode) {
@@ -651,6 +651,10 @@ enum SabotageStickerKind {
   sunglasses,
   censorBar,
   heart,
+  clownNose,
+  devilHorns,
+  halo,
+  partyHat,
 }
 
 /// One placed sticker on a sabotaged photo, normalized to 0..1 coordinates.
@@ -667,11 +671,23 @@ class SabotageSticker {
   final double y;
   final double scale;
 
+  SabotageSticker copyWith({
+    SabotageStickerKind? kind,
+    double? x,
+    double? y,
+    double? scale,
+  }) => SabotageSticker(
+    kind: kind ?? this.kind,
+    x: x ?? this.x,
+    y: y ?? this.y,
+    scale: (scale ?? this.scale).clamp(0.5, 2.2),
+  );
+
   Map<String, dynamic> toJson() => <String, dynamic>{
     'k': kind.name,
     'x': double.parse(x.clamp(0.0, 1.0).toStringAsFixed(4)),
     'y': double.parse(y.clamp(0.0, 1.0).toStringAsFixed(4)),
-    's': double.parse(scale.clamp(0.5, 2.0).toStringAsFixed(2)),
+    's': double.parse(scale.clamp(0.5, 2.2).toStringAsFixed(2)),
   };
 
   factory SabotageSticker.fromJson(Map<String, dynamic> json) =>
@@ -682,7 +698,7 @@ class SabotageSticker {
         ),
         x: ((json['x'] as num?) ?? 0.5).toDouble().clamp(0.0, 1.0),
         y: ((json['y'] as num?) ?? 0.5).toDouble().clamp(0.0, 1.0),
-        scale: ((json['s'] as num?) ?? 1.0).toDouble().clamp(0.5, 2.0),
+        scale: ((json['s'] as num?) ?? 1.0).toDouble().clamp(0.5, 2.2),
       );
 }
 

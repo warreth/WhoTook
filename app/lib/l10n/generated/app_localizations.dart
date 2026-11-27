@@ -3508,7 +3508,7 @@ abstract class AppLocalizations {
   /// No description provided for @lobbySoundboardOff.
   ///
   /// In en, this message translates to:
-  /// **'Pass only'**
+  /// **'Optional'**
   String get lobbySoundboardOff;
 
   /// No description provided for @relayStatusLocal.
@@ -3538,7 +3538,7 @@ abstract class AppLocalizations {
   /// No description provided for @relayStatusOffline.
   ///
   /// In en, this message translates to:
-  /// **'Not connected'**
+  /// **'Offline mode'**
   String get relayStatusOffline;
 
   /// No description provided for @soundboardTitle.
@@ -4290,6 +4290,162 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Email support ({email})'**
   String openSupportEmail(String email);
+
+  /// No description provided for @sabotageStickerClownNose.
+  ///
+  /// In en, this message translates to:
+  /// **'Clown nose'**
+  String get sabotageStickerClownNose;
+
+  /// No description provided for @sabotageStickerDevilHorns.
+  ///
+  /// In en, this message translates to:
+  /// **'Devil horns'**
+  String get sabotageStickerDevilHorns;
+
+  /// No description provided for @sabotageStickerHalo.
+  ///
+  /// In en, this message translates to:
+  /// **'Halo'**
+  String get sabotageStickerHalo;
+
+  /// No description provided for @sabotageStickerPartyHat.
+  ///
+  /// In en, this message translates to:
+  /// **'Party hat'**
+  String get sabotageStickerPartyHat;
+
+  /// No description provided for @sabotageStickerSmaller.
+  ///
+  /// In en, this message translates to:
+  /// **'Smaller'**
+  String get sabotageStickerSmaller;
+
+  /// No description provided for @sabotageStickerLarger.
+  ///
+  /// In en, this message translates to:
+  /// **'Larger'**
+  String get sabotageStickerLarger;
+
+  /// No description provided for @sabotageStickerDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove sticker'**
+  String get sabotageStickerDelete;
+
+  /// No description provided for @partyPassLobbyOptionalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional: Play online & soundboard'**
+  String get partyPassLobbyOptionalTitle;
+
+  /// No description provided for @partyPassLobbyOptionalBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Same Wi-Fi or hotspot is always free.'**
+  String get partyPassLobbyOptionalBody;
+
+  /// No description provided for @onboardingOfflineTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Play anywhere, even completely offline'**
+  String get onboardingOfflineTitle;
+
+  /// No description provided for @onboardingOfflineBody.
+  ///
+  /// In en, this message translates to:
+  /// **'On a plane, in the mountains, or on vacation with zero 4G or Wi-Fi? You only need the phones in the room.'**
+  String get onboardingOfflineBody;
+
+  /// No description provided for @onboardingHotspotTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hotspot trick, no internet needed'**
+  String get onboardingHotspotTitle;
+
+  /// No description provided for @onboardingHotspotBody.
+  ///
+  /// In en, this message translates to:
+  /// **'One person simply turns on a personal hotspot without mobile data or Wi-Fi. Everyone connects to it so the phones talk directly to each other.'**
+  String get onboardingHotspotBody;
+
+  /// No description provided for @onboardingNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get onboardingNext;
+
+  /// No description provided for @onboardingPrivacyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'100% open-source & private'**
+  String get onboardingPrivacyTitle;
+
+  /// No description provided for @onboardingPrivacyDirectTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone-to-phone, zero servers'**
+  String get onboardingPrivacyDirectTitle;
+
+  /// No description provided for @onboardingPrivacyDirectBody.
+  ///
+  /// In en, this message translates to:
+  /// **'On the same Wi-Fi or hotspot, photos and choices travel straight between players\' phones and nowhere else.'**
+  String get onboardingPrivacyDirectBody;
+
+  /// No description provided for @onboardingPrivacyNoDataTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No data or photos collected'**
+  String get onboardingPrivacyNoDataTitle;
+
+  /// No description provided for @onboardingPrivacyNoDataBody.
+  ///
+  /// In en, this message translates to:
+  /// **'No accounts, no tracking, and zero photos stored online. Even online games use direct P2P with only brief signaling.'**
+  String get onboardingPrivacyNoDataBody;
+
+  /// No description provided for @onboardingPrivacyOpenSourceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Fully open-source'**
+  String get onboardingPrivacyOpenSourceTitle;
+
+  /// No description provided for @onboardingPrivacyOpenSourceBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Anyone can inspect the entire app code on GitHub to verify how it works.'**
+  String get onboardingPrivacyOpenSourceBody;
+
+  /// No description provided for @onboardingViewSource.
+  ///
+  /// In en, this message translates to:
+  /// **'View source on GitHub'**
+  String get onboardingViewSource;
+
+  /// No description provided for @hostMigratingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Handing over host...'**
+  String get hostMigratingTitle;
+
+  /// No description provided for @hostMigratingBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Original host is gone. Joining the new host ({seconds}s left).'**
+  String hostMigratingBody(int seconds);
+
+  /// No description provided for @hostMigratedSelfNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Original host left, so you are the host now. All scores were kept.'**
+  String get hostMigratedSelfNotice;
+
+  /// No description provided for @hostMigratedNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} is the host now. All scores were kept.'**
+  String hostMigratedNotice(String name);
 }
 
 class _AppLocalizationsDelegate

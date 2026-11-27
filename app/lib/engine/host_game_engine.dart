@@ -263,6 +263,37 @@ class HostGameEngine {
     return player;
   }
 
+  /// Adds a player carried over from a previous host session after host
+  /// migration, preserving their score, streaks and match stats in the lobby.
+  Player addMigratedPlayer(
+    Player source, {
+    required String id,
+    required bool isHost,
+  }) {
+    if (_phase != RoundPhase.lobby) {
+      throw const EngineException('wrong_phase', 'match already started');
+    }
+    final player = Player(
+      id: id,
+      name: source.name,
+      avatar: source.avatar,
+      avatarColorIndex: source.avatarColorIndex,
+      isHost: isHost,
+      connected: true,
+      ready: false,
+      score: source.score,
+      streak: source.streak,
+      longestStreak: source.longestStreak,
+      correctCount: source.correctCount,
+      totalCorrectMs: source.totalCorrectMs,
+      mysteryPointsEarned: source.mysteryPointsEarned,
+      screenshotCount: source.screenshotCount,
+      plantUsed: source.plantUsed,
+    );
+    _players[id] = player;
+    return player;
+  }
+
   /// Adds a player who scanned in during photo selection before the round
   /// starts, so they immediately pick their photos with the rest of the room.
   Player addPlayerDuringPrepare({
@@ -1743,6 +1774,19 @@ class HostGameEngine {
     final extraRounds = _roundsK - _deck.length;
     _buildDeck(extraRounds);
     _phase = RoundPhase.countdown;
+  }
+
+  /// Commits an active extension prompt immediately if all connected players
+  /// have already submitted their extra photos (e.g. after a disconnect).
+  bool checkExtensionReady() {
+    if (_phase != RoundPhase.extendPrompt) return false;
+    final connected = _players.values.where((p) => p.connected).toList();
+    if (connected.isEmpty ||
+        !connected.every((p) => _pendingExtension.containsKey(p.id))) {
+      return false;
+    }
+    commitExtension();
+    return true;
   }
 
   void recordScreenshot(String playerId) {

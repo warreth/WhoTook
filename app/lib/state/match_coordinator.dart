@@ -268,9 +268,11 @@ class MatchUiState {
     this.versionWarning,
     this.versionWarningDismissed = false,
     this.reconnecting = false,
+    this.migratingHost = false,
     this.waitingForMatch = false,
     this.waitingPlayersCount = 0,
     this.reconnectSecondsLeft = 0,
+    this.hostMigratedNotice,
     this.roomThemeId = kDefaultRoomThemeId,
     this.lastSoundEffect,
     this.firewallPrompt = false,
@@ -373,7 +375,9 @@ class MatchUiState {
   final VersionWarning? versionWarning;
   final bool versionWarningDismissed;
   final bool reconnecting;
+  final bool migratingHost;
   final int reconnectSecondsLeft;
+  final String? hostMigratedNotice;
 
   /// A player who scanned the QR while a match was running. They are held in
   /// the room, see a clean waiting screen, and join the next match with a
@@ -526,7 +530,9 @@ class MatchUiState {
     VersionWarning? versionWarning,
     bool? versionWarningDismissed,
     bool? reconnecting,
+    bool? migratingHost,
     int? reconnectSecondsLeft,
+    String? hostMigratedNotice,
     bool? waitingForMatch,
     int? waitingPlayersCount,
     String? roomThemeId,
@@ -544,6 +550,7 @@ class MatchUiState {
     bool clearLoading = false,
     bool clearGuess = false,
     bool clearRoundInput = false,
+    bool clearHostMigratedNotice = false,
   }) => MatchUiState(
     isHosting: isHosting ?? this.isHosting,
     roomId: roomId ?? this.roomId,
@@ -699,9 +706,13 @@ class MatchUiState {
     versionWarningDismissed:
         versionWarningDismissed ?? this.versionWarningDismissed,
     reconnecting: reconnecting ?? this.reconnecting,
+    migratingHost: migratingHost ?? this.migratingHost,
     waitingForMatch: waitingForMatch ?? this.waitingForMatch,
     waitingPlayersCount: waitingPlayersCount ?? this.waitingPlayersCount,
     reconnectSecondsLeft: reconnectSecondsLeft ?? this.reconnectSecondsLeft,
+    hostMigratedNotice: clearHostMigratedNotice
+        ? null
+        : (hostMigratedNotice ?? this.hostMigratedNotice),
     roomThemeId: roomThemeId ?? this.roomThemeId,
     lastSoundEffect: lastSoundEffect ?? this.lastSoundEffect,
     firewallPrompt: firewallPrompt ?? this.firewallPrompt,
@@ -739,6 +750,13 @@ class MatchCoordinator {
     this.playerIdOverride,
     this.playerTokenOverride,
     this.reconnectAttemptDelay = Duration.zero,
+    this.reconnectWindowSeconds = 30,
+    this.hostMigrationEnabled = true,
+    this.migrationRetrySeconds = 20,
+    this.migrationFollowerDelay = const Duration(milliseconds: 2200),
+    this.heartbeatInterval = const Duration(seconds: 6),
+    this.heartbeatTimeout = const Duration(seconds: 15),
+    this.hostAfkRevealTimeout = const Duration(seconds: 30),
     Duration? roundDuration,
     this.countdownDuration = const Duration(seconds: 3),
     this.vaultFallbackDelay = const Duration(seconds: 10),
@@ -752,7 +770,14 @@ class MatchCoordinator {
     this.extendWindow = const Duration(seconds: 10),
   }) : _settings = settings ?? SettingsRepository(),
        _lastRooms = lastRooms ?? LastRoomRepository(),
-       _connector = connector ?? HybridConnector(turnRelay: turnRelay),
+       _connector =
+           connector ??
+           HybridConnector(
+             turnRelay: turnRelay,
+             mdnsDiscoverer: platformServices
+                 ? const BonsoirMdnsDiscoverer()
+                 : const NoopMdnsDiscoverer(),
+           ),
        _screenshots = screenshots ?? ScreenshotDetector(),
        _roundDurationOverride = roundDuration,
        _sabotageDurationOverride = sabotageDuration;
@@ -797,6 +822,13 @@ class MatchCoordinator {
 
   /// Tests use a short delay so the reconnecting state is observable.
   final Duration reconnectAttemptDelay;
+  final int reconnectWindowSeconds;
+  final bool hostMigrationEnabled;
+  final int migrationRetrySeconds;
+  final Duration migrationFollowerDelay;
+  final Duration heartbeatInterval;
+  final Duration heartbeatTimeout;
+  final Duration hostAfkRevealTimeout;
   final Duration? _roundDurationOverride;
   final Duration countdownDuration;
   final Duration vaultFallbackDelay;
@@ -887,9 +919,13 @@ class MatchCoordinator {
   bool _memeTallying = false;
   Timer? _clientPhaseTicker;
   Timer? _reconnectTimer;
+  Timer? _heartbeatTimer;
+  Timer? _migrationDelayTimer;
+  DateTime? _lastHostActivityAt;
   Completer<void>? _reconnectAck;
   bool _reconnectInFlight = false;
   bool _hostClosed = false;
+  final Map<String, Player> _migratedScores = <String, Player>{};
   final Map<String, String> _clientPlayerIds = <String, String>{};
   final Map<String, String> _playerClientIds = <String, String>{};
   final Map<String, String> _playerTokens = <String, String>{};
@@ -926,10 +962,21 @@ class MatchCoordinator {
   @visibleForTesting
   HostGameEngine? get engine => _engine;
 
+  bool _isMemeStyle(GameMode mode) =>
+      mode == GameMode.makeItMeme || mode == GameMode.photoSabotage;
+
   /// Simulates a network drop without ending the room.
   @visibleForTesting
   Future<void> debugDropClientConnection() async {
     await _clientTransport?.close();
+  }
+
+  /// Drops only the host transport without sending `roomClosed`, simulating an
+  /// abrupt host disconnect or crash for host-migration testing.
+  @visibleForTesting
+  Future<void> debugDropHostConnection() async {
+    await _hostTransport?.close();
+    _hostTransport = null;
   }
 
   void _emit(MatchUiState next) {
@@ -1542,6 +1589,7 @@ class MatchCoordinator {
           .toList(),
       'extensionSecondsLeft': _state.extensionSecondsLeft,
       'roomThemeId': _state.roomThemeId,
+      'inviteUrl': _state.inviteUrl,
       'rejoined': true,
     };
     await _hostTransport?.sendToClient(
@@ -1636,13 +1684,39 @@ class MatchCoordinator {
           ),
         );
         final engine = _engine;
-        if (engine != null &&
-            engine.activeMode == GameMode.makeItMeme &&
-            engine.phase == RoundPhase.captionVoting &&
-            !_memeTallying) {
-          await _publishMemeFocus();
-          if (engine.allVotesFor(_currentMemeFocusId)) {
-            await _startMemeTally();
+        if (engine != null) {
+          switch (engine.phase) {
+            case RoundPhase.preparing:
+              await _maybeStartMatch();
+            case RoundPhase.guessing:
+              await _syncGuesses();
+            case RoundPhase.captionWriting:
+              if (_isMemeStyle(engine.activeMode)) {
+                if (engine.allMemesSubmitted) await _startMemeVoting();
+              } else if (engine.allCaptionsSubmitted) {
+                await _startCaptionVoting();
+              }
+            case RoundPhase.captionVoting:
+              if (_isMemeStyle(engine.activeMode)) {
+                if (!_memeTallying) {
+                  await _publishMemeFocus();
+                  if (engine.allVotesFor(_currentMemeFocusId)) {
+                    await _startMemeTally();
+                  }
+                }
+              } else if (engine.allCaptionVotesSubmitted) {
+                await _finishCaptionRound();
+              }
+            case RoundPhase.timelineGuessing:
+              if (engine.allTimelineGuessed) {
+                await _finishTimelineRound();
+              }
+            case RoundPhase.extendPrompt:
+              if (engine.checkExtensionReady()) {
+                await _maybeCommitExtension();
+              }
+            default:
+              break;
           }
         }
         await _broadcastLobby();
@@ -1659,6 +1733,11 @@ class MatchCoordinator {
     final clientId = incoming.clientId;
 
     switch (message.type) {
+      case WireType.ping:
+        await _hostTransport?.sendToClient(
+          clientId,
+          WireMessage(type: WireType.pong, seq: _nextSeq()),
+        );
       case WireType.joinReq:
         final name = (payload['name'] as String?)?.trim();
         if (name == null || name.isEmpty) return;
@@ -1968,12 +2047,17 @@ class MatchCoordinator {
           return;
         }
         try {
-          engine.addPlayer(
-            id: playerId,
-            name: name,
-            avatar: normalizeAvatar(payload['avatar'] as String?),
-            avatarColorIndex: payload['avatarColorIndex'] as int? ?? 0,
-          );
+          final migrated = _migratedScores.remove(playerId);
+          if (migrated != null) {
+            engine.addMigratedPlayer(migrated, id: playerId, isHost: false);
+          } else {
+            engine.addPlayer(
+              id: playerId,
+              name: name,
+              avatar: normalizeAvatar(payload['avatar'] as String?),
+              avatarColorIndex: payload['avatarColorIndex'] as int? ?? 0,
+            );
+          }
         } on EngineException {
           return;
         }
@@ -2757,7 +2841,10 @@ class MatchCoordinator {
     );
 
     _roundTimer?.cancel();
-    _roundTimer = Timer(duration, () {
+    final timerGrace = duration >= const Duration(seconds: 5)
+        ? const Duration(milliseconds: 800)
+        : Duration.zero;
+    _roundTimer = Timer(duration + timerGrace, () {
       switch (mode) {
         case GameMode.classic || GameMode.mixedParty:
           unawaited(_finishRound());
@@ -2800,24 +2887,26 @@ class MatchCoordinator {
             unawaited(_finishRound());
           }
         case RoundPhase.captionWriting:
-          final ready = engine.activeMode == GameMode.makeItMeme
+          final isMemeStyle = _isMemeStyle(engine.activeMode);
+          final ready = isMemeStyle
               ? engine.allMemesSubmitted
               : engine.allCaptionsSubmitted;
           if (ready) {
             timer.cancel();
-            if (engine.activeMode == GameMode.makeItMeme) {
+            if (isMemeStyle) {
               unawaited(_startMemeVoting());
             } else {
               unawaited(_startCaptionVoting());
             }
           }
         case RoundPhase.captionVoting:
-          final ready = engine.activeMode == GameMode.makeItMeme
+          final isMemeStyle = _isMemeStyle(engine.activeMode);
+          final ready = isMemeStyle
               ? engine.allMemeVotesSubmitted
               : engine.allCaptionVotesSubmitted;
           if (ready) {
             timer.cancel();
-            if (engine.activeMode == GameMode.makeItMeme) {
+            if (isMemeStyle) {
               unawaited(_finishMemeRound());
             } else {
               unawaited(_finishCaptionRound());
@@ -3411,13 +3500,17 @@ class MatchCoordinator {
     );
     // Meme reveals wait for the host. Everyone gets time to laugh at the
     // winning meme, and the host decides when the room moves on. A round with
-    // zero memes still moves on by itself: the host also gets a Next button,
-    // but this timer is the last line of defence against a frozen screen.
+    // zero memes advances promptly; non-empty reveals still auto-advance if
+    // the host stays away past hostAfkRevealTimeout.
     _captionRevealTimer?.cancel();
     if (cards.isEmpty) {
       _memesEmptyAdvanceTimer?.cancel();
       _memesEmptyAdvanceTimer = Timer(emptyMemeAdvanceDuration, () {
         if (!_leaving && !_disposed) unawaited(advanceMemeReveal());
+      });
+    } else if (hostAfkRevealTimeout > Duration.zero) {
+      _captionRevealTimer = Timer(hostAfkRevealTimeout, () {
+        if (!_leaving && !_disposed) unawaited(_advanceAfterReveal());
       });
     }
   }
@@ -3614,7 +3707,7 @@ class MatchCoordinator {
   Future<void> _startCaptionVoting() async {
     final engine = _engine;
     if (engine == null || engine.phase != RoundPhase.captionWriting) return;
-    if (engine.activeMode == GameMode.makeItMeme) {
+    if (_isMemeStyle(engine.activeMode)) {
       await _startMemeVoting();
       return;
     }
@@ -3662,7 +3755,7 @@ class MatchCoordinator {
   Future<void> _finishCaptionRound() async {
     final engine = _engine;
     if (engine == null) return;
-    if (engine.activeMode == GameMode.makeItMeme) {
+    if (_isMemeStyle(engine.activeMode)) {
       await _finishMemeRound();
       return;
     }
@@ -3725,9 +3818,14 @@ class MatchCoordinator {
         remainingMs: 0,
       ),
     );
-    // The host decides when the group has laughed enough; the reveal never
-    // advances on a hidden timer.
+    // The host decides when the group moves on, with an AFK safety timer so
+    // an unresponsive host never freezes the room forever.
     _timelineRevealTimer?.cancel();
+    if (hostAfkRevealTimeout > Duration.zero) {
+      _timelineRevealTimer = Timer(hostAfkRevealTimeout, () {
+        if (!_leaving && !_disposed) unawaited(_advanceAfterReveal());
+      });
+    }
   }
 
   Future<void> submitCaption(String text) async {
@@ -3842,6 +3940,11 @@ class MatchCoordinator {
     if (autoAdvanceReveal || revealDuration < const Duration(seconds: 6)) {
       _revealAutoTimer = Timer(
         revealDuration,
+        () => unawaited(_advanceAfterReveal()),
+      );
+    } else if (hostAfkRevealTimeout > Duration.zero) {
+      _revealAutoTimer = Timer(
+        hostAfkRevealTimeout,
         () => unawaited(_advanceAfterReveal()),
       );
     }
@@ -4634,6 +4737,7 @@ class MatchCoordinator {
           'phase': engine.phase.name,
           'avatarPhotos': _avatarPhotos,
           'roomThemeId': _state.roomThemeId,
+          'inviteUrl': ?_state.inviteUrl,
           'waitingCount': _connectedWaitingCount,
         },
       ),
@@ -4750,12 +4854,16 @@ class MatchCoordinator {
       _state.copyWith(
         isHosting: false,
         roomId: invite.roomId,
+        inviteUrl: _pendingInviteUrl,
         connectionMode: transport.mode,
         turnLimitNotice: transport.turnLimitNotice,
         phase: RoundPhase.lobby,
         clearLoading: true,
+        clearHostMigratedNotice: true,
       ),
     );
+    _lastHostActivityAt = DateTime.now();
+    _startHeartbeat();
     await transport.send(
       WireMessage(
         type: WireType.joinReq,
@@ -4820,6 +4928,65 @@ class MatchCoordinator {
     _clientSubs.clear();
   }
 
+  void dismissHostMigratedNotice() {
+    if (_state.hostMigratedNotice == null) return;
+    _emit(_state.copyWith(clearHostMigratedNotice: true));
+  }
+
+  void _startHeartbeat() {
+    _heartbeatTimer?.cancel();
+    if (heartbeatInterval <= Duration.zero || _state.isHosting) return;
+    _heartbeatTimer = Timer.periodic(heartbeatInterval, (timer) {
+      if (_disposed ||
+          _leaving ||
+          _state.isHosting ||
+          _state.roomId == null ||
+          _state.reconnecting) {
+        timer.cancel();
+        return;
+      }
+      final last = _lastHostActivityAt;
+      if (last != null && DateTime.now().difference(last) >= heartbeatTimeout) {
+        timer.cancel();
+        unawaited(_startReconnect());
+        return;
+      }
+      final transport = _clientTransport;
+      if (transport == null) return;
+      unawaited(
+        transport
+            .send(WireMessage(type: WireType.ping, seq: _nextSeq()))
+            .catchError((Object _) => unawaited(_startReconnect())),
+      );
+    });
+  }
+
+  void _stopHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+  }
+
+  Future<void> onAppResumed() async {
+    if (_disposed || _leaving || _state.isHosting || _state.roomId == null) {
+      return;
+    }
+    if (_state.reconnecting) {
+      unawaited(_attemptReconnect(discoverLan: _state.migratingHost));
+      return;
+    }
+    final last = _lastHostActivityAt;
+    if (last != null &&
+        DateTime.now().difference(last) > const Duration(seconds: 8)) {
+      try {
+        await _clientTransport?.send(
+          WireMessage(type: WireType.ping, seq: _nextSeq()),
+        );
+      } on Object {
+        unawaited(_startReconnect());
+      }
+    }
+  }
+
   Future<void> _startReconnect() async {
     if (_leaving ||
         _endingOnHostLeave ||
@@ -4829,28 +4996,51 @@ class MatchCoordinator {
       return;
     }
     if (_reconnectTimer != null) return;
+    _stopHeartbeat();
     _stopClientPhaseTicker();
-    _emit(_state.copyWith(reconnecting: true, reconnectSecondsLeft: 20));
+    _emit(
+      _state.copyWith(
+        reconnecting: true,
+        migratingHost: false,
+        reconnectSecondsLeft: reconnectWindowSeconds,
+      ),
+    );
+    var ticks = 0;
     _reconnectTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_disposed || _leaving || !_state.reconnecting) {
         timer.cancel();
         _reconnectTimer = null;
         return;
       }
+      if (_reconnectInFlight) {
+        return;
+      }
       final left = _state.reconnectSecondsLeft - 1;
       if (left <= 0) {
-        // A mobile reconnect can take longer than the countdown; let it finish.
-        if (_reconnectInFlight) {
-          _emit(_state.copyWith(reconnectSecondsLeft: 0));
-          return;
-        }
         timer.cancel();
         _reconnectTimer = null;
+        final nonHosts = _state.players.where((p) => !p.isHost).toList();
+        if (hostMigrationEnabled &&
+            !_hostClosed &&
+            nonHosts.length >= 2 &&
+            _state.localPlayerId != null &&
+            _pendingInviteUrl != null) {
+          final successor = nonHosts.first;
+          if (successor.id == _state.localPlayerId) {
+            unawaited(_promoteToHost(nonHosts));
+          } else {
+            unawaited(_followMigratedHost(successor.name));
+          }
+          return;
+        }
         unawaited(_endOnHostLeave());
         return;
       }
+      ticks += 1;
       _emit(_state.copyWith(reconnectSecondsLeft: left));
-      unawaited(_attemptReconnect());
+      if (ticks <= 2 || ticks % 2 == 0) {
+        unawaited(_attemptReconnect());
+      }
     });
     if (reconnectAttemptDelay != Duration.zero) {
       Timer(reconnectAttemptDelay, () => unawaited(_attemptReconnect()));
@@ -4859,7 +5049,206 @@ class MatchCoordinator {
     }
   }
 
-  Future<void> _attemptReconnect() async {
+  Future<void> _promoteToHost(List<Player> nonHosts) async {
+    if (_disposed || _leaving || _hostClosed) return;
+    final rawInvite = _pendingInviteUrl;
+    if (rawInvite == null) {
+      await _endOnHostLeave();
+      return;
+    }
+    final InvitePayload oldInvite;
+    try {
+      oldInvite = tryParseInvite(rawInvite);
+    } on InvalidInviteException {
+      await _endOnHostLeave();
+      return;
+    }
+    final self = nonHosts.first;
+    final carriedPhotos = Map<String, String>.of(_state.avatarPhotos);
+    final config = _state.config;
+    final roomThemeId = _state.roomThemeId;
+    final connectionMode = _state.connectionMode;
+
+    _stopHeartbeat();
+    _stopClientPhaseTicker();
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    _migrationDelayTimer?.cancel();
+    _migrationDelayTimer = null;
+    await _cancelClientSubs();
+    try {
+      await _clientTransport?.close();
+    } on Object {
+      // Old client transport may already be closed.
+    }
+    _clientTransport = null;
+
+    _vaultPreloaded = false;
+    _partyPassPlayers.clear();
+    _clientPlayerIds.clear();
+    _playerClientIds.clear();
+    _playerTokens.clear();
+    _waitingPlayers.clear();
+    _waitingClientIds.clear();
+    _migratedScores.clear();
+    _avatarPhotos
+      ..clear()
+      ..addAll(carriedPhotos);
+    final selfPhoto = _avatarPhotos.remove(self.id) ?? _settingsValue.avatarPhoto;
+    if (selfPhoto != null && selfPhoto.isNotEmpty) {
+      _avatarPhotos['host'] = selfPhoto;
+    }
+    for (final other in nonHosts.skip(1)) {
+      _migratedScores[other.id] = other;
+    }
+
+    final engine = HostGameEngine(
+      config: config,
+      random: random == null ? null : Random(random!.nextInt(1 << 32)),
+      planterOverride: planterOverride,
+    );
+    _engine = engine;
+    engine.addMigratedPlayer(self, id: 'host', isHost: true);
+
+    final injected = _hostTransportFactory?.call(
+      oldInvite.roomId,
+      oldInvite.secret,
+      _lanAddresses,
+    );
+    final playtest = PlaytestConfig.enabled;
+    final local =
+        injected ??
+        (playtest
+            ? null
+            : LocalWsHostTransport(
+                roomId: oldInvite.roomId,
+                secret: oldInvite.secret,
+                advertiser: BonsoirMdnsAdvertiser(),
+              ));
+    if (local != null) {
+      try {
+        await local.start();
+      } on Object {
+        await _endOnHostLeave();
+        return;
+      }
+    }
+
+    final lanAddresses = local is LocalWsHostTransport
+        ? await local.refreshLanAddresses()
+        : const <String>[];
+    final lan = <String>[
+      if (local?.localLanEndpoint != null) local!.localLanEndpoint!,
+      ...(lanAddresses.isEmpty ? _lanAddresses : lanAddresses).map(
+        (address) =>
+            '$address:${local is LocalWsHostTransport ? local.port : 0}',
+      ),
+    ].where((entry) => !entry.endsWith(':0')).toSet().toList();
+
+    final signalingUrl =
+        oldInvite.signalingUrl ?? _settings.resolveSignalingUrl(_settingsValue);
+    final nextInvite = InvitePayload(
+      roomId: oldInvite.roomId,
+      hostId: 'host',
+      secret: oldInvite.secret,
+      lanEndpoints: List<String>.unmodifiable(lan),
+      signalingUrl: signalingUrl,
+      hostName: _displayName,
+    );
+
+    final online = includeOnlineTransport
+        ? WebRtcHostTransport(
+            invite: nextInvite,
+            iceClient: SignalingIceClient(
+              signalingUrl: signalingUrl,
+              turnRelay: turnRelay,
+            ),
+            settings: _settingsValue,
+          )
+        : null;
+    final transport =
+        injected ??
+        (playtest
+            ? (online ?? const _UnavailableHostTransport())
+            : CompositeHostTransport(<HostTransport>[
+                local!,
+                if (online != null) BestEffortHostTransport(online),
+              ]));
+    _hostTransport = transport;
+    _bindHostTransport(transport);
+    if (injected == null) {
+      await transport.start();
+    }
+
+    final nextInviteUrl = encodeInviteUrl(nextInvite, baseUrl: kInviteBaseUrl);
+    _pendingInviteUrl = nextInviteUrl;
+    await _startPlatformServices();
+    _emit(
+      MatchUiState(
+        isHosting: true,
+        roomId: oldInvite.roomId,
+        inviteUrl: nextInviteUrl,
+        localPlayerId: 'host',
+        phase: RoundPhase.lobby,
+        players: engine.players,
+        avatarPhotos: Map<String, String>.unmodifiable(_avatarPhotos),
+        config: config,
+        connectionMode: connectionMode ?? ConnectionMode.localLan,
+        roomThemeId: roomThemeId,
+        reconnecting: false,
+        migratingHost: false,
+        reconnectSecondsLeft: 0,
+        hostMigratedNotice: _l10n.hostMigratedSelfNotice,
+      ),
+    );
+    await _broadcastLobby();
+  }
+
+  Future<void> _followMigratedHost(String newHostName) async {
+    if (_disposed || _leaving || _hostClosed) return;
+    _stopHeartbeat();
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    _migrationDelayTimer?.cancel();
+    _emit(
+      _state.copyWith(
+        reconnecting: true,
+        migratingHost: true,
+        reconnectSecondsLeft: migrationRetrySeconds,
+      ),
+    );
+    _migrationDelayTimer = Timer(migrationFollowerDelay, () {
+      if (_disposed || _leaving || !_state.migratingHost) return;
+      unawaited(
+        _attemptReconnect(discoverLan: true, migratedHostName: newHostName),
+      );
+      _reconnectTimer?.cancel();
+      _reconnectTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (_disposed || _leaving || !_state.reconnecting) {
+          timer.cancel();
+          _reconnectTimer = null;
+          return;
+        }
+        if (_reconnectInFlight) return;
+        final left = _state.reconnectSecondsLeft - 1;
+        if (left <= 0) {
+          timer.cancel();
+          _reconnectTimer = null;
+          unawaited(_endOnHostLeave());
+          return;
+        }
+        _emit(_state.copyWith(reconnectSecondsLeft: left));
+        unawaited(
+          _attemptReconnect(discoverLan: true, migratedHostName: newHostName),
+        );
+      });
+    });
+  }
+
+  Future<void> _attemptReconnect({
+    bool discoverLan = false,
+    String? migratedHostName,
+  }) async {
     if (_reconnectInFlight || !_state.reconnecting || _leaving || _hostClosed) {
       return;
     }
@@ -4881,6 +5270,7 @@ class MatchCoordinator {
       transport = await _connector.connect(
         invite: invite,
         settings: _settingsValue,
+        discoverLan: discoverLan,
       );
       final ack = Completer<void>();
       _reconnectAck = ack;
@@ -4909,7 +5299,20 @@ class MatchCoordinator {
       await ack.future.timeout(const Duration(seconds: 4));
       _reconnectTimer?.cancel();
       _reconnectTimer = null;
-      _emit(_state.copyWith(reconnecting: false, reconnectSecondsLeft: 0));
+      _migrationDelayTimer?.cancel();
+      _migrationDelayTimer = null;
+      _lastHostActivityAt = DateTime.now();
+      _startHeartbeat();
+      _emit(
+        _state.copyWith(
+          reconnecting: false,
+          migratingHost: false,
+          reconnectSecondsLeft: 0,
+          hostMigratedNotice: migratedHostName != null
+              ? _l10n.hostMigratedNotice(migratedHostName)
+              : _state.hostMigratedNotice,
+        ),
+      );
     } on Object {
       await transport?.close();
     } finally {
@@ -4930,8 +5333,11 @@ class MatchCoordinator {
   }
 
   Future<void> _handleClientMessage(WireMessage message) async {
+    _lastHostActivityAt = DateTime.now();
     final payload = message.payload;
     switch (message.type) {
+      case WireType.pong:
+        break;
       case WireType.joinAck:
         _reconnectAck?.complete();
         final acknowledgedId = payload['playerId'] as String?;
@@ -5057,6 +5463,10 @@ class MatchCoordinator {
                   .entries)
             if (entry.value is String) entry.key: entry.value as String,
         };
+        final syncedInviteUrl = payload['inviteUrl'] as String?;
+        if (syncedInviteUrl != null && syncedInviteUrl.isNotEmpty) {
+          _pendingInviteUrl = syncedInviteUrl;
+        }
         final lastReveal = payload['lastReveal'];
         final captionReveal = payload['lastCaptionReveal'];
         final timelineReveal = payload['lastTimelineReveal'];
@@ -5141,7 +5551,11 @@ class MatchCoordinator {
             hostDeciding: payload['hostDeciding'] as bool? ?? false,
             screenshotAlerts: alerts,
             extensionSecondsLeft: payload['extensionSecondsLeft'] as int? ?? 0,
+            inviteUrl: (syncedInviteUrl != null && syncedInviteUrl.isNotEmpty)
+                ? syncedInviteUrl
+                : _state.inviteUrl,
             reconnecting: false,
+            migratingHost: false,
             reconnectSecondsLeft: 0,
             roomThemeId: RoomThemeId.fromWire(payload['roomThemeId'] as String?)
                 .wireId,
@@ -5241,6 +5655,10 @@ class MatchCoordinator {
                   .entries)
             if (entry.value is String) entry.key: entry.value as String,
         };
+        final lobbyInviteUrl = payload['inviteUrl'] as String?;
+        if (lobbyInviteUrl != null && lobbyInviteUrl.isNotEmpty) {
+          _pendingInviteUrl = lobbyInviteUrl;
+        }
         _emit(
           _state.copyWith(
             players: players,
@@ -5250,6 +5668,9 @@ class MatchCoordinator {
             phase: parsedPhase,
             plantUnlocked: plantUnlocked,
             avatarPhotos: avatarPhotos,
+            inviteUrl: (lobbyInviteUrl != null && lobbyInviteUrl.isNotEmpty)
+                ? lobbyInviteUrl
+                : _state.inviteUrl,
             waitingForMatch:
                 _state.waitingForMatch && parsedPhase != RoundPhase.lobby,
             waitingPlayersCount: payload['waitingCount'] as int? ?? 0,
@@ -6219,11 +6640,17 @@ class MatchCoordinator {
     _engine = null;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+    _migrationDelayTimer?.cancel();
+    _migrationDelayTimer = null;
+    _lastHostActivityAt = null;
     _reconnectAck = null;
     _reconnectInFlight = false;
     _hostClosed = false;
     _currentPlayerId = null;
     _currentPlayerToken = null;
+    _migratedScores.clear();
     await _cancelClientSubs();
     _remotePhotos.clear();
     _assemblers.clear();
@@ -6257,6 +6684,8 @@ class MatchCoordinator {
     _memesEmptyAdvanceTimer?.cancel();
     _vaultWatchdog?.cancel();
     _clientReadyRetry?.cancel();
+    _heartbeatTimer?.cancel();
+    _migrationDelayTimer?.cancel();
     await leaveMatch();
     await _states.close();
   }

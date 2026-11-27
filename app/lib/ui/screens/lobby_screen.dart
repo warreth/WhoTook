@@ -23,6 +23,7 @@ import '../widgets/game_widgets.dart';
 import '../widgets/mode_picker.dart';
 import '../widgets/online_hint.dart';
 import '../widgets/party_pass_bar.dart';
+import '../widgets/room_qr_dialog.dart';
 import '../widgets/safety_controls.dart';
 import 'avatar_crop_screen.dart';
 
@@ -81,6 +82,18 @@ class LobbyScreen extends ConsumerWidget {
           style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500),
         ),
         actions: <Widget>[
+          if (!demo && !isHost && state.roomId != null && state.inviteUrl != null)
+            IconButton(
+              tooltip: l10n.showRoomQr,
+              onPressed: () => unawaited(
+                showRoomQrDialog(
+                  context,
+                  roomId: state.roomId!,
+                  inviteUrl: state.inviteUrl!,
+                ),
+              ),
+              icon: const Icon(Icons.qr_code_2),
+            ),
           const AudioToggleButtons(),
           IconButton(
             tooltip: demo ? l10n.closeDemo : l10n.leaveMatch,
@@ -256,6 +269,27 @@ class LobbyScreen extends ConsumerWidget {
                         'online-hint-${state.roomId ?? ''}',
                       ),
                       mode: state.connectionMode,
+                    ),
+                    if (state.roomId != null && state.inviteUrl != null) ...<Widget>[
+                      const SizedBox(height: AppSpacing.s12),
+                      SecondaryButton(
+                        label: l10n.showRoomQr,
+                        icon: Icons.qr_code_2,
+                        onPressed: () => unawaited(
+                          showRoomQrDialog(
+                            context,
+                            roomId: state.roomId!,
+                            inviteUrl: state.inviteUrl!,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                  if (state.hostMigratedNotice != null) ...<Widget>[
+                    const SizedBox(height: AppSpacing.s12),
+                    NoticeBanner(
+                      message: state.hostMigratedNotice!,
+                      icon: Icons.swap_calls,
                     ),
                   ],
                   const SizedBox(height: AppSpacing.s16),

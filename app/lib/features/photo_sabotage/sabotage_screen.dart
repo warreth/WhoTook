@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -154,17 +155,35 @@ class _SabotageEditor extends StatefulWidget {
   State<_SabotageEditor> createState() => _SabotageEditorState();
 }
 
+class _SabotageSnapshot {
+  const _SabotageSnapshot({required this.strokes, required this.stickers});
+
+  final List<SabotageStroke> strokes;
+  final List<SabotageSticker> stickers;
+}
+
 class _SabotageEditorState extends State<_SabotageEditor> {
   static const List<double> _brushWidths = <double>[0.006, 0.012, 0.024];
+  static const List<Offset> _dropOffsets = <Offset>[
+    Offset(0.5, 0.44),
+    Offset(0.38, 0.36),
+    Offset(0.62, 0.38),
+    Offset(0.42, 0.56),
+    Offset(0.58, 0.54),
+  ];
 
   final List<SabotageStroke> _strokes = <SabotageStroke>[];
   final List<SabotageSticker> _stickers = <SabotageSticker>[];
-  final List<bool> _undoIsStroke = <bool>[];
+  final List<_SabotageSnapshot> _history = <_SabotageSnapshot>[];
   SabotageStroke? _live;
   int _colorIndex = 0;
   int _widthIndex = 1;
   bool _showStickers = false;
-  SabotageStickerKind? _activeSticker;
+  int? _selectedStickerIndex;
+  int? _draggingStickerIndex;
+  Offset _dragGrabDelta = Offset.zero;
+  double _scaleStartStickerScale = 1.0;
+  bool _dragSnapshotSaved = false;
   bool _sending = false;
   int? _autoSubmittedRound;
 
@@ -179,18 +198,85 @@ class _SabotageEditorState extends State<_SabotageEditor> {
     return PhotoMemoryCache.instance.bytesFor(widget.assignment.photoId);
   }
 
-  void _start(Offset position, Size size) {
+  void _pushHistory() {
+    _history.add(
+      _SabotageSnapshot(
+        strokes: List<SabotageStroke>.of(_strokes),
+        stickers: List<SabotageSticker>.of(_stickers),
+      ),
+    );
+    if (_history.length > 40) {
+      _history.removeAt(0);
+    }
+  }
+
+  int? _hitTestSticker(Offset point, Size size) {
+    final aspectX = size.shortestSide / size.width;
+    final aspectY = size.shortestSide / size.height;
+    for (var i = _stickers.length - 1; i >= 0; i--) {
+      final sticker = _stickers[i];
+      final dx = (point.dx - sticker.x) / aspectX;
+      final dy = (point.dy - sticker.y) / aspectY;
+      final hitRadius = math.max(0.095, 0.085 * sticker.scale);
+      if (dx * dx + dy * dy <= hitRadius * hitRadius) {
+        return i;
+      }
+    }
+    return null;
+  }
+
+  void _addSticker(SabotageStickerKind kind) {
     if (widget.state.memeSubmitted) return;
-    final point = _normalized(position, size);
-    final sticker = _activeSticker;
-    if (sticker != null) {
+    _pushHistory();
+    final drop = _dropOffsets[_stickers.length % _dropOffsets.length];
+    setState(() {
+      _stickers.add(SabotageSticker(kind: kind, x: drop.dx, y: drop.dy));
+      _selectedStickerIndex = _stickers.length - 1;
+    });
+  }
+
+  void _resizeSelectedSticker(double delta) {
+    final index = _selectedStickerIndex;
+    if (index == null || index < 0 || index >= _stickers.length) return;
+    _pushHistory();
+    final current = _stickers[index];
+    setState(() {
+      _stickers[index] = current.copyWith(scale: current.scale + delta);
+    });
+  }
+
+  void _deleteSelectedSticker() {
+    final index = _selectedStickerIndex;
+    if (index == null || index < 0 || index >= _stickers.length) return;
+    _pushHistory();
+    setState(() {
+      _stickers.removeAt(index);
+      _selectedStickerIndex = null;
+      _draggingStickerIndex = null;
+    });
+  }
+
+  void _onScaleStart(ScaleStartDetails details, Size size) {
+    if (widget.state.memeSubmitted) return;
+    final point = _normalized(details.localFocalPoint, size);
+    final hit = _hitTestSticker(point, size);
+    final targetIndex =
+        hit ?? (details.pointerCount >= 2 ? _selectedStickerIndex : null);
+    if (targetIndex != null && targetIndex < _stickers.length) {
+      final target = _stickers[targetIndex];
       setState(() {
-        _stickers.add(SabotageSticker(kind: sticker, x: point.dx, y: point.dy));
-        _undoIsStroke.add(false);
+        _selectedStickerIndex = targetIndex;
+        _draggingStickerIndex = targetIndex;
+        _dragGrabDelta = Offset(target.x - point.dx, target.y - point.dy);
+        _scaleStartStickerScale = target.scale;
+        _dragSnapshotSaved = false;
+        _live = null;
       });
       return;
     }
     setState(() {
+      _selectedStickerIndex = null;
+      _draggingStickerIndex = null;
       _live = SabotageStroke(
         colorIndex: _colorIndex,
         width: _brushWidths[_widthIndex],
@@ -199,16 +285,25 @@ class _SabotageEditorState extends State<_SabotageEditor> {
     });
   }
 
-  void _update(Offset position, Size size) {
-    final point = _normalized(position, size);
-    if (_activeSticker != null && _stickers.isNotEmpty) {
+  void _onScaleUpdate(ScaleUpdateDetails details, Size size) {
+    final point = _normalized(details.localFocalPoint, size);
+    final dragIndex = _draggingStickerIndex;
+    if (dragIndex != null && dragIndex < _stickers.length) {
+      if (!_dragSnapshotSaved) {
+        _pushHistory();
+        _dragSnapshotSaved = true;
+      }
+      final current = _stickers[dragIndex];
+      final nextX = (point.dx + _dragGrabDelta.dx).clamp(0.04, 0.96);
+      final nextY = (point.dy + _dragGrabDelta.dy).clamp(0.04, 0.96);
+      final nextScale = details.pointerCount >= 2
+          ? (_scaleStartStickerScale * details.scale).clamp(0.5, 2.2)
+          : current.scale;
       setState(() {
-        final last = _stickers.last;
-        _stickers[_stickers.length - 1] = SabotageSticker(
-          kind: last.kind,
-          x: point.dx,
-          y: point.dy,
-          scale: last.scale,
+        _stickers[dragIndex] = current.copyWith(
+          x: nextX,
+          y: nextY,
+          scale: nextScale,
         );
       });
       return;
@@ -225,37 +320,48 @@ class _SabotageEditorState extends State<_SabotageEditor> {
     });
   }
 
-  void _end() {
-    if (_activeSticker != null) return;
+  void _onScaleEnd() {
+    _draggingStickerIndex = null;
+    _dragSnapshotSaved = false;
     final live = _live;
     if (live == null) return;
+    _pushHistory();
     setState(() {
       if (live.points.isNotEmpty) {
         _strokes.add(live);
-        _undoIsStroke.add(true);
       }
       _live = null;
     });
   }
 
   void _undo() {
-    if (_undoIsStroke.isEmpty) return;
+    if (_history.isEmpty) return;
+    final previous = _history.removeLast();
     setState(() {
-      final isStroke = _undoIsStroke.removeLast();
-      if (isStroke) {
-        if (_strokes.isNotEmpty) _strokes.removeLast();
-      } else {
-        if (_stickers.isNotEmpty) _stickers.removeLast();
+      _strokes
+        ..clear()
+        ..addAll(previous.strokes);
+      _stickers
+        ..clear()
+        ..addAll(previous.stickers);
+      _live = null;
+      _draggingStickerIndex = null;
+      if (_selectedStickerIndex != null &&
+          _selectedStickerIndex! >= _stickers.length) {
+        _selectedStickerIndex = null;
       }
     });
   }
 
   void _clear() {
+    if (_strokes.isEmpty && _stickers.isEmpty) return;
+    _pushHistory();
     setState(() {
       _strokes.clear();
       _stickers.clear();
-      _undoIsStroke.clear();
       _live = null;
+      _selectedStickerIndex = null;
+      _draggingStickerIndex = null;
     });
   }
 
@@ -276,7 +382,10 @@ class _SabotageEditorState extends State<_SabotageEditor> {
       }
       return;
     }
-    setState(() => _sending = true);
+    setState(() {
+      _selectedStickerIndex = null;
+      _sending = true;
+    });
     widget.onSubmit(simplified, stickers);
     unawaited(GameHaptics.instance.light());
     unawaited(GameAudioService.instance.pop());
@@ -298,7 +407,7 @@ class _SabotageEditorState extends State<_SabotageEditor> {
         !state.memeSubmitted &&
         !_sending &&
         state.remainingMs > 0 &&
-        state.remainingMs <= 1000 &&
+        state.remainingMs <= 1500 &&
         (_strokes.isNotEmpty || _stickers.isNotEmpty) &&
         _autoSubmittedRound != state.currentRound) {
       _autoSubmittedRound = state.currentRound;
@@ -391,17 +500,17 @@ class _SabotageEditorState extends State<_SabotageEditor> {
                                 constraints.maxHeight,
                               );
                               return GestureDetector(
-                                onPanStart: (details) =>
-                                    _start(details.localPosition, size),
-                                onPanUpdate: (details) =>
-                                    _update(details.localPosition, size),
-                                onPanEnd: (_) => _end(),
-                                onPanCancel: _end,
+                                onScaleStart: (details) =>
+                                    _onScaleStart(details, size),
+                                onScaleUpdate: (details) =>
+                                    _onScaleUpdate(details, size),
+                                onScaleEnd: (_) => _onScaleEnd(),
                                 child: SabotageArt(
                                   photoId: widget.assignment.photoId,
                                   photoBytes: bytes,
                                   strokes: _visibleStrokes,
                                   stickers: _stickers,
+                                  selectedStickerIndex: _selectedStickerIndex,
                                   borderColor: colors.ink,
                                 ),
                               );
@@ -411,35 +520,50 @@ class _SabotageEditorState extends State<_SabotageEditor> {
                 ),
         ),
         if (!state.memeSubmitted) ...<Widget>[
+          if (_selectedStickerIndex != null &&
+              _selectedStickerIndex! < _stickers.length) ...<Widget>[
+            const SizedBox(height: 4),
+            _StickerSelectionBar(
+              sticker: _stickers[_selectedStickerIndex!],
+              onShrink: () => _resizeSelectedSticker(-0.2),
+              onGrow: () => _resizeSelectedSticker(0.2),
+              onDelete: _deleteSelectedSticker,
+              onDone: () => setState(() => _selectedStickerIndex = null),
+            ),
+          ],
           const SizedBox(height: 5),
           _Toolbar(
             colorIndex: _colorIndex,
             widthIndex: _widthIndex,
             showStickers: _showStickers,
-            activeSticker: _activeSticker,
-            canUndo: _undoIsStroke.isNotEmpty,
+            stickerSelected: _selectedStickerIndex != null,
+            selectedStickerKind:
+                _selectedStickerIndex != null &&
+                    _selectedStickerIndex! < _stickers.length
+                ? _stickers[_selectedStickerIndex!].kind
+                : null,
+            canUndo: _history.isNotEmpty,
+            canClear: _strokes.isNotEmpty || _stickers.isNotEmpty,
             canSwap: state.memeSwapsLeft > 0 && !_sending,
             sending: _sending,
             swapsLeft: state.memeSwapsLeft,
             onColor: (index) => setState(() {
               _colorIndex = index;
-              _activeSticker = null;
+              _selectedStickerIndex = null;
             }),
             onWidth: () => setState(() {
               _widthIndex = (_widthIndex + 1) % _brushWidths.length;
-              _activeSticker = null;
+              _selectedStickerIndex = null;
             }),
             onToggleStickers: () => setState(() {
               _showStickers = !_showStickers;
-              if (!_showStickers) _activeSticker = null;
             }),
-            onSelectSticker: (kind) => setState(() {
-              _activeSticker = _activeSticker == kind ? null : kind;
-            }),
+            onAddSticker: _addSticker,
             onUndo: _undo,
             onClear: _clear,
             onSwap: () {
               _clear();
+              _history.clear();
               widget.onSwap();
             },
             onSend: () => _send(),
@@ -478,20 +602,99 @@ class _SwapBadge extends StatelessWidget {
   }
 }
 
+class _StickerSelectionBar extends StatelessWidget {
+  const _StickerSelectionBar({
+    required this.sticker,
+    required this.onShrink,
+    required this.onGrow,
+    required this.onDelete,
+    required this.onDone,
+  });
+
+  final SabotageSticker sticker;
+  final VoidCallback onShrink;
+  final VoidCallback onGrow;
+  final VoidCallback onDelete;
+  final VoidCallback onDone;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    final l10n = context.l10n;
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: colors.ink, width: 2),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: SabotageStickerIcon(kind: sticker.kind, size: 22),
+            ),
+            IconButton(
+              tooltip: l10n.sabotageStickerSmaller,
+              onPressed: sticker.scale <= 0.55 ? null : onShrink,
+              constraints: const BoxConstraints.tightFor(width: 34, height: 32),
+              padding: EdgeInsets.zero,
+              icon: Icon(
+                Icons.remove,
+                size: 18,
+                color: sticker.scale <= 0.55 ? colors.ink3 : colors.ink,
+              ),
+            ),
+            IconButton(
+              tooltip: l10n.sabotageStickerLarger,
+              onPressed: sticker.scale >= 2.15 ? null : onGrow,
+              constraints: const BoxConstraints.tightFor(width: 34, height: 32),
+              padding: EdgeInsets.zero,
+              icon: Icon(
+                Icons.add,
+                size: 18,
+                color: sticker.scale >= 2.15 ? colors.ink3 : colors.ink,
+              ),
+            ),
+            IconButton(
+              tooltip: l10n.sabotageStickerDelete,
+              onPressed: onDelete,
+              constraints: const BoxConstraints.tightFor(width: 34, height: 32),
+              padding: EdgeInsets.zero,
+              icon: Icon(Icons.delete_outline, size: 18, color: colors.negative),
+            ),
+            IconButton(
+              tooltip: l10n.done,
+              onPressed: onDone,
+              constraints: const BoxConstraints.tightFor(width: 34, height: 32),
+              padding: EdgeInsets.zero,
+              icon: Icon(Icons.check, size: 18, color: colors.positive),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _Toolbar extends StatelessWidget {
   const _Toolbar({
     required this.colorIndex,
     required this.widthIndex,
     required this.showStickers,
-    required this.activeSticker,
+    required this.stickerSelected,
+    required this.selectedStickerKind,
     required this.canUndo,
+    required this.canClear,
     required this.canSwap,
     required this.sending,
     required this.swapsLeft,
     required this.onColor,
     required this.onWidth,
     required this.onToggleStickers,
-    required this.onSelectSticker,
+    required this.onAddSticker,
     required this.onUndo,
     required this.onClear,
     required this.onSwap,
@@ -501,15 +704,17 @@ class _Toolbar extends StatelessWidget {
   final int colorIndex;
   final int widthIndex;
   final bool showStickers;
-  final SabotageStickerKind? activeSticker;
+  final bool stickerSelected;
+  final SabotageStickerKind? selectedStickerKind;
   final bool canUndo;
+  final bool canClear;
   final bool canSwap;
   final bool sending;
   final int swapsLeft;
   final ValueChanged<int> onColor;
   final VoidCallback onWidth;
   final VoidCallback onToggleStickers;
-  final ValueChanged<SabotageStickerKind> onSelectSticker;
+  final ValueChanged<SabotageStickerKind> onAddSticker;
   final VoidCallback onUndo;
   final VoidCallback onClear;
   final VoidCallback onSwap;
@@ -533,7 +738,7 @@ class _Toolbar extends StatelessWidget {
                       if (i > 0) const SizedBox(width: 2),
                       Semantics(
                         button: true,
-                        selected: activeSticker == null && i == colorIndex,
+                        selected: !stickerSelected && i == colorIndex,
                         label: _colorLabel(l10n, i),
                         child: Tooltip(
                           message: _colorLabel(l10n, i),
@@ -546,8 +751,7 @@ class _Toolbar extends StatelessWidget {
                               child: Center(
                                 child: AnimatedScale(
                                   duration: const Duration(milliseconds: 120),
-                                  scale:
-                                      activeSticker == null && i == colorIndex
+                                  scale: !stickerSelected && i == colorIndex
                                       ? 1.18
                                       : 1,
                                   child: Container(
@@ -557,14 +761,10 @@ class _Toolbar extends StatelessWidget {
                                       color: sabotageColors[i],
                                       shape: BoxShape.circle,
                                       border: Border.all(
-                                        color:
-                                            activeSticker == null &&
-                                                i == colorIndex
+                                        color: !stickerSelected && i == colorIndex
                                             ? colors.accent
                                             : colors.ink,
-                                        width:
-                                            activeSticker == null &&
-                                                i == colorIndex
+                                        width: !stickerSelected && i == colorIndex
                                             ? 3
                                             : 2,
                                       ),
@@ -585,7 +785,7 @@ class _Toolbar extends StatelessWidget {
             _ToolButton(
               icon: Icons.emoji_emotions_outlined,
               label: l10n.sabotageStickers,
-              highlighted: showStickers || activeSticker != null,
+              highlighted: showStickers || stickerSelected,
               onTap: onToggleStickers,
             ),
             _ToolButton(
@@ -605,23 +805,23 @@ class _Toolbar extends StatelessWidget {
             _ToolButton(
               icon: Icons.delete_outline,
               label: l10n.sabotageClear,
-              onTap: canUndo ? onClear : null,
+              onTap: canClear ? onClear : null,
             ),
           ],
         ),
         if (showStickers) ...<Widget>[
-          const SizedBox(height: 4),
+          const SizedBox(height: 5),
           SizedBox(
-            height: 36,
+            height: 44,
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: <Widget>[
                 for (final kind in SabotageStickerKind.values) ...<Widget>[
-                  ChoiceChip(
-                    label: Text(_stickerLabel(l10n, kind)),
-                    selected: activeSticker == kind,
-                    onSelected: (_) => onSelectSticker(kind),
-                    visualDensity: VisualDensity.compact,
+                  _StickerTrayButton(
+                    kind: kind,
+                    label: _stickerLabel(l10n, kind),
+                    highlighted: selectedStickerKind == kind,
+                    onTap: () => onAddSticker(kind),
                   ),
                   const SizedBox(width: 6),
                 ],
@@ -659,6 +859,55 @@ class _Toolbar extends StatelessWidget {
   }
 }
 
+class _StickerTrayButton extends StatelessWidget {
+  const _StickerTrayButton({
+    required this.kind,
+    required this.label,
+    required this.highlighted,
+    required this.onTap,
+  });
+
+  final SabotageStickerKind kind;
+  final String label;
+  final bool highlighted;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = WhoTookColors.of(context);
+    return Semantics(
+      button: true,
+      label: label,
+      child: Tooltip(
+        message: label,
+        child: Material(
+          color: highlighted
+              ? colors.accent.withValues(alpha: 0.14)
+              : colors.card,
+          borderRadius: BorderRadius.circular(AppRadii.rControl),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(AppRadii.rControl),
+            child: Container(
+              width: 44,
+              height: 44,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppRadii.rControl),
+                border: Border.all(
+                  color: highlighted ? colors.accent : colors.ink,
+                  width: highlighted ? 2.5 : 2,
+                ),
+              ),
+              child: SabotageStickerIcon(kind: kind, size: 30),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 String _colorLabel(AppLocalizations l10n, int index) => switch (index) {
   0 => l10n.sabotageColor1,
   1 => l10n.sabotageColor2,
@@ -678,6 +927,10 @@ String _stickerLabel(AppLocalizations l10n, SabotageStickerKind kind) =>
       SabotageStickerKind.sunglasses => l10n.sabotageStickerShades,
       SabotageStickerKind.censorBar => l10n.sabotageStickerCensor,
       SabotageStickerKind.heart => l10n.sabotageStickerHeart,
+      SabotageStickerKind.clownNose => l10n.sabotageStickerClownNose,
+      SabotageStickerKind.devilHorns => l10n.sabotageStickerDevilHorns,
+      SabotageStickerKind.halo => l10n.sabotageStickerHalo,
+      SabotageStickerKind.partyHat => l10n.sabotageStickerPartyHat,
     };
 
 String _sabotagePrompt(AppLocalizations l10n, int index) => switch (index % 8) {
@@ -713,14 +966,25 @@ class _ToolButton extends StatelessWidget {
       constraints: const BoxConstraints.tightFor(width: 36, height: 36),
       padding: EdgeInsets.zero,
       visualDensity: VisualDensity.compact,
-      icon: Icon(
-        icon,
-        size: 20,
-        color: onTap == null
-            ? colors.ink3
-            : highlighted
-            ? colors.accent
-            : colors.ink,
+      icon: Container(
+        width: 30,
+        height: 30,
+        alignment: Alignment.center,
+        decoration: highlighted
+            ? BoxDecoration(
+                color: colors.ink,
+                borderRadius: BorderRadius.circular(AppRadii.rSm),
+              )
+            : null,
+        child: Icon(
+          icon,
+          size: 20,
+          color: onTap == null
+              ? colors.ink3
+              : highlighted
+              ? colors.card
+              : colors.ink,
+        ),
       ),
     );
   }

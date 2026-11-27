@@ -65,6 +65,96 @@ class NoopMdnsAdvertiser implements MdnsAdvertiser {
   Future<void> stop() async {}
 }
 
+/// Discovers a room advertised over mDNS so guests can locate a host on LAN
+/// even after a host migration changed the host's IP/port.
+abstract class MdnsDiscoverer {
+  const MdnsDiscoverer();
+
+  Future<List<String>> discover({
+    required String roomId,
+    Duration timeout = const Duration(seconds: 3),
+  });
+}
+
+class NoopMdnsDiscoverer extends MdnsDiscoverer {
+  const NoopMdnsDiscoverer();
+
+  @override
+  Future<List<String>> discover({
+    required String roomId,
+    Duration timeout = const Duration(seconds: 3),
+  }) async => const <String>[];
+}
+
+class BonsoirMdnsDiscoverer extends MdnsDiscoverer {
+  const BonsoirMdnsDiscoverer();
+
+  @override
+  Future<List<String>> discover({
+    required String roomId,
+    Duration timeout = const Duration(seconds: 3),
+  }) async {
+    final endpoints = <String>[];
+    final completer = Completer<List<String>>();
+    BonsoirDiscovery? discovery;
+    StreamSubscription<BonsoirDiscoveryEvent>? sub;
+    Timer? timer;
+
+    bool matches(BonsoirService service) =>
+        service.name == 'WhoTook-$roomId' || service.attributes['room'] == roomId;
+
+    void finish() {
+      if (!completer.isCompleted) {
+        completer.complete(List<String>.unmodifiable(endpoints));
+      }
+    }
+
+    try {
+      discovery = BonsoirDiscovery(type: kWhotookMdnsType);
+      await discovery.initialize();
+      timer = Timer(timeout, finish);
+      sub = discovery.eventStream?.listen((event) {
+        switch (event) {
+          case BonsoirDiscoveryServiceFoundEvent(:final service):
+            if (matches(service)) {
+              discovery?.serviceResolver.resolveService(service);
+            }
+          case BonsoirDiscoveryServiceResolvedEvent(:final service):
+          case BonsoirDiscoveryServiceUpdatedEvent(:final service):
+            if (!matches(service) || service.port <= 0) break;
+            for (final rawHost in service.hostAddresses) {
+              final host = rawHost.trim();
+              if (host.isEmpty || host.contains(':') || host == '127.0.0.1' || host.startsWith('169.254.')) {
+                continue;
+              }
+              final candidate = '$host:${service.port}';
+              if (!endpoints.contains(candidate)) {
+                endpoints.add(candidate);
+              }
+            }
+            if (endpoints.isNotEmpty) {
+              finish();
+            }
+          default:
+            break;
+        }
+      });
+      await discovery.start();
+      return await completer.future;
+    } on Object {
+      return List<String>.unmodifiable(endpoints);
+    } finally {
+      timer?.cancel();
+      await sub?.cancel();
+      try {
+        await discovery?.stop();
+      } on Object {
+        // Ignore mDNS teardown errors on exit.
+      }
+    }
+  }
+}
+
 /// Serves the match over a plain WebSocket on the local network. This is the
 /// zero server path: the host phone is the server.
 class LocalWsHostTransport implements HostTransport {
@@ -180,6 +270,7 @@ class LocalWsHostTransport implements HostTransport {
     }
 
     final socket = await WebSocketTransformer.upgrade(request);
+    socket.pingInterval = const Duration(seconds: 5);
     final peerId = 'c_lan${_nextPeer++}';
     _sockets[peerId] = socket;
 
@@ -307,6 +398,7 @@ class LocalWsClientTransport implements ClientTransport {
         'LAN host unreachable',
       ),
     );
+    socket.pingInterval = const Duration(seconds: 5);
     _socket = socket;
     _subscription = socket.listen(
       (data) {

@@ -1090,12 +1090,12 @@
   "lobbySoundboardLabel": "Soundboard",
   "lobbyRelayLabel": "Relay",
   "lobbySoundboardOn": "Ready",
-  "lobbySoundboardOff": "Pass only",
+  "lobbySoundboardOff": "Optional",
   "relayStatusLocal": "Same Wi-Fi",
   "relayStatusDirect": "Direct P2P",
   "relayStatusRelay": "Online relay",
   "relayStatusCustom": "Custom TURN",
-  "relayStatusOffline": "Not connected",
+  "relayStatusOffline": "Offline mode",
   "soundboardTitle": "Soundboard",
   "soundboardHint": "Tap a sound. Everyone hears it.",
   "soundboardCollapse": "Hide soundboard",
@@ -1374,6 +1374,46 @@
   "@openSupportEmail": {
     "placeholders": {
       "email": { "type": "String" }
+    }
+  },
+  "sabotageStickerClownNose": "Clown nose",
+  "sabotageStickerDevilHorns": "Devil horns",
+  "sabotageStickerHalo": "Halo",
+  "sabotageStickerPartyHat": "Party hat",
+  "sabotageStickerSmaller": "Smaller",
+  "sabotageStickerLarger": "Larger",
+  "sabotageStickerDelete": "Remove sticker",
+  "partyPassLobbyOptionalTitle": "Optional: Play online & soundboard",
+  "partyPassLobbyOptionalBody": "Same Wi-Fi or hotspot is always free.",
+  "onboardingOfflineTitle": "Play anywhere, even completely offline",
+  "onboardingOfflineBody": "On a plane, in the mountains, or on vacation with zero 4G or Wi-Fi? You only need the phones in the room.",
+  "onboardingHotspotTitle": "Hotspot trick, no internet needed",
+  "onboardingHotspotBody": "One person simply turns on a personal hotspot without mobile data or Wi-Fi. Everyone connects to it so the phones talk directly to each other.",
+  "onboardingNext": "Next",
+  "onboardingPrivacyTitle": "100% open-source & private",
+  "onboardingPrivacyDirectTitle": "Phone-to-phone, zero servers",
+  "onboardingPrivacyDirectBody": "On the same Wi-Fi or hotspot, photos and choices travel straight between players' phones and nowhere else.",
+  "onboardingPrivacyNoDataTitle": "No data or photos collected",
+  "onboardingPrivacyNoDataBody": "No accounts, no tracking, and zero photos stored online. Even online games use direct P2P with only brief signaling.",
+  "onboardingPrivacyOpenSourceTitle": "Fully open-source",
+  "onboardingPrivacyOpenSourceBody": "Anyone can inspect the entire app code on GitHub to verify how it works.",
+  "onboardingViewSource": "View source on GitHub",
+  "hostMigratingTitle": "Handing over host...",
+  "hostMigratingBody": "Original host is gone. Joining the new host ({seconds}s left).",
+  "@hostMigratingBody": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "hostMigratedSelfNotice": "Original host left, so you are the host now. All scores were kept.",
+  "hostMigratedNotice": "{name} is the host now. All scores were kept.",
+  "@hostMigratedNotice": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
     }
   }
 }

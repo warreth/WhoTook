@@ -44,7 +44,8 @@ void main() {
     });
   }
 
-  testWidgets('shows onboarding on first run', (tester) async {
+  testWidgets('shows 3-step onboarding on first run', (tester) async {
+    await usePhone(tester);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -57,13 +58,31 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(
+      find.text('Play anywhere, even completely offline'),
+      findsOneWidget,
+    );
+    expect(find.text('Hotspot trick, no internet needed'), findsOneWidget);
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('100% open-source & private'), findsOneWidget);
+    expect(find.text('Phone-to-phone, zero servers'), findsOneWidget);
+    expect(find.text('View source on GitHub'), findsOneWidget);
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+
     expect(find.text('Guess whose photo it is'), findsOneWidget);
     expect(find.text('Same Wi-Fi is always free'), findsOneWidget);
-    expect(find.textContaining('Play Anywhere is optional'), findsOneWidget);
+    final verticalScroll = find
+        .byWidgetPredicate(
+          (w) => w is Scrollable && w.axisDirection == AxisDirection.down,
+        )
+        .first;
     await tester.scrollUntilVisible(
       find.text('Continue'),
       300,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: verticalScroll,
     );
     expect(find.text('Continue'), findsOneWidget);
     expect(
@@ -73,6 +92,7 @@ void main() {
   });
 
   testWidgets('onboarding requires terms before continuing', (tester) async {
+    await usePhone(tester);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -86,11 +106,21 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+
+    final verticalScroll = find
+        .byWidgetPredicate(
+          (w) => w is Scrollable && w.axisDirection == AxisDirection.down,
+        )
+        .first;
     await tester.enterText(find.byType(TextField).first, 'Bram');
     await tester.scrollUntilVisible(
       find.byType(Checkbox),
       300,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: verticalScroll,
     );
     await tester.ensureVisible(find.byType(Checkbox));
     await tester.pumpAndSettle();
@@ -100,7 +130,7 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('Continue'),
       300,
-      scrollable: find.byType(Scrollable).first,
+      scrollable: verticalScroll,
     );
     await tester.ensureVisible(find.text('Continue'));
     await tester.pumpAndSettle();

@@ -17,6 +17,7 @@ class SabotageArt extends StatelessWidget {
     required this.photoId,
     required this.strokes,
     this.stickers = const <SabotageSticker>[],
+    this.selectedStickerIndex,
     this.photoBytes,
     this.progress = 1,
     this.showWatermark = false,
@@ -27,6 +28,7 @@ class SabotageArt extends StatelessWidget {
   final String photoId;
   final List<SabotageStroke> strokes;
   final List<SabotageSticker> stickers;
+  final int? selectedStickerIndex;
   final Uint8List? photoBytes;
   final double progress;
   final bool showWatermark;
@@ -74,6 +76,7 @@ class SabotageArt extends StatelessWidget {
                 painter: SabotageDrawingPainter(
                   strokes: strokes,
                   stickers: stickers,
+                  selectedStickerIndex: selectedStickerIndex,
                   progress: progress,
                 ),
               ),

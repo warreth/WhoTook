@@ -308,6 +308,8 @@ abstract class _WebRtcTransportBase {
   TurnLimitNotice? _turnNotice;
   bool _usesRelay = false;
   bool _disposed = false;
+  bool _disconnectFired = false;
+  Timer? _disconnectGrace;
 
   Stream<WireMessage> get messages => _messages.stream;
 
@@ -448,12 +450,59 @@ abstract class _WebRtcTransportBase {
     channel.send(RTCDataChannelMessage(message.encode()));
   }
 
+  void _monitorPeerConnection(RTCPeerConnection peer) {
+    void onTransientDisconnect() {
+      if (_disposed || _disconnectFired) return;
+      _disconnectGrace ??= Timer(
+        const Duration(seconds: 5),
+        _fireDisconnected,
+      );
+    }
+
+    void onRecovered() {
+      _disconnectGrace?.cancel();
+      _disconnectGrace = null;
+    }
+
+    peer.onConnectionState = (state) {
+      if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
+          state == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {
+        _fireDisconnected();
+      } else if (state ==
+          RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
+        onTransientDisconnect();
+      } else if (state ==
+          RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
+        onRecovered();
+      }
+    };
+    peer.onIceConnectionState = (state) {
+      if (state == RTCIceConnectionState.RTCIceConnectionStateFailed ||
+          state == RTCIceConnectionState.RTCIceConnectionStateClosed) {
+        _fireDisconnected();
+      } else if (state ==
+          RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
+        onTransientDisconnect();
+      } else if (state ==
+              RTCIceConnectionState.RTCIceConnectionStateConnected ||
+          state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
+        onRecovered();
+      }
+    };
+  }
+
   void _fireDisconnected() {
+    if (_disconnectFired) return;
+    _disconnectFired = true;
+    _disconnectGrace?.cancel();
+    _disconnectGrace = null;
     if (!_disconnected.isClosed) _disconnected.add(null);
   }
 
   Future<void> closeAll() async {
     _disposed = true;
+    _disconnectGrace?.cancel();
+    _disconnectGrace = null;
     await _signalingSub?.cancel();
     _signalingSub = null;
     await _signaling?.sink.close();
@@ -824,11 +873,21 @@ class WebRtcHostPeer {
   RTCDataChannel? _channel;
   bool _usesRelay = false;
   bool _remoteDescriptionSet = false;
+  bool _closedNotified = false;
+  Timer? _disconnectGrace;
   final List<RTCIceCandidate> _pendingRemoteIce = <RTCIceCandidate>[];
 
   bool get isOpen => _channel?.state == RTCDataChannelState.RTCDataChannelOpen;
 
   bool get usesRelay => _usesRelay;
+
+  void _notifyClosed() {
+    if (_closedNotified) return;
+    _closedNotified = true;
+    _disconnectGrace?.cancel();
+    _disconnectGrace = null;
+    onClosed();
+  }
 
   Future<void> createOffer() async {
     final peer = await createPeerConnection(configuration);
@@ -839,6 +898,33 @@ class WebRtcHostPeer {
     );
     _channel = channel;
     _bindChannel(channel);
+    peer.onConnectionState = (state) {
+      if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
+          state == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {
+        _notifyClosed();
+      } else if (state ==
+          RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
+        _disconnectGrace ??= Timer(const Duration(seconds: 5), _notifyClosed);
+      } else if (state ==
+          RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
+        _disconnectGrace?.cancel();
+        _disconnectGrace = null;
+      }
+    };
+    peer.onIceConnectionState = (state) {
+      if (state == RTCIceConnectionState.RTCIceConnectionStateFailed ||
+          state == RTCIceConnectionState.RTCIceConnectionStateClosed) {
+        _notifyClosed();
+      } else if (state ==
+          RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
+        _disconnectGrace ??= Timer(const Duration(seconds: 5), _notifyClosed);
+      } else if (state ==
+              RTCIceConnectionState.RTCIceConnectionStateConnected ||
+          state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
+        _disconnectGrace?.cancel();
+        _disconnectGrace = null;
+      }
+    };
 
     peer.onIceCandidate = (candidate) {
       if (candidate.candidate == null) return;
@@ -883,7 +969,7 @@ class WebRtcHostPeer {
         onOpen();
         unawaited(_detectRelay());
       }
-      if (state == RTCDataChannelState.RTCDataChannelClosed) onClosed();
+      if (state == RTCDataChannelState.RTCDataChannelClosed) _notifyClosed();
     };
     channel.onMessage = (message) {
       try {
@@ -910,6 +996,9 @@ class WebRtcHostPeer {
   }
 
   Future<void> close() async {
+    _disconnectGrace?.cancel();
+    _disconnectGrace = null;
+    _closedNotified = true;
     _remoteDescriptionSet = false;
     _pendingRemoteIce.clear();
     await _channel?.close();
@@ -1045,6 +1134,7 @@ class WebRtcClientTransport extends _WebRtcTransportBase
       return;
     }
     _peer = peer;
+    _monitorPeerConnection(peer);
 
     peer.onDataChannel = (channel) {
       attachChannel(

@@ -4,6 +4,7 @@ const String kInviteBaseUrl = 'https://whotook.party/j';
 
 /// Public site and legal links. The support inbox is hosted by Zoho Mail.
 const String kSiteUrl = 'https://whotook.party';
+const String kRepoUrl = 'https://github.com/warreth/WhoTook';
 const String kSupportEmail = 'hello@whotook.party';
 const String kSupportUrl = '$kSiteUrl/support';
 const String kTermsUrl = '$kSiteUrl/terms';

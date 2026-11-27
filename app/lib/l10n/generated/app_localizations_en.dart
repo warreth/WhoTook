@@ -2028,7 +2028,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get lobbySoundboardOn => 'Ready';
 
   @override
-  String get lobbySoundboardOff => 'Pass only';
+  String get lobbySoundboardOff => 'Optional';
 
   @override
   String get relayStatusLocal => 'Same Wi-Fi';
@@ -2043,7 +2043,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get relayStatusCustom => 'Custom TURN';
 
   @override
-  String get relayStatusOffline => 'Not connected';
+  String get relayStatusOffline => 'Offline mode';
 
   @override
   String get soundboardTitle => 'Soundboard';
@@ -2472,5 +2472,95 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String openSupportEmail(String email) {
     return 'Email support ($email)';
+  }
+
+  @override
+  String get sabotageStickerClownNose => 'Clown nose';
+
+  @override
+  String get sabotageStickerDevilHorns => 'Devil horns';
+
+  @override
+  String get sabotageStickerHalo => 'Halo';
+
+  @override
+  String get sabotageStickerPartyHat => 'Party hat';
+
+  @override
+  String get sabotageStickerSmaller => 'Smaller';
+
+  @override
+  String get sabotageStickerLarger => 'Larger';
+
+  @override
+  String get sabotageStickerDelete => 'Remove sticker';
+
+  @override
+  String get partyPassLobbyOptionalTitle =>
+      'Optional: Play online & soundboard';
+
+  @override
+  String get partyPassLobbyOptionalBody =>
+      'Same Wi-Fi or hotspot is always free.';
+
+  @override
+  String get onboardingOfflineTitle => 'Play anywhere, even completely offline';
+
+  @override
+  String get onboardingOfflineBody =>
+      'On a plane, in the mountains, or on vacation with zero 4G or Wi-Fi? You only need the phones in the room.';
+
+  @override
+  String get onboardingHotspotTitle => 'Hotspot trick, no internet needed';
+
+  @override
+  String get onboardingHotspotBody =>
+      'One person simply turns on a personal hotspot without mobile data or Wi-Fi. Everyone connects to it so the phones talk directly to each other.';
+
+  @override
+  String get onboardingNext => 'Next';
+
+  @override
+  String get onboardingPrivacyTitle => '100% open-source & private';
+
+  @override
+  String get onboardingPrivacyDirectTitle => 'Phone-to-phone, zero servers';
+
+  @override
+  String get onboardingPrivacyDirectBody =>
+      'On the same Wi-Fi or hotspot, photos and choices travel straight between players\' phones and nowhere else.';
+
+  @override
+  String get onboardingPrivacyNoDataTitle => 'No data or photos collected';
+
+  @override
+  String get onboardingPrivacyNoDataBody =>
+      'No accounts, no tracking, and zero photos stored online. Even online games use direct P2P with only brief signaling.';
+
+  @override
+  String get onboardingPrivacyOpenSourceTitle => 'Fully open-source';
+
+  @override
+  String get onboardingPrivacyOpenSourceBody =>
+      'Anyone can inspect the entire app code on GitHub to verify how it works.';
+
+  @override
+  String get onboardingViewSource => 'View source on GitHub';
+
+  @override
+  String get hostMigratingTitle => 'Handing over host...';
+
+  @override
+  String hostMigratingBody(int seconds) {
+    return 'Original host is gone. Joining the new host (${seconds}s left).';
+  }
+
+  @override
+  String get hostMigratedSelfNotice =>
+      'Original host left, so you are the host now. All scores were kept.';
+
+  @override
+  String hostMigratedNotice(String name) {
+    return '$name is the host now. All scores were kept.';
   }
 }

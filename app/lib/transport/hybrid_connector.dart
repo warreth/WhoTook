@@ -27,17 +27,20 @@ class HybridConnector {
     OnlineClientFactory? onlineClientFactory,
     this._iceClient,
     this._turnRelay,
+    MdnsDiscoverer? mdnsDiscoverer,
     this.localProbeTimeout = const Duration(milliseconds: 800),
   }) : _localFactory =
            localClientFactory ??
            ((endpoint, secret) =>
                LocalWsClientTransport(endpoint: endpoint, secret: secret)),
-       _onlineFactory = onlineClientFactory;
+       _onlineFactory = onlineClientFactory,
+       _mdnsDiscoverer = mdnsDiscoverer ?? const NoopMdnsDiscoverer();
 
   final LocalClientFactory _localFactory;
   final OnlineClientFactory? _onlineFactory;
   final SignalingIceClient? _iceClient;
   final Future<TurnRelayAttempt> Function()? _turnRelay;
+  final MdnsDiscoverer _mdnsDiscoverer;
   final Duration localProbeTimeout;
 
   /// Connects with the first transport that succeeds. Throws
@@ -46,8 +49,13 @@ class HybridConnector {
   Future<ClientTransport> connect({
     required InvitePayload invite,
     required AppSettings settings,
+    bool discoverLan = false,
   }) async {
-    final local = await _raceLocal(invite);
+    final endpoints = <String>[
+      if (discoverLan) ...await _mdnsDiscoverer.discover(roomId: invite.roomId),
+      ...invite.lanEndpoints,
+    ];
+    final local = await _raceLocal(invite, endpoints.toSet().toList());
     if (local != null) return local;
 
     final online = _buildOnline(invite, settings);
@@ -79,8 +87,11 @@ class HybridConnector {
     return kDefaultSignalingUrl;
   }
 
-  Future<ClientTransport?> _raceLocal(InvitePayload invite) async {
-    if (invite.lanEndpoints.isEmpty) return null;
+  Future<ClientTransport?> _raceLocal(
+    InvitePayload invite,
+    List<String> lanEndpoints,
+  ) async {
+    if (lanEndpoints.isEmpty) return null;
     final settled = Completer<ClientTransport?>();
     final attempts = <ClientTransport>[];
 
@@ -89,7 +100,7 @@ class HybridConnector {
       settled.complete(winner);
     }
 
-    for (final endpoint in invite.lanEndpoints) {
+    for (final endpoint in lanEndpoints) {
       final client = _localFactory(endpoint, invite.secret);
       attempts.add(client);
       unawaited(

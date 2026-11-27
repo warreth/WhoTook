@@ -48,7 +48,8 @@ class MatchRoot extends ConsumerStatefulWidget {
   ConsumerState<MatchRoot> createState() => _MatchRootState();
 }
 
-class _MatchRootState extends ConsumerState<MatchRoot> {
+class _MatchRootState extends ConsumerState<MatchRoot>
+    with WidgetsBindingObserver {
   int? _dismissedBuild;
   int? _splashRound;
   GameMode? _splashMode;
@@ -57,7 +58,21 @@ class _MatchRootState extends ConsumerState<MatchRoot> {
   String? _audioRoomKey;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(ref.read(matchCoordinatorProvider).onAppResumed());
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _splashTimer?.cancel();
     super.dispose();
   }
@@ -238,6 +253,7 @@ class _MatchRootState extends ConsumerState<MatchRoot> {
               Positioned.fill(
                 child: _ReconnectOverlay(
                   secondsLeft: state.reconnectSecondsLeft,
+                  migratingHost: state.migratingHost,
                   onLeave: () => unawaited(coordinator.leaveMatch()),
                 ),
               ),
@@ -374,9 +390,14 @@ class _DemoEndedScreen extends StatelessWidget {
 }
 
 class _ReconnectOverlay extends StatelessWidget {
-  const _ReconnectOverlay({required this.secondsLeft, required this.onLeave});
+  const _ReconnectOverlay({
+    required this.secondsLeft,
+    this.migratingHost = false,
+    required this.onLeave,
+  });
 
   final int secondsLeft;
+  final bool migratingHost;
   final VoidCallback onLeave;
 
   @override
@@ -403,7 +424,10 @@ class _ReconnectOverlay extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.s20),
                   Text(
-                    l10n.connectionLost,
+                    migratingHost
+                        ? l10n.hostMigratingTitle
+                        : l10n.connectionLost,
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w600,
@@ -413,7 +437,9 @@ class _ReconnectOverlay extends StatelessWidget {
                   ),
                   const SizedBox(height: AppSpacing.s8),
                   Text(
-                    l10n.reconnectingIn(secondsLeft),
+                    migratingHost
+                        ? l10n.hostMigratingBody(secondsLeft)
+                        : l10n.reconnectingIn(secondsLeft),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 14,
@@ -479,7 +505,7 @@ class _ArcadeSplash extends StatelessWidget {
     };
 
     return IgnorePointer(
-      child: ColoredBox(
+      child: Material(
         color: skin.base,
         child: Center(
           child: Padding(

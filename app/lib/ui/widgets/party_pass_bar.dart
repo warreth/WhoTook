@@ -127,15 +127,81 @@ class PartyPassLobbyBar extends ConsumerWidget {
               ),
             )
           else
-            GameButton(
-              label: pass.displayPrice.isEmpty
-                  ? l10n.partyPassUnlockNoPrice
-                  : l10n.partyPassLobbyButton(pass.displayPrice),
-              icon: Icons.auto_awesome,
-              variant: GameButtonVariant.gold,
-              small: true,
-              fullWidth: true,
-              onPressed: () => showPartyPassSheet(context),
+            Semantics(
+              button: true,
+              label: l10n.partyPassLobbyOptionalTitle,
+              child: InkWell(
+                onTap: () => showPartyPassSheet(context),
+                borderRadius: BorderRadius.circular(AppRadii.rControl),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.s12,
+                    vertical: AppSpacing.s8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colors.raised,
+                    borderRadius: BorderRadius.circular(AppRadii.rControl),
+                    border: Border.all(color: colors.hairline),
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Icon(
+                        Icons.auto_awesome,
+                        size: 18,
+                        color: colors.accent,
+                      ),
+                      const SizedBox(width: AppSpacing.s8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              l10n.partyPassLobbyOptionalTitle,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: colors.ink,
+                              ),
+                            ),
+                            Text(
+                              l10n.partyPassLobbyOptionalBody,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: colors.ink2,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.s8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.s8,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: GamePalette.gold,
+                          borderRadius: BorderRadius.circular(AppRadii.rSm),
+                          border: Border.all(
+                            color: GamePalette.onGold,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Text(
+                          pass.displayPrice.isEmpty
+                              ? l10n.partyPassUnlockNoPrice
+                              : l10n.partyPassLobbyButton(pass.displayPrice),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: GamePalette.onGold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
         ],
       ),
@@ -153,7 +219,7 @@ class PartyPassLobbyBar extends ConsumerWidget {
       ConnectionMode.webrtcP2p => l10n.relayStatusDirect,
       ConnectionMode.webrtcTurn => l10n.relayStatusRelay,
       ConnectionMode.offlineLoopback => l10n.relayStatusOffline,
-      null => l10n.relayStatusOffline,
+      null => l10n.relayStatusLocal,
     };
   }
 }

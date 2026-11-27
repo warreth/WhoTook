@@ -42,8 +42,7 @@ class HostControlsButton extends ConsumerWidget {
         .toList();
     final colors = WhoTookColors.of(context);
     final l10n = context.l10n;
-    final canShowQr =
-        state.isHosting && state.roomId != null && state.inviteUrl != null;
+    final canShowQr = state.roomId != null && state.inviteUrl != null;
     final canModerate = state.roomId != null || blockableOthers.isNotEmpty;
     final hasMenu =
         canSkip || (state.isHosting && hostOthers.isNotEmpty) || canModerate;
