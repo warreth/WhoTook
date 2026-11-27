@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -18,7 +20,7 @@ import '../../support/test_photo_library.dart';
 ///   flutter test test/ui/visual/new_modes_visual_test.dart \
 ///     --dart-define=VISUAL_UPDATE=true --update-goldens
 ///
-/// The PNGs land in .private_prototypes/visual and stay out of git.
+/// The PNGs land in the system temp directory and stay out of git.
 const bool _visual = bool.fromEnvironment('VISUAL_UPDATE');
 
 void main() {
@@ -77,7 +79,7 @@ void main() {
       await expectLater(
         find.byType(ModeSetupScreen),
         matchesGoldenFile(
-          '../../../../.private_prototypes/visual/choose-mixed-$suffix.png',
+          '${Directory.systemTemp.path}/whotook-visual/choose-mixed-$suffix.png',
         ),
       );
 
@@ -86,7 +88,7 @@ void main() {
       await expectLater(
         find.byType(ModeSetupScreen),
         matchesGoldenFile(
-          '../../../../.private_prototypes/visual/mixed-selector-$suffix.png',
+          '${Directory.systemTemp.path}/whotook-visual/mixed-selector-$suffix.png',
         ),
       );
     }, skip: !_visual);

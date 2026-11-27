@@ -1632,8 +1632,11 @@ Future<void> _storeShot(
   if (data == null) {
     throw StateError('Could not encode $name');
   }
-  Directory('test/ui/store_raw').createSync(recursive: true);
-  File('test/ui/store_raw/$name').writeAsBytesSync(data.buffer.asUint8List());
+  final storeDir = Directory(
+    Platform.environment['STORE_SCREENSHOTS_DIR'] ??
+        '${Directory.systemTemp.path}/whotook-store',
+  )..createSync(recursive: true);
+  File('${storeDir.path}/$name').writeAsBytesSync(data.buffer.asUint8List());
   // Drop the tree so the next screen gets a fresh ProviderScope instead of
   // keeping the first screen's stream value.
   await tester.pumpWidget(const SizedBox.shrink());

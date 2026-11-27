@@ -2,8 +2,9 @@
 // Four isolated browser contexts play a real WhoTook match through the actual
 // Flutter UI. The app is built with PLAYTEST_MODE=true, which swaps the gallery
 // for bundled dated samples and publishes a state snapshot plus a tiny command
-// bridge to localStorage. Screenshots are written under .private_prototypes.
+// bridge to localStorage. Screenshots are written outside the public tree.
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -1104,7 +1105,7 @@ async function main() {
     );
   }
   screenshotsDir = process.env.PLAYTEST_SCREENSHOTS ||
-    path.join(repoRoot, '.private_prototypes/auto_playtest/screenshots');
+    path.join(os.tmpdir(), 'opencode', 'whotook_playtest', 'auto_playtest', 'screenshots');
   fs.rmSync(screenshotsDir, { recursive: true, force: true });
   fs.mkdirSync(screenshotsDir, { recursive: true });
 
@@ -1250,7 +1251,7 @@ async function main() {
       consoleErrors,
     };
     const reportPath = options.report ||
-      path.join(repoRoot, '.private_prototypes/auto_playtest/report.json');
+      path.join(os.tmpdir(), 'opencode', 'whotook_playtest', 'auto_playtest', 'report.json');
     fs.mkdirSync(path.dirname(reportPath), { recursive: true });
     fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
     process.stdout.write(
@@ -1267,7 +1268,7 @@ async function main() {
       stack: error.stack,
     };
     const reportPath = options.report ||
-      path.join(repoRoot, '.private_prototypes/auto_playtest/report.json');
+      path.join(os.tmpdir(), 'opencode', 'whotook_playtest', 'auto_playtest', 'report.json');
     fs.mkdirSync(path.dirname(reportPath), { recursive: true });
     fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
     process.stderr.write(`\n✗ Playtest failed: ${error.message}\n`);

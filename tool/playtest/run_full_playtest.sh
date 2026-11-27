@@ -12,6 +12,8 @@ SKIP_BUILD=0
 BUILD_ONLY=0
 DART_ONLY=0
 VISUAL_ONLY=0
+PLAYTEST_OUTPUT_DIR="${PLAYTEST_OUTPUT_DIR:-/tmp/opencode/whotook_playtest}"
+export PLAYTEST_OUTPUT_DIR
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -91,5 +93,5 @@ cd "$ROOT"
 node tool/playtest/playtest_bot_match.mjs --web-dir "$WEB_DIR" --mode "$MODE"
 
 echo
-echo "Screenshots: $ROOT/.private_prototypes/auto_playtest/screenshots"
-echo "Report:      $ROOT/.private_prototypes/auto_playtest/report.json"
+echo "Screenshots: $PLAYTEST_OUTPUT_DIR/auto_playtest/screenshots"
+echo "Report:      $PLAYTEST_OUTPUT_DIR/auto_playtest/report.json"
