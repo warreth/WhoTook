@@ -2373,6 +2373,9 @@ class AppLocalizationsNl extends AppLocalizations {
   String get memeYourOwn => 'Jouw eigen sabotage. Wachten op stemmen.';
 
   @override
+  String get partyPassUnlockNoPrice => 'Voor altijd ontgrendelen';
+
+  @override
   String waitingPlayersNextGame(int count) =>
       '$count in de wachtrij voor volgend spel';
 }

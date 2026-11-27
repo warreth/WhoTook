@@ -27,7 +27,8 @@ class BugReportService {
   }) : _launch = launch ?? _launchExternal,
        _copy = copy ?? _copyToClipboard,
        _writeFile = writeFile ?? _writeTempReport,
-       _shareFile = shareFile ?? _shareReportFile;
+       _shareFile = shareFile ?? _shareReportFile,
+       _customShareFile = shareFile != null;
 
   static final BugReportService instance = BugReportService();
 
@@ -41,6 +42,7 @@ class BugReportService {
   final Future<File> Function(String name, String contents) _writeFile;
   final Future<bool> Function(File file, String subject, String text)
   _shareFile;
+  final bool _customShareFile;
 
   String _version = kAppVersion;
   int _build = kAppBuildNumber;
@@ -273,6 +275,10 @@ class BugReportService {
     String? screenLabel,
   }) {
     final l10n = context.l10n;
+    final box = context.findRenderObject() as RenderBox?;
+    final shareOrigin = box != null && box.hasSize
+        ? (box.localToGlobal(Offset.zero) & box.size)
+        : null;
     return deliverFile(
       report: buildReport(
         intro: l10n.reportBodyIntro,
@@ -281,6 +287,7 @@ class BugReportService {
         screenOverride: screenLabel ?? screenOverride,
       ),
       text: l10n.reportShareMessage(kSupportEmail),
+      shareOrigin: shareOrigin,
     );
   }
 
@@ -288,10 +295,20 @@ class BugReportService {
   Future<bool> deliverFile({
     required String report,
     required String text,
+    Rect? shareOrigin,
   }) async {
     try {
       final file = await _writeFile(reportFileName(), report);
-      await _shareFile(file, buildSubject(), text);
+      if (_customShareFile) {
+        await _shareFile(file, buildSubject(), text);
+      } else {
+        await _shareReportFile(
+          file,
+          buildSubject(),
+          text,
+          shareOrigin: shareOrigin,
+        );
+      }
       return true;
     } on Object {
       return false;
@@ -384,6 +401,14 @@ class BugReportService {
           RegExp(r'(https?://[^\s/]+)/j/[^\s]+', caseSensitive: false),
           r'$1/j/[redacted]',
         )
+        .replaceAll(
+          RegExp(r'(https?://[^\s/#]+/j)#[^\s]+', caseSensitive: false),
+          r'$1#[redacted]',
+        )
+        .replaceAll(
+          RegExp(r'whotook://join#[^\s]+', caseSensitive: false),
+          'whotook://join#[redacted]',
+        )
         .replaceAll(RegExp(r'\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b'), '[ip]')
         .replaceAll(
           RegExp(
@@ -467,14 +492,16 @@ class BugReportService {
   static Future<bool> _shareReportFile(
     File file,
     String subject,
-    String text,
-  ) async {
+    String text, {
+    Rect? shareOrigin,
+  }) async {
     await SharePlus.instance.share(
       ShareParams(
         files: <XFile>[XFile(file.path, mimeType: 'text/plain')],
         subject: subject,
         title: subject,
         text: text,
+        sharePositionOrigin: shareOrigin,
       ),
     );
     return true;

@@ -39,12 +39,17 @@ class RoomQrDialog extends StatelessWidget {
 
   Future<void> _share(BuildContext context) async {
     final l10n = context.l10n;
+    final box = context.findRenderObject() as RenderBox?;
+    final shareOrigin = box != null && box.hasSize
+        ? (box.localToGlobal(Offset.zero) & box.size)
+        : null;
     try {
       await SharePlus.instance.share(
         ShareParams(
           text: inviteUrl,
           subject: l10n.roomQrShareText,
           title: l10n.roomQrShareText,
+          sharePositionOrigin: shareOrigin,
         ),
       );
     } on Object {

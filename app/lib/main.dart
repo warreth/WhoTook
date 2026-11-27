@@ -14,7 +14,11 @@ import 'core/distribution.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   BugReportService.instance.installErrorHooks();
-  await detectAppDistribution();
+  try {
+    await detectAppDistribution().timeout(const Duration(seconds: 2));
+  } on Object {
+    // Keep safe store defaults on timeout or channel failure.
+  }
   await initializeDateFormatting('en');
   await initializeDateFormatting('nl');
   try {

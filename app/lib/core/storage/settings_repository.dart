@@ -20,17 +20,17 @@ class SettingsRepository {
   final String defaultSignalingUrl;
 
   Future<AppSettings> load() async {
-    final raw = await _prefs.getString(kSettingsStorageKey);
-    if (raw == null || raw.isEmpty) {
-      return const AppSettings();
-    }
     try {
+      final raw = await _prefs.getString(kSettingsStorageKey);
+      if (raw == null || raw.isEmpty) {
+        return const AppSettings();
+      }
       final parsed = jsonDecode(raw);
       if (parsed is! Map<String, dynamic>) {
         return const AppSettings();
       }
       return AppSettings.fromJson(parsed);
-    } on FormatException {
+    } on Object {
       return const AppSettings();
     }
   }

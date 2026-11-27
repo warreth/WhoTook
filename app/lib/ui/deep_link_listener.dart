@@ -29,6 +29,7 @@ class _DeepLinkListenerState extends ConsumerState<DeepLinkListener> {
   StreamSubscription<Uri>? _subscription;
   String? _handled;
   DateTime? _handledAt;
+  String? _queuedInvite;
   bool _deferredStarted = false;
 
   @override
@@ -98,12 +99,14 @@ class _DeepLinkListenerState extends ConsumerState<DeepLinkListener> {
     if (raw == _handled && (coordinator.state.roomId != null || insideWindow)) {
       return;
     }
-    _handled = raw;
-    _handledAt = now;
     if (coordinator.state.roomId != null) return;
     if (ref.read(appSettingsProvider).value?.onboardingCompleted != true) {
+      _queuedInvite = raw;
       return;
     }
+    _handled = raw;
+    _handledAt = now;
+    _queuedInvite = null;
     final navigator = appNavigatorKey.currentState;
     if (navigator == null) {
       unawaited(coordinator.joinMatch(raw));
@@ -125,9 +128,18 @@ class _DeepLinkListenerState extends ConsumerState<DeepLinkListener> {
   @override
   Widget build(BuildContext context) {
     ref.listen(appSettingsProvider, (previous, next) {
-      if (_deferredStarted) return;
       if (next.value?.onboardingCompleted == true) {
-        unawaited(_readDeferredInvite());
+        final queued = _queuedInvite;
+        if (queued != null) {
+          _queuedInvite = null;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _handleString(queued);
+          });
+          return;
+        }
+        if (!_deferredStarted) {
+          unawaited(_readDeferredInvite());
+        }
       }
     });
     return widget.child;

@@ -284,7 +284,9 @@ class _PartyPassBottomSheetState extends ConsumerState<PartyPassBottomSheet> {
                     PartyPassBillingKind.paddle) ...<Widget>[
                   if (pass.billingReady && pass.billingAvailable) ...<Widget>[
                     GameButton(
-                      label: l10n.partyPassUnlockButton(pass.displayPrice),
+                      label: pass.displayPrice.isEmpty
+                          ? l10n.partyPassUnlockNoPrice
+                          : l10n.partyPassUnlockButton(pass.displayPrice),
                       icon: Icons.lock_open,
                       variant: GameButtonVariant.gold,
                       onPressed: busy ? null : () => unawaited(_unlock()),
@@ -312,7 +314,9 @@ class _PartyPassBottomSheetState extends ConsumerState<PartyPassBottomSheet> {
                 ] else if (pass.billingReady &&
                     pass.billingAvailable) ...<Widget>[
                   GameButton(
-                    label: l10n.partyPassUnlockButton(pass.displayPrice),
+                    label: pass.displayPrice.isEmpty
+                        ? l10n.partyPassUnlockNoPrice
+                        : l10n.partyPassUnlockButton(pass.displayPrice),
                     icon: Icons.lock_open,
                     variant: GameButtonVariant.gold,
                     onPressed: busy ? null : () => unawaited(_unlock()),

@@ -50,8 +50,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     await ref
         .read(appSettingsProvider.notifier)
         .apply(
-          (current) =>
-              current.copyWith(nickname: name, onboardingCompleted: true),
+          (current) => current.copyWith(
+            nickname: name,
+            avatar: _avatar,
+            avatarPhoto: _avatarPhoto,
+            clearAvatarPhoto: _avatarPhoto == null,
+            onboardingCompleted: true,
+          ),
         );
   }
 

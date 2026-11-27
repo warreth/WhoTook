@@ -129,7 +129,11 @@ void main() {
     await tester.pumpWidget(
       _app(
         const PartyPassBottomSheet(verifyOnOpen: false),
-        const PartyPassState(loading: false, billingAvailable: true),
+        const PartyPassState(
+          loading: false,
+          billingAvailable: true,
+          priceLabel: '€2.99',
+        ),
       ),
     );
     await tester.pumpAndSettle();

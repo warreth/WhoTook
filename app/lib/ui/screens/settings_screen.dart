@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:photo_manager/photo_manager.dart';
 
 import '../../core/audio/game_audio_service.dart';
 import '../../core/avatars.dart';
@@ -114,7 +115,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// Asks for photo access again before reloading, which is the only way a
   /// limited selection can be widened after onboarding.
   Future<void> _retryAlbums() async {
-    await ref.read(photoLibraryProvider).requestPermission();
+    final permission = await ref.read(photoLibraryProvider).requestPermission();
+    if (!permission.hasAccess) {
+      try {
+        await PhotoManager.openSetting();
+      } on Object {
+        // Ignore on test hosts without photo_manager platform channels.
+      }
+      return;
+    }
     await _loadAlbums(reset: true);
   }
 

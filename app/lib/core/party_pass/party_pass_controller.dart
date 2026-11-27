@@ -49,7 +49,9 @@ class PartyPassState {
 
   bool get canBuy => !active;
 
-  String get displayPrice => priceLabel ?? '€2.99';
+  String get displayPrice =>
+      priceLabel ??
+      (billingKind == PartyPassBillingKind.paddle ? kDirectPriceLabel : '');
 
   PartyPassState copyWith({
     bool? active,

@@ -43,10 +43,9 @@ AppDistribution resolveAppDistribution({
 }) {
   if (web) return AppDistribution.direct;
   if (platform == TargetPlatform.iOS) {
-    // A store receipt always wins. This is what makes one iOS binary safe:
-    // TestFlight and App Store installs keep IAP even though the FFOSS flag is
-    // compiled in, while the same binary sideloaded through AltStore/SideStore
-    // has no receipt and gets the direct Paddle surface.
+    // Official App Store / TestFlight builds must NEVER fall back to Paddle
+    // even on StoreKit 2 installs without a legacy appStoreReceiptURL file.
+    if (!ffoss && !directFlag) return AppDistribution.store;
     if (receiptEnvironment == 'app_store' ||
         receiptEnvironment == 'testflight') {
       return AppDistribution.store;
@@ -66,9 +65,10 @@ Future<void> detectAppDistribution() async {
   if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
     try {
       receiptEnvironment = await const MethodChannel('app.whotook/distribution')
-          .invokeMethod<String>('receiptEnvironment');
+          .invokeMethod<String>('receiptEnvironment')
+          .timeout(const Duration(seconds: 2));
     } on Object {
-      // An old binary without the channel must keep store behavior.
+      // An old binary or slow channel must keep store behavior.
     }
   }
   _appDistribution = resolveAppDistribution(

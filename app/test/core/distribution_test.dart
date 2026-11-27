@@ -47,7 +47,7 @@ void main() {
         platform: TargetPlatform.iOS,
         receiptEnvironment: 'sideloaded',
       ),
-      AppDistribution.direct,
+      AppDistribution.store,
     );
     expect(
       resolveAppDistribution(

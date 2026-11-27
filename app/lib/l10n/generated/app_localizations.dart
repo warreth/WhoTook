@@ -3986,6 +3986,7 @@ abstract class AppLocalizations {
   String get standingsLabel;
   String get finalRoundDoubleBadge;
   String get memeYourOwn;
+  String get partyPassUnlockNoPrice;
   String waitingPlayersNextGame(int count);
 }
 

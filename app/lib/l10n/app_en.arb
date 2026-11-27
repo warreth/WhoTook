@@ -1321,6 +1321,7 @@
   "standingsLabel": "Standings",
   "finalRoundDoubleBadge": "2X FINAL ROUND",
   "memeYourOwn": "Your own sabotage. Waiting for votes.",
+  "partyPassUnlockNoPrice": "Unlock Forever",
   "waitingPlayersNextGame": "{count} waiting for the next game",
   "@waitingPlayersNextGame": {
     "placeholders": {

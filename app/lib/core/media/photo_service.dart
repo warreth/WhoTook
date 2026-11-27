@@ -158,18 +158,7 @@ class DevicePhotoLibraryService implements PhotoLibraryService {
 
   @override
   Future<PermissionState> requestPermission() async {
-    var state = await PhotoManager.requestPermissionExtend(
-      requestOption: _requestOption,
-    );
-    // Android 14+ and iOS can grant a partial selection. Re-prompting opens
-    // the system picker so the player can widen it without leaving the app.
-    if (state == PermissionState.limited) {
-      await PhotoManager.presentLimited(type: RequestType.image);
-      state = await PhotoManager.getPermissionState(
-        requestOption: _requestOption,
-      );
-    }
-    return state;
+    return PhotoManager.requestPermissionExtend(requestOption: _requestOption);
   }
 
   @override
@@ -403,9 +392,13 @@ class DevicePhotoLibraryService implements PhotoLibraryService {
       if (raw == null || raw.isEmpty) {
         return null;
       }
+      final stripped = await compressPhoto(raw);
+      // Do not share raw originBytes (which can contain EXIF location/device
+      // metadata) if native JPEG re-encoding did not shrink or strip it.
+      if (identical(stripped, raw)) return null;
       return PickedPhoto(
         assetId: asset.id,
-        bytes: await compressPhoto(raw),
+        bytes: stripped,
         capturedAt: isUsableCaptureDate(capturedAt) ? capturedAt : null,
         isPanorama: _isPanorama(asset),
       );

@@ -26,6 +26,8 @@ class DeferredInviteService {
 
   static const String kInstallReferrerChannel = 'app.whotook/install_referrer';
   static const String kStorageKey = 'whotook.deferred_invite.v1';
+  static const String kIosClipboardCheckedKey =
+      'whotook.ios_clipboard_checked.v1';
 
   final MethodChannel _channel;
   final SharedPreferencesAsync _prefs;
@@ -45,6 +47,10 @@ class DeferredInviteService {
     if (defaultTargetPlatform == TargetPlatform.iOS &&
         appDistribution == AppDistribution.store &&
         !isSideloadedIos) {
+      final alreadyChecked =
+          await _prefs.getBool(kIosClipboardCheckedKey) ?? false;
+      if (alreadyChecked) return null;
+      await _prefs.setBool(kIosClipboardCheckedKey, true);
       final text = await _readClipboard();
       final invite = parseClipboard(text);
       if (invite != null && await _markConsumed(invite)) return invite;

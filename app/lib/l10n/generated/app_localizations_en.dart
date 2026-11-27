@@ -2362,6 +2362,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get memeYourOwn => 'Your own sabotage. Waiting for votes.';
 
   @override
+  String get partyPassUnlockNoPrice => 'Unlock Forever';
+
+  @override
   String waitingPlayersNextGame(int count) =>
       '$count waiting for the next game';
 }

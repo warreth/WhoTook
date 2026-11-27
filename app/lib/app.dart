@@ -65,7 +65,7 @@ class WhoTookApp extends ConsumerWidget {
           : DeepLinkListener(child: child),
       home: settings.when(
         loading: () => const _BootScreen(),
-        error: (error, stack) => const _BootScreen(),
+        error: (error, stack) => const OnboardingScreen(),
         data: (value) => value.onboardingCompleted || PlaytestConfig.enabled
             ? const PlaytestBootstrap()
             : const OnboardingScreen(),
