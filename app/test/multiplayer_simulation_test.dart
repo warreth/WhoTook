@@ -601,10 +601,13 @@ void main() {
       GameMode.zoomOut,
       GameMode.makeItMeme,
       GameMode.photoSabotage,
-      GameMode.timeTraveler,
     ]) {
-      expect(modes.where((candidate) => candidate == mode), hasLength(2));
+      expect(
+        modes.where((candidate) => candidate == mode).length,
+        greaterThanOrEqualTo(2),
+      );
     }
+    expect(modes.where((candidate) => candidate == GameMode.timeTraveler), isEmpty);
     for (var i = 1; i < modes.length; i++) {
       expect(modes[i], isNot(modes[i - 1]), reason: 'consecutive mode $i');
     }

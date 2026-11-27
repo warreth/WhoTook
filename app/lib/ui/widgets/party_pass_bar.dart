@@ -128,7 +128,9 @@ class PartyPassLobbyBar extends ConsumerWidget {
             )
           else
             GameButton(
-              label: l10n.partyPassLobbyButton(pass.displayPrice),
+              label: pass.displayPrice.isEmpty
+                  ? l10n.partyPassUnlockNoPrice
+                  : l10n.partyPassLobbyButton(pass.displayPrice),
               icon: Icons.auto_awesome,
               variant: GameButtonVariant.gold,
               small: true,

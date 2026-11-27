@@ -106,7 +106,10 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      _app(const PartyPassLobbyBar(), const PartyPassState(loading: false)),
+      _app(
+        const PartyPassLobbyBar(),
+        const PartyPassState(loading: false, priceLabel: '€2.99'),
+      ),
     );
     await tester.pumpAndSettle();
 

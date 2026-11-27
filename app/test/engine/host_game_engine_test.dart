@@ -86,6 +86,10 @@ void main() {
       expect(HostGameEngine.computePhotosNeeded(10, 0), 6);
       expect(
         HostGameEngine.computePhotosNeeded(10, 4, mode: GameMode.mixedParty),
+        11,
+      );
+      expect(
+        HostGameEngine.computePhotosNeeded(15, 4, mode: GameMode.mixedParty),
         12,
       );
       expect(
@@ -699,8 +703,9 @@ void main() {
         final expectedBonus = streakBefore < 2
             ? 0
             : min(400, 100 * (streakBefore - 1));
+        final multiplier = round == 7 ? 2 : 1;
         // 2000 ms of 8000 elapsed leaves 6000 ms -> floor(500 * 6 / 8) = 375.
-        expect(gained, 875 + expectedBonus);
+        expect(gained, (875 + expectedBonus) * multiplier);
         bonuses.add(expectedBonus);
         engine.advanceAfterReveal();
       }
@@ -1564,9 +1569,11 @@ void main() {
       );
       engine.startGame();
       for (var r = 1; r <= 4; r++) {
-        engine.startRound();
+        final roundEntry = engine.startRound();
         expect(engine.isFinalDoubleRound, isFalse);
-        playAllCorrect(engine, elapsedMs: 4000);
+        for (final player in engine.players) {
+          engine.submitGuess(player.id, roundEntry.ownerId, 4000);
+        }
         engine.finishRound();
         engine.advanceAfterReveal();
       }

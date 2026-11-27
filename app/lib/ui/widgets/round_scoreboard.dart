@@ -4,6 +4,7 @@ import '../../core/models/models.dart';
 import '../../core/theme/whotook_theme.dart';
 import '../../l10n/l10n.dart';
 import 'common.dart';
+import 'game_background.dart';
 import 'game_widgets.dart';
 
 /// Ranked round-end standings showing everyone's total score, round delta,
@@ -128,7 +129,7 @@ class _ScoreboardRow extends StatelessWidget {
       child: Row(
         children: <Widget>[
           SizedBox(
-            width: 24,
+            width: 22,
             child: Text(
               '#$rank',
               style: tabularFigures(
@@ -154,7 +155,7 @@ class _ScoreboardRow extends StatelessWidget {
               children: <Widget>[
                 Flexible(
                   child: Text(
-                    player.name,
+                    isLocal ? '${player.name} (${l10n.you})' : player.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -164,19 +165,8 @@ class _ScoreboardRow extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (isLocal) ...<Widget>[
-                  const SizedBox(width: 4),
-                  Text(
-                    '(${l10n.you})',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: colors.accent,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
                 if (streak >= 2) ...<Widget>[
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 4),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 5,
@@ -212,7 +202,7 @@ class _ScoreboardRow extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 6),
           Text(
             l10n.points(player.score),
             style: tabularFigures(

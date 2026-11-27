@@ -466,9 +466,18 @@ void main() {
     timeout: const Timeout(Duration(seconds: 60)),
   );
 
-  test('Time Traveler syncs guesses and reveals the actual month', () async {
-    await host.setMode(GameMode.timeTraveler);
-    await _waitFor(() => clientOne.state.config.mode == GameMode.timeTraveler);
+  test('legacy Time Traveler config safely falls back to Classic', () async {
+    final fallback = MatchConfig.fromJson(const <String, dynamic>{
+      'roundsK': 6,
+      'roundSeconds': 8,
+      'mode': 'timeTraveler',
+      'pace': 'normal',
+    });
+    expect(fallback.mode, GameMode.classic);
+    expect(fallback.needsPhotoDates, isFalse);
+
+    await host.setMode(fallback.mode);
+    await _waitFor(() => clientOne.state.config.mode == GameMode.classic);
     await host.startPrepare();
     await _waitFor(() => host.state.candidates.isNotEmpty);
     await _waitFor(() => clientOne.state.candidates.isNotEmpty);
@@ -476,21 +485,15 @@ void main() {
     await host.markLocalReady();
     await clientOne.clientMarkReady();
     await clientTwo.clientMarkReady();
-    await _waitFor(() => host.state.phase == RoundPhase.timelineGuessing);
+    await _waitFor(() => host.state.phase == RoundPhase.guessing);
 
-    await host.submitTimeline(2018, 5);
-    await clientOne.clientSubmitTimeline(2015, 8);
-    await clientTwo.clientSubmitTimeline(2021, 2);
-    await _waitFor(() => host.state.phase == RoundPhase.timelineReveal);
-    await _waitFor(() => clientOne.state.phase == RoundPhase.timelineReveal);
-
-    final reveal = host.state.lastTimelineReveal;
-    expect(reveal, isNotNull);
-    expect(reveal!.actualYear, greaterThan(2000));
-    expect(reveal.entries, hasLength(3));
-    expect(reveal.entries.any((entry) => entry.isOwner), isTrue);
-    expect(reveal.closestId, isNotNull);
-    expect(clientOne.state.lastTimelineReveal?.actualYear, reveal.actualYear);
+    final guessTarget = host.state.players.first.id;
+    await host.submitGuess(guessTarget);
+    await clientOne.clientSubmitGuess(guessTarget);
+    await clientTwo.clientSubmitGuess(guessTarget);
+    await _waitFor(() => host.state.phase == RoundPhase.reveal);
+    expect(host.state.lastReveal, isNotNull);
+    expect(clientOne.state.lastReveal, isNotNull);
   }, timeout: const Timeout(Duration(seconds: 60)));
 
   test('the host can skip a stuck round', () async {

@@ -18,6 +18,7 @@ import '../../ui/widgets/common.dart';
 import '../../ui/widgets/game_background.dart';
 import '../../ui/widgets/game_widgets.dart';
 import '../../ui/widgets/host_controls.dart';
+import '../../ui/widgets/photo_precache.dart';
 import '../../ui/widgets/round_scoreboard.dart';
 import 'sabotage_art.dart';
 import 'sabotage_painter.dart';
