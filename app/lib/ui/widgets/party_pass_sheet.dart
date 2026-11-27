@@ -336,6 +336,11 @@ class _PartyPassBottomSheetState extends ConsumerState<PartyPassBottomSheet> {
                       color: colors.ink3,
                     ),
                   ),
+                  const SizedBox(height: AppSpacing.s8),
+                  TextButton(
+                    onPressed: busy ? null : () => unawaited(_restore()),
+                    child: Text(l10n.partyPassRestore),
+                  ),
                   // Never send an iOS build to the website from the Party Pass
                   // sheet: that page sells the pass outside Apple. Apple and
                   // TestFlight builds must have no external purchase path.

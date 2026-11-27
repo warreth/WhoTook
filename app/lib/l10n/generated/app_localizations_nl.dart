@@ -143,7 +143,7 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get acceptTerms =>
-      'Ik ga akkoord met de voorwaarden en de spelregels.';
+      'Ik ga akkoord met de voorwaarden en spelregels, inclusief nultolerantie voor ongepaste inhoud of misbruik.';
 
   @override
   String get termsLink => 'Voorwaarden en spelregels';
@@ -1380,7 +1380,8 @@ class AppLocalizationsNl extends AppLocalizations {
   String get modeZoomOutBlurb => 'Raad de foto terwijl hij uitzoomt.';
 
   @override
-  String get modePhotoSabotageBlurb => 'Bewerk dezelfde foto met stiften en plakkers.';
+  String get modePhotoSabotageBlurb =>
+      'Bewerk dezelfde foto met stiften en plakkers.';
 
   @override
   String get mixedModesLabel => 'Mixed Party-modi';
@@ -2310,7 +2311,9 @@ class AppLocalizationsNl extends AppLocalizations {
   String get crowdFavorite => 'Publieksfavoriet';
 
   @override
-  String awardUpvotes(int count) => '$count duimpjes';
+  String awardUpvotes(int count) {
+    return '$count duimpjes';
+  }
 
   @override
   String get sabotageBrushSize => 'Penseeldikte';
@@ -2355,7 +2358,8 @@ class AppLocalizationsNl extends AppLocalizations {
   String get sabotagePrompt5 => 'Voeg een onverwachte weerramp toe';
 
   @override
-  String get sabotagePrompt6 => 'Maak de hoofdrolspeler van een random voorwerp';
+  String get sabotagePrompt6 =>
+      'Maak de hoofdrolspeler van een random voorwerp';
 
   @override
   String get sabotagePrompt7 => 'Laat dit op groot nieuws lijken';
@@ -2376,6 +2380,109 @@ class AppLocalizationsNl extends AppLocalizations {
   String get partyPassUnlockNoPrice => 'Voor altijd ontgrendelen';
 
   @override
-  String waitingPlayersNextGame(int count) =>
-      '$count in de wachtrij voor volgend spel';
+  String waitingPlayersNextGame(int count) {
+    return '$count in de wachtrij voor volgend spel';
+  }
+
+  @override
+  String get roomSafetyMenu => 'Veiligheid en opties';
+
+  @override
+  String get reportContentOrPlayer => 'Inhoud of speler melden';
+
+  @override
+  String get blockAPlayer => 'Een speler blokkeren';
+
+  @override
+  String blockPlayerNamed(String name) {
+    return 'Blokkeer $name';
+  }
+
+  @override
+  String unblockPlayerNamed(String name) {
+    return 'Deblokkeer $name';
+  }
+
+  @override
+  String get unblockPlayer => 'Deblokkeren';
+
+  @override
+  String get blockedBadge => 'Geblokkeerd';
+
+  @override
+  String get blockedPlayersTitle => 'Geblokkeerde spelers';
+
+  @override
+  String blockedPlayersCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count geblokkeerd',
+      one: '1 geblokkeerd',
+      zero: 'Niemand geblokkeerd',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get noBlockedPlayersTitle => 'Geen geblokkeerde spelers';
+
+  @override
+  String get noBlockedPlayersBody =>
+      'Spelers die je blokkeert worden direct verborgen in foto\'s, memes en avatars op dit apparaat.';
+
+  @override
+  String get contentHiddenBlocked =>
+      'Verborgen van een geblokkeerde of gemelde speler';
+
+  @override
+  String get reportTargetLabel => 'Wat wil je melden?';
+
+  @override
+  String get reportTargetCurrentPhoto => 'Huidige foto of creatie';
+
+  @override
+  String get reportTargetGeneral => 'Algemene melding of misbruik';
+
+  @override
+  String get reportReasonLabel => 'Reden';
+
+  @override
+  String get safetyReasonInappropriate => 'Ongepast of expliciet';
+
+  @override
+  String get safetyReasonHarassment => 'Intimidatie of pesten';
+
+  @override
+  String get safetyReasonHateSpeech => 'Haatzaaien of discriminatie';
+
+  @override
+  String get safetyReasonNonConsensual => 'Gedeeld zonder toestemming';
+
+  @override
+  String get safetyReasonOther => 'Andere overtreding';
+
+  @override
+  String get reportDetailsHint => 'Optionele toelichting (max 500 tekens)';
+
+  @override
+  String get hideAndBlockToggle => 'Verberg inhoud en blokkeer speler direct';
+
+  @override
+  String get removeFromRoomToggle => 'Verwijder speler ook uit deze kamer';
+
+  @override
+  String get submitReport => 'Melding versturen';
+
+  @override
+  String get reportSubmittedTitle => 'Melding ontvangen';
+
+  @override
+  String get reportSubmittedBody =>
+      'De gekozen inhoud is nu direct verborgen op je apparaat. We beoordelen meldingen binnen 24 uur.';
+
+  @override
+  String openSupportEmail(String email) {
+    return 'Mail support ($email)';
+  }
 }

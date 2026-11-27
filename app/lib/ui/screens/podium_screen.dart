@@ -20,6 +20,7 @@ import '../widgets/common.dart';
 import '../widgets/game_background.dart';
 import '../widgets/game_widgets.dart';
 import '../widgets/host_controls.dart';
+import '../widgets/safety_controls.dart';
 
 /// The finish line: a champion frame, centered steps, a burst of paper and the
 /// Top 3 memes from a Make It Meme match.
@@ -130,8 +131,10 @@ class PodiumScreen extends ConsumerWidget {
                                         PlayerAvatar(
                                           initial: rest[i].name,
                                           avatar: rest[i].avatar,
-                                          photoBase64:
-                                              state.avatarPhotos[rest[i].id],
+                                          photoBase64: state.safeAvatarPhoto(
+                                            rest[i].id,
+                                            rest[i].name,
+                                          ),
                                           isHost: rest[i].isHost,
                                           size: 26,
                                         ),
@@ -325,7 +328,10 @@ class _PodiumStage extends StatelessWidget {
                               child: _PodiumStep(
                                 player: runners[i],
                                 place: i + 2,
-                                photoBase64: state.avatarPhotos[runners[i].id],
+                                photoBase64: state.safeAvatarPhoto(
+                                  runners[i].id,
+                                  runners[i].name,
+                                ),
                                 colors: colors,
                               ),
                             ),
@@ -431,7 +437,11 @@ class _TopMemesSection extends StatelessWidget {
             player: state.players
                 .where((p) => p.id == state.topMemes[i].authorId)
                 .firstOrNull,
-            avatarPhoto: state.avatarPhotos[state.topMemes[i].authorId],
+            avatarPhoto: state.safeAvatarPhoto(
+              state.topMemes[i].authorId,
+              state.topMemes[i].authorName,
+            ),
+            hidden: state.isCardBlocked(state.topMemes[i]),
           ),
           if (i != state.topMemes.length - 1)
             const SizedBox(height: AppSpacing.s12),
@@ -447,12 +457,14 @@ class _TopMemeCard extends StatefulWidget {
     required this.rank,
     required this.player,
     required this.avatarPhoto,
+    this.hidden = false,
   });
 
   final MemeCard meme;
   final int rank;
   final Player? player;
   final String? avatarPhoto;
+  final bool hidden;
 
   @override
   State<_TopMemeCard> createState() => _TopMemeCardState();
@@ -581,33 +593,38 @@ class _TopMemeCardState extends State<_TopMemeCard> {
           const SizedBox(height: AppSpacing.s8),
           RepaintBoundary(
             key: _key,
-            child: meme.isSabotage
-                ? AspectRatio(
+            child: widget.hidden
+                ? const AspectRatio(
                     aspectRatio: 4 / 5,
-                    child: SabotageArt(
-                      photoId: meme.photoId,
-                      photoBytes: PhotoMemoryCache.instance.bytesFor(
-                        meme.photoId,
-                      ),
-                      strokes: meme.strokes,
-                      stickers: meme.stickers,
-                      showWatermark: true,
-                    ),
+                    child: BlockedContentPlaceholder(),
                   )
-                : MemeCanvas(
-                    bytes: _decodeMeme(meme.photoBase64),
-                    photoId: meme.photoId,
-                    template: meme.template,
-                    topText: meme.topText,
-                    bottomText: meme.bottomText,
-                    snapY: meme.snapY,
-                    showWatermark: true,
-                  ),
+                : (meme.isSabotage
+                      ? AspectRatio(
+                          aspectRatio: 4 / 5,
+                          child: SabotageArt(
+                            photoId: meme.photoId,
+                            photoBytes: PhotoMemoryCache.instance.bytesFor(
+                              meme.photoId,
+                            ),
+                            strokes: meme.strokes,
+                            stickers: meme.stickers,
+                            showWatermark: true,
+                          ),
+                        )
+                      : MemeCanvas(
+                          bytes: _decodeMeme(meme.photoBase64),
+                          photoId: meme.photoId,
+                          template: meme.template,
+                          topText: meme.topText,
+                          bottomText: meme.bottomText,
+                          snapY: meme.snapY,
+                          showWatermark: true,
+                        )),
           ),
           const SizedBox(height: AppSpacing.s8),
           GameButton(
             label: meme.isSabotage ? l10n.sabotageSave : l10n.memeDownload,
-            onPressed: _saving ? null : _save,
+            onPressed: _saving || widget.hidden ? null : _save,
             variant: GameButtonVariant.gold,
             icon: Icons.download_outlined,
             fullWidth: true,
@@ -659,7 +676,7 @@ class _Champion extends StatelessWidget {
               PlayerAvatar(
                 initial: player.name,
                 avatar: player.avatar,
-                photoBase64: state.avatarPhotos[player.id],
+                photoBase64: state.safeAvatarPhoto(player.id, player.name),
                 isHost: player.isHost,
                 size: layout.isCompactHeight ? 92 : 116,
                 crown: true,

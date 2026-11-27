@@ -20,6 +20,7 @@ import '../../ui/widgets/game_widgets.dart';
 import '../../ui/widgets/host_controls.dart';
 import '../../ui/widgets/photo_precache.dart';
 import '../../ui/widgets/round_scoreboard.dart';
+import '../../ui/widgets/safety_controls.dart';
 import 'sabotage_art.dart';
 import 'sabotage_painter.dart';
 import 'sabotage_stroke_utils.dart';
@@ -339,7 +340,7 @@ class _SabotageEditorState extends State<_SabotageEditor> {
             PlayerAvatar(
               initial: owner?.name ?? widget.assignment.ownerName,
               avatar: owner?.avatar ?? '',
-              photoBase64: state.avatarPhotos[owner?.id],
+              photoBase64: state.safeAvatarPhoto(owner?.id, owner?.name),
               size: 24,
             ),
             const SizedBox(width: 6),
@@ -377,29 +378,36 @@ class _SabotageEditorState extends State<_SabotageEditor> {
               : Center(
                   child: AspectRatio(
                     aspectRatio: 4 / 5,
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final size = Size(
-                          constraints.maxWidth,
-                          constraints.maxHeight,
-                        );
-                        return GestureDetector(
-                          onPanStart: (details) =>
-                              _start(details.localPosition, size),
-                          onPanUpdate: (details) =>
-                              _update(details.localPosition, size),
-                          onPanEnd: (_) => _end(),
-                          onPanCancel: _end,
-                          child: SabotageArt(
-                            photoId: widget.assignment.photoId,
-                            photoBytes: bytes,
-                            strokes: _visibleStrokes,
-                            stickers: _stickers,
-                            borderColor: colors.ink,
+                    child:
+                        state.isPhotoHidden(widget.assignment.photoId) ||
+                            state.isPlayerBlocked(
+                              widget.assignment.ownerId,
+                              widget.assignment.ownerName,
+                            )
+                        ? const BlockedContentPlaceholder(compact: true)
+                        : LayoutBuilder(
+                            builder: (context, constraints) {
+                              final size = Size(
+                                constraints.maxWidth,
+                                constraints.maxHeight,
+                              );
+                              return GestureDetector(
+                                onPanStart: (details) =>
+                                    _start(details.localPosition, size),
+                                onPanUpdate: (details) =>
+                                    _update(details.localPosition, size),
+                                onPanEnd: (_) => _end(),
+                                onPanCancel: _end,
+                                child: SabotageArt(
+                                  photoId: widget.assignment.photoId,
+                                  photoBytes: bytes,
+                                  strokes: _visibleStrokes,
+                                  stickers: _stickers,
+                                  borderColor: colors.ink,
+                                ),
+                              );
+                            },
                           ),
-                        );
-                      },
-                    ),
                   ),
                 ),
         ),
@@ -781,30 +789,35 @@ class _SabotageVotingState extends ConsumerState<_SabotageVoting> {
               child: Center(
                 child: AspectRatio(
                   aspectRatio: 4 / 5,
-                  child: GestureDetector(
-                    onLongPressStart: (_) => setState(() => _comparing = true),
-                    onLongPressEnd: (_) => setState(() => _comparing = false),
-                    onLongPressCancel: () => setState(() => _comparing = false),
-                    child: TweenAnimationBuilder<double>(
-                      key: ValueKey<String>('sabotage-replay-${card.id}'),
-                      tween: Tween<double>(begin: reduce ? 1 : 0, end: 1),
-                      duration: reduce
-                          ? Duration.zero
-                          : const Duration(milliseconds: 900),
-                      builder: (context, progress, _) => SabotageArt(
-                        photoId: card.photoId,
-                        photoBytes: bytes,
-                        strokes: _comparing
-                            ? const <SabotageStroke>[]
-                            : card.strokes,
-                        stickers: _comparing
-                            ? const <SabotageSticker>[]
-                            : card.stickers,
-                        progress: progress,
-                        borderColor: colors.ink,
-                      ),
-                    ),
-                  ),
+                  child: state.isCardBlocked(card)
+                      ? const BlockedContentPlaceholder(compact: true)
+                      : GestureDetector(
+                          onLongPressStart: (_) =>
+                              setState(() => _comparing = true),
+                          onLongPressEnd: (_) =>
+                              setState(() => _comparing = false),
+                          onLongPressCancel: () =>
+                              setState(() => _comparing = false),
+                          child: TweenAnimationBuilder<double>(
+                            key: ValueKey<String>('sabotage-replay-${card.id}'),
+                            tween: Tween<double>(begin: reduce ? 1 : 0, end: 1),
+                            duration: reduce
+                                ? Duration.zero
+                                : const Duration(milliseconds: 900),
+                            builder: (context, progress, _) => SabotageArt(
+                              photoId: card.photoId,
+                              photoBytes: bytes,
+                              strokes: _comparing
+                                  ? const <SabotageStroke>[]
+                                  : card.strokes,
+                              stickers: _comparing
+                                  ? const <SabotageSticker>[]
+                                  : card.stickers,
+                              progress: progress,
+                              borderColor: colors.ink,
+                            ),
+                          ),
+                        ),
                 ),
               ),
             ),
@@ -1030,7 +1043,10 @@ class _SabotageRevealState extends ConsumerState<_SabotageReveal> {
                             .firstOrNull
                             ?.avatar ??
                         '',
-                    photoBase64: state.avatarPhotos[winner.authorId],
+                    photoBase64: state.safeAvatarPhoto(
+                      winner.authorId,
+                      winner.authorName,
+                    ),
                     size: 32,
                   ),
                   const SizedBox(width: AppSpacing.s8),
@@ -1050,31 +1066,41 @@ class _SabotageRevealState extends ConsumerState<_SabotageReveal> {
               const SizedBox(height: AppSpacing.s8),
               AspectRatio(
                 aspectRatio: 4 / 5,
-                child: GestureDetector(
-                  onLongPressStart: (_) => setState(() => _comparing = true),
-                  onLongPressEnd: (_) => setState(() => _comparing = false),
-                  onLongPressCancel: () => setState(() => _comparing = false),
-                  child: TweenAnimationBuilder<double>(
-                    tween: Tween<double>(begin: reduce ? 1 : 0, end: 1),
-                    duration: reduce
-                        ? Duration.zero
-                        : const Duration(milliseconds: 900),
-                    builder: (context, progress, _) => SabotageArt(
-                      photoId: winner.photoId,
-                      photoBytes: PhotoMemoryCache.instance.bytesFor(
-                        winner.photoId,
+                child:
+                    state.isPhotoHidden(winner.photoId) ||
+                        state.isPlayerBlocked(
+                          winner.authorId,
+                          winner.authorName,
+                        )
+                    ? const BlockedContentPlaceholder()
+                    : GestureDetector(
+                        onLongPressStart: (_) =>
+                            setState(() => _comparing = true),
+                        onLongPressEnd: (_) =>
+                            setState(() => _comparing = false),
+                        onLongPressCancel: () =>
+                            setState(() => _comparing = false),
+                        child: TweenAnimationBuilder<double>(
+                          tween: Tween<double>(begin: reduce ? 1 : 0, end: 1),
+                          duration: reduce
+                              ? Duration.zero
+                              : const Duration(milliseconds: 900),
+                          builder: (context, progress, _) => SabotageArt(
+                            photoId: winner.photoId,
+                            photoBytes: PhotoMemoryCache.instance.bytesFor(
+                              winner.photoId,
+                            ),
+                            strokes: _comparing
+                                ? const <SabotageStroke>[]
+                                : winner.strokes,
+                            stickers: _comparing
+                                ? const <SabotageSticker>[]
+                                : winner.stickers,
+                            progress: progress,
+                            borderColor: colors.ink,
+                          ),
+                        ),
                       ),
-                      strokes: _comparing
-                          ? const <SabotageStroke>[]
-                          : winner.strokes,
-                      stickers: _comparing
-                          ? const <SabotageSticker>[]
-                          : winner.stickers,
-                      progress: progress,
-                      borderColor: colors.ink,
-                    ),
-                  ),
-                ),
               ),
               const SizedBox(height: 4),
               Text(
@@ -1110,12 +1136,32 @@ class _SabotageRevealState extends ConsumerState<_SabotageReveal> {
                   SizedBox(
                     width: 48,
                     height: 60,
-                    child: SabotageArt(
-                      photoId: entry.photoId,
-                      strokes: entry.strokes,
-                      stickers: entry.stickers,
-                      borderColor: colors.hairline,
-                    ),
+                    child:
+                        state.isPhotoHidden(entry.photoId) ||
+                            state.isPlayerBlocked(
+                              entry.authorId,
+                              entry.authorName,
+                            )
+                        ? Container(
+                            decoration: BoxDecoration(
+                              color: colors.raised,
+                              borderRadius: BorderRadius.circular(
+                                AppRadii.rControl,
+                              ),
+                              border: Border.all(color: colors.hairline),
+                            ),
+                            child: Icon(
+                              Icons.visibility_off_outlined,
+                              size: 18,
+                              color: colors.ink2,
+                            ),
+                          )
+                        : SabotageArt(
+                            photoId: entry.photoId,
+                            strokes: entry.strokes,
+                            stickers: entry.stickers,
+                            borderColor: colors.hairline,
+                          ),
                   ),
                   const SizedBox(width: AppSpacing.s8),
                   Expanded(
@@ -1162,7 +1208,7 @@ class _SabotageRevealState extends ConsumerState<_SabotageReveal> {
         RoundScoreboard(
           players: state.players,
           scoreDeltas: reveal.scoreDeltas,
-          avatarPhotos: state.avatarPhotos,
+          avatarPhotos: state.visibleAvatarPhotos,
           localPlayerId: state.localPlayerId,
           doublePoints: state.isFinalDoubleRound,
         ),

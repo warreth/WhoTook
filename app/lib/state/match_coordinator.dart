@@ -276,6 +276,9 @@ class MatchUiState {
     this.firewallPrompt = false,
     this.firewallRelayAttempted = false,
     this.firewallRelayErrorCode,
+    this.blockedPlayerIds = const <String>{},
+    this.blockedPlayerNames = const <String>{},
+    this.hiddenPhotoIds = const <String>{},
   });
 
   final bool isHosting;
@@ -392,6 +395,51 @@ class MatchUiState {
   /// True when the host has to choose between the podium and `+5` rounds.
   final bool hostDeciding;
 
+  /// Local user-safety filters applied immediately across all match screens.
+  final Set<String> blockedPlayerIds;
+  final Set<String> blockedPlayerNames;
+  final Set<String> hiddenPhotoIds;
+
+  bool isPlayerBlocked(String? playerId, [String? name]) {
+    if (playerId != null &&
+        playerId.isNotEmpty &&
+        blockedPlayerIds.contains(playerId)) {
+      return true;
+    }
+    if (name != null &&
+        name.trim().isNotEmpty &&
+        blockedPlayerNames.contains(normalizeBlockedName(name))) {
+      return true;
+    }
+    if (playerId != null && playerId.isNotEmpty) {
+      final player = players.where((p) => p.id == playerId).firstOrNull;
+      if (player != null &&
+          blockedPlayerNames.contains(normalizeBlockedName(player.name))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool isPhotoHidden(String? photoId) =>
+      photoId != null &&
+      photoId.isNotEmpty &&
+      hiddenPhotoIds.contains(photoId);
+
+  bool isCardBlocked(MemeCard card) =>
+      isPhotoHidden(card.id) ||
+      isPhotoHidden(card.photoId) ||
+      isPlayerBlocked(card.authorId, card.authorName) ||
+      isPlayerBlocked(card.photoOwnerId, card.photoOwnerName);
+
+  String? safeAvatarPhoto(String? playerId, [String? name]) =>
+      isPlayerBlocked(playerId, name) ? null : avatarPhotos[playerId];
+
+  Map<String, String> get visibleAvatarPhotos => <String, String>{
+    for (final entry in avatarPhotos.entries)
+      if (!isPlayerBlocked(entry.key)) entry.key: entry.value,
+  };
+
   List<Player> get leaderboard {
     final sorted = List<Player>.of(players)
       ..sort((a, b) => b.score.compareTo(a.score));
@@ -486,6 +534,9 @@ class MatchUiState {
     bool? firewallPrompt,
     bool? firewallRelayAttempted,
     String? firewallRelayErrorCode,
+    Set<String>? blockedPlayerIds,
+    Set<String>? blockedPlayerNames,
+    Set<String>? hiddenPhotoIds,
     bool clearFirewallError = false,
     bool clearMemeFocus = false,
     bool clearVersionWarning = false,
@@ -659,6 +710,9 @@ class MatchUiState {
     firewallRelayErrorCode: clearFirewallError
         ? null
         : (firewallRelayErrorCode ?? this.firewallRelayErrorCode),
+    blockedPlayerIds: blockedPlayerIds ?? this.blockedPlayerIds,
+    blockedPlayerNames: blockedPlayerNames ?? this.blockedPlayerNames,
+    hiddenPhotoIds: hiddenPhotoIds ?? this.hiddenPhotoIds,
   );
 }
 
@@ -893,6 +947,69 @@ class MatchCoordinator {
   /// Without this, names and excluded albums only reached the repository.
   void updateSettings(AppSettings settings) {
     _settingsValue = settings;
+    syncBlockedNames(settings.blockedPlayerNames);
+  }
+
+  /// Syncs persistent blocked player names into active match UI state.
+  void syncBlockedNames(Set<String> blockedNames) {
+    final normalized = blockedNames
+        .map(normalizeBlockedName)
+        .where((name) => name.isNotEmpty)
+        .toSet();
+    if (setEquals(normalized, _state.blockedPlayerNames)) return;
+    _emit(_state.copyWith(blockedPlayerNames: normalized));
+  }
+
+  /// Blocks a player locally across screens and removes them if hosting.
+  Future<void> blockPlayer(
+    String playerId, {
+    String? name,
+    bool removeIfHost = true,
+  }) async {
+    final ids = Set<String>.of(_state.blockedPlayerIds);
+    if (playerId.isNotEmpty) {
+      ids.add(playerId);
+    }
+    final names = Set<String>.of(_state.blockedPlayerNames);
+    final resolvedName =
+        name ?? _state.players.where((p) => p.id == playerId).firstOrNull?.name;
+    if (resolvedName != null && resolvedName.trim().isNotEmpty) {
+      names.add(normalizeBlockedName(resolvedName));
+    }
+    _emit(_state.copyWith(blockedPlayerIds: ids, blockedPlayerNames: names));
+    if (_state.isHosting &&
+        removeIfHost &&
+        playerId.isNotEmpty &&
+        playerId != 'host') {
+      await kickPlayer(playerId);
+    }
+  }
+
+  /// Unblocks a player locally from the active match view.
+  void unblockPlayer({String? playerId, String? name}) {
+    final ids = Set<String>.of(_state.blockedPlayerIds);
+    if (playerId != null && playerId.isNotEmpty) {
+      ids.remove(playerId);
+    }
+    final names = Set<String>.of(_state.blockedPlayerNames);
+    if (name != null && name.trim().isNotEmpty) {
+      final norm = normalizeBlockedName(name);
+      names.remove(norm);
+      for (final player in _state.players) {
+        if (normalizeBlockedName(player.name) == norm) {
+          ids.remove(player.id);
+        }
+      }
+    }
+    _emit(_state.copyWith(blockedPlayerIds: ids, blockedPlayerNames: names));
+  }
+
+  /// Hides a specific photo or meme card immediately on this device.
+  void hidePhoto(String photoId) {
+    final trimmed = photoId.trim();
+    if (trimmed.isEmpty) return;
+    final hidden = Set<String>.of(_state.hiddenPhotoIds)..add(trimmed);
+    _emit(_state.copyWith(hiddenPhotoIds: hidden));
   }
 
   /// Changes the local player's sticker or selfie while a room is open. The

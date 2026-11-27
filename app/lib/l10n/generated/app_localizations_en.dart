@@ -144,7 +144,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get yourName => 'Your name';
 
   @override
-  String get acceptTerms => 'I agree to the Terms of use and Community rules.';
+  String get acceptTerms =>
+      'I agree to the Terms of use and Community rules, including zero tolerance for objectionable content or abuse.';
 
   @override
   String get termsLink => 'Terms and community rules';
@@ -1373,7 +1374,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get modeZoomOutBlurb => 'Guess the photo as it zooms out.';
 
   @override
-  String get modePhotoSabotageBlurb => 'Edit the same photo with markers and stickers.';
+  String get modePhotoSabotageBlurb =>
+      'Edit the same photo with markers and stickers.';
 
   @override
   String get mixedModesLabel => 'Mixed Party modes';
@@ -2299,7 +2301,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get crowdFavorite => 'Crowd favorite';
 
   @override
-  String awardUpvotes(int count) => '$count upvotes';
+  String awardUpvotes(int count) {
+    return '$count upvotes';
+  }
 
   @override
   String get sabotageBrushSize => 'Brush size';
@@ -2365,6 +2369,108 @@ class AppLocalizationsEn extends AppLocalizations {
   String get partyPassUnlockNoPrice => 'Unlock Forever';
 
   @override
-  String waitingPlayersNextGame(int count) =>
-      '$count waiting for the next game';
+  String waitingPlayersNextGame(int count) {
+    return '$count waiting for the next game';
+  }
+
+  @override
+  String get roomSafetyMenu => 'Safety and options';
+
+  @override
+  String get reportContentOrPlayer => 'Report content or player';
+
+  @override
+  String get blockAPlayer => 'Block a player';
+
+  @override
+  String blockPlayerNamed(String name) {
+    return 'Block $name';
+  }
+
+  @override
+  String unblockPlayerNamed(String name) {
+    return 'Unblock $name';
+  }
+
+  @override
+  String get unblockPlayer => 'Unblock';
+
+  @override
+  String get blockedBadge => 'Blocked';
+
+  @override
+  String get blockedPlayersTitle => 'Blocked players';
+
+  @override
+  String blockedPlayersCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count blocked',
+      one: '1 blocked',
+      zero: 'None blocked',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get noBlockedPlayersTitle => 'No blocked players';
+
+  @override
+  String get noBlockedPlayersBody =>
+      'Players you block are hidden immediately from photos, memes and avatars on this device.';
+
+  @override
+  String get contentHiddenBlocked => 'Hidden from a blocked or reported player';
+
+  @override
+  String get reportTargetLabel => 'What are you reporting?';
+
+  @override
+  String get reportTargetCurrentPhoto => 'Current photo or creation';
+
+  @override
+  String get reportTargetGeneral => 'General safety or abuse issue';
+
+  @override
+  String get reportReasonLabel => 'Reason';
+
+  @override
+  String get safetyReasonInappropriate => 'Inappropriate or explicit';
+
+  @override
+  String get safetyReasonHarassment => 'Harassment or bullying';
+
+  @override
+  String get safetyReasonHateSpeech => 'Hate speech or discrimination';
+
+  @override
+  String get safetyReasonNonConsensual => 'Shared without consent';
+
+  @override
+  String get safetyReasonOther => 'Other rule violation';
+
+  @override
+  String get reportDetailsHint => 'Optional details (max 500 characters)';
+
+  @override
+  String get hideAndBlockToggle => 'Hide content and block player now';
+
+  @override
+  String get removeFromRoomToggle => 'Also remove player from this room';
+
+  @override
+  String get submitReport => 'Send report';
+
+  @override
+  String get reportSubmittedTitle => 'Report received';
+
+  @override
+  String get reportSubmittedBody =>
+      'Any selected content is hidden on your device now. We review safety reports within 24 hours.';
+
+  @override
+  String openSupportEmail(String email) {
+    return 'Email support ($email)';
+  }
 }

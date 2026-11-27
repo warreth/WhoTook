@@ -458,7 +458,9 @@ void main() {
       expect(sim.host.state.memeRevealCards, isEmpty);
 
       await waitFor(
-        () => sim.host.state.phase != RoundPhase.captionReveal,
+        () =>
+            sim.host.state.phase != RoundPhase.captionReveal &&
+            sim.host.state.phase != RoundPhase.countdown,
         timeout: const Duration(seconds: 3),
         reason: 'empty meme reveal stayed frozen',
       );

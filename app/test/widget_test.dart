@@ -67,7 +67,7 @@ void main() {
     );
     expect(find.text('Continue'), findsOneWidget);
     expect(
-      find.text('I agree to the Terms of use and Community rules.'),
+      find.textContaining('I agree to the Terms of use and Community rules'),
       findsOneWidget,
     );
   });
@@ -88,13 +88,13 @@ void main() {
 
     await tester.enterText(find.byType(TextField).first, 'Bram');
     await tester.scrollUntilVisible(
-      find.text('I agree to the Terms of use and Community rules.'),
+      find.byType(Checkbox),
       300,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.tap(
-      find.text('I agree to the Terms of use and Community rules.'),
-    );
+    await tester.ensureVisible(find.byType(Checkbox));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(Checkbox));
     await tester.pump();
 
     await tester.scrollUntilVisible(
@@ -102,6 +102,8 @@ void main() {
       300,
       scrollable: find.byType(Scrollable).first,
     );
+    await tester.ensureVisible(find.text('Continue'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 

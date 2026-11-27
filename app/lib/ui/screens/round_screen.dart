@@ -17,6 +17,7 @@ import '../widgets/game_widgets.dart';
 import '../widgets/host_controls.dart';
 import '../widgets/mode_picker.dart';
 import '../widgets/round_scoreboard.dart';
+import '../widgets/safety_controls.dart';
 
 /// One photo, one timer, and every player in the room as a button, including
 /// yourself, so a glance at a screen never gives the owner away.
@@ -99,10 +100,19 @@ class RoundScreen extends ConsumerWidget {
                       child: _RevealBlock(
                         reveal: reveal,
                         players: state.players,
-                        avatarPhotos: state.avatarPhotos,
+                        avatarPhotos: state.visibleAvatarPhotos,
                         localPlayerId: state.localPlayerId,
                         photoBytes: state.activePhotoBytes,
                         photoId: reveal.photoId,
+                        photoHidden:
+                            state.isPhotoHidden(reveal.photoId) ||
+                            state.isPlayerBlocked(
+                              reveal.ownerId,
+                              state.players
+                                  .where((p) => p.id == reveal.ownerId)
+                                  .firstOrNull
+                                  ?.name,
+                            ),
                         isHosting: state.isHosting,
                         isFinalDoubleRound: state.isFinalDoubleRound,
                         onNext: () => unawaited(coordinator.skipRound()),
@@ -113,12 +123,19 @@ class RoundScreen extends ConsumerWidget {
                       child: AnimatedSwitcher(
                         duration: const Duration(milliseconds: 220),
                         switchInCurve: Curves.easeOut,
-                        child: _PhotoFrame(
-                          key: ValueKey<int>(state.currentRound),
-                          bytes: state.activePhotoBytes,
-                          photoId: state.activePhotoId,
-                          isPanorama: state.activePhotoIsPanorama,
-                        ),
+                        child: state.isPhotoHidden(state.activePhotoId)
+                            ? Center(
+                                key: ValueKey<String>(
+                                  'hidden-${state.currentRound}',
+                                ),
+                                child: const BlockedContentPlaceholder(),
+                              )
+                            : _PhotoFrame(
+                                key: ValueKey<int>(state.currentRound),
+                                bytes: state.activePhotoBytes,
+                                photoId: state.activePhotoId,
+                                isPanorama: state.activePhotoIsPanorama,
+                              ),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.s12),
@@ -133,7 +150,7 @@ class RoundScreen extends ConsumerWidget {
                     const SizedBox(height: AppSpacing.s12),
                     _GuessGrid(
                       options: state.activeRoundOptions,
-                      avatarPhotos: state.avatarPhotos,
+                      avatarPhotos: state.visibleAvatarPhotos,
                       lockedOwnerId: state.lockedGuessOwnerId,
                       buttonHeight: layout.controlHeight,
                       onGuess: (ownerId) {
@@ -495,6 +512,7 @@ class _RevealBlock extends StatefulWidget {
     required this.photoId,
     required this.isHosting,
     required this.onNext,
+    this.photoHidden = false,
     this.isFinalDoubleRound = false,
   });
 
@@ -504,6 +522,7 @@ class _RevealBlock extends StatefulWidget {
   final String? localPlayerId;
   final Uint8List? photoBytes;
   final String photoId;
+  final bool photoHidden;
   final bool isHosting;
   final VoidCallback onNext;
   final bool isFinalDoubleRound;
@@ -609,6 +628,7 @@ class _RevealBlockState extends State<_RevealBlock> {
                     : widget.avatarPhotos[owner.id],
                 photoBytes: widget.photoBytes,
                 photoId: widget.photoId,
+                photoHidden: widget.photoHidden,
                 fastest: fastest,
                 fooled: fooled,
                 missed: missed,
@@ -712,6 +732,7 @@ class _RevealHero extends StatelessWidget {
     required this.missed,
     required this.nobodyGuessed,
     required this.everyoneGuessed,
+    this.photoHidden = false,
   });
 
   final bool shown;
@@ -719,6 +740,7 @@ class _RevealHero extends StatelessWidget {
   final String? ownerAvatar;
   final Uint8List? photoBytes;
   final String photoId;
+  final bool photoHidden;
   final MicroAward? fastest;
   final int fooled;
   final int missed;
@@ -753,55 +775,60 @@ class _RevealHero extends StatelessWidget {
         children: <Widget>[
           SizedBox(
             width: 108,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: <Widget>[
-                PolaroidPhotoCard(
-                  bytes: photoBytes,
-                  caption: shown ? l10n.shotBy(ownerName) : '...',
-                  tilt: -0.045,
-                  aspectRatio: 1.02,
-                  onTap: photoBytes == null || photoBytes!.isEmpty
-                      ? null
-                      : () => showPhotoLightbox(
-                          context,
-                          bytes: photoBytes,
-                          photoId: photoId,
-                          caption: ownerName,
-                        ),
-                ),
-                if (shown && owner != null)
-                  Positioned(
-                    right: -8,
-                    bottom: 6,
-                    child: Transform.rotate(
-                      angle: 0.08,
-                      child: Container(
-                        padding: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          color: colors.card,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: colors.ink, width: 2.5),
-                          boxShadow: <BoxShadow>[
-                            BoxShadow(
-                              color: colors.ink,
-                              offset: const Offset(0, 3),
-                              blurRadius: 0,
-                            ),
-                          ],
-                        ),
-                        child: PlayerAvatar(
-                          initial: ownerName,
-                          avatar: owner!.avatar,
-                          photoBase64: ownerAvatar,
-                          isHost: owner!.isHost,
-                          size: 38,
-                        ),
+            child: photoHidden
+                ? const BlockedContentPlaceholder(compact: true)
+                : Stack(
+                    clipBehavior: Clip.none,
+                    children: <Widget>[
+                      PolaroidPhotoCard(
+                        bytes: photoBytes,
+                        caption: shown ? l10n.shotBy(ownerName) : '...',
+                        tilt: -0.045,
+                        aspectRatio: 1.02,
+                        onTap: photoBytes == null || photoBytes!.isEmpty
+                            ? null
+                            : () => showPhotoLightbox(
+                                context,
+                                bytes: photoBytes,
+                                photoId: photoId,
+                                caption: ownerName,
+                              ),
                       ),
-                    ),
+                      if (shown && owner != null)
+                        Positioned(
+                          right: -8,
+                          bottom: 6,
+                          child: Transform.rotate(
+                            angle: 0.08,
+                            child: Container(
+                              padding: const EdgeInsets.all(3),
+                              decoration: BoxDecoration(
+                                color: colors.card,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: colors.ink,
+                                  width: 2.5,
+                                ),
+                                boxShadow: <BoxShadow>[
+                                  BoxShadow(
+                                    color: colors.ink,
+                                    offset: const Offset(0, 3),
+                                    blurRadius: 0,
+                                  ),
+                                ],
+                              ),
+                              child: PlayerAvatar(
+                                initial: ownerName,
+                                avatar: owner!.avatar,
+                                photoBase64: ownerAvatar,
+                                isHost: owner!.isHost,
+                                size: 38,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
-              ],
-            ),
           ),
           const SizedBox(width: AppSpacing.s12),
           Expanded(

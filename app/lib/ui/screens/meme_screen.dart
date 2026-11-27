@@ -19,6 +19,7 @@ import '../widgets/game_widgets.dart';
 import '../widgets/host_controls.dart';
 import '../widgets/photo_precache.dart';
 import '../widgets/round_scoreboard.dart';
+import '../widgets/safety_controls.dart';
 
 /// Make It Meme: one photo from another player, seven templates, five
 /// match-wide swaps, anonymous votes, and a downloadable round winner.
@@ -315,7 +316,7 @@ class _MemeEditor extends StatelessWidget {
                     avatar: owner?.avatar ?? '',
                     photoBase64: owner == null
                         ? null
-                        : state.avatarPhotos[owner.id],
+                        : state.safeAvatarPhoto(owner.id, owner.name),
                     size: 24,
                   ),
                   const SizedBox(width: 6),
@@ -332,15 +333,22 @@ class _MemeEditor extends StatelessWidget {
               ),
               const SizedBox(height: 5),
               Expanded(
-                child: MemeCanvas(
-                  bytes: bytes,
-                  photoId: state.memeAssignment?.photoId,
-                  template: template,
-                  topText: topController.text,
-                  bottomText: bottomController.text,
-                  snapY: snapY,
-                  onSnapChanged: onSnap,
-                ),
+                child:
+                    state.isPhotoHidden(assignment.photoId) ||
+                        state.isPlayerBlocked(
+                          assignment.ownerId,
+                          assignment.ownerName,
+                        )
+                    ? const Center(child: BlockedContentPlaceholder(compact: true))
+                    : MemeCanvas(
+                        bytes: bytes,
+                        photoId: state.memeAssignment?.photoId,
+                        template: template,
+                        topText: topController.text,
+                        bottomText: bottomController.text,
+                        snapY: snapY,
+                        onSnapChanged: onSnap,
+                      ),
               ),
               const SizedBox(height: 5),
               MemeTemplatePicker(selected: template, onSelected: onTemplate),
@@ -437,7 +445,7 @@ class _MemeEditor extends StatelessWidget {
                 avatar: owner?.avatar ?? '',
                 photoBase64: owner == null
                     ? null
-                    : state.avatarPhotos[owner.id],
+                    : state.safeAvatarPhoto(owner.id, owner.name),
                 size: 28,
               ),
               const SizedBox(width: AppSpacing.s8),
@@ -451,15 +459,19 @@ class _MemeEditor extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.s12),
-          MemeCanvas(
-            bytes: bytes,
-            photoId: state.memeAssignment?.photoId,
-            template: template,
-            topText: topController.text,
-            bottomText: bottomController.text,
-            snapY: snapY,
-            onSnapChanged: onSnap,
-          ),
+          if (state.isPhotoHidden(assignment.photoId) ||
+              state.isPlayerBlocked(assignment.ownerId, assignment.ownerName))
+            const BlockedContentPlaceholder()
+          else
+            MemeCanvas(
+              bytes: bytes,
+              photoId: state.memeAssignment?.photoId,
+              template: template,
+              topText: topController.text,
+              bottomText: bottomController.text,
+              snapY: snapY,
+              onSnapChanged: onSnap,
+            ),
           const SizedBox(height: AppSpacing.s12),
           Align(
             alignment: Alignment.centerLeft,
@@ -714,28 +726,30 @@ class _MemeVoting extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Expanded(
-              child: Stack(
-                children: <Widget>[
-                  MemeCanvas(
-                    bytes: _decodeBytes(card.photoBase64),
-                    photoId: card.photoId,
-                    template: card.template,
-                    topText: card.topText,
-                    bottomText: card.bottomText,
-                    snapY: card.snapY,
-                    showWatermark: true,
-                  ),
-                  Positioned.fill(
-                    child: _ReactionBurst(
-                      kind: reactionKind,
-                      trigger: reactionTrigger,
+              child: state.isCardBlocked(card)
+                  ? const Center(child: BlockedContentPlaceholder(compact: true))
+                  : Stack(
+                      children: <Widget>[
+                        MemeCanvas(
+                          bytes: _decodeBytes(card.photoBase64),
+                          photoId: card.photoId,
+                          template: card.template,
+                          topText: card.topText,
+                          bottomText: card.bottomText,
+                          snapY: card.snapY,
+                          showWatermark: true,
+                        ),
+                        Positioned.fill(
+                          child: _ReactionBurst(
+                            kind: reactionKind,
+                            trigger: reactionTrigger,
+                          ),
+                        ),
+                        Positioned.fill(
+                          child: _TallyBurst(active: state.memeTallying),
+                        ),
+                      ],
                     ),
-                  ),
-                  Positioned.fill(
-                    child: _TallyBurst(active: state.memeTallying),
-                  ),
-                ],
-              ),
             ),
             const SizedBox(height: 4),
             Row(
@@ -930,26 +944,29 @@ class _MemeVoting extends StatelessWidget {
           style: TextStyle(fontSize: 13, height: 1.4, color: colors.ink2),
         ),
         const SizedBox(height: AppSpacing.s12),
-        Stack(
-          children: <Widget>[
-            MemeCanvas(
-              bytes: _decodeBytes(card.photoBase64),
-              photoId: card.photoId,
-              template: card.template,
-              topText: card.topText,
-              bottomText: card.bottomText,
-              snapY: card.snapY,
-              showWatermark: true,
-            ),
-            Positioned.fill(
-              child: _ReactionBurst(
-                kind: reactionKind,
-                trigger: reactionTrigger,
+        if (state.isCardBlocked(card))
+          const BlockedContentPlaceholder()
+        else
+          Stack(
+            children: <Widget>[
+              MemeCanvas(
+                bytes: _decodeBytes(card.photoBase64),
+                photoId: card.photoId,
+                template: card.template,
+                topText: card.topText,
+                bottomText: card.bottomText,
+                snapY: card.snapY,
+                showWatermark: true,
               ),
-            ),
-            Positioned.fill(child: _TallyBurst(active: state.memeTallying)),
-          ],
-        ),
+              Positioned.fill(
+                child: _ReactionBurst(
+                  kind: reactionKind,
+                  trigger: reactionTrigger,
+                ),
+              ),
+              Positioned.fill(child: _TallyBurst(active: state.memeTallying)),
+            ],
+          ),
         const SizedBox(height: AppSpacing.s12),
         Row(
           children: <Widget>[
@@ -1117,7 +1134,10 @@ class _VoteStatus extends StatelessWidget {
                       PlayerAvatar(
                         initial: player.name,
                         avatar: player.avatar,
-                        photoBase64: state.avatarPhotos[player.id],
+                        photoBase64: state.safeAvatarPhoto(
+                          player.id,
+                          player.name,
+                        ),
                         size: 30,
                       ),
                       if (state.memeFocusVoterIds.contains(player.id))
@@ -1498,6 +1518,8 @@ class _MemeReveal extends StatelessWidget {
               total: state.totalRounds,
               label: l10n.roundBadge(state.currentRound, state.totalRounds),
             ),
+            const SizedBox(width: AppSpacing.s8),
+            const HostControlsButton(),
           ],
         ),
         const SizedBox(height: AppSpacing.s8),
@@ -1549,7 +1571,10 @@ class _MemeReveal extends StatelessWidget {
                     PlayerAvatar(
                       initial: winnerAuthor.name,
                       avatar: winnerAuthor.avatar,
-                      photoBase64: state.avatarPhotos[winnerAuthor.id],
+                      photoBase64: state.safeAvatarPhoto(
+                        winnerAuthor.id,
+                        winnerAuthor.name,
+                      ),
                       size: 44,
                     ),
                     const SizedBox(width: AppSpacing.s8),
@@ -1582,18 +1607,21 @@ class _MemeReveal extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.s12),
-        RepaintBoundary(
-          key: winnerKey,
-          child: MemeCanvas(
-            bytes: _decodeBytes(winner.photoBase64),
-            photoId: winner.photoId,
-            template: winner.template,
-            topText: winner.topText,
-            bottomText: winner.bottomText,
-            snapY: winner.snapY,
-            showWatermark: true,
+        if (state.isCardBlocked(winner))
+          const BlockedContentPlaceholder()
+        else
+          RepaintBoundary(
+            key: winnerKey,
+            child: MemeCanvas(
+              bytes: _decodeBytes(winner.photoBase64),
+              photoId: winner.photoId,
+              template: winner.template,
+              topText: winner.topText,
+              bottomText: winner.bottomText,
+              snapY: winner.snapY,
+              showWatermark: true,
+            ),
           ),
-        ),
         const SizedBox(height: AppSpacing.s12),
         Row(
           children: <Widget>[
@@ -1628,7 +1656,7 @@ class _MemeReveal extends StatelessWidget {
         RoundScoreboard(
           players: state.players,
           scoreDeltas: reveal.scoreDeltas,
-          avatarPhotos: state.avatarPhotos,
+          avatarPhotos: state.visibleAvatarPhotos,
           localPlayerId: state.localPlayerId,
           doublePoints: state.isFinalDoubleRound,
         ),

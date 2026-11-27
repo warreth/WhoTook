@@ -17,6 +17,7 @@ import '../../ui/widgets/game_background.dart';
 import '../../ui/widgets/game_widgets.dart';
 import '../../ui/widgets/host_controls.dart';
 import '../../ui/widgets/round_scoreboard.dart';
+import '../../ui/widgets/safety_controls.dart';
 
 /// Adrenaline photo guessing: a detail opens up over fifteen seconds while the
 /// room races to lock the right photographer. A wrong early guess is out.
@@ -108,7 +109,7 @@ class _ZoomOutScreenState extends ConsumerState<ZoomOutScreen> {
                     const SizedBox(height: AppSpacing.s4),
                     _ZoomAnswerGrid(
                       options: state.activeRoundOptions,
-                      avatarPhotos: state.avatarPhotos,
+                      avatarPhotos: state.visibleAvatarPhotos,
                       lockedOwnerId: state.lockedGuessOwnerId,
                       buttonHeight: layout.controlHeight,
                       onGuess: (ownerId) {
@@ -193,6 +194,10 @@ class _ZoomPhoto extends StatelessWidget {
         state.activePhotoBytes ?? PhotoMemoryCache.instance.bytesFor(photoId);
     final anchorX = state.zoomAnchorX.clamp(0.25, 0.75);
     final anchorY = state.zoomAnchorY.clamp(0.25, 0.75);
+
+    if (state.isPhotoHidden(photoId)) {
+      return const Center(child: BlockedContentPlaceholder());
+    }
 
     return Semantics(
       container: true,
@@ -443,6 +448,9 @@ class _ZoomReveal extends ConsumerWidget {
     final photoId = reveal.photoId;
     final bytes =
         state.activePhotoBytes ?? PhotoMemoryCache.instance.bytesFor(photoId);
+    final photoHidden =
+        state.isPhotoHidden(photoId) ||
+        state.isPlayerBlocked(reveal.ownerId, owner?.name);
     return ListView(
       padding: const EdgeInsets.only(bottom: AppSpacing.s16),
       children: <Widget>[
@@ -460,9 +468,15 @@ class _ZoomReveal extends ConsumerWidget {
             ],
           ),
           clipBehavior: Clip.antiAlias,
-          child: bytes == null
-              ? ColoredBox(color: colors.raised)
-              : Image.memory(bytes, fit: BoxFit.cover, gaplessPlayback: true),
+          child: photoHidden
+              ? const Center(child: BlockedContentPlaceholder(compact: true))
+              : (bytes == null
+                    ? ColoredBox(color: colors.raised)
+                    : Image.memory(
+                        bytes,
+                        fit: BoxFit.cover,
+                        gaplessPlayback: true,
+                      )),
         ),
         const SizedBox(height: AppSpacing.s12),
         Row(
@@ -470,7 +484,7 @@ class _ZoomReveal extends ConsumerWidget {
             PlayerAvatar(
               initial: owner?.name ?? '',
               avatar: owner?.avatar ?? '',
-              photoBase64: state.avatarPhotos[owner?.id],
+              photoBase64: state.safeAvatarPhoto(owner?.id, owner?.name),
               isHost: owner?.isHost ?? false,
               size: 36,
             ),
@@ -499,7 +513,7 @@ class _ZoomReveal extends ConsumerWidget {
           players: state.players,
           scoreDeltas: reveal.scoreDeltas,
           streaks: reveal.streaks,
-          avatarPhotos: state.avatarPhotos,
+          avatarPhotos: state.visibleAvatarPhotos,
           localPlayerId: state.localPlayerId,
           doublePoints: state.isFinalDoubleRound,
         ),

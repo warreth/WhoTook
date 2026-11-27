@@ -299,7 +299,7 @@ abstract class AppLocalizations {
   /// No description provided for @heroFact.
   ///
   /// In en, this message translates to:
-  /// **'2–12 players · Same Wi-Fi or online'**
+  /// **'2-12 players · Same Wi-Fi or online'**
   String get heroFact;
 
   /// No description provided for @heroTitle.
@@ -353,7 +353,7 @@ abstract class AppLocalizations {
   /// No description provided for @acceptTerms.
   ///
   /// In en, this message translates to:
-  /// **'I agree to the Terms of use and Community rules.'**
+  /// **'I agree to the Terms of use and Community rules, including zero tolerance for objectionable content or abuse.'**
   String get acceptTerms;
 
   /// No description provided for @termsLink.
@@ -1355,7 +1355,7 @@ abstract class AppLocalizations {
   /// No description provided for @yourCaptionZero.
   ///
   /// In en, this message translates to:
-  /// **'Your caption got zero votes. Brutal.'**
+  /// **'No votes this round.'**
   String get yourCaptionZero;
 
   /// No description provided for @yourCaptionVotes.
@@ -2350,7 +2350,7 @@ abstract class AppLocalizations {
   /// No description provided for @modePhotoSabotageBlurb.
   ///
   /// In en, this message translates to:
-  /// **'Doodle on a friend\'s photo.'**
+  /// **'Edit the same photo with markers and stickers.'**
   String get modePhotoSabotageBlurb;
 
   /// No description provided for @mixedModesLabel.
@@ -3961,33 +3961,335 @@ abstract class AppLocalizations {
   /// **'Save sabotage'**
   String get sabotageSave;
 
+  /// Marker colour 6
+  ///
+  /// In en, this message translates to:
+  /// **'Blue'**
   String get sabotageColor6;
+
+  /// Marker colour 7
+  ///
+  /// In en, this message translates to:
+  /// **'Pink'**
   String get sabotageColor7;
+
+  /// Marker colour 8
+  ///
+  /// In en, this message translates to:
+  /// **'Orange'**
   String get sabotageColor8;
+
+  /// No description provided for @crowdFavorite.
+  ///
+  /// In en, this message translates to:
+  /// **'Crowd favorite'**
   String get crowdFavorite;
+
+  /// No description provided for @awardUpvotes.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} upvotes'**
   String awardUpvotes(int count);
+
+  /// No description provided for @sabotageBrushSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Brush size'**
   String get sabotageBrushSize;
+
+  /// No description provided for @sabotageStickers.
+  ///
+  /// In en, this message translates to:
+  /// **'Stickers'**
   String get sabotageStickers;
+
+  /// No description provided for @sabotageStickerEyes.
+  ///
+  /// In en, this message translates to:
+  /// **'Eyes'**
   String get sabotageStickerEyes;
+
+  /// No description provided for @sabotageStickerMustache.
+  ///
+  /// In en, this message translates to:
+  /// **'Mustache'**
   String get sabotageStickerMustache;
+
+  /// No description provided for @sabotageStickerCrown.
+  ///
+  /// In en, this message translates to:
+  /// **'Crown'**
   String get sabotageStickerCrown;
+
+  /// No description provided for @sabotageStickerShades.
+  ///
+  /// In en, this message translates to:
+  /// **'Shades'**
   String get sabotageStickerShades;
+
+  /// No description provided for @sabotageStickerCensor.
+  ///
+  /// In en, this message translates to:
+  /// **'Censor'**
   String get sabotageStickerCensor;
+
+  /// No description provided for @sabotageStickerHeart.
+  ///
+  /// In en, this message translates to:
+  /// **'Heart'**
   String get sabotageStickerHeart;
+
+  /// No description provided for @sabotageHoldToCompare.
+  ///
+  /// In en, this message translates to:
+  /// **'Hold photo to compare original'**
   String get sabotageHoldToCompare;
+
+  /// No description provided for @sabotagePrompt1.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn someone into a supervillain'**
   String get sabotagePrompt1;
+
+  /// No description provided for @sabotagePrompt2.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide a weird creature in the background'**
   String get sabotagePrompt2;
+
+  /// No description provided for @sabotagePrompt3.
+  ///
+  /// In en, this message translates to:
+  /// **'Make it look like a movie poster'**
   String get sabotagePrompt3;
+
+  /// No description provided for @sabotagePrompt4.
+  ///
+  /// In en, this message translates to:
+  /// **'Give someone a completely wrong expression'**
   String get sabotagePrompt4;
+
+  /// No description provided for @sabotagePrompt5.
+  ///
+  /// In en, this message translates to:
+  /// **'Add an unexpected weather disaster'**
   String get sabotagePrompt5;
+
+  /// No description provided for @sabotagePrompt6.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn a random object into the hero'**
   String get sabotagePrompt6;
+
+  /// No description provided for @sabotagePrompt7.
+  ///
+  /// In en, this message translates to:
+  /// **'Make it look like breaking news'**
   String get sabotagePrompt7;
+
+  /// No description provided for @sabotagePrompt8.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a terribly suspicious disguise'**
   String get sabotagePrompt8;
+
+  /// No description provided for @standingsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Standings'**
   String get standingsLabel;
+
+  /// No description provided for @finalRoundDoubleBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'2X FINAL ROUND'**
   String get finalRoundDoubleBadge;
+
+  /// No description provided for @memeYourOwn.
+  ///
+  /// In en, this message translates to:
+  /// **'Your own sabotage. Waiting for votes.'**
   String get memeYourOwn;
+
+  /// No description provided for @partyPassUnlockNoPrice.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock Forever'**
   String get partyPassUnlockNoPrice;
+
+  /// No description provided for @waitingPlayersNextGame.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} waiting for the next game'**
   String waitingPlayersNextGame(int count);
+
+  /// No description provided for @roomSafetyMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Safety and options'**
+  String get roomSafetyMenu;
+
+  /// No description provided for @reportContentOrPlayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Report content or player'**
+  String get reportContentOrPlayer;
+
+  /// No description provided for @blockAPlayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Block a player'**
+  String get blockAPlayer;
+
+  /// No description provided for @blockPlayerNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Block {name}'**
+  String blockPlayerNamed(String name);
+
+  /// No description provided for @unblockPlayerNamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Unblock {name}'**
+  String unblockPlayerNamed(String name);
+
+  /// No description provided for @unblockPlayer.
+  ///
+  /// In en, this message translates to:
+  /// **'Unblock'**
+  String get unblockPlayer;
+
+  /// No description provided for @blockedBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Blocked'**
+  String get blockedBadge;
+
+  /// No description provided for @blockedPlayersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Blocked players'**
+  String get blockedPlayersTitle;
+
+  /// No description provided for @blockedPlayersCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{None blocked} =1{1 blocked} other{{count} blocked}}'**
+  String blockedPlayersCount(int count);
+
+  /// No description provided for @noBlockedPlayersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No blocked players'**
+  String get noBlockedPlayersTitle;
+
+  /// No description provided for @noBlockedPlayersBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Players you block are hidden immediately from photos, memes and avatars on this device.'**
+  String get noBlockedPlayersBody;
+
+  /// No description provided for @contentHiddenBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden from a blocked or reported player'**
+  String get contentHiddenBlocked;
+
+  /// No description provided for @reportTargetLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'What are you reporting?'**
+  String get reportTargetLabel;
+
+  /// No description provided for @reportTargetCurrentPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Current photo or creation'**
+  String get reportTargetCurrentPhoto;
+
+  /// No description provided for @reportTargetGeneral.
+  ///
+  /// In en, this message translates to:
+  /// **'General safety or abuse issue'**
+  String get reportTargetGeneral;
+
+  /// No description provided for @reportReasonLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reason'**
+  String get reportReasonLabel;
+
+  /// No description provided for @safetyReasonInappropriate.
+  ///
+  /// In en, this message translates to:
+  /// **'Inappropriate or explicit'**
+  String get safetyReasonInappropriate;
+
+  /// No description provided for @safetyReasonHarassment.
+  ///
+  /// In en, this message translates to:
+  /// **'Harassment or bullying'**
+  String get safetyReasonHarassment;
+
+  /// No description provided for @safetyReasonHateSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'Hate speech or discrimination'**
+  String get safetyReasonHateSpeech;
+
+  /// No description provided for @safetyReasonNonConsensual.
+  ///
+  /// In en, this message translates to:
+  /// **'Shared without consent'**
+  String get safetyReasonNonConsensual;
+
+  /// No description provided for @safetyReasonOther.
+  ///
+  /// In en, this message translates to:
+  /// **'Other rule violation'**
+  String get safetyReasonOther;
+
+  /// No description provided for @reportDetailsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional details (max 500 characters)'**
+  String get reportDetailsHint;
+
+  /// No description provided for @hideAndBlockToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide content and block player now'**
+  String get hideAndBlockToggle;
+
+  /// No description provided for @removeFromRoomToggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Also remove player from this room'**
+  String get removeFromRoomToggle;
+
+  /// No description provided for @submitReport.
+  ///
+  /// In en, this message translates to:
+  /// **'Send report'**
+  String get submitReport;
+
+  /// No description provided for @reportSubmittedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Report received'**
+  String get reportSubmittedTitle;
+
+  /// No description provided for @reportSubmittedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Any selected content is hidden on your device now. We review safety reports within 24 hours.'**
+  String get reportSubmittedBody;
+
+  /// No description provided for @openSupportEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Email support ({email})'**
+  String openSupportEmail(String email);
 }
 
 class _AppLocalizationsDelegate

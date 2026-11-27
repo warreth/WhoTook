@@ -49,7 +49,7 @@
   "onboardingFreeTitle": "Same Wi-Fi is always free",
   "onboardingFreeBody": "Play Anywhere is optional, for friends on mobile data or another Wi-Fi. It comes with the Party Pass.",
   "yourName": "Your name",
-  "acceptTerms": "I agree to the Terms of use and Community rules.",
+  "acceptTerms": "I agree to the Terms of use and Community rules, including zero tolerance for objectionable content or abuse.",
   "termsLink": "Terms and community rules",
   "privacy": "Privacy",
   "onboardingPhotoNote": "Photos are only read when a match starts. You can keep private albums out of every game in Settings.",
@@ -1326,6 +1326,54 @@
   "@waitingPlayersNextGame": {
     "placeholders": {
       "count": { "type": "int" }
+    }
+  },
+  "roomSafetyMenu": "Safety and options",
+  "reportContentOrPlayer": "Report content or player",
+  "blockAPlayer": "Block a player",
+  "blockPlayerNamed": "Block {name}",
+  "@blockPlayerNamed": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "unblockPlayerNamed": "Unblock {name}",
+  "@unblockPlayerNamed": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "unblockPlayer": "Unblock",
+  "blockedBadge": "Blocked",
+  "blockedPlayersTitle": "Blocked players",
+  "blockedPlayersCount": "{count, plural, =0{None blocked} =1{1 blocked} other{{count} blocked}}",
+  "@blockedPlayersCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "noBlockedPlayersTitle": "No blocked players",
+  "noBlockedPlayersBody": "Players you block are hidden immediately from photos, memes and avatars on this device.",
+  "contentHiddenBlocked": "Hidden from a blocked or reported player",
+  "reportTargetLabel": "What are you reporting?",
+  "reportTargetCurrentPhoto": "Current photo or creation",
+  "reportTargetGeneral": "General safety or abuse issue",
+  "reportReasonLabel": "Reason",
+  "safetyReasonInappropriate": "Inappropriate or explicit",
+  "safetyReasonHarassment": "Harassment or bullying",
+  "safetyReasonHateSpeech": "Hate speech or discrimination",
+  "safetyReasonNonConsensual": "Shared without consent",
+  "safetyReasonOther": "Other rule violation",
+  "reportDetailsHint": "Optional details (max 500 characters)",
+  "hideAndBlockToggle": "Hide content and block player now",
+  "removeFromRoomToggle": "Also remove player from this room",
+  "submitReport": "Send report",
+  "reportSubmittedTitle": "Report received",
+  "reportSubmittedBody": "Any selected content is hidden on your device now. We review safety reports within 24 hours.",
+  "openSupportEmail": "Email support ({email})",
+  "@openSupportEmail": {
+    "placeholders": {
+      "email": { "type": "String" }
     }
   }
 }

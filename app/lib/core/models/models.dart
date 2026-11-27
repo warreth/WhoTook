@@ -1111,6 +1111,9 @@ enum ConnectionMode { localLan, webrtcP2p, webrtcTurn, offlineLoopback }
 /// Wire id for the free theme. Premium ids live in room_theme.dart.
 const String kDefaultRoomThemeId = 'classic_party';
 
+/// Normalizes a nickname for local blocklist matching.
+String normalizeBlockedName(String name) => name.trim().toLowerCase();
+
 /// Locally persisted preferences. No account, no server-side profile.
 class AppSettings {
   const AppSettings({
@@ -1118,6 +1121,7 @@ class AppSettings {
     this.avatar = 'pets',
     this.avatarColorIndex = 0,
     this.excludedAlbumIds = const <String>{},
+    this.blockedPlayerNames = const <String>{},
     this.themePreference = ThemePreference.system,
     this.language = AppLanguage.system,
     this.avatarPhoto,
@@ -1135,6 +1139,7 @@ class AppSettings {
   final String avatar;
   final int avatarColorIndex;
   final Set<String> excludedAlbumIds;
+  final Set<String> blockedPlayerNames;
   final ThemePreference themePreference;
   final AppLanguage language;
 
@@ -1150,11 +1155,17 @@ class AppSettings {
   final String? customTurnUsername;
   final String? customTurnCredential;
 
+  bool isPlayerBlocked(String name) {
+    final normalized = normalizeBlockedName(name);
+    return normalized.isNotEmpty && blockedPlayerNames.contains(normalized);
+  }
+
   AppSettings copyWith({
     String? nickname,
     String? avatar,
     int? avatarColorIndex,
     Set<String>? excludedAlbumIds,
+    Set<String>? blockedPlayerNames,
     ThemePreference? themePreference,
     AppLanguage? language,
     String? avatarPhoto,
@@ -1174,6 +1185,7 @@ class AppSettings {
     avatar: avatar ?? this.avatar,
     avatarColorIndex: avatarColorIndex ?? this.avatarColorIndex,
     excludedAlbumIds: excludedAlbumIds ?? this.excludedAlbumIds,
+    blockedPlayerNames: blockedPlayerNames ?? this.blockedPlayerNames,
     themePreference: themePreference ?? this.themePreference,
     language: language ?? this.language,
     avatarPhoto: clearAvatarPhoto ? null : (avatarPhoto ?? this.avatarPhoto),
@@ -1198,6 +1210,7 @@ class AppSettings {
     'avatar': avatar,
     'avatarColorIndex': avatarColorIndex,
     'excludedAlbumIds': excludedAlbumIds.toList()..sort(),
+    'blockedPlayerNames': blockedPlayerNames.toList()..sort(),
     'themePreference': themePreference.name,
     'language': language.name,
     'avatarPhoto': avatarPhoto,
@@ -1218,6 +1231,12 @@ class AppSettings {
     excludedAlbumIds: ((json['excludedAlbumIds'] as List<dynamic>?) ?? const [])
         .cast<String>()
         .toSet(),
+    blockedPlayerNames:
+        ((json['blockedPlayerNames'] as List<dynamic>?) ?? const [])
+            .cast<String>()
+            .map(normalizeBlockedName)
+            .where((name) => name.isNotEmpty)
+            .toSet(),
     themePreference: ThemePreference.values.firstWhere(
       (t) => t.name == json['themePreference'],
       orElse: () => ThemePreference.system,

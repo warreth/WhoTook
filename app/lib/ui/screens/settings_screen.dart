@@ -19,6 +19,7 @@ import '../widgets/common.dart';
 import '../widgets/game_background.dart';
 import '../widgets/party_pass_sheet.dart';
 import '../widgets/report_issue_button.dart';
+import '../widgets/safety_controls.dart';
 import 'advanced_settings_screen.dart';
 import 'demo_screen.dart';
 
@@ -501,12 +502,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         l10n.reportBody(kSupportEmail),
                         style: TextStyle(fontSize: 12, color: colors.ink2),
                       ),
-                      onTap: () => unawaited(
-                        openExternal(
-                          context,
-                          'mailto:$kSupportEmail?subject=WhoTook%20report',
+                      onTap: () => unawaited(showReportBlockSheet(context)),
+                    ),
+                    Divider(height: 1, color: colors.hairline),
+                    ListTile(
+                      minTileHeight: 56,
+                      leading: const Icon(Icons.block_outlined, size: 20),
+                      title: Text(
+                        l10n.blockedPlayersTitle,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
+                      subtitle: Text(
+                        l10n.blockedPlayersCount(
+                          settings?.blockedPlayerNames.length ?? 0,
+                        ),
+                        style: TextStyle(fontSize: 12, color: colors.ink2),
+                      ),
+                      trailing: const Icon(Icons.chevron_right, size: 20),
+                      onTap: () => unawaited(showBlockedPlayersSheet(context)),
                     ),
                     Divider(height: 1, color: colors.hairline),
                     ListTile(

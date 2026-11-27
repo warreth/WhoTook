@@ -8,6 +8,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/avatars.dart';
 import '../../core/media/avatar_photo_service.dart';
 import '../../core/models/models.dart';
+import '../../core/safety/moderation_report_service.dart';
 import '../../core/theme/game_skin.dart';
 import '../../core/theme/responsive_game_layout.dart';
 import '../../core/theme/whotook_theme.dart';
@@ -22,6 +23,7 @@ import '../widgets/game_widgets.dart';
 import '../widgets/mode_picker.dart';
 import '../widgets/online_hint.dart';
 import '../widgets/party_pass_bar.dart';
+import '../widgets/safety_controls.dart';
 import 'avatar_crop_screen.dart';
 
 class LobbyScreen extends ConsumerWidget {
@@ -342,7 +344,36 @@ class LobbyScreen extends ConsumerWidget {
                         for (final player in state.players)
                           _PlayerRow(
                             player: player,
-                            photoBase64: state.avatarPhotos[player.id],
+                            photoBase64: state.safeAvatarPhoto(
+                              player.id,
+                              player.name,
+                            ),
+                            blocked: state.isPlayerBlocked(
+                              player.id,
+                              player.name,
+                            ),
+                            onReport: player.id != state.localPlayerId
+                                ? () => unawaited(
+                                    showReportBlockSheet(
+                                      context,
+                                      initialPlayer: player,
+                                      initialTargetType:
+                                          ModerationTargetType.player,
+                                    ),
+                                  )
+                                : null,
+                            onToggleBlock: player.id != state.localPlayerId
+                                ? () => unawaited(
+                                    _togglePlayerBlock(
+                                      ref,
+                                      player,
+                                      state.isPlayerBlocked(
+                                        player.id,
+                                        player.name,
+                                      ),
+                                    ),
+                                  )
+                                : null,
                             onKick: isHost && !player.isHost
                                 ? () => unawaited(
                                     _confirmKick(context, coordinator, player),
@@ -611,21 +642,58 @@ class _InviteSheetState extends State<_InviteSheet> {
   }
 }
 
+Future<void> _togglePlayerBlock(
+  WidgetRef ref,
+  Player player,
+  bool currentlyBlocked,
+) async {
+  final coordinator = ref.read(matchCoordinatorProvider);
+  final normalized = normalizeBlockedName(player.name);
+  if (currentlyBlocked) {
+    coordinator.unblockPlayer(playerId: player.id, name: player.name);
+  } else {
+    await coordinator.blockPlayer(player.id, name: player.name);
+  }
+  if (normalized.isNotEmpty) {
+    try {
+      await ref.read(appSettingsProvider.notifier).apply((current) {
+        final next = Set<String>.of(current.blockedPlayerNames);
+        if (currentlyBlocked) {
+          next.remove(normalized);
+        } else {
+          next.add(normalized);
+        }
+        return current.copyWith(blockedPlayerNames: next);
+      });
+    } on Object {
+      // Standalone widget tests may not mount persistent settings.
+    }
+  }
+}
+
 class _PlayerRow extends StatelessWidget {
   const _PlayerRow({
     required this.player,
     required this.photoBase64,
+    this.blocked = false,
+    this.onReport,
+    this.onToggleBlock,
     this.onKick,
   });
 
   final Player player;
   final String? photoBase64;
+  final bool blocked;
+  final VoidCallback? onReport;
+  final VoidCallback? onToggleBlock;
   final VoidCallback? onKick;
 
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
     final l10n = context.l10n;
+    final hasMenu =
+        onReport != null || onToggleBlock != null || onKick != null;
     return Container(
       height: 48,
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s16),
@@ -643,10 +711,41 @@ class _PlayerRow extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.s12),
           Expanded(
-            child: Text(
-              player.name,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            child: Row(
+              children: <Widget>[
+                Flexible(
+                  child: Text(
+                    player.name,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                if (blocked) ...<Widget>[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colors.raised,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: colors.hairline),
+                    ),
+                    child: Text(
+                      l10n.blockedBadge,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: colors.ink2,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
           Text(
@@ -658,16 +757,40 @@ class _PlayerRow extends StatelessWidget {
               color: player.ready || player.isHost ? colors.ink2 : colors.ink3,
             ),
           ),
-          if (onKick != null)
+          if (hasMenu)
             PopupMenuButton<String>(
               tooltip: l10n.playerOptions,
               icon: const Icon(Icons.more_horiz, size: 20),
-              onSelected: (_) => onKick!(),
+              onSelected: (value) {
+                switch (value) {
+                  case 'report':
+                    onReport?.call();
+                  case 'block':
+                    onToggleBlock?.call();
+                  case 'remove':
+                    onKick?.call();
+                }
+              },
               itemBuilder: (context) => <PopupMenuEntry<String>>[
-                PopupMenuItem<String>(
-                  value: 'remove',
-                  child: Text(l10n.removeFromRoom),
-                ),
+                if (onReport != null)
+                  PopupMenuItem<String>(
+                    value: 'report',
+                    child: Text(l10n.reportContentOrPlayer),
+                  ),
+                if (onToggleBlock != null)
+                  PopupMenuItem<String>(
+                    value: 'block',
+                    child: Text(
+                      blocked
+                          ? l10n.unblockPlayerNamed(player.name)
+                          : l10n.blockPlayerNamed(player.name),
+                    ),
+                  ),
+                if (onKick != null)
+                  PopupMenuItem<String>(
+                    value: 'remove',
+                    child: Text(l10n.removeFromRoom),
+                  ),
               ],
             ),
         ],
