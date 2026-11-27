@@ -10,6 +10,7 @@ import '../core/diagnostics/bug_report_service.dart';
 import '../core/audio/soundboard_service.dart';
 import '../core/models/models.dart';
 import '../core/party_pass/party_pass_controller.dart';
+import '../core/theme/game_skin.dart';
 import '../l10n/l10n.dart';
 import '../core/theme/whotook_theme.dart';
 import '../state/match_coordinator.dart';
@@ -25,7 +26,10 @@ import 'screens/round_screen.dart';
 import 'screens/waiting_room_screen.dart';
 import 'screens/timeline_screen.dart';
 import 'widgets/firewall_prompt.dart';
+import 'widgets/game_background.dart';
+import 'widgets/game_widgets.dart';
 import 'widgets/idle_report_overlay.dart';
+import 'widgets/mode_picker.dart';
 import 'widgets/screenshot_alert_toast.dart';
 import 'widgets/soundboard_overlay.dart';
 import 'widgets/report_issue_button.dart';
@@ -46,7 +50,47 @@ class MatchRoot extends ConsumerStatefulWidget {
 
 class _MatchRootState extends ConsumerState<MatchRoot> {
   int? _dismissedBuild;
+  int? _splashRound;
+  GameMode? _splashMode;
+  Timer? _splashTimer;
+  bool _showSplash = false;
   String? _audioRoomKey;
+
+  @override
+  void dispose() {
+    _splashTimer?.cancel();
+    super.dispose();
+  }
+
+  void _maybeSplash(MatchUiState state) {
+    if (state.phase == RoundPhase.lobby ||
+        state.phase == RoundPhase.preparing ||
+        state.phase == RoundPhase.podium) {
+      _splashRound = null;
+      _splashMode = null;
+      return;
+    }
+    if (state.waitingForMatch ||
+        state.phase != RoundPhase.countdown ||
+        state.currentRound <= 0) {
+      return;
+    }
+    if (_splashRound == state.currentRound && _splashMode == state.activeMode) {
+      return;
+    }
+    _splashRound = state.currentRound;
+    _splashMode = state.activeMode;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() => _showSplash = true);
+      unawaited(GameAudioService.instance.pop());
+      unawaited(GameHaptics.instance.light());
+      _splashTimer?.cancel();
+      _splashTimer = Timer(const Duration(milliseconds: 1400), () {
+        if (mounted) setState(() => _showSplash = false);
+      });
+    });
+  }
 
   void _dismissWarning(VersionWarning warning) {
     setState(() => _dismissedBuild = warning.latestBuild);
@@ -66,9 +110,7 @@ class _MatchRootState extends ConsumerState<MatchRoot> {
         demo: widget.demo,
       )
       ..updateScreen(MediaQuery.sizeOf(context));
-    if (state.waitingForMatch) {
-      return const WaitingRoomScreen();
-    }
+    _maybeSplash(state);
     final settings = ref.watch(appSettingsProvider).value;
     if (settings != null) {
       coordinator.updateSettings(settings);
@@ -107,33 +149,37 @@ class _MatchRootState extends ConsumerState<MatchRoot> {
 
     final atHome =
         !widget.demo && state.roomId == null && state.phase == RoundPhase.lobby;
-    final screen = switch (state.phase) {
-      RoundPhase.lobby =>
-        state.roomId == null
-            ? const HomeScreen(key: ValueKey<String>('home'))
-            : const LobbyScreen(key: ValueKey<String>('lobby')),
-      RoundPhase.preparing => const PrepareScreen(
-        key: ValueKey<String>('prepare'),
-      ),
-      RoundPhase.countdown || RoundPhase.guessing || RoundPhase.reveal =>
-        state.activeMode == GameMode.zoomOut
-            ? const ZoomOutScreen(key: ValueKey<String>('zoom-out'))
-            : const RoundScreen(key: ValueKey<String>('round')),
-      RoundPhase.captionWriting ||
-      RoundPhase.captionVoting ||
-      RoundPhase.captionReveal =>
-        state.activeMode == GameMode.photoSabotage
-            ? const SabotageScreen(key: ValueKey<String>('sabotage'))
-            : state.activeMode == GameMode.makeItMeme
-            ? const MemeScreen(key: ValueKey<String>('meme'))
-            : const CaptionScreen(key: ValueKey<String>('caption')),
-      RoundPhase.timelineGuessing || RoundPhase.timelineReveal =>
-        const TimelineScreen(key: ValueKey<String>('timeline')),
-      RoundPhase.extendPrompt => const ExtendScreen(
-        key: ValueKey<String>('extend'),
-      ),
-      RoundPhase.podium => const PodiumScreen(key: ValueKey<String>('podium')),
-    };
+    final screen = state.waitingForMatch
+        ? const WaitingRoomScreen(key: ValueKey<String>('waiting'))
+        : switch (state.phase) {
+            RoundPhase.lobby =>
+              state.roomId == null
+                  ? const HomeScreen(key: ValueKey<String>('home'))
+                  : const LobbyScreen(key: ValueKey<String>('lobby')),
+            RoundPhase.preparing => const PrepareScreen(
+              key: ValueKey<String>('prepare'),
+            ),
+            RoundPhase.countdown || RoundPhase.guessing || RoundPhase.reveal =>
+              state.activeMode == GameMode.zoomOut
+                  ? const ZoomOutScreen(key: ValueKey<String>('zoom-out'))
+                  : const RoundScreen(key: ValueKey<String>('round')),
+            RoundPhase.captionWriting ||
+            RoundPhase.captionVoting ||
+            RoundPhase.captionReveal =>
+              state.activeMode == GameMode.photoSabotage
+                  ? const SabotageScreen(key: ValueKey<String>('sabotage'))
+                  : state.activeMode == GameMode.makeItMeme
+                  ? const MemeScreen(key: ValueKey<String>('meme'))
+                  : const CaptionScreen(key: ValueKey<String>('caption')),
+            RoundPhase.timelineGuessing || RoundPhase.timelineReveal =>
+              const TimelineScreen(key: ValueKey<String>('timeline')),
+            RoundPhase.extendPrompt => const ExtendScreen(
+              key: ValueKey<String>('extend'),
+            ),
+            RoundPhase.podium => const PodiumScreen(
+              key: ValueKey<String>('podium'),
+            ),
+          };
     final warning = state.versionWarning;
     return PopScope(
       canPop: atHome,
@@ -151,6 +197,13 @@ class _MatchRootState extends ConsumerState<MatchRoot> {
           fit: StackFit.expand,
           children: <Widget>[
             screen,
+            if (_showSplash && _splashRound != null && !state.waitingForMatch)
+              _ArcadeSplash(
+                round: _splashRound!,
+                totalRounds: state.totalRounds,
+                mode: _splashMode ?? state.activeMode,
+                isFinalDoubleRound: state.isFinalDoubleRound,
+              ),
             if (warning != null &&
                 warning.isNewer &&
                 !state.reconnecting &&
@@ -385,6 +438,124 @@ class _ReconnectOverlay extends StatelessWidget {
                     ],
                   ),
                 ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ArcadeSplash extends StatelessWidget {
+  const _ArcadeSplash({
+    required this.round,
+    required this.totalRounds,
+    required this.mode,
+    required this.isFinalDoubleRound,
+  });
+
+  final int round;
+  final int totalRounds;
+  final GameMode mode;
+  final bool isFinalDoubleRound;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final skin = GameModeSkin.forMode(mode);
+    final reduce = MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+    final kicker = (totalRounds > 0
+            ? l10n.roundOf(round, totalRounds)
+            : l10n.roundBadge(round, round))
+        .toUpperCase();
+    final modeTitle = modeLabel(l10n, mode);
+    final blurb = switch (mode) {
+      GameMode.classic => l10n.modeClassicBlurb,
+      GameMode.zoomOut => l10n.modeZoomOutBlurb,
+      GameMode.makeItMeme => l10n.modeMakeItMemeBlurb,
+      GameMode.photoSabotage => l10n.modePhotoSabotageBlurb,
+      _ => l10n.modeClassicBlurb,
+    };
+
+    return IgnorePointer(
+      child: ColoredBox(
+        color: skin.base,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.s24),
+            child: TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: reduce ? 1 : 0.25, end: 1),
+              duration: reduce
+                  ? Duration.zero
+                  : const Duration(milliseconds: 800),
+              curve: Curves.elasticOut,
+              builder: (context, value, child) => Transform.scale(
+                scale: value,
+                child: Transform.rotate(angle: -0.035, child: child),
+              ),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 26,
+                  vertical: 20,
+                ),
+                decoration: BoxDecoration(
+                  color: skin.deep,
+                  borderRadius: BorderRadius.circular(AppRadii.rCard),
+                  border: Border.all(color: Colors.black, width: 4),
+                  boxShadow: const <BoxShadow>[
+                    BoxShadow(
+                      color: Colors.black,
+                      offset: Offset(0, 8),
+                      blurRadius: 0,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Text(
+                      kicker,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'JetBrainsMono',
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.8,
+                        color: skin.accent.withValues(alpha: 0.8),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      modeTitle,
+                      textAlign: TextAlign.center,
+                      style: gameDisplay(
+                        size: 34,
+                        height: 1.0,
+                        color: skin.accent,
+                        letterSpacing: -0.9,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      blurb,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white.withValues(alpha: 0.86),
+                      ),
+                    ),
+                    if (isFinalDoubleRound) ...<Widget>[
+                      const SizedBox(height: 12),
+                      StickerBadge(
+                        label: l10n.finalRoundDoubleBadge,
+                        background: GamePalette.gold,
+                        foreground: GamePalette.onGold,
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ),
           ),

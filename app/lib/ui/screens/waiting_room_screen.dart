@@ -11,7 +11,9 @@ import '../../state/providers.dart';
 import '../widgets/common.dart';
 import '../widgets/game_background.dart';
 import '../widgets/game_widgets.dart';
+import '../widgets/host_controls.dart';
 import '../widgets/mode_picker.dart';
+import '../widgets/safety_controls.dart';
 
 /// A clean holding screen for a player who scanned the QR while a match was
 /// running. They watch the current round read-only, then join the next match
@@ -47,10 +49,21 @@ class WaitingRoomScreen extends ConsumerWidget {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: <Widget>[
-                      Icon(
-                        Icons.hourglass_top,
-                        size: 30,
-                        color: GamePalette.goldDeep,
+                      Row(
+                        children: <Widget>[
+                          const Spacer(),
+                          Icon(
+                            Icons.hourglass_top,
+                            size: 30,
+                            color: GamePalette.goldDeep,
+                          ),
+                          const Expanded(
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: HostControlsButton(),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: AppSpacing.s12),
                       Text(
@@ -110,7 +123,10 @@ class WaitingRoomScreen extends ConsumerWidget {
                             ),
                           ),
                         ],
-                        if (photo != null && photo.isNotEmpty) ...<Widget>[
+                        if (state.isPhotoHidden(state.activePhotoId)) ...<Widget>[
+                          const SizedBox(height: AppSpacing.s12),
+                          const BlockedContentPlaceholder(compact: true),
+                        ] else if (photo != null && photo.isNotEmpty) ...<Widget>[
                           const SizedBox(height: AppSpacing.s12),
                           Container(
                             height: 170,

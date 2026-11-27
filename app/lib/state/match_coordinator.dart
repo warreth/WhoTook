@@ -1397,10 +1397,10 @@ class MatchCoordinator {
       await _sendPodiumSnapshot(clientId);
       return;
     }
-    if (state.currentRound <= 0 || state.activePhotoId == null) return;
-    final photoId = state.activePhotoId!;
+    if (state.currentRound <= 0) return;
+    final photoId = state.activePhotoId;
     final bytes = state.activePhotoBytes;
-    if (bytes != null && bytes.isNotEmpty) {
+    if (photoId != null && bytes != null && bytes.isNotEmpty) {
       for (final chunk in PhotoChunker.split(photoId, bytes)) {
         await _hostTransport?.sendToClient(
           clientId,
@@ -1421,7 +1421,7 @@ class MatchCoordinator {
           'mode': state.activeMode.name,
           'roundNumber': state.currentRound,
           'totalRounds': state.totalRounds,
-          'photoId': photoId,
+          if (photoId != null) 'photoId': photoId,
           'isPanorama': state.activePhotoIsPanorama,
           // Count down from what is left, not from the full round.
           'durationMs': state.remainingMs > 0
@@ -1599,7 +1599,10 @@ class MatchCoordinator {
   void _bindHostTransport(HostTransport transport) {
     _subscriptions.add(
       transport.clientConnected.listen((clientId) async {
-        await _broadcastLobby();
+        final phase = _engine?.phase;
+        if (phase == RoundPhase.lobby || phase == RoundPhase.preparing) {
+          await _broadcastLobby();
+        }
       }),
     );
     _subscriptions.add(
@@ -1788,6 +1791,139 @@ class MatchCoordinator {
           return;
         }
 
+        if (engine.phase == RoundPhase.preparing) {
+          final Player joined;
+          try {
+            joined = engine.addPlayerDuringPrepare(
+              id: playerId,
+              name: name,
+              avatar: normalizeAvatar(payload['avatar'] as String?),
+              avatarColorIndex: payload['avatarColorIndex'] as int? ?? 0,
+            );
+          } on EngineException {
+            return;
+          }
+          _clientPlayerIds[clientId] = playerId;
+          _playerClientIds[playerId] = clientId;
+          if (token.isNotEmpty) _playerTokens[playerId] = token;
+          if (avatarPhoto != null && avatarPhoto.isNotEmpty) {
+            _avatarPhotos[playerId] = avatarPhoto;
+          }
+          if (claimsPartyPass) {
+            _partyPassPlayers.add(playerId);
+          } else {
+            _partyPassPlayers.remove(playerId);
+          }
+          if (build is int) {
+            _clientBuilds[playerId] = build;
+            _clientVersions[playerId] = version;
+          }
+          _emit(
+            _state.copyWith(
+              players: engine.players,
+              avatarPhotos: Map<String, String>.unmodifiable(_avatarPhotos),
+            ),
+          );
+          await _hostTransport?.sendToClient(
+            clientId,
+            WireMessage(
+              type: WireType.joinAck,
+              seq: _nextSeq(),
+              payload: <String, dynamic>{
+                'playerId': playerId,
+                'resumed': false,
+                'waiting': false,
+                'phase': RoundPhase.preparing.name,
+              },
+            ),
+          );
+          await _broadcastLobby();
+          await _hostTransport?.sendToClient(
+            clientId,
+            WireMessage(
+              type: WireType.startPrepare,
+              seq: _nextSeq(),
+              payload: <String, dynamic>{'photosNeeded': engine.photosNeeded},
+            ),
+          );
+          await _hostTransport?.sendToClient(
+            clientId,
+            WireMessage(
+              type: WireType.plantAssignment,
+              seq: _nextSeq(),
+              payload: <String, dynamic>{
+                'eligible': engine.isPlanter(joined.id),
+              },
+            ),
+          );
+          await _sendVersionWarnings();
+          return;
+        }
+        if (engine.phase == RoundPhase.extendPrompt) {
+          final joined = Player(
+            id: playerId,
+            name: name,
+            avatar: normalizeAvatar(payload['avatar'] as String?),
+            avatarColorIndex: payload['avatarColorIndex'] as int? ?? 0,
+          );
+          try {
+            engine.promoteWaitingPlayer(joined);
+          } on EngineException {
+            return;
+          }
+          _clientPlayerIds[clientId] = playerId;
+          _playerClientIds[playerId] = clientId;
+          if (token.isNotEmpty) _playerTokens[playerId] = token;
+          if (avatarPhoto != null && avatarPhoto.isNotEmpty) {
+            _avatarPhotos[playerId] = avatarPhoto;
+          }
+          if (claimsPartyPass) {
+            _partyPassPlayers.add(playerId);
+          } else {
+            _partyPassPlayers.remove(playerId);
+          }
+          if (build is int) {
+            _clientBuilds[playerId] = build;
+            _clientVersions[playerId] = version;
+          }
+          _emit(
+            _state.copyWith(
+              players: engine.players,
+              avatarPhotos: Map<String, String>.unmodifiable(_avatarPhotos),
+            ),
+          );
+          final remainingMs = max(
+            1000,
+            engine.extendDeadlineMs - DateTime.now().millisecondsSinceEpoch,
+          );
+          await _hostTransport?.sendToClient(
+            clientId,
+            WireMessage(
+              type: WireType.joinAck,
+              seq: _nextSeq(),
+              payload: <String, dynamic>{
+                'playerId': playerId,
+                'resumed': false,
+                'waiting': false,
+                'phase': RoundPhase.extendPrompt.name,
+              },
+            ),
+          );
+          await _hostTransport?.sendToClient(
+            clientId,
+            WireMessage(
+              type: WireType.extendPrepare,
+              seq: _nextSeq(),
+              payload: <String, dynamic>{
+                'extraPhotos': engine.photosNeeded,
+                'timeoutMs': remainingMs,
+                'players': engine.players.map((p) => p.toJson()).toList(),
+              },
+            ),
+          );
+          await _sendVersionWarnings();
+          return;
+        }
         if (engine.phase != RoundPhase.lobby) {
           // A QR scan during a match joins the room's waiting area. The host
           // adds these players to the fresh engine on the next rematch, so the
@@ -2483,6 +2619,7 @@ class MatchCoordinator {
     final nextRound = engine.currentRound + 1;
     final total = engine.totalRounds;
     final ms = countdownDuration.inMilliseconds;
+    final isFinalDouble = total >= 5 && nextRound == total;
 
     final nextMode = engine.deck.length > engine.currentRound
         ? engine.deck[engine.currentRound].mode
@@ -2492,6 +2629,7 @@ class MatchCoordinator {
         phase: RoundPhase.countdown,
         currentRound: nextRound,
         totalRounds: total,
+        isFinalDoubleRound: isFinalDouble,
         remainingMs: ms,
         activeMode: nextMode,
         clearGuess: true,
@@ -2505,6 +2643,7 @@ class MatchCoordinator {
         payload: <String, dynamic>{
           'roundNumber': nextRound,
           'totalRounds': total,
+          'isFinalDoubleRound': isFinalDouble,
           'durationMs': ms,
           'mode': nextMode.name,
         },
@@ -3894,6 +4033,14 @@ class MatchCoordinator {
   Future<void> startPrepare() async {
     final engine = _engine;
     if (engine == null) return;
+    final waiting = List<Player>.of(_waitingPlayers.values);
+    _waitingPlayers.clear();
+    _waitingClientIds.clear();
+    for (final player in waiting) {
+      if (player.connected) {
+        engine.promoteWaitingPlayer(player);
+      }
+    }
     final permission = await _photos.requestPermission();
     if (permission == PermissionState.denied) {
       _emit(_state.copyWith(errorMessage: _l10n.errorPhotoAccessHost));
@@ -4808,10 +4955,22 @@ class MatchCoordinator {
             ),
           );
         }
+        final isWaiting = payload['waiting'] == true;
+        final ackPhaseName = payload['phase'] as String?;
+        RoundPhase? ackPhase;
+        if (ackPhaseName != null) {
+          for (final candidate in RoundPhase.values) {
+            if (candidate.name == ackPhaseName) {
+              ackPhase = candidate;
+              break;
+            }
+          }
+        }
         _emit(
           _state.copyWith(
             localPlayerId: _currentPlayerId,
-            waitingForMatch: payload['waiting'] == true,
+            waitingForMatch: isWaiting,
+            phase: !isWaiting && ackPhase != null ? ackPhase : _state.phase,
           ),
         );
         _sendPartyPassClaim();
@@ -5194,6 +5353,7 @@ class MatchCoordinator {
             phase: RoundPhase.countdown,
             currentRound: payload['roundNumber'] as int? ?? 0,
             totalRounds: payload['totalRounds'] as int? ?? _state.totalRounds,
+            isFinalDoubleRound: payload['isFinalDoubleRound'] as bool? ?? false,
             remainingMs: payload['durationMs'] as int? ?? 0,
             activeMode: countdownMode,
             clearGuess: true,
@@ -5468,9 +5628,15 @@ class MatchCoordinator {
             waitingForMatch: false,
             waitingPlayersCount: 0,
             extensionSecondsLeft: (timeoutMs / 1000).ceil(),
+            extensionCandidates: const <PhotoCandidate>[],
             extensionApproved: false,
           ),
         );
+        final permission = await _photos.requestPermission();
+        if (permission == PermissionState.denied) {
+          _emit(_state.copyWith(errorMessage: _l10n.errorPhotoAccessClient));
+          return;
+        }
         final drawn = await _drawClientCandidates(
           payload['extraPhotos'] as int? ?? 3,
         );
@@ -5832,7 +5998,15 @@ class MatchCoordinator {
     for (final candidate in _state.extensionCandidates) {
       final bytes = candidate.bytes;
       if (bytes == null || bytes.isEmpty) continue;
-      for (final chunk in PhotoChunker.split(candidate.photoId, bytes)) {
+      PhotoMemoryCache.instance.put(candidate.photoId, bytes);
+      final payload = transport.usesRelay
+          ? await _compressPhoto(
+              bytes,
+              maxDimension: kRelayUploadDimension,
+              quality: kRelayUploadQuality,
+            )
+          : bytes;
+      for (final chunk in PhotoChunker.split(candidate.photoId, payload)) {
         await transport.send(
           WireMessage(
             type: WireType.photoChunk,

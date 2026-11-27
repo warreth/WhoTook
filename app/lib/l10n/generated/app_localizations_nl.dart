@@ -2368,7 +2368,7 @@ class AppLocalizationsNl extends AppLocalizations {
   String get sabotagePrompt8 => 'Geef iemand een verdachte vermomming';
 
   @override
-  String get standingsLabel => 'Tussenstand';
+  String get standingsLabel => 'Eindstand';
 
   @override
   String get finalRoundDoubleBadge => '2X LAATSTE RONDE';

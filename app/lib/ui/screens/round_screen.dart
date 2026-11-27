@@ -16,7 +16,6 @@ import '../widgets/game_background.dart';
 import '../widgets/game_widgets.dart';
 import '../widgets/host_controls.dart';
 import '../widgets/mode_picker.dart';
-import '../widgets/round_scoreboard.dart';
 import '../widgets/safety_controls.dart';
 
 /// One photo, one timer, and every player in the room as a button, including
@@ -662,17 +661,6 @@ class _RevealBlockState extends State<_RevealBlock> {
                   message:
                       '${owner.name}: ${l10n.playersFooled(fooled)} (${l10n.points(ownerDelta)})',
                   icon: Icons.visibility_off_outlined,
-                ),
-              ],
-              if (_shown) ...<Widget>[
-                const SizedBox(height: AppSpacing.s12),
-                RoundScoreboard(
-                  players: widget.players,
-                  scoreDeltas: reveal.scoreDeltas,
-                  streaks: reveal.streaks,
-                  avatarPhotos: widget.avatarPhotos,
-                  localPlayerId: widget.localPlayerId,
-                  doublePoints: widget.isFinalDoubleRound,
                 ),
               ],
               const SizedBox(height: AppSpacing.s12),

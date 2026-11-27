@@ -263,6 +263,30 @@ class HostGameEngine {
     return player;
   }
 
+  /// Adds a player who scanned in during photo selection before the round
+  /// starts, so they immediately pick their photos with the rest of the room.
+  Player addPlayerDuringPrepare({
+    required String id,
+    required String name,
+    String avatar = 'pets',
+    int avatarColorIndex = 0,
+  }) {
+    if (_players.containsKey(id)) {
+      return _players[id]!;
+    }
+    if (_phase != RoundPhase.preparing) {
+      throw const EngineException('wrong_phase', 'not preparing');
+    }
+    final player = Player(
+      id: id,
+      name: name,
+      avatar: avatar,
+      avatarColorIndex: avatarColorIndex,
+    );
+    _players[id] = player;
+    return player;
+  }
+
   void removePlayer(String playerId) {
     if (_phase == RoundPhase.lobby) {
       _players.remove(playerId);
@@ -279,9 +303,12 @@ class HostGameEngine {
   }
 
   /// Adds a player who scanned in while a match was running once the match
-  /// reaches the podium (for `+5` rounds) or returns to the lobby.
+  /// reaches the podium (for `+5` rounds), extension selection, or returns to
+  /// the lobby.
   void promoteWaitingPlayer(Player player) {
-    if (_phase != RoundPhase.podium && _phase != RoundPhase.lobby) {
+    if (_phase != RoundPhase.podium &&
+        _phase != RoundPhase.lobby &&
+        _phase != RoundPhase.extendPrompt) {
       throw const EngineException(
         'wrong_phase',
         'cannot promote waiting player during an active round',

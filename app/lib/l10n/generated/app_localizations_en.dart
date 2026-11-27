@@ -2357,7 +2357,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sabotagePrompt8 => 'Add a terribly suspicious disguise';
 
   @override
-  String get standingsLabel => 'Standings';
+  String get standingsLabel => 'Final standings';
 
   @override
   String get finalRoundDoubleBadge => '2X FINAL ROUND';

@@ -4096,7 +4096,7 @@ abstract class AppLocalizations {
   /// No description provided for @standingsLabel.
   ///
   /// In en, this message translates to:
-  /// **'Standings'**
+  /// **'Final standings'**
   String get standingsLabel;
 
   /// No description provided for @finalRoundDoubleBadge.

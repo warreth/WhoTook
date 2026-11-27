@@ -702,6 +702,76 @@ void main() {
     timeout: const Timeout(Duration(seconds: 45)),
   );
 
+  test(
+    'late joiner during preparing picks photos and plays Round 1',
+    () async {
+      await host.setRounds(2);
+      await host.startPrepare();
+      await _waitFor(() => clientOne.state.candidates.isNotEmpty);
+
+      final late = _client(hub, seed: 11);
+      addTearDown(late.dispose);
+      await late.loadSettings();
+      await late.joinMatch(inviteUrl);
+
+      await _waitFor(() => late.state.phase == RoundPhase.preparing);
+      await _waitFor(() => late.state.candidates.isNotEmpty);
+      expect(late.state.waitingForMatch, isFalse);
+
+      await host.markLocalReady();
+      await clientOne.clientMarkReady();
+      await clientTwo.clientMarkReady();
+      await late.clientMarkReady();
+
+      await _waitFor(() => late.state.phase == RoundPhase.guessing);
+      expect(host.state.players.length, 4);
+    },
+    timeout: const Timeout(Duration(seconds: 45)),
+  );
+
+  test(
+    'late joiner in Make It Meme sees live round in waiting room and enters lobby on playAgain',
+    () async {
+      await host.setMode(GameMode.makeItMeme);
+      await host.setRounds(2);
+      await host.startPrepare();
+      await _waitFor(() => host.state.candidates.isNotEmpty);
+      await _waitFor(() => clientOne.state.candidates.isNotEmpty);
+      await _waitFor(() => clientTwo.state.candidates.isNotEmpty);
+
+      await host.markLocalReady();
+      await clientOne.clientMarkReady();
+      await clientTwo.clientMarkReady();
+      await _waitFor(() => host.state.phase == RoundPhase.captionWriting);
+
+      final late = _client(hub, seed: 12);
+      addTearDown(late.dispose);
+      await late.loadSettings();
+      await late.joinMatch(inviteUrl);
+
+      await _waitFor(
+        () =>
+            late.state.waitingForMatch &&
+            late.state.currentRound == 1 &&
+            late.state.activeMode == GameMode.makeItMeme,
+      );
+
+      await host.endMatch();
+      await _waitFor(
+        () =>
+            late.state.phase == RoundPhase.podium && !late.state.waitingForMatch,
+      );
+
+      await host.playAgain();
+      await _waitFor(() => late.state.phase == RoundPhase.lobby);
+      expect(
+        host.state.players.any((p) => p.id == late.state.localPlayerId),
+        isTrue,
+      );
+    },
+    timeout: const Timeout(Duration(seconds: 45)),
+  );
+
   test('a client can rejoin the current round after a restart', () async {
     await prepareAndStart(rounds: 3);
     await _waitFor(() => host.state.phase == RoundPhase.guessing);

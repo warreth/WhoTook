@@ -16,7 +16,6 @@ import '../../ui/widgets/common.dart';
 import '../../ui/widgets/game_background.dart';
 import '../../ui/widgets/game_widgets.dart';
 import '../../ui/widgets/host_controls.dart';
-import '../../ui/widgets/round_scoreboard.dart';
 import '../../ui/widgets/safety_controls.dart';
 
 /// Adrenaline photo guessing: a detail opens up over fifteen seconds while the
@@ -507,15 +506,6 @@ class _ZoomReveal extends ConsumerWidget {
               ? l10n.zoomNoEagleEye
               : l10n.zoomEagleEye(eagleName, '${scale.toStringAsFixed(1)}x'),
           icon: Icons.visibility_outlined,
-        ),
-        const SizedBox(height: AppSpacing.s12),
-        RoundScoreboard(
-          players: state.players,
-          scoreDeltas: reveal.scoreDeltas,
-          streaks: reveal.streaks,
-          avatarPhotos: state.visibleAvatarPhotos,
-          localPlayerId: state.localPlayerId,
-          doublePoints: state.isFinalDoubleRound,
         ),
         const SizedBox(height: AppSpacing.s16),
         if (state.isHosting)
