@@ -45,12 +45,13 @@ class PaddlePartyPassPurchaseService implements PartyPassPurchaseService {
   bool _available = false;
   bool _initialized = false;
   bool _busy = false;
+  String _priceLabel = kDirectPriceLabel;
 
   @override
   Stream<PartyPassPurchaseEvent> get events => _events.stream;
 
   @override
-  String? get priceLabel => kDirectPriceLabel;
+  String? get priceLabel => _priceLabel;
 
   @override
   bool get available => _available;
@@ -72,6 +73,10 @@ class PaddlePartyPassPurchaseService implements PartyPassPurchaseService {
     try {
       final json = await _get('/party-pass/config');
       _available = json['paddle'] == true && json['checkoutAvailable'] == true;
+      final serverPriceLabel = json['priceLabel'];
+      if (serverPriceLabel is String && serverPriceLabel.trim().isNotEmpty) {
+        _priceLabel = serverPriceLabel.trim();
+      }
     } on Object {
       // The server may be offline while the app is already usable. Keep the
       // purchase button visible but let buy() report the real error.
@@ -120,9 +125,20 @@ class PaddlePartyPassPurchaseService implements PartyPassPurchaseService {
         );
       }
 
+      const steppedSeconds = <int>[2, 2, 3, 3, 5, 5, 8];
+      var attempt = 0;
       final deadline = DateTime.now().add(pollTimeout);
       while (DateTime.now().isBefore(deadline)) {
-        await Future<void>.delayed(pollInterval);
+        final delay = pollInterval == const Duration(seconds: 2)
+            ? Duration(
+                seconds:
+                    steppedSeconds[attempt < steppedSeconds.length
+                        ? attempt
+                        : steppedSeconds.length - 1],
+              )
+            : pollInterval;
+        attempt += 1;
+        await Future<void>.delayed(delay);
         final purchase = await _post('/party-pass/purchase', <String, Object>{
           'productId': kPartyPassProductId,
           'purchaseRef': ref,

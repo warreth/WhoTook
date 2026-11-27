@@ -200,13 +200,7 @@ class StorePartyPassPurchaseService implements PartyPassPurchaseService {
         code: 'billing_unavailable',
       );
     }
-    final remembered = _lastRestored;
-    if (remembered != null) {
-      return PartyPassPurchaseEvent(
-        status: PartyPassPurchaseStatus.restored,
-        credential: remembered,
-      );
-    }
+    _lastRestored = null;
     final pending = Completer<PartyPassPurchaseEvent>();
     _pending = pending;
     PartyPassPurchaseEvent result;

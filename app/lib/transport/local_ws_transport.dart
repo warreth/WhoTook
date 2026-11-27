@@ -156,6 +156,9 @@ class LocalWsHostTransport implements HostTransport {
     await _advertiser.advertise(roomId: roomId, port: server.port);
   }
 
+  static const int maxClients = 16;
+  static const int maxFrameBytes = 256 * 1024;
+
   Future<void> _handleRequest(HttpRequest request) async {
     final token = request.uri.queryParameters['token'];
     final authorized =
@@ -170,6 +173,12 @@ class LocalWsHostTransport implements HostTransport {
       return;
     }
 
+    if (_sockets.length >= maxClients) {
+      request.response.statusCode = 409;
+      await request.response.close();
+      return;
+    }
+
     final socket = await WebSocketTransformer.upgrade(request);
     final peerId = 'c_lan${_nextPeer++}';
     _sockets[peerId] = socket;
@@ -177,6 +186,13 @@ class LocalWsHostTransport implements HostTransport {
     _subscriptions.add(
       socket.listen(
         (data) {
+          final byteLength = data is String
+              ? utf8.encode(data).length
+              : (data is List<int> ? data.length : 0);
+          if (byteLength > maxFrameBytes) {
+            socket.close(4400, 'message too large');
+            return;
+          }
           final raw = data is String ? data : _decodeBytes(data);
           try {
             final message = WireMessage.decode(raw);

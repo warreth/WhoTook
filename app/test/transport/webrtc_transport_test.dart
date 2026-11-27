@@ -330,6 +330,90 @@ void main() {
       expect(identical(first, second), isTrue);
       expect(fetches, 1);
     });
+
+    test('deduplicates STUN entries and propagates relay expiry', () async {
+      final expiry = DateTime.now().toUtc().add(const Duration(minutes: 45));
+      final client = SignalingIceClient(
+        signalingUrl: 'https://signal.example',
+        httpClient: MockClient(
+          (_) async => http.Response(
+            '{"turnAllowed":false,"iceServers":[{"urls":["stun:stun.cloudflare.com:3478"]}]}',
+            200,
+          ),
+        ),
+        turnRelay: () async => TurnRelayAttempt(
+          passActive: true,
+          grant: TurnRelayGrant(
+            iceServers: const <RelayIceServer>[
+              RelayIceServer(urls: <String>['stun:stun.cloudflare.com:3478']),
+              RelayIceServer(
+                urls: <String>['turn:turn.example:3478'],
+                username: 'u1',
+                credential: 'p1',
+              ),
+            ],
+            ttlSeconds: 2700,
+            expiresAtUtc: expiry,
+            remainingMatchesToday: 14,
+            dailyLimit: 15,
+          ),
+        ),
+      );
+
+      final fetched = await client.fetch(roomId: 'room1234', token: 'secret');
+      expect(fetched.iceServers, hasLength(2));
+      expect(fetched.expiresAtUtc, expiry);
+    });
+
+    test('re-fetches ICE when near expiry and does not cache error fallback', () async {
+      var fetches = 0;
+      final soon = DateTime.now().toUtc().add(const Duration(minutes: 2));
+      final later = DateTime.now().toUtc().add(const Duration(minutes: 40));
+      final transport = WebRtcHostTransport(
+        invite: _invite,
+        iceClient: SignalingIceClient(
+          signalingUrl: 'https://signal.whotook.party',
+          httpClient: MockClient((_) async {
+            fetches += 1;
+            if (fetches == 1) {
+              return http.Response('error', 500);
+            }
+            return http.Response(
+              '{"turnAllowed":false,"iceServers":[{"urls":"stun:stun.cloudflare.com:3478"}]}',
+              200,
+            );
+          }),
+          turnRelay: () async => TurnRelayAttempt(
+            passActive: true,
+            grant: TurnRelayGrant(
+              iceServers: const <RelayIceServer>[
+                RelayIceServer(
+                  urls: <String>['turn:turn.example:3478'],
+                  username: 'u',
+                  credential: 'c',
+                ),
+              ],
+              ttlSeconds: 2700,
+              expiresAtUtc: fetches == 2 ? soon : later,
+              remainingMatchesToday: 14,
+              dailyLimit: 15,
+            ),
+          ),
+        ),
+      );
+      addTearDown(transport.close);
+
+      final firstFallback = await transport.fetchIceForTest();
+      expect(firstFallback.turnAllowed, isFalse);
+      final second = await transport.fetchIceForTest();
+      expect(second.turnAllowed, isTrue);
+      expect(fetches, 2);
+
+      // Soon-expiring credentials (2m left < 10m buffer) trigger a refresh.
+      final third = await transport.fetchIceForTest();
+      expect(fetches, 3);
+      expect(third.expiresAtUtc, later);
+    });
   });
 
   group('WebRtcHostTransport signaling reconnect', () {

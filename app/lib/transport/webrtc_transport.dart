@@ -72,6 +72,7 @@ class IceConfig {
     this.dailyLimit = 15,
     this.usedToday = 0,
     this.retryAtUtc,
+    this.expiresAtUtc,
     this.remainingMatchesToday = 0,
     this.relayPassActive = false,
     this.relayErrorCode,
@@ -83,6 +84,7 @@ class IceConfig {
   final int dailyLimit;
   final int usedToday;
   final DateTime? retryAtUtc;
+  final DateTime? expiresAtUtc;
   final int remainingMatchesToday;
   final bool relayPassActive;
   final String? relayErrorCode;
@@ -100,6 +102,7 @@ class IceConfig {
       }
     }
     final retry = json['retryAtUtc'];
+    final expires = json['expiresAtUtc'];
     return IceConfig(
       turnAllowed: json['turnAllowed'] as bool? ?? false,
       iceServers: servers,
@@ -107,6 +110,7 @@ class IceConfig {
       dailyLimit: json['dailyLimit'] as int? ?? 15,
       usedToday: json['usedToday'] as int? ?? 0,
       retryAtUtc: retry is String ? DateTime.tryParse(retry) : null,
+      expiresAtUtc: expires is String ? DateTime.tryParse(expires) : null,
       remainingMatchesToday: json['remainingMatchesToday'] as int? ?? 0,
     );
   }
@@ -243,21 +247,28 @@ class SignalingIceClient {
         relayErrorCode: attempt.errorCode,
       );
     }
-    final relayServers = <IceServerConfig>[
-      for (final server in grant.iceServers)
+    final merged = <IceServerConfig>[];
+    final seenKeys = <String>{};
+    for (final server in <IceServerConfig>[
+      ...config.iceServers,
+      for (final relayServer in grant.iceServers)
         IceServerConfig(
-          urls: server.urls,
-          username: server.username,
-          credential: server.credential,
+          urls: relayServer.urls,
+          username: relayServer.username,
+          credential: relayServer.credential,
         ),
-    ];
+    ]) {
+      final key = '${server.urls.join(',')}|${server.username ?? ''}';
+      if (seenKeys.add(key)) merged.add(server);
+    }
     return IceConfig(
       turnAllowed: true,
-      iceServers: <IceServerConfig>[...config.iceServers, ...relayServers],
+      iceServers: merged,
       reason: config.reason,
       dailyLimit: grant.dailyLimit,
       usedToday: grant.dailyLimit - grant.remainingMatchesToday,
       retryAtUtc: config.retryAtUtc,
+      expiresAtUtc: grant.expiresAtUtc,
       remainingMatchesToday: grant.remainingMatchesToday,
       relayPassActive: true,
     );
@@ -296,6 +307,7 @@ abstract class _WebRtcTransportBase {
   StreamSubscription<dynamic>? _signalingSub;
   TurnLimitNotice? _turnNotice;
   bool _usesRelay = false;
+  bool _disposed = false;
 
   Stream<WireMessage> get messages => _messages.stream;
 
@@ -332,10 +344,17 @@ abstract class _WebRtcTransportBase {
     _signaling = channel;
     _signalingSub = channel.stream.listen(
       _onSignalingFrame,
-      onDone: _fireDisconnected,
-      onError: (Object _) => _fireDisconnected(),
+      onDone: _onSignalingClosed,
+      onError: (Object _) => _onSignalingClosed(),
       cancelOnError: true,
     );
+  }
+
+  void _onSignalingClosed() {
+    // Keep live P2P/TURN DataChannels intact if only the signaling WS drops.
+    if (_channel?.state != RTCDataChannelState.RTCDataChannelOpen) {
+      _fireDisconnected();
+    }
   }
 
   void _onSignalingFrame(dynamic data) {
@@ -358,6 +377,7 @@ abstract class _WebRtcTransportBase {
       case 'ice':
         onRemoteIce(parsed);
       case 'peer_left':
+        _onSignalingClosed();
       case 'room_closed':
         _fireDisconnected();
     }
@@ -433,6 +453,7 @@ abstract class _WebRtcTransportBase {
   }
 
   Future<void> closeAll() async {
+    _disposed = true;
     await _signalingSub?.cancel();
     _signalingSub = null;
     await _signaling?.sink.close();
@@ -660,7 +681,9 @@ class WebRtcHostTransport implements HostTransport {
       case 'peer_left':
         final peerId = frame['peerId'] as String?;
         if (peerId == null) return;
-        final peer = _peers.remove(peerId);
+        final peer = _peers[peerId];
+        if (peer != null && peer.isOpen) return;
+        _peers.remove(peerId);
         await peer?.close();
         if (!_disconnected.isClosed) _disconnected.add(peerId);
     }
@@ -688,7 +711,16 @@ class WebRtcHostTransport implements HostTransport {
   /// asks the signalling server for TURN credentials.
   Future<IceConfig> _ensureIce() {
     final existing = _iceConfig;
-    if (existing != null) return Future.value(existing);
+    if (existing != null) {
+      final expires = existing.expiresAtUtc;
+      if (expires == null ||
+          expires.isAfter(
+            DateTime.now().toUtc().add(const Duration(minutes: 10)),
+          )) {
+        return Future.value(existing);
+      }
+      _iceConfig = null;
+    }
     final pending = _iceFuture;
     if (pending != null) return pending;
     final future = _loadIce();
@@ -707,15 +739,14 @@ class WebRtcHostTransport implements HostTransport {
       _iceConfig = config;
       return config;
     } on Object {
-      // A missing relay must not block a direct connection.
-      const fallback = IceConfig(
+      // A missing relay must not block a direct connection, and transient
+      // failures must not permanently stick on STUN-only fallback.
+      return const IceConfig(
         turnAllowed: false,
         iceServers: <IceServerConfig>[
           IceServerConfig(urls: <String>[kDefaultStunServer]),
         ],
       );
-      _iceConfig = fallback;
-      return fallback;
     } finally {
       _iceFuture = null;
     }
@@ -792,6 +823,8 @@ class WebRtcHostPeer {
   RTCPeerConnection? _peer;
   RTCDataChannel? _channel;
   bool _usesRelay = false;
+  bool _remoteDescriptionSet = false;
+  final List<RTCIceCandidate> _pendingRemoteIce = <RTCIceCandidate>[];
 
   bool get isOpen => _channel?.state == RTCDataChannelState.RTCDataChannelOpen;
 
@@ -825,11 +858,23 @@ class WebRtcHostPeer {
   }
 
   Future<void> onAnswer(RTCSessionDescription answer) async {
-    await _peer?.setRemoteDescription(answer);
+    final peer = _peer;
+    if (peer == null) return;
+    await peer.setRemoteDescription(answer);
+    _remoteDescriptionSet = true;
+    for (final candidate in List<RTCIceCandidate>.from(_pendingRemoteIce)) {
+      await peer.addCandidate(candidate);
+    }
+    _pendingRemoteIce.clear();
   }
 
   Future<void> onRemoteIce(RTCIceCandidate candidate) async {
-    await _peer?.addCandidate(candidate);
+    final peer = _peer;
+    if (peer == null || !_remoteDescriptionSet) {
+      _pendingRemoteIce.add(candidate);
+      return;
+    }
+    await peer.addCandidate(candidate);
   }
 
   void _bindChannel(RTCDataChannel channel) {
@@ -865,6 +910,8 @@ class WebRtcHostPeer {
   }
 
   Future<void> close() async {
+    _remoteDescriptionSet = false;
+    _pendingRemoteIce.clear();
     await _channel?.close();
     _channel = null;
     await _peer?.close();
@@ -888,6 +935,8 @@ class WebRtcClientTransport extends _WebRtcTransportBase
 
   IceConfig? _config;
   Completer<void>? _channelOpen;
+  bool _remoteDescriptionSet = false;
+  final List<RTCIceCandidate> _pendingRemoteIce = <RTCIceCandidate>[];
 
   @override
   ConnectionMode get mode {
@@ -897,6 +946,8 @@ class WebRtcClientTransport extends _WebRtcTransportBase
 
   @override
   Future<void> connect() async {
+    _remoteDescriptionSet = false;
+    _pendingRemoteIce.clear();
     _channelOpen = Completer<void>();
     _config = await _fetchIce();
     final reason = _config!.reason;
@@ -977,6 +1028,7 @@ class WebRtcClientTransport extends _WebRtcTransportBase
 
   @override
   Future<void> onOffer(Map<String, dynamic> frame) async {
+    if (_disposed) return;
     final payload = frame['payload'] as Map<String, dynamic>? ?? const {};
     final peer = await createPeerConnection(
       (_config ??
@@ -988,6 +1040,10 @@ class WebRtcClientTransport extends _WebRtcTransportBase
               ))
           .toRtcConfiguration(),
     );
+    if (_disposed) {
+      await peer.close();
+      return;
+    }
     _peer = peer;
 
     peer.onDataChannel = (channel) {
@@ -1000,9 +1056,10 @@ class WebRtcClientTransport extends _WebRtcTransportBase
       );
     };
     peer.onIceCandidate = (candidate) {
-      if (candidate.candidate == null) return;
+      if (candidate.candidate == null || _disposed) return;
       sendSignal(
         'ice',
+        to: 'host',
         payload: <String, dynamic>{
           'candidate': candidate.candidate,
           'sdpMid': candidate.sdpMid,
@@ -1017,23 +1074,38 @@ class WebRtcClientTransport extends _WebRtcTransportBase
         payload['type'] as String?,
       ),
     );
+    if (_disposed) return;
+    _remoteDescriptionSet = true;
+    for (final candidate in List<RTCIceCandidate>.from(_pendingRemoteIce)) {
+      await peer.addCandidate(candidate);
+    }
+    _pendingRemoteIce.clear();
     final answer = await peer.createAnswer();
+    if (_disposed) return;
     await peer.setLocalDescription(answer);
     sendSignal(
       'answer',
+      to: 'host',
       payload: <String, dynamic>{'sdp': answer.sdp, 'type': answer.type},
     );
   }
 
   @override
   Future<void> onAnswer(Map<String, dynamic> frame) async {
+    final peer = _peer;
+    if (peer == null) return;
     final payload = frame['payload'] as Map<String, dynamic>? ?? const {};
-    await _peer?.setRemoteDescription(
+    await peer.setRemoteDescription(
       RTCSessionDescription(
         payload['sdp'] as String?,
         payload['type'] as String?,
       ),
     );
+    _remoteDescriptionSet = true;
+    for (final candidate in List<RTCIceCandidate>.from(_pendingRemoteIce)) {
+      await peer.addCandidate(candidate);
+    }
+    _pendingRemoteIce.clear();
   }
 
   @override
@@ -1041,13 +1113,17 @@ class WebRtcClientTransport extends _WebRtcTransportBase
     final payload = frame['payload'] as Map<String, dynamic>? ?? const {};
     final candidate = payload['candidate'] as String?;
     if (candidate == null) return;
-    await _peer?.addCandidate(
-      RTCIceCandidate(
-        candidate,
-        payload['sdpMid'] as String?,
-        payload['sdpMLineIndex'] as int?,
-      ),
+    final rtcCandidate = RTCIceCandidate(
+      candidate,
+      payload['sdpMid'] as String?,
+      payload['sdpMLineIndex'] as int?,
     );
+    final peer = _peer;
+    if (peer == null || !_remoteDescriptionSet) {
+      _pendingRemoteIce.add(rtcCandidate);
+      return;
+    }
+    await peer.addCandidate(rtcCandidate);
   }
 
   @override
@@ -1057,5 +1133,9 @@ class WebRtcClientTransport extends _WebRtcTransportBase
   Future<void> send(WireMessage message) => sendOverChannel(message);
 
   @override
-  Future<void> close() => closeAll();
+  Future<void> close() {
+    _remoteDescriptionSet = false;
+    _pendingRemoteIce.clear();
+    return closeAll();
+  }
 }

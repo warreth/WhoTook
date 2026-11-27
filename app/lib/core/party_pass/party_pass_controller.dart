@@ -93,6 +93,7 @@ class PartyPassState {
 class PartyPassController extends AsyncNotifier<PartyPassState> {
   StreamSubscription<PartyPassPurchaseEvent>? _subscription;
   TurnRelayGrant? _cachedGrant;
+  Future<TurnRelayAttempt>? _pendingRelayAttempt;
   String? _lastProcessedToken;
   Future<void> _credentialLock = Future<void>.value();
   int _quotaRequestId = 0;
@@ -368,21 +369,37 @@ class PartyPassController extends AsyncNotifier<PartyPassState> {
 
   /// Called by the transport at ICE setup time. A null grant lets direct P2P
   /// get its chance; [TurnRelayAttempt.passActive] drives the failure prompt.
-  Future<TurnRelayAttempt> relayAttempt() async {
-    if (_disposed) return const TurnRelayAttempt();
+  Future<TurnRelayAttempt> relayAttempt() {
+    if (_disposed) return Future.value(const TurnRelayAttempt());
     final current = state.value ?? const PartyPassState();
     final credential = current.credential;
     if (!current.active || credential == null) {
-      return const TurnRelayAttempt(passActive: false);
+      return Future.value(const TurnRelayAttempt(passActive: false));
     }
-    final requestId = ++_quotaRequestId;
     final cached = _cachedGrant;
     if (cached != null &&
         cached.expiresAtUtc.isAfter(
-          DateTime.now().toUtc().add(const Duration(minutes: 2)),
+          DateTime.now().toUtc().add(const Duration(minutes: 10)),
         )) {
-      return TurnRelayAttempt(grant: cached, passActive: true);
+      return Future.value(TurnRelayAttempt(grant: cached, passActive: true));
     }
+    final pending = _pendingRelayAttempt;
+    if (pending != null) return pending;
+    final future = _fetchRelayAttempt(current, credential);
+    _pendingRelayAttempt = future;
+    future.whenComplete(() {
+      if (identical(_pendingRelayAttempt, future)) {
+        _pendingRelayAttempt = null;
+      }
+    });
+    return future;
+  }
+
+  Future<TurnRelayAttempt> _fetchRelayAttempt(
+    PartyPassState current,
+    PartyPassCredential credential,
+  ) async {
+    final requestId = ++_quotaRequestId;
     try {
       final grant = await ref
           .read(turnRelayClientProvider)
