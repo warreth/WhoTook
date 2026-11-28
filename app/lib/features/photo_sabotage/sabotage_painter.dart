@@ -29,12 +29,37 @@ class SabotageDrawingPainter extends CustomPainter {
     this.stickers = const <SabotageSticker>[],
     this.selectedStickerIndex,
     this.progress = 1.0,
-  });
+  }) : _strokeSignature = _computeStrokeSignature(strokes),
+       _stickerSignature = _computeStickerSignature(stickers);
 
   final List<SabotageStroke> strokes;
   final List<SabotageSticker> stickers;
   final int? selectedStickerIndex;
   final double progress;
+  final int _strokeSignature;
+  final int _stickerSignature;
+
+  static int _computeStrokeSignature(List<SabotageStroke> strokes) {
+    if (strokes.isEmpty) return 0;
+    return Object.hashAll(
+      strokes.map(
+        (s) => Object.hash(
+          s.colorIndex,
+          s.width,
+          s.points.length,
+          s.points.isEmpty ? null : s.points.first,
+          s.points.isEmpty ? null : s.points.last,
+        ),
+      ),
+    );
+  }
+
+  static int _computeStickerSignature(List<SabotageSticker> stickers) {
+    if (stickers.isEmpty) return 0;
+    return Object.hashAll(
+      stickers.map((s) => Object.hash(s.kind, s.x, s.y, s.scale)),
+    );
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -91,7 +116,11 @@ class SabotageDrawingPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant SabotageDrawingPainter oldDelegate) => true;
+  bool shouldRepaint(covariant SabotageDrawingPainter oldDelegate) =>
+      oldDelegate.progress != progress ||
+      oldDelegate.selectedStickerIndex != selectedStickerIndex ||
+      oldDelegate._strokeSignature != _strokeSignature ||
+      oldDelegate._stickerSignature != _stickerSignature;
 }
 
 /// Draws a single cartoon sticker onto [canvas] using normalized coordinates or

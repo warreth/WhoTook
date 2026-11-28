@@ -64,6 +64,87 @@ class IceServerConfig {
 
 const String kDefaultStunServer = 'stun:stun.cloudflare.com:3478';
 
+/// Pacing thresholds for chunked photo transfers over WebRTC DataChannels.
+/// Keeping the SCTP buffer below 256 KB stops photo bursts from crowding out
+/// control messages or overflowing mobile socket buffers.
+const int kWebRtcHighWaterBytes = 256 * 1024;
+const int kWebRtcLowWaterBytes = 64 * 1024;
+const int _kBackpressurePayloadThreshold = 2048;
+const Duration _kBackpressurePollInterval = Duration(milliseconds: 15);
+const int _kMaxBackpressureWaitIterations = 200;
+
+/// Waits briefly until [channel] drains below [highWaterBytes] before queueing
+/// another large frame. Exposed for transport backpressure unit tests.
+@visibleForTesting
+Future<void> waitForDataChannelDrain({
+  required int? Function() readBufferedAmount,
+  required bool Function() isChannelOpen,
+  Future<int?> Function()? readBufferedAmountAsync,
+  int highWaterBytes = kWebRtcHighWaterBytes,
+  Future<void> Function(Duration)? wait,
+}) async {
+  final pause = wait ?? Future<void>.delayed;
+  Future<int> currentBuffered() async {
+    final syncAmount = readBufferedAmount();
+    if (syncAmount != null) return syncAmount;
+    if (readBufferedAmountAsync != null) {
+      try {
+        return (await readBufferedAmountAsync()) ?? 0;
+      } on Object {
+        return 0;
+      }
+    }
+    return 0;
+  }
+
+  for (var i = 0; i < _kMaxBackpressureWaitIterations; i++) {
+    if (!isChannelOpen()) return;
+    final buffered = await currentBuffered();
+    if (buffered <= highWaterBytes) return;
+    await pause(_kBackpressurePollInterval);
+  }
+}
+
+Future<void> _sendWithBackpressure(
+  RTCDataChannel? channel,
+  WireMessage message,
+) async {
+  if (channel == null ||
+      channel.state != RTCDataChannelState.RTCDataChannelOpen) {
+    throw const TransportException('not_connected', 'data channel is not open');
+  }
+  final encoded = message.encode();
+  if (encoded.length >= _kBackpressurePayloadThreshold) {
+    await waitForDataChannelDrain(
+      readBufferedAmount: () => channel.bufferedAmount,
+      readBufferedAmountAsync: () async => await channel.getBufferedAmount(),
+      isChannelOpen: () =>
+          channel.state == RTCDataChannelState.RTCDataChannelOpen,
+    );
+    if (channel.state != RTCDataChannelState.RTCDataChannelOpen) {
+      throw const TransportException(
+        'not_connected',
+        'data channel closed during backpressure wait',
+      );
+    }
+  }
+  try {
+    await channel.send(RTCDataChannelMessage(encoded));
+  } on TransportException {
+    rethrow;
+  } on Object catch (error) {
+    throw TransportException('send_failed', error.toString());
+  }
+}
+
+Future<void> _tryRestartIce(RTCPeerConnection peer) async {
+  try {
+    await peer.restartIce();
+  } on Object {
+    // Some platform implementations or closed states reject ICE restart.
+  }
+}
+
 class IceConfig {
   const IceConfig({
     required this.turnAllowed,
@@ -309,7 +390,9 @@ abstract class _WebRtcTransportBase {
   bool _usesRelay = false;
   bool _disposed = false;
   bool _disconnectFired = false;
+  bool _iceRestartAttempted = false;
   Timer? _disconnectGrace;
+  Timer? _signalingKeepalive;
 
   Stream<WireMessage> get messages => _messages.stream;
 
@@ -350,9 +433,30 @@ abstract class _WebRtcTransportBase {
       onError: (Object _) => _onSignalingClosed(),
       cancelOnError: true,
     );
+    _startSignalingKeepalive();
+  }
+
+  void _startSignalingKeepalive() {
+    _signalingKeepalive?.cancel();
+    _signalingKeepalive = Timer.periodic(const Duration(seconds: 25), (_) {
+      if (_disposed) return;
+      final signaling = _signaling;
+      if (signaling == null) return;
+      try {
+        signaling.sink.add('ping');
+      } on Object {
+        // Closed sinks trigger _onSignalingClosed via stream listeners.
+      }
+    });
+  }
+
+  void _stopSignalingKeepalive() {
+    _signalingKeepalive?.cancel();
+    _signalingKeepalive = null;
   }
 
   void _onSignalingClosed() {
+    _stopSignalingKeepalive();
     // Keep live P2P/TURN DataChannels intact if only the signaling WS drops.
     if (_channel?.state != RTCDataChannelState.RTCDataChannelOpen) {
       _fireDisconnected();
@@ -361,6 +465,7 @@ abstract class _WebRtcTransportBase {
 
   void _onSignalingFrame(dynamic data) {
     final raw = data is String ? data : utf8.decode(data as List<int>);
+    if (raw == 'pong' || raw == 'ping') return;
     final Map<String, dynamic> parsed;
     try {
       parsed = jsonDecode(raw) as Map<String, dynamic>;
@@ -379,9 +484,14 @@ abstract class _WebRtcTransportBase {
       case 'ice':
         onRemoteIce(parsed);
       case 'peer_left':
+      case 'host_disconnected':
         _onSignalingClosed();
       case 'room_closed':
-        _fireDisconnected();
+        // Real room exits travel over the open DataChannel; a stray signaling
+        // close frame must not tear down a healthy live P2P link.
+        if (_channel?.state != RTCDataChannelState.RTCDataChannelOpen) {
+          _fireDisconnected();
+        }
     }
   }
 
@@ -398,13 +508,17 @@ abstract class _WebRtcTransportBase {
   void sendSignal(String type, {String? to, Map<String, dynamic>? payload}) {
     final signaling = _signaling;
     if (signaling == null) return;
-    signaling.sink.add(
-      jsonEncode(<String, dynamic>{
-        'type': type,
-        'to': ?to,
-        'payload': payload ?? const <String, dynamic>{},
-      }),
-    );
+    try {
+      signaling.sink.add(
+        jsonEncode(<String, dynamic>{
+          'type': type,
+          'to': ?to,
+          'payload': payload ?? const <String, dynamic>{},
+        }),
+      );
+    } on Object {
+      // Ignore send errors on a closing signaling channel.
+    }
   }
 
   void attachChannel(RTCDataChannel channel, {void Function()? onOpen}) {
@@ -438,21 +552,16 @@ abstract class _WebRtcTransportBase {
     _usesRelay = await peerConnectionUsesRelay(peer);
   }
 
-  Future<void> sendOverChannel(WireMessage message) async {
-    final channel = _channel;
-    if (channel == null ||
-        channel.state != RTCDataChannelState.RTCDataChannelOpen) {
-      throw const TransportException(
-        'not_connected',
-        'data channel is not open',
-      );
-    }
-    channel.send(RTCDataChannelMessage(message.encode()));
-  }
+  Future<void> sendOverChannel(WireMessage message) =>
+      _sendWithBackpressure(_channel, message);
 
   void _monitorPeerConnection(RTCPeerConnection peer) {
     void onTransientDisconnect() {
       if (_disposed || _disconnectFired) return;
+      if (!_iceRestartAttempted) {
+        _iceRestartAttempted = true;
+        unawaited(_tryRestartIce(peer));
+      }
       _disconnectGrace ??= Timer(
         const Duration(seconds: 5),
         _fireDisconnected,
@@ -460,6 +569,7 @@ abstract class _WebRtcTransportBase {
     }
 
     void onRecovered() {
+      _iceRestartAttempted = false;
       _disconnectGrace?.cancel();
       _disconnectGrace = null;
     }
@@ -501,6 +611,7 @@ abstract class _WebRtcTransportBase {
 
   Future<void> closeAll() async {
     _disposed = true;
+    _stopSignalingKeepalive();
     _disconnectGrace?.cancel();
     _disconnectGrace = null;
     await _signalingSub?.cancel();
@@ -579,6 +690,7 @@ class WebRtcHostTransport implements HostTransport {
   WebSocketChannel? _signaling;
   StreamSubscription<dynamic>? _signalingSub;
   Timer? _signalingRetry;
+  Timer? _signalingKeepalive;
   int _signalingAttempts = 0;
   IceConfig? _iceConfig;
   Future<IceConfig>? _iceFuture;
@@ -639,10 +751,31 @@ class WebRtcHostTransport implements HostTransport {
       onError: (Object _) => _onSignalingClosed(channel),
       cancelOnError: true,
     );
+    _startSignalingKeepalive();
+  }
+
+  void _startSignalingKeepalive() {
+    _signalingKeepalive?.cancel();
+    _signalingKeepalive = Timer.periodic(const Duration(seconds: 25), (_) {
+      if (_closed) return;
+      final signaling = _signaling;
+      if (signaling == null) return;
+      try {
+        signaling.sink.add('ping');
+      } on Object {
+        // Closed sinks trigger _onSignalingClosed via stream listeners.
+      }
+    });
+  }
+
+  void _stopSignalingKeepalive() {
+    _signalingKeepalive?.cancel();
+    _signalingKeepalive = null;
   }
 
   void _onSignalingClosed(WebSocketChannel channel) {
     if (_closed || !identical(_signaling, channel)) return;
+    _stopSignalingKeepalive();
     _signaling = null;
     _scheduleSignalingRetry();
   }
@@ -674,6 +807,7 @@ class WebRtcHostTransport implements HostTransport {
   Future<void> _onFrame(dynamic data) async {
     if (_closed) return;
     final raw = data is String ? data : utf8.decode(data as List<int>);
+    if (raw == 'pong' || raw == 'ping') return;
     final Map<String, dynamic> frame;
     try {
       frame = jsonDecode(raw) as Map<String, dynamic>;
@@ -805,9 +939,15 @@ class WebRtcHostTransport implements HostTransport {
   Future<IceConfig> fetchIceForTest() => _ensureIce();
 
   void _sendSignal(String type, String to, Map<String, dynamic> payload) {
-    _signaling?.sink.add(
-      jsonEncode(<String, dynamic>{'type': type, 'to': to, 'payload': payload}),
-    );
+    final signaling = _signaling;
+    if (signaling == null) return;
+    try {
+      signaling.sink.add(
+        jsonEncode(<String, dynamic>{'type': type, 'to': to, 'payload': payload}),
+      );
+    } on Object {
+      // Ignore send errors while signaling is reconnecting.
+    }
   }
 
   @override
@@ -835,6 +975,7 @@ class WebRtcHostTransport implements HostTransport {
   Future<void> close() async {
     if (_closed) return;
     _closed = true;
+    _stopSignalingKeepalive();
     _signalingRetry?.cancel();
     _signalingRetry = null;
     await _signalingSub?.cancel();
@@ -843,7 +984,11 @@ class WebRtcHostTransport implements HostTransport {
       await peer.close();
     }
     _peers.clear();
-    await _signaling?.sink.close();
+    try {
+      await _signaling?.sink.close(1000, 'host closed');
+    } on Object {
+      // Ignore close errors on already-closed signaling sinks.
+    }
     _signaling = null;
     await _connected.close();
     await _disconnected.close();
@@ -874,6 +1019,7 @@ class WebRtcHostPeer {
   bool _usesRelay = false;
   bool _remoteDescriptionSet = false;
   bool _closedNotified = false;
+  bool _iceRestartAttempted = false;
   Timer? _disconnectGrace;
   final List<RTCIceCandidate> _pendingRemoteIce = <RTCIceCandidate>[];
 
@@ -898,17 +1044,31 @@ class WebRtcHostPeer {
     );
     _channel = channel;
     _bindChannel(channel);
+    void onTransientDisconnect() {
+      if (_closedNotified) return;
+      if (!_iceRestartAttempted) {
+        _iceRestartAttempted = true;
+        unawaited(_tryRestartIce(peer));
+      }
+      _disconnectGrace ??= Timer(const Duration(seconds: 5), _notifyClosed);
+    }
+
+    void onRecovered() {
+      _iceRestartAttempted = false;
+      _disconnectGrace?.cancel();
+      _disconnectGrace = null;
+    }
+
     peer.onConnectionState = (state) {
       if (state == RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
           state == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {
         _notifyClosed();
       } else if (state ==
           RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
-        _disconnectGrace ??= Timer(const Duration(seconds: 5), _notifyClosed);
+        onTransientDisconnect();
       } else if (state ==
           RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
-        _disconnectGrace?.cancel();
-        _disconnectGrace = null;
+        onRecovered();
       }
     };
     peer.onIceConnectionState = (state) {
@@ -917,12 +1077,11 @@ class WebRtcHostPeer {
         _notifyClosed();
       } else if (state ==
           RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
-        _disconnectGrace ??= Timer(const Duration(seconds: 5), _notifyClosed);
+        onTransientDisconnect();
       } else if (state ==
               RTCIceConnectionState.RTCIceConnectionStateConnected ||
           state == RTCIceConnectionState.RTCIceConnectionStateCompleted) {
-        _disconnectGrace?.cancel();
-        _disconnectGrace = null;
+        onRecovered();
       }
     };
 
@@ -986,14 +1145,8 @@ class WebRtcHostPeer {
     _usesRelay = await peerConnectionUsesRelay(peer);
   }
 
-  Future<void> send(WireMessage message) async {
-    final channel = _channel;
-    if (channel == null ||
-        channel.state != RTCDataChannelState.RTCDataChannelOpen) {
-      throw const TransportException('not_connected', 'data channel closed');
-    }
-    channel.send(RTCDataChannelMessage(message.encode()));
-  }
+  Future<void> send(WireMessage message) =>
+      _sendWithBackpressure(_channel, message);
 
   Future<void> close() async {
     _disconnectGrace?.cancel();
@@ -1118,6 +1271,17 @@ class WebRtcClientTransport extends _WebRtcTransportBase
   @override
   Future<void> onOffer(Map<String, dynamic> frame) async {
     if (_disposed) return;
+    final oldChannel = _channel;
+    final oldPeer = _peer;
+    _channel = null;
+    _peer = null;
+    _remoteDescriptionSet = false;
+    _iceRestartAttempted = false;
+    _pendingRemoteIce.clear();
+    await oldChannel?.close();
+    await oldPeer?.close();
+    if (_disposed) return;
+
     final payload = frame['payload'] as Map<String, dynamic>? ?? const {};
     final peer = await createPeerConnection(
       (_config ??

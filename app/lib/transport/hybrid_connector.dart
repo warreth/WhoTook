@@ -28,11 +28,14 @@ class HybridConnector {
     this._iceClient,
     this._turnRelay,
     MdnsDiscoverer? mdnsDiscoverer,
-    this.localProbeTimeout = const Duration(milliseconds: 800),
+    this.localProbeTimeout = const Duration(milliseconds: 1500),
   }) : _localFactory =
            localClientFactory ??
-           ((endpoint, secret) =>
-               LocalWsClientTransport(endpoint: endpoint, secret: secret)),
+           ((endpoint, secret) => LocalWsClientTransport(
+             endpoint: endpoint,
+             secret: secret,
+             connectTimeout: localProbeTimeout,
+           )),
        _onlineFactory = onlineClientFactory,
        _mdnsDiscoverer = mdnsDiscoverer ?? const NoopMdnsDiscoverer();
 
@@ -51,12 +54,24 @@ class HybridConnector {
     required AppSettings settings,
     bool discoverLan = false,
   }) async {
-    final endpoints = <String>[
-      if (discoverLan) ...await _mdnsDiscoverer.discover(roomId: invite.roomId),
-      ...invite.lanEndpoints,
-    ];
-    final local = await _raceLocal(invite, endpoints.toSet().toList());
-    if (local != null) return local;
+    if (discoverLan) {
+      final discovered = (await _mdnsDiscoverer.discover(
+        roomId: invite.roomId,
+      )).toSet().toList();
+      if (discovered.isNotEmpty) {
+        final localDiscovered = await _raceLocal(invite, discovered);
+        if (localDiscovered != null) return localDiscovered;
+      }
+      final remaining = invite.lanEndpoints
+          .where((endpoint) => !discovered.contains(endpoint))
+          .toSet()
+          .toList();
+      final fallbackLocal = await _raceLocal(invite, remaining);
+      if (fallbackLocal != null) return fallbackLocal;
+    } else {
+      final local = await _raceLocal(invite, invite.lanEndpoints.toSet().toList());
+      if (local != null) return local;
+    }
 
     final online = _buildOnline(invite, settings);
     await online.connect();

@@ -22,6 +22,12 @@ class PhotoPrecache extends StatefulWidget {
 
 class _PhotoPrecacheState extends State<PhotoPrecache> {
   bool _scheduled = false;
+  final Set<String> _warmedIds = <String>{};
+
+  Set<String> _targetIds() => <String>{
+    ...widget.photoIds,
+    if (widget.includeCached) ...PhotoMemoryCache.instance.photoIds,
+  };
 
   @override
   void initState() {
@@ -32,7 +38,10 @@ class _PhotoPrecacheState extends State<PhotoPrecache> {
   @override
   void didUpdateWidget(covariant PhotoPrecache oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _schedule();
+    final hasUnwarmed = _targetIds().any((id) => !_warmedIds.contains(id));
+    if (hasUnwarmed || widget.includeCached != oldWidget.includeCached) {
+      _schedule();
+    }
   }
 
   void _schedule() {
@@ -45,14 +54,12 @@ class _PhotoPrecacheState extends State<PhotoPrecache> {
   }
 
   Future<void> _warm() async {
-    final ids = <String>{
-      ...widget.photoIds,
-      if (widget.includeCached) ...PhotoMemoryCache.instance.photoIds,
-    };
-    for (final id in ids) {
+    for (final id in _targetIds()) {
       if (!mounted) break;
+      if (_warmedIds.contains(id)) continue;
       final provider = PhotoMemoryCache.instance.providerFor(id);
       if (provider == null) continue;
+      _warmedIds.add(id);
       try {
         await precacheImage(provider, context);
       } on Object {

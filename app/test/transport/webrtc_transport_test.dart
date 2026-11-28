@@ -469,4 +469,34 @@ void main() {
       expect(connections, greaterThanOrEqualTo(2));
     });
   });
+
+  group('WebRTC data channel backpressure', () {
+    test('waits until buffered amount drops below the high-water mark', () async {
+      var buffered = kWebRtcHighWaterBytes + 4096;
+      var waits = 0;
+      await waitForDataChannelDrain(
+        readBufferedAmount: () => buffered,
+        isChannelOpen: () => true,
+        wait: (_) async {
+          waits += 1;
+          if (waits >= 2) buffered = kWebRtcLowWaterBytes;
+        },
+      );
+      expect(waits, 2);
+    });
+
+    test('stops waiting immediately if the channel closes mid-transfer', () async {
+      var waits = 0;
+      var open = true;
+      await waitForDataChannelDrain(
+        readBufferedAmount: () => kWebRtcHighWaterBytes + 1024,
+        isChannelOpen: () => open,
+        wait: (_) async {
+          waits += 1;
+          open = false;
+        },
+      );
+      expect(waits, 1);
+    });
+  });
 }

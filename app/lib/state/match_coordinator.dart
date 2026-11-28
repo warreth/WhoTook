@@ -886,6 +886,8 @@ class MatchCoordinator {
   final Map<String, Set<String>> _pendingMemeAssignments =
       <String, Set<String>>{};
   final Map<String, int> _photoRequestAttempts = <String, int>{};
+  final Map<String, Set<String>> _sentPhotoIdsByClient =
+      <String, Set<String>>{};
   final Map<String, PhotoChunkAssembler> _assemblers =
       <String, PhotoChunkAssembler>{};
   final List<StreamSubscription<dynamic>> _subscriptions =
@@ -909,6 +911,7 @@ class MatchCoordinator {
   DateTime? _preparingSince;
   bool _startingMatch = false;
   bool _vaultPreloaded = false;
+  bool _markingReady = false;
   Timer? _extendTicker;
   Timer? _captionRevealTimer;
   Timer? _timelineRevealTimer;
@@ -1183,6 +1186,8 @@ class MatchCoordinator {
   Future<void> hostMatch({MatchConfig config = const MatchConfig()}) async {
     PhotoMemoryCache.instance.clear();
     _vaultPreloaded = false;
+    _markingReady = false;
+    _sentPhotoIdsByClient.clear();
     _partyPassPlayers.clear();
     _clientPlayerIds.clear();
     _playerClientIds.clear();
@@ -1333,7 +1338,9 @@ class MatchCoordinator {
             quality: kRelayPhotoQuality,
           )
         : bytes;
+    var chunkIndex = 0;
     for (final chunk in PhotoChunker.split(photoId, payload)) {
+      if (_disposed || _leaving) return;
       await _hostTransport?.sendToClient(
         clientId,
         WireMessage(
@@ -1342,7 +1349,11 @@ class MatchCoordinator {
           payload: chunk.toJson(),
         ),
       );
+      if (++chunkIndex % 4 == 0) {
+        await Future<void>.delayed(Duration.zero);
+      }
     }
+    _sentPhotoIdsByClient.putIfAbsent(clientId, () => <String>{}).add(photoId);
   }
 
   Future<Uint8List> _compressPhoto(
@@ -1362,7 +1373,7 @@ class MatchCoordinator {
   }
 
   /// Sends one copy of the round photo to direct peers and a smaller copy to
-  /// peers whose path relays through TURN.
+  /// peers whose path relays through TURN, skipping peers that already have it.
   Future<void> _sendRoundPhoto(
     HostTransport transport,
     String photoId,
@@ -1371,21 +1382,45 @@ class MatchCoordinator {
     final relayed = <String>[];
     final direct = <String>[];
     for (final clientId in transport.clientIds) {
+      if (_sentPhotoIdsByClient[clientId]?.contains(photoId) ?? false) {
+        continue;
+      }
       (transport.isRelayed(clientId) ? relayed : direct).add(clientId);
     }
 
-    if (direct.isNotEmpty) {
-      for (final chunk in PhotoChunker.split(photoId, bytes)) {
+    Future<void> sendGroup(List<String> targets, Uint8List payload) async {
+      if (targets.isEmpty) return;
+      final failed = <String>{};
+      var chunkIndex = 0;
+      for (final chunk in PhotoChunker.split(photoId, payload)) {
+        if (_disposed || _leaving) return;
         final message = WireMessage(
           type: WireType.photoChunk,
           seq: _nextSeq(),
           payload: chunk.toJson(),
         );
-        for (final clientId in direct) {
-          await transport.sendToClient(clientId, message);
+        for (final clientId in targets) {
+          if (failed.contains(clientId)) continue;
+          try {
+            await transport.sendToClient(clientId, message);
+          } on TransportException {
+            failed.add(clientId);
+          }
+        }
+        if (++chunkIndex % 4 == 0) {
+          await Future<void>.delayed(Duration.zero);
+        }
+      }
+      for (final clientId in targets) {
+        if (!failed.contains(clientId)) {
+          _sentPhotoIdsByClient
+              .putIfAbsent(clientId, () => <String>{})
+              .add(photoId);
         }
       }
     }
+
+    await sendGroup(direct, bytes);
 
     if (relayed.isNotEmpty) {
       final relayBytes = await _compressPhoto(
@@ -1393,17 +1428,78 @@ class MatchCoordinator {
         maxDimension: kRelayPhotoDimension,
         quality: kRelayPhotoQuality,
       );
-      for (final chunk in PhotoChunker.split(photoId, relayBytes)) {
-        final message = WireMessage(
-          type: WireType.photoChunk,
-          seq: _nextSeq(),
-          payload: chunk.toJson(),
+      await sendGroup(relayed, relayBytes);
+    }
+  }
+
+  bool _needsFullVaultPreload(MatchConfig config) {
+    switch (config.mode) {
+      case GameMode.makeItMeme:
+      case GameMode.photoSabotage:
+      case GameMode.captionThis:
+        return true;
+      case GameMode.mixedParty:
+        return config.activeMixedModes.any(
+          (mode) =>
+              mode == GameMode.makeItMeme ||
+              mode == GameMode.photoSabotage ||
+              mode == GameMode.captionThis,
         );
-        for (final clientId in relayed) {
-          await transport.sendToClient(clientId, message);
+      case GameMode.classic:
+      case GameMode.zoomOut:
+      case GameMode.timeTraveler:
+        return false;
+    }
+  }
+
+  void _seedLocalPhotoCache() {
+    for (final candidate in <PhotoCandidate>[
+      ..._state.candidates,
+      ..._state.extensionCandidates,
+    ]) {
+      final bytes = candidate.bytes;
+      if (bytes != null && bytes.isNotEmpty) {
+        PhotoMemoryCache.instance.put(candidate.photoId, bytes);
+      }
+    }
+    for (final entries in _remotePhotos.values) {
+      for (final photo in entries) {
+        final bytes = photo.bytes;
+        if (bytes != null && bytes.isNotEmpty) {
+          PhotoMemoryCache.instance.put(photo.photoId, bytes);
         }
       }
     }
+    for (final entry in _assembledHostBytes.entries) {
+      final separator = entry.key.indexOf(':');
+      if (separator < 0 || entry.value.isEmpty) continue;
+      PhotoMemoryCache.instance.put(
+        entry.key.substring(separator + 1),
+        entry.value,
+      );
+    }
+    for (final entry in _memePhotoBytes.entries) {
+      if (entry.value.isNotEmpty) {
+        PhotoMemoryCache.instance.put(entry.key, entry.value);
+      }
+    }
+  }
+
+  Future<void> _prefetchNextRoundPhoto() async {
+    final engine = _engine;
+    final transport = _hostTransport;
+    if (engine == null || transport == null || _disposed || _leaving) return;
+    final nextIndex = engine.currentRound;
+    if (nextIndex < 0 || nextIndex >= engine.deck.length) return;
+    final nextEntry = engine.deck[nextIndex];
+    if (nextEntry.mode == GameMode.makeItMeme ||
+        nextEntry.mode == GameMode.photoSabotage) {
+      return;
+    }
+    final bytes = nextEntry.photo.bytes;
+    if (bytes == null || bytes.isEmpty) return;
+    PhotoMemoryCache.instance.put(nextEntry.photo.photoId, bytes);
+    await _sendRoundPhoto(transport, nextEntry.photo.photoId, bytes);
   }
 
   int get _connectedWaitingCount =>
@@ -1655,6 +1751,7 @@ class MatchCoordinator {
     );
     _subscriptions.add(
       transport.clientDisconnected.listen((clientId) async {
+        _sentPhotoIdsByClient.remove(clientId);
         final playerId = _clientPlayerIds.remove(clientId) ?? clientId;
         _playerClientIds.remove(playerId);
         _clientBuilds.remove(playerId);
@@ -2530,10 +2627,13 @@ class MatchCoordinator {
       _emit(_state.copyWith(players: engine.players));
       if (!engine.allConnectedPlayersReady) return;
       _stopVaultWatchdog();
-      await _preloadVaultToClients().timeout(
-        const Duration(seconds: 8),
-        onTimeout: () {},
-      );
+      _seedLocalPhotoCache();
+      if (_needsFullVaultPreload(engine.config)) {
+        await _preloadVaultToClients().timeout(
+          const Duration(seconds: 8),
+          onTimeout: () {},
+        );
+      }
       if (_disposed || engine.phase != RoundPhase.preparing) return;
       try {
         engine.startGame();
@@ -2555,39 +2655,21 @@ class MatchCoordinator {
   }
 
   /// Sends every approved vault photo to every other phone once, before the
-  /// first round. Meme payloads can then stay tiny for the rest of the match.
+  /// first round. Meme and Sabotage payloads can then stay tiny for the match.
   Future<void> _preloadVaultToClients() async {
     if (_vaultPreloaded) return;
     final transport = _hostTransport;
     final engine = _engine;
     if (transport == null || engine == null) return;
     _vaultPreloaded = true;
+    _seedLocalPhotoCache();
     final photos = <String, Uint8List>{};
-    for (final candidate in <PhotoCandidate>[
-      ..._state.candidates,
-      ..._state.extensionCandidates,
-    ]) {
-      final bytes = candidate.bytes;
-      if (bytes != null && bytes.isNotEmpty) photos[candidate.photoId] = bytes;
+    for (final id in PhotoMemoryCache.instance.photoIds) {
+      final bytes = PhotoMemoryCache.instance.bytesFor(id);
+      if (bytes != null && bytes.isNotEmpty) photos[id] = bytes;
     }
-    for (final entries in _remotePhotos.values) {
-      for (final photo in entries) {
-        final bytes = photo.bytes;
-        if (bytes != null && bytes.isNotEmpty) photos[photo.photoId] = bytes;
-      }
-    }
-    for (final entry in _assembledHostBytes.entries) {
-      final separator = entry.key.indexOf(':');
-      if (separator < 0 || entry.value.isEmpty) continue;
-      photos[entry.key.substring(separator + 1)] = entry.value;
-    }
-    for (final entry in _memePhotoBytes.entries) {
-      if (entry.value.isNotEmpty) photos[entry.key] = entry.value;
-    }
-    for (final entry in photos.entries) {
-      PhotoMemoryCache.instance.put(entry.key, entry.value);
-    }
-    final sends = <(String, String, Uint8List)>[];
+    final perClient = <String, List<(String, Uint8List)>>{};
+    var totalSends = 0;
     for (final player in engine.players) {
       if (!player.connected || player.id == 'host') continue;
       final clientId = _clientIdFor(player.id);
@@ -2597,20 +2679,38 @@ class MatchCoordinator {
             in _remotePhotos[player.id] ?? const <PhotoCandidate>[])
           photo.photoId,
       };
+      final items = <(String, Uint8List)>[];
       for (final entry in photos.entries) {
         if (own.contains(entry.key)) continue;
-        sends.add((clientId, entry.key, entry.value));
+        if (_sentPhotoIdsByClient[clientId]?.contains(entry.key) ?? false) {
+          continue;
+        }
+        items.add((entry.key, entry.value));
+      }
+      if (items.isNotEmpty) {
+        perClient[clientId] = items;
+        totalSends += items.length;
       }
     }
-    if (sends.isEmpty) return;
+    if (totalSends == 0) return;
     var sent = 0;
-    _emit(_state.copyWith(vaultSyncReceived: 0, vaultSyncTotal: sends.length));
-    for (final send in sends) {
-      if (_disposed || _leaving) return;
-      await _sendPhotoChunks(send.$1, send.$2, send.$3);
-      sent++;
-      _emit(_state.copyWith(vaultSyncReceived: sent));
-    }
+    _emit(_state.copyWith(vaultSyncReceived: 0, vaultSyncTotal: totalSends));
+    await Future.wait(
+      perClient.entries.map((entry) async {
+        final clientId = entry.key;
+        for (final item in entry.value) {
+          if (_disposed || _leaving) return;
+          try {
+            await _sendPhotoChunks(clientId, item.$1, item.$2);
+          } on TransportException {
+            // A disconnected client will recover on rejoin or be dropped.
+            break;
+          }
+          sent++;
+          _emit(_state.copyWith(vaultSyncReceived: sent));
+        }
+      }),
+    );
     _emit(_state.copyWith(vaultSyncReceived: 0, vaultSyncTotal: 0));
     await _hostTransport?.broadcast(
       WireMessage(type: WireType.vaultPreloaded, seq: _nextSeq()),
@@ -2733,6 +2833,7 @@ class MatchCoordinator {
         },
       ),
     );
+    unawaited(_prefetchNextRoundPhoto());
 
     final startedAt = DateTime.now().millisecondsSinceEpoch;
     _countdownTicker = Timer.periodic(const Duration(milliseconds: 100), (
@@ -3826,6 +3927,7 @@ class MatchCoordinator {
         if (!_leaving && !_disposed) unawaited(_advanceAfterReveal());
       });
     }
+    unawaited(_prefetchNextRoundPhoto());
   }
 
   Future<void> submitCaption(String text) async {
@@ -3948,6 +4050,7 @@ class MatchCoordinator {
         () => unawaited(_advanceAfterReveal()),
       );
     }
+    unawaited(_prefetchNextRoundPhoto());
   }
 
   Future<void> _advanceAfterReveal() async {
@@ -4150,6 +4253,8 @@ class MatchCoordinator {
       return;
     }
     _vaultPreloaded = false;
+    _markingReady = false;
+    _sentPhotoIdsByClient.clear();
     try {
       engine.startPrepare();
     } on EngineException catch (error) {
@@ -4479,6 +4584,8 @@ class MatchCoordinator {
       }
     }
     _vaultPreloaded = false;
+    _markingReady = false;
+    _sentPhotoIdsByClient.clear();
     final deadline = engine.extendGame(
       extraRounds: extraRounds,
       extraPhotos: extraPhotos,
@@ -4699,8 +4806,10 @@ class MatchCoordinator {
     _memePhotoBytes.clear();
     _pendingMemeAssignments.clear();
     _photoRequestAttempts.clear();
+    _sentPhotoIdsByClient.clear();
     _assemblers.clear();
     _vaultPreloaded = false;
+    _markingReady = false;
     PhotoMemoryCache.instance.clear();
     _memeTallyTimer?.cancel();
     _memeFocusOrder = <String>[];
@@ -5084,6 +5193,8 @@ class MatchCoordinator {
     _clientTransport = null;
 
     _vaultPreloaded = false;
+    _markingReady = false;
+    _sentPhotoIdsByClient.clear();
     _partyPassPlayers.clear();
     _clientPlayerIds.clear();
     _playerClientIds.clear();
@@ -5313,6 +5424,9 @@ class MatchCoordinator {
               : _state.hostMigratedNotice,
         ),
       );
+      if (_state.phase == RoundPhase.preparing && _state.localReady) {
+        unawaited(clientMarkReady(forceResend: true));
+      }
     } on Object {
       await transport?.close();
     } finally {
@@ -5720,7 +5834,9 @@ class MatchCoordinator {
         }
         localBytes ??= _memePhotoBytes[photoId] ?? _clientRoundPhotos[photoId];
         if (localBytes == null || localBytes.isEmpty) return;
+        var chunkIndex = 0;
         for (final chunk in PhotoChunker.split(photoId, localBytes)) {
+          if (_disposed || _leaving) return;
           await _clientTransport?.send(
             WireMessage(
               type: WireType.photoChunk,
@@ -5728,6 +5844,9 @@ class MatchCoordinator {
               payload: chunk.toJson(),
             ),
           );
+          if (++chunkIndex % 4 == 0) {
+            await Future<void>.delayed(Duration.zero);
+          }
         }
       case WireType.photoChunk:
         final chunk = PhotoChunk.fromJson(payload);
@@ -5742,25 +5861,55 @@ class MatchCoordinator {
           _memePhotoBytes[chunk.photoId] = bytes;
           PhotoMemoryCache.instance.put(chunk.photoId, bytes);
           _photoRequestAttempts.remove(chunk.photoId);
-          final encoded = base64Encode(bytes);
-          final active = _state.activePhotoId;
+          final needsActive = _state.activePhotoId == chunk.photoId;
+          final needsMemeAssignment =
+              _state.memeAssignment?.photoId == chunk.photoId;
+          final needsMemeCards = _state.memeCards.any(
+            (card) =>
+                card.photoId == chunk.photoId && card.photoBase64.isEmpty,
+          );
+          final needsRevealCards = _state.memeRevealCards.any(
+            (card) =>
+                card.photoId == chunk.photoId && card.photoBase64.isEmpty,
+          );
+          final needsTopMemes = _state.topMemes.any(
+            (card) =>
+                card.photoId == chunk.photoId && card.photoBase64.isEmpty,
+          );
+          if (!needsActive &&
+              !needsMemeAssignment &&
+              !needsMemeCards &&
+              !needsRevealCards &&
+              !needsTopMemes) {
+            break;
+          }
+          final needsEncoded =
+              needsMemeAssignment ||
+              needsMemeCards ||
+              needsRevealCards ||
+              needsTopMemes;
+          final encoded = needsEncoded ? base64Encode(bytes) : '';
           _emit(
             _state.copyWith(
-              activePhotoBytes: active == null || active == chunk.photoId
-                  ? bytes
-                  : _state.activePhotoBytes,
-              memePhotoBase64: _state.memeAssignment?.photoId == chunk.photoId
+              activePhotoBytes: needsActive ? bytes : _state.activePhotoBytes,
+              memePhotoBase64: needsMemeAssignment
                   ? encoded
                   : _state.memePhotoBase64,
-              memeCards: _state.memeCards
-                  .map((card) => _withPhoto(card, chunk.photoId, encoded))
-                  .toList(),
-              memeRevealCards: _state.memeRevealCards
-                  .map((card) => _withPhoto(card, chunk.photoId, encoded))
-                  .toList(),
-              topMemes: _state.topMemes
-                  .map((card) => _withPhoto(card, chunk.photoId, encoded))
-                  .toList(),
+              memeCards: needsMemeCards
+                  ? _state.memeCards
+                        .map((card) => _withPhoto(card, chunk.photoId, encoded))
+                        .toList()
+                  : _state.memeCards,
+              memeRevealCards: needsRevealCards
+                  ? _state.memeRevealCards
+                        .map((card) => _withPhoto(card, chunk.photoId, encoded))
+                        .toList()
+                  : _state.memeRevealCards,
+              topMemes: needsTopMemes
+                  ? _state.topMemes
+                        .map((card) => _withPhoto(card, chunk.photoId, encoded))
+                        .toList()
+                  : _state.topMemes,
             ),
           );
         }
@@ -6226,44 +6375,56 @@ class MatchCoordinator {
     _emit(_state.copyWith(extensionCandidates: next));
   }
 
-  Future<void> clientMarkReady() async {
+  Future<void> clientMarkReady({bool forceResend = false}) async {
+    if (_markingReady && !forceResend) return;
     final transport = _clientTransport;
     if (transport == null) return;
-    await transport.send(
-      WireMessage(
-        type: WireType.submitPhotoMeta,
-        seq: _nextSeq(),
-        payload: <String, dynamic>{
-          'photos': _state.candidates.map((c) => c.toJson()).toList(),
-        },
-      ),
-    );
-    for (final candidate in _state.candidates) {
-      final bytes = candidate.bytes;
-      if (bytes == null) continue;
-      PhotoMemoryCache.instance.put(candidate.photoId, bytes);
-      final payload = transport.usesRelay
-          ? await _compressPhoto(
-              bytes,
-              maxDimension: kRelayUploadDimension,
-              quality: kRelayUploadQuality,
-            )
-          : bytes;
-      for (final chunk in PhotoChunker.split(candidate.photoId, payload)) {
-        await transport.send(
-          WireMessage(
-            type: WireType.photoChunk,
-            seq: _nextSeq(),
-            payload: chunk.toJson(),
-          ),
-        );
+    _markingReady = true;
+    try {
+      await transport.send(
+        WireMessage(
+          type: WireType.submitPhotoMeta,
+          seq: _nextSeq(),
+          payload: <String, dynamic>{
+            'photos': _state.candidates.map((c) => c.toJson()).toList(),
+          },
+        ),
+      );
+      var chunkIndex = 0;
+      for (final candidate in _state.candidates) {
+        if (_disposed || _leaving) return;
+        final bytes = candidate.bytes;
+        if (bytes == null) continue;
+        PhotoMemoryCache.instance.put(candidate.photoId, bytes);
+        final payload = transport.usesRelay
+            ? await _compressPhoto(
+                bytes,
+                maxDimension: kRelayUploadDimension,
+                quality: kRelayUploadQuality,
+              )
+            : bytes;
+        for (final chunk in PhotoChunker.split(candidate.photoId, payload)) {
+          if (_disposed || _leaving) return;
+          await transport.send(
+            WireMessage(
+              type: WireType.photoChunk,
+              seq: _nextSeq(),
+              payload: chunk.toJson(),
+            ),
+          );
+          if (++chunkIndex % 4 == 0) {
+            await Future<void>.delayed(Duration.zero);
+          }
+        }
       }
+      _emit(_state.copyWith(localReady: true));
+      await transport.send(
+        WireMessage(type: WireType.playerReady, seq: _nextSeq()),
+      );
+      _startClientReadyRetry();
+    } finally {
+      _markingReady = false;
     }
-    _emit(_state.copyWith(localReady: true));
-    await transport.send(
-      WireMessage(type: WireType.playerReady, seq: _nextSeq()),
-    );
-    _startClientReadyRetry();
   }
 
   void _startClientReadyRetry() {
@@ -6614,6 +6775,8 @@ class MatchCoordinator {
     _vaultWatchdog?.cancel();
     _vaultWatchdog = null;
     _vaultPreloaded = false;
+    _markingReady = false;
+    _sentPhotoIdsByClient.clear();
     _clientReadyRetry?.cancel();
     _clientReadyRetry = null;
     _clientPhaseTicker?.cancel();
@@ -6659,6 +6822,8 @@ class MatchCoordinator {
     _memePhotoBytes.clear();
     _pendingMemeAssignments.clear();
     _photoRequestAttempts.clear();
+    _sentPhotoIdsByClient.clear();
+    _markingReady = false;
     _waitingPlayers.clear();
     _waitingClientIds.clear();
     _clientBuilds.clear();

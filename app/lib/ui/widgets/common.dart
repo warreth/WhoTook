@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -10,6 +11,27 @@ import '../../core/theme/whotook_theme.dart';
 import '../../l10n/l10n.dart';
 import 'game_background.dart';
 import 'game_widgets.dart';
+
+const int _kMaxAvatarImageCacheEntries = 48;
+final LinkedHashMap<String, MemoryImage> _avatarImageCache =
+    LinkedHashMap<String, MemoryImage>();
+
+ImageProvider? _cachedAvatarImageProvider(String? photoBase64) {
+  if (photoBase64 == null || photoBase64.isEmpty) return null;
+  final existing = _avatarImageCache.remove(photoBase64);
+  if (existing != null) {
+    _avatarImageCache[photoBase64] = existing;
+    return existing;
+  }
+  final bytes = decodeAvatarPhoto(photoBase64);
+  if (bytes == null || bytes.isEmpty) return null;
+  final provider = MemoryImage(bytes);
+  if (_avatarImageCache.length >= _kMaxAvatarImageCacheEntries) {
+    _avatarImageCache.remove(_avatarImageCache.keys.first);
+  }
+  _avatarImageCache[photoBase64] = provider;
+  return provider;
+}
 
 /// The one primary action per screen. 52 tall so it clears the 44px target.
 class PrimaryButton extends StatelessWidget {
@@ -264,8 +286,8 @@ class PlayerAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final photo = avatar == kPhotoAvatar
-        ? decodeAvatarPhoto(photoBase64)
+    final photoProvider = avatar == kPhotoAvatar
+        ? _cachedAvatarImageProvider(photoBase64)
         : null;
     final sticker = normalizeAvatar(avatar);
     final palette = _stickerPalette(sticker);
@@ -302,9 +324,9 @@ class PlayerAvatar extends StatelessWidget {
                   ],
                 ),
                 child: ClipOval(
-                  child: photo != null
-                      ? Image.memory(
-                          photo,
+                  child: photoProvider != null
+                      ? Image(
+                          image: photoProvider,
                           width: inner,
                           height: inner,
                           fit: BoxFit.cover,

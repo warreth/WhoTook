@@ -56,6 +56,11 @@ class _MatchRootState extends ConsumerState<MatchRoot>
   Timer? _splashTimer;
   bool _showSplash = false;
   String? _audioRoomKey;
+  String? _diagnosticKey;
+  Size? _lastScreenSize;
+  AppSettings? _lastSettings;
+  bool? _lastPartyPassActive;
+  Locale? _lastLocale;
 
   @override
   void initState() {
@@ -77,24 +82,29 @@ class _MatchRootState extends ConsumerState<MatchRoot>
     super.dispose();
   }
 
-  void _maybeSplash(MatchUiState state) {
-    if (state.phase == RoundPhase.lobby ||
-        state.phase == RoundPhase.preparing ||
-        state.phase == RoundPhase.podium) {
+  void _maybeSplash({
+    required RoundPhase phase,
+    required bool waitingForMatch,
+    required int currentRound,
+    required GameMode activeMode,
+  }) {
+    if (phase == RoundPhase.lobby ||
+        phase == RoundPhase.preparing ||
+        phase == RoundPhase.podium) {
       _splashRound = null;
       _splashMode = null;
       return;
     }
-    if (state.waitingForMatch ||
-        state.phase != RoundPhase.countdown ||
-        state.currentRound <= 0) {
+    if (waitingForMatch ||
+        phase != RoundPhase.countdown ||
+        currentRound <= 0) {
       return;
     }
-    if (_splashRound == state.currentRound && _splashMode == state.activeMode) {
+    if (_splashRound == currentRound && _splashMode == activeMode) {
       return;
     }
-    _splashRound = state.currentRound;
-    _splashMode = state.activeMode;
+    _splashRound = currentRound;
+    _splashMode = activeMode;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       setState(() => _showSplash = true);
@@ -107,6 +117,27 @@ class _MatchRootState extends ConsumerState<MatchRoot>
     });
   }
 
+  bool _sameAppliedSettings(AppSettings? a, AppSettings b) {
+    if (a == null) return false;
+    return a.nickname == b.nickname &&
+        a.avatar == b.avatar &&
+        a.avatarColorIndex == b.avatarColorIndex &&
+        a.avatarPhoto == b.avatarPhoto &&
+        a.soundEnabled == b.soundEnabled &&
+        a.musicEnabled == b.musicEnabled &&
+        a.hapticsEnabled == b.hapticsEnabled &&
+        a.themePreference == b.themePreference &&
+        a.language == b.language &&
+        a.customSignalingUrl == b.customSignalingUrl &&
+        a.customTurnUrl == b.customTurnUrl &&
+        a.customTurnUsername == b.customTurnUsername &&
+        a.customTurnCredential == b.customTurnCredential &&
+        a.excludedAlbumIds.length == b.excludedAlbumIds.length &&
+        a.excludedAlbumIds.containsAll(b.excludedAlbumIds) &&
+        a.blockedPlayerNames.length == b.blockedPlayerNames.length &&
+        a.blockedPlayerNames.containsAll(b.blockedPlayerNames);
+  }
+
   void _dismissWarning(VersionWarning warning) {
     setState(() => _dismissedBuild = warning.latestBuild);
     ref.read(matchCoordinatorProvider).dismissVersionWarning();
@@ -115,19 +146,57 @@ class _MatchRootState extends ConsumerState<MatchRoot>
   @override
   Widget build(BuildContext context) {
     final coordinator = ref.read(matchCoordinatorProvider);
-    final state = ref.watch(matchStateProvider).value ?? coordinator.state;
-    BugReportService.instance
-      ..updateGame(
-        mode: _diagnosticMode(state.config.mode),
+    // Watch only routing/chrome fields so 100 ms remainingMs timer ticks do
+    // not rebuild the whole MatchRoot and re-fire settings/audio hooks 10x/s.
+    final state = ref.watch(
+      matchStateProvider.select((asyncState) {
+        final s = asyncState.value ?? coordinator.state;
+        return (
+          roomId: s.roomId,
+          phase: s.phase,
+          activeMode: s.activeMode,
+          configMode: s.config.mode,
+          isHosting: s.isHosting,
+          connectionMode: s.connectionMode,
+          waitingForMatch: s.waitingForMatch,
+          currentRound: s.currentRound,
+          totalRounds: s.totalRounds,
+          isFinalDoubleRound: s.isFinalDoubleRound,
+          reconnecting: s.reconnecting,
+          migratingHost: s.migratingHost,
+          reconnectSecondsLeft: s.reconnectSecondsLeft,
+          turnLimitNotice: s.turnLimitNotice,
+          versionWarning: s.versionWarning,
+          versionWarningDismissed: s.versionWarningDismissed,
+        );
+      }),
+    );
+    final screenSize = MediaQuery.sizeOf(context);
+    final diagnosticKey =
+        '${state.configMode.name}:${state.isHosting}:${state.phase.name}:${state.connectionMode?.name}:${widget.demo}';
+    if (diagnosticKey != _diagnosticKey) {
+      _diagnosticKey = diagnosticKey;
+      BugReportService.instance.updateGame(
+        mode: _diagnosticMode(state.configMode),
         role: state.isHosting ? 'Host' : 'Guest',
         phase: _diagnosticPhase(state.phase),
         connection: _diagnosticConnection(state.connectionMode, widget.demo),
         demo: widget.demo,
-      )
-      ..updateScreen(MediaQuery.sizeOf(context));
-    _maybeSplash(state);
+      );
+    }
+    if (screenSize != _lastScreenSize) {
+      _lastScreenSize = screenSize;
+      BugReportService.instance.updateScreen(screenSize);
+    }
+    _maybeSplash(
+      phase: state.phase,
+      waitingForMatch: state.waitingForMatch,
+      currentRound: state.currentRound,
+      activeMode: state.activeMode,
+    );
     final settings = ref.watch(appSettingsProvider).value;
-    if (settings != null) {
+    if (settings != null && !_sameAppliedSettings(_lastSettings, settings)) {
+      _lastSettings = settings;
       coordinator.updateSettings(settings);
       GameAudioService.instance.enabled = settings.soundEnabled;
       unawaited(
@@ -151,9 +220,16 @@ class _MatchRootState extends ConsumerState<MatchRoot>
         ),
       );
     }
-    final partyPass = ref.watch(partyPassProvider).value;
-    coordinator.updatePartyPass(active: partyPass?.active ?? false);
-    coordinator.updateLocale(Localizations.localeOf(context));
+    final partyPassActive = ref.watch(partyPassProvider).value?.active ?? false;
+    if (partyPassActive != _lastPartyPassActive) {
+      _lastPartyPassActive = partyPassActive;
+      coordinator.updatePartyPass(active: partyPassActive);
+    }
+    final locale = Localizations.localeOf(context);
+    if (locale != _lastLocale) {
+      _lastLocale = locale;
+      coordinator.updateLocale(locale);
+    }
 
     if (state.turnLimitNotice != null && state.connectionMode == null) {
       return HomeScreen(key: const ValueKey<String>('home'));
@@ -200,7 +276,7 @@ class _MatchRootState extends ConsumerState<MatchRoot>
       canPop: atHome,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        unawaited(_confirmLeave(context, coordinator, state));
+        unawaited(_confirmLeave(context, coordinator, coordinator.state));
       },
       child: IdleReportOverlay(
         resetToken:

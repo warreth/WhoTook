@@ -38,10 +38,16 @@ class SabotageArt extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = WhoTookColors.of(context);
-    final bytes = photoBytes ?? PhotoMemoryCache.instance.bytesFor(photoId);
-    final provider = bytes == null
-        ? PhotoMemoryCache.instance.providerFor(photoId)
-        : MemoryImage(bytes);
+    var provider = photoId.isEmpty
+        ? null
+        : PhotoMemoryCache.instance.providerFor(photoId);
+    if (provider == null && photoBytes != null && photoBytes!.isNotEmpty) {
+      if (photoId.isNotEmpty) {
+        PhotoMemoryCache.instance.put(photoId, photoBytes!);
+        provider = PhotoMemoryCache.instance.providerFor(photoId);
+      }
+      provider ??= MemoryImage(photoBytes!);
+    }
     return Semantics(
       container: true,
       image: true,
@@ -72,12 +78,14 @@ class SabotageArt extends StatelessWidget {
                   fit: fit,
                   gaplessPlayback: true,
                 ),
-              CustomPaint(
-                painter: SabotageDrawingPainter(
-                  strokes: strokes,
-                  stickers: stickers,
-                  selectedStickerIndex: selectedStickerIndex,
-                  progress: progress,
+              RepaintBoundary(
+                child: CustomPaint(
+                  painter: SabotageDrawingPainter(
+                    strokes: strokes,
+                    stickers: stickers,
+                    selectedStickerIndex: selectedStickerIndex,
+                    progress: progress,
+                  ),
                 ),
               ),
               if (showWatermark)

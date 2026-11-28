@@ -140,4 +140,12 @@ void main() {
     );
     expect(find.byType(Image), findsOneWidget);
   });
+
+  test('decodeAvatarPhoto reuses the cached buffer for repeated frames', () {
+    final encoded = base64Encode(photo);
+    final first = decodeAvatarPhoto(encoded);
+    final second = decodeAvatarPhoto(encoded);
+    expect(first, isNotNull);
+    expect(identical(first, second), isTrue);
+  });
 }

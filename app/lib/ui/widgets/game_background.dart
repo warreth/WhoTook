@@ -79,28 +79,49 @@ class _GameBackdropState extends State<GameBackdrop>
             ),
           )
         : theme;
-    return AnimatedBuilder(
-      animation: _drift,
-      builder: (context, child) {
-        final progress = reduce ? 1.0 : _drift.value;
-        return Stack(
-          fit: StackFit.expand,
-          children: <Widget>[
-            CustomPaint(
-              painter: _PartyBackdropPainter(
-                skin: skin,
-                dark: dark,
-                progress: progress,
-                paper: widget.paper,
-              ),
-            ),
-            child!,
-          ],
-        );
-      },
-      child: Theme(data: themed, child: widget.child),
+    return Stack(
+      fit: StackFit.expand,
+      children: <Widget>[
+        RepaintBoundary(
+          child: AnimatedBuilder(
+            animation: _drift,
+            builder: (context, _) {
+              final progress = reduce ? 1.0 : _drift.value;
+              return CustomPaint(
+                painter: _PartyBackdropPainter(
+                  skin: skin,
+                  dark: dark,
+                  progress: progress,
+                  paper: widget.paper,
+                ),
+              );
+            },
+          ),
+        ),
+        Theme(data: themed, child: widget.child),
+      ],
     );
   }
+}
+
+class _BackdropShapeSpec {
+  const _BackdropShapeSpec({
+    required this.x,
+    required this.y,
+    required this.kind,
+    required this.phase,
+    required this.scale,
+    required this.baseAngle,
+    required this.even,
+  });
+
+  final double x;
+  final double y;
+  final int kind;
+  final double phase;
+  final double scale;
+  final double baseAngle;
+  final bool even;
 }
 
 class _PartyBackdropPainter extends CustomPainter {
@@ -117,6 +138,27 @@ class _PartyBackdropPainter extends CustomPainter {
   final bool paper;
 
   static const int _shapeCount = 22;
+  static final List<_BackdropShapeSpec> _shapes = _buildShapes();
+
+  static List<_BackdropShapeSpec> _buildShapes() {
+    final random = math.Random(27);
+    return List<_BackdropShapeSpec>.generate(_shapeCount, (i) {
+      final x = random.nextDouble();
+      final y = random.nextDouble();
+      final phase = random.nextDouble() * math.pi * 2;
+      final scale = 0.7 + random.nextDouble() * 0.9;
+      final baseAngle = (random.nextDouble() - 0.5) * 0.7;
+      return _BackdropShapeSpec(
+        x: x,
+        y: y,
+        kind: i % 4,
+        phase: phase,
+        scale: scale,
+        baseAngle: baseAngle,
+        even: i.isEven,
+      );
+    }, growable: false);
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -137,73 +179,94 @@ class _PartyBackdropPainter extends CustomPainter {
         ).createShader(rect),
     );
 
-    final glow = Paint()
-      ..color = skin.shapeA.withValues(alpha: dark ? 0.20 : 0.38)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 46);
+    // Soft radial gradients produce the warm halo glow without expensive
+    // per-frame GPU Gaussian blur shaders.
+    final glowCenterA = Offset(size.width * 0.12, size.height * 0.10);
+    final glowRadiusA = size.width * 0.62;
     canvas.drawCircle(
-      Offset(size.width * 0.12, size.height * 0.10),
-      size.width * 0.46,
-      glow,
-    );
-    canvas.drawCircle(
-      Offset(size.width * 0.92, size.height * 0.38),
-      size.width * 0.34,
+      glowCenterA,
+      glowRadiusA,
       Paint()
-        ..color = skin.shapeB.withValues(alpha: dark ? 0.14 : 0.30)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 52),
+        ..shader = RadialGradient(
+          colors: <Color>[
+            skin.shapeA.withValues(alpha: dark ? 0.20 : 0.36),
+            skin.shapeA.withValues(alpha: 0),
+          ],
+        ).createShader(Rect.fromCircle(center: glowCenterA, radius: glowRadiusA)),
+    );
+    final glowCenterB = Offset(size.width * 0.92, size.height * 0.38);
+    final glowRadiusB = size.width * 0.48;
+    canvas.drawCircle(
+      glowCenterB,
+      glowRadiusB,
+      Paint()
+        ..shader = RadialGradient(
+          colors: <Color>[
+            skin.shapeB.withValues(alpha: dark ? 0.14 : 0.28),
+            skin.shapeB.withValues(alpha: 0),
+          ],
+        ).createShader(Rect.fromCircle(center: glowCenterB, radius: glowRadiusB)),
     );
 
-    final random = math.Random(27);
-    for (var i = 0; i < _shapeCount; i++) {
-      final x = random.nextDouble();
-      final y = random.nextDouble();
-      final kind = i % 4;
-      final phase = random.nextDouble() * math.pi * 2;
-      final drift = math.sin(progress * math.pi + phase);
-      final rise = math.cos(progress * math.pi * 0.8 + phase);
+    for (final shape in _shapes) {
+      final drift = math.sin(progress * math.pi + shape.phase);
+      final rise = math.cos(progress * math.pi * 0.8 + shape.phase);
       final centre = Offset(
-        (x * size.width + drift * 18) % (size.width + 60) - 30,
-        (y * size.height + rise * 22 + progress * 26) % (size.height + 60) - 30,
+        (shape.x * size.width + drift * 18) % (size.width + 60) - 30,
+        (shape.y * size.height + rise * 22 + progress * 26) %
+                (size.height + 60) -
+            30,
       );
-      final scale = 0.7 + random.nextDouble() * 0.9;
-      final color = (i.isEven ? skin.shapeA : skin.shapeB).withValues(
+      final color = (shape.even ? skin.shapeA : skin.shapeB).withValues(
         alpha: dark ? 0.10 : 0.22,
       );
       canvas.save();
       canvas.translate(centre.dx, centre.dy);
-      canvas.rotate((random.nextDouble() - 0.5) * 0.7 + progress * 0.12);
+      canvas.rotate(shape.baseAngle + progress * 0.12);
       if (skin.id == 'zoom-out') {
-        switch (kind) {
+        switch (shape.kind) {
           case 0:
-            _magnifier(canvas, color, 17 * scale);
+            _magnifier(canvas, color, 17 * shape.scale);
           case 1:
-            _focusRing(canvas, color, 20 * scale);
+            _focusRing(canvas, color, 20 * shape.scale);
           case 2:
-            _shutter(canvas, color, 15 * scale);
+            _shutter(canvas, color, 15 * shape.scale);
           default:
-            canvas.drawCircle(Offset.zero, 3.5 * scale, Paint()..color = color);
+            canvas.drawCircle(
+              Offset.zero,
+              3.5 * shape.scale,
+              Paint()..color = color,
+            );
         }
       } else if (skin.id == 'photo-sabotage') {
-        switch (kind) {
+        switch (shape.kind) {
           case 0:
-            _brush(canvas, color, 24 * scale);
+            _brush(canvas, color, 24 * shape.scale);
           case 1:
-            _star(canvas, color, 11 * scale);
+            _star(canvas, color, 11 * shape.scale);
           case 2:
-            _polaroid(canvas, color, 22 * scale);
+            _polaroid(canvas, color, 22 * shape.scale);
           default:
-            canvas.drawCircle(Offset.zero, 3.5 * scale, Paint()..color = color);
+            canvas.drawCircle(
+              Offset.zero,
+              3.5 * shape.scale,
+              Paint()..color = color,
+            );
         }
       } else {
-        switch (kind) {
+        switch (shape.kind) {
           case 0:
-            _polaroid(canvas, color, 28 * scale);
+            _polaroid(canvas, color, 28 * shape.scale);
           case 1:
-            _shutter(canvas, color, 18 * scale);
+            _shutter(canvas, color, 18 * shape.scale);
           case 2:
-            _star(canvas, color, 11 * scale);
+            _star(canvas, color, 11 * shape.scale);
           default:
-            canvas.drawCircle(Offset.zero, 3.5 * scale, Paint()..color = color);
+            canvas.drawCircle(
+              Offset.zero,
+              3.5 * shape.scale,
+              Paint()..color = color,
+            );
         }
       }
       canvas.restore();

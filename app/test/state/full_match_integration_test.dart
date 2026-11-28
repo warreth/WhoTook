@@ -7,6 +7,7 @@ import 'package:whotook/core/constants.dart';
 import 'package:whotook/core/media/photo_memory_cache.dart';
 import 'package:whotook/core/media/photo_service.dart';
 import 'package:whotook/core/models/models.dart';
+import 'package:whotook/core/protocol/wire_message.dart';
 import 'package:whotook/core/storage/last_room_repository.dart';
 import 'package:whotook/core/storage/settings_repository.dart';
 import 'package:whotook/state/match_coordinator.dart';
@@ -1212,6 +1213,114 @@ void main() {
     },
     timeout: const Timeout(Duration(seconds: 30)),
   );
+
+  test(
+    'classic mode skips full vault preload and completes every round via prefetch',
+    () async {
+      final hub = LoopbackHub();
+      final sentTypes = <String>[];
+      final host = MatchCoordinator(
+        photos: TestPhotoLibrary(seed: 51),
+        settings: SettingsRepository(),
+        hostTransportFactory: (roomId, secret, lan) {
+          final inner = LoopbackHostTransport(hub);
+          return _RecordingHostTransport(inner, sentTypes);
+        },
+        includeOnlineTransport: false,
+        platformServices: false,
+        planterOverride: 'host',
+        roundDuration: const Duration(milliseconds: 500),
+        countdownDuration: const Duration(milliseconds: 30),
+        revealDuration: const Duration(milliseconds: 30),
+      );
+      final c1 = _client(hub, seed: 52);
+      addTearDown(() async {
+        await c1.dispose();
+        await host.dispose();
+        await hub.dispose();
+      });
+      await host.loadSettings();
+      await c1.loadSettings();
+
+      await host.hostMatch(
+        config: const MatchConfig(mode: GameMode.classic, roundsK: 2),
+      );
+      await c1.joinMatch(host.state.inviteUrl!);
+      await _waitFor(() => host.state.players.length == 2);
+      await host.startPrepare();
+      await _waitFor(() => c1.state.candidates.isNotEmpty);
+      await host.markLocalReady();
+      // Calling clientMarkReady concurrently twice should stay idempotent.
+      await Future.wait(<Future<void>>[
+        c1.clientMarkReady(),
+        c1.clientMarkReady(),
+      ]);
+
+      await _waitFor(() => host.state.phase == RoundPhase.guessing);
+      expect(sentTypes.contains(WireType.vaultPreloaded), isFalse);
+      await _waitFor(() => c1.state.activePhotoBytes != null);
+
+      final owner1 = host.engine!.currentEntry!.ownerId;
+      await host.submitGuess(owner1);
+      await c1.clientSubmitGuess(owner1);
+      await _waitFor(() => host.state.phase == RoundPhase.reveal);
+      await _waitFor(
+        () =>
+            host.state.currentRound == 2 &&
+            host.state.phase == RoundPhase.guessing,
+      );
+      await _waitFor(() => c1.state.activePhotoBytes != null);
+
+      final owner2 = host.engine!.currentEntry!.ownerId;
+      await host.submitGuess(owner2);
+      await c1.clientSubmitGuess(owner2);
+      await _waitFor(() => host.state.phase == RoundPhase.podium);
+    },
+    timeout: const Timeout(Duration(seconds: 20)),
+  );
+}
+
+class _RecordingHostTransport implements HostTransport {
+  _RecordingHostTransport(this._inner, this.sentTypes);
+
+  final HostTransport _inner;
+  final List<String> sentTypes;
+
+  @override
+  Future<void> broadcast(WireMessage message) {
+    sentTypes.add(message.type);
+    return _inner.broadcast(message);
+  }
+
+  @override
+  Stream<String> get clientConnected => _inner.clientConnected;
+
+  @override
+  Stream<String> get clientDisconnected => _inner.clientDisconnected;
+
+  @override
+  Set<String> get clientIds => _inner.clientIds;
+
+  @override
+  Future<void> close() => _inner.close();
+
+  @override
+  bool isRelayed(String clientId) => _inner.isRelayed(clientId);
+
+  @override
+  String? get localLanEndpoint => _inner.localLanEndpoint;
+
+  @override
+  Stream<HostIncomingMessage> get messages => _inner.messages;
+
+  @override
+  Future<void> sendToClient(String clientId, WireMessage message) {
+    sentTypes.add(message.type);
+    return _inner.sendToClient(clientId, message);
+  }
+
+  @override
+  Future<void> start() => _inner.start();
 }
 
 MatchCoordinator _client(LoopbackHub hub, {required int seed}) =>

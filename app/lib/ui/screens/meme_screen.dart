@@ -81,7 +81,7 @@ class _MemeScreenState extends ConsumerState<MemeScreen> {
         state.activeMode == GameMode.makeItMeme &&
         !state.memeSubmitted &&
         state.remainingMs > 0 &&
-        state.remainingMs <= 1000 &&
+        state.remainingMs <= 1500 &&
         (_top.text.trim().isNotEmpty || _bottom.text.trim().isNotEmpty) &&
         _autoSubmittedRound != state.currentRound) {
       _autoSubmittedRound = state.currentRound;

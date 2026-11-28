@@ -234,4 +234,55 @@ void main() {
       await tester.pump();
     },
   );
+
+  test('SabotageDrawingPainter skips redundant repaints and catches mutations', () {
+    final strokes = <SabotageStroke>[
+      const SabotageStroke(
+        colorIndex: 1,
+        width: 0.01,
+        points: <Offset>[Offset(0.1, 0.2), Offset(0.4, 0.5)],
+      ),
+    ];
+    final stickers = <SabotageSticker>[
+      const SabotageSticker(kind: SabotageStickerKind.crown, x: 0.5, y: 0.5),
+    ];
+
+    final baseline = SabotageDrawingPainter(
+      strokes: strokes,
+      stickers: stickers,
+      selectedStickerIndex: 0,
+      progress: 1.0,
+    );
+    final identicalPainter = SabotageDrawingPainter(
+      strokes: strokes,
+      stickers: stickers,
+      selectedStickerIndex: 0,
+      progress: 1.0,
+    );
+    expect(identicalPainter.shouldRepaint(baseline), isFalse);
+
+    strokes.add(
+      const SabotageStroke(
+        colorIndex: 2,
+        width: 0.01,
+        points: <Offset>[Offset(0.6, 0.7)],
+      ),
+    );
+    final mutatedStroke = SabotageDrawingPainter(
+      strokes: strokes,
+      stickers: stickers,
+      selectedStickerIndex: 0,
+      progress: 1.0,
+    );
+    expect(mutatedStroke.shouldRepaint(baseline), isTrue);
+
+    stickers[0] = stickers[0].copyWith(x: 0.7);
+    final movedSticker = SabotageDrawingPainter(
+      strokes: strokes,
+      stickers: stickers,
+      selectedStickerIndex: 0,
+      progress: 1.0,
+    );
+    expect(movedSticker.shouldRepaint(mutatedStroke), isTrue);
+  });
 }

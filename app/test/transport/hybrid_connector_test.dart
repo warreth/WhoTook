@@ -9,6 +9,7 @@ import 'package:whotook/core/protocol/wire_message.dart';
 import 'package:whotook/core/qr/invite_codec.dart';
 import 'package:whotook/transport/game_transport.dart';
 import 'package:whotook/transport/hybrid_connector.dart';
+import 'package:whotook/transport/local_ws_transport.dart';
 import 'package:whotook/transport/webrtc_transport.dart';
 
 /// Minimal client that records what the connector did.
@@ -132,6 +133,36 @@ void main() {
 
         expect(identical(picked, online), isTrue);
         expect(localCalls, 0);
+      },
+    );
+
+    test(
+      'prefers mDNS discovered endpoints over stale invite LAN IPs on discoverLan',
+      () async {
+        final probed = <String>[];
+        final connector = HybridConnector(
+          mdnsDiscoverer: const _StaticMdnsDiscoverer(<String>[
+            '192.168.1.99:9000',
+          ]),
+          localClientFactory: (endpoint, _) {
+            probed.add(endpoint);
+            return _FakeClient(
+              label: endpoint,
+              failConnect: endpoint != '192.168.1.99:9000',
+            );
+          },
+          onlineClientFactory: () => _FakeClient(label: 'online'),
+        );
+
+        final picked = await connector.connect(
+          invite: _invite(lan: <String>['192.168.1.10:8765']),
+          settings: const AppSettings(),
+          discoverLan: true,
+        );
+
+        expect(picked, isA<_FakeClient>());
+        expect((picked as _FakeClient).label, '192.168.1.99:9000');
+        expect(probed, <String>['192.168.1.99:9000']);
       },
     );
 
@@ -306,4 +337,16 @@ class _FailWithQuota extends _FakeClient {
 
   @override
   Future<void> connect() async => throw TurnQuotaBlockedException(notice!);
+}
+
+class _StaticMdnsDiscoverer extends BonsoirMdnsDiscoverer {
+  const _StaticMdnsDiscoverer(this.endpoints);
+
+  final List<String> endpoints;
+
+  @override
+  Future<List<String>> discover({
+    required String roomId,
+    Duration timeout = const Duration(seconds: 3),
+  }) async => endpoints;
 }

@@ -243,18 +243,28 @@ class DevicePhotoLibraryService implements PhotoLibraryService {
 
     // One random index from every full-history slice. This is the difference
     // between "recent camera roll page" and an actually random sample.
+    // Load in bounded batches of 3 so slow platform asset calls finish faster
+    // without flooding memory or native threads.
     final indices = stratifiedSampleIndices(total, count, _random);
     final attempted = <int>{};
     final picked = <PickedPhoto>[];
-    for (final index in indices) {
-      final photo = await _photoAt(
-        ranges: ranges,
-        index: index,
-        excludeAssetIds: excludeAssetIds,
-        requireDate: requireDate,
-        attempted: attempted,
+    const batchSize = 3;
+    for (var start = 0; start < indices.length; start += batchSize) {
+      final batch = indices.skip(start).take(batchSize).toList(growable: false);
+      final results = await Future.wait<PickedPhoto?>(
+        batch.map(
+          (index) => _photoAt(
+            ranges: ranges,
+            index: index,
+            excludeAssetIds: excludeAssetIds,
+            requireDate: requireDate,
+            attempted: attempted,
+          ),
+        ),
       );
-      if (photo != null) picked.add(photo);
+      for (final photo in results) {
+        if (photo != null) picked.add(photo);
+      }
     }
 
     // A slot can fail because the asset is corrupt, a video, already excluded

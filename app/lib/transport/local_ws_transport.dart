@@ -315,17 +315,23 @@ class LocalWsHostTransport implements HostTransport {
     if (socket == null) {
       throw TransportException('unknown_client', 'no socket for $clientId');
     }
-    socket.add(message.encode());
+    try {
+      socket.add(message.encode());
+    } on Object catch (error) {
+      _dropPeer(clientId);
+      throw TransportException('send_failed', error.toString());
+    }
   }
 
   @override
   Future<void> broadcast(WireMessage message) async {
     final frame = message.encode();
-    for (final socket in List<WebSocket>.of(_sockets.values)) {
+    for (final entry in _sockets.entries.toList()) {
       try {
-        socket.add(frame);
+        entry.value.add(frame);
       } on Object {
-        // A half closed socket must not stop the frame reaching other players.
+        // Drop dead sockets so healthy peers still receive frames cleanly.
+        _dropPeer(entry.key);
       }
     }
   }
@@ -356,7 +362,7 @@ class LocalWsClientTransport implements ClientTransport {
   LocalWsClientTransport({
     required this.endpoint,
     required this.secret,
-    this.connectTimeout = const Duration(milliseconds: 800),
+    this.connectTimeout = const Duration(milliseconds: 1500),
   });
 
   final String endpoint;
@@ -426,7 +432,12 @@ class LocalWsClientTransport implements ClientTransport {
     if (socket == null) {
       throw const TransportException('not_connected', 'call connect first');
     }
-    socket.add(message.encode());
+    try {
+      socket.add(message.encode());
+    } on Object catch (error) {
+      _fireDisconnected();
+      throw TransportException('send_failed', error.toString());
+    }
   }
 
   @override
