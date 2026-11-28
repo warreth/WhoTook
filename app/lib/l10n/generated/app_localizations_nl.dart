@@ -2099,27 +2099,49 @@ class AppLocalizationsNl extends AppLocalizations {
   }
 
   @override
-  String get firewallTitle => 'Dit netwerk blokkeert direct spelen';
+  String get firewallTitle => 'Geen directe verbinding';
 
   @override
-  String get firewallBody =>
-      'Op dezelfde wifi is het altijd gratis. Verbind met dezelfde wifi of hotspot om te spelen, of ontgrendel Speel overal met de Party Pass.';
+  String get firewallBody => 'Kies hoe je wilt meedoen met deze kamer:';
 
   @override
-  String get firewallWifiAction => 'Speel via wifi/hotspot';
+  String get firewallFreeBadge => 'GRATIS';
 
   @override
-  String get firewallUnlockAction => 'Party Pass ontgrendelen';
+  String get firewallWifiCardTitle => 'Zelfde wifi of hotspot';
 
   @override
-  String get firewallRelayDownTitle => 'Relay kon niet verbinden';
+  String get firewallWifiCardBody =>
+      'Ga op dezelfde wifi of iemands hotspot en tik op Opnieuw proberen.';
+
+  @override
+  String get firewallWifiAction => 'Opnieuw proberen';
+
+  @override
+  String get firewallOptionalBadge => 'OPTIONEEL';
+
+  @override
+  String get firewallPassCardTitle => 'Speel op afstand';
+
+  @override
+  String get firewallPassCardBody =>
+      'Zit je op 4G/5G of op een andere wifi? Met de Party Pass speel je ook online.';
+
+  @override
+  String get firewallUnlockAction => 'Party Pass bekijken';
+
+  @override
+  String get firewallRelayDownTitle => 'Kon niet online verbinden';
 
   @override
   String get firewallRelayDownBody =>
-      'Je Party Pass is actief, maar de relay antwoordde niet. Controleer je verbinding en probeer opnieuw.';
+      'Je Party Pass is actief, maar de server reageerde niet. Check je internet en probeer opnieuw, of speel via dezelfde wifi.';
 
   @override
   String get firewallRetryAction => 'Opnieuw proberen';
+
+  @override
+  String get firewallUseWifiAction => 'Via dezelfde wifi';
 
   @override
   String get settingsPartyPassTitle => 'WhoTook Party Pass';
@@ -2162,19 +2184,18 @@ class AppLocalizationsNl extends AppLocalizations {
   String get roomThemeApplied => 'Thema toegepast op de kamer';
 
   @override
-  String get firewallQuotaTitle => 'Daglimiet voor relay bereikt';
+  String get firewallQuotaTitle => 'Daglimiet online bereikt';
 
   @override
   String get firewallQuotaBody =>
-      'Je relaytegoed van de Party Pass is op. Het vernieuwt na een rollend venster van 24 uur. Speel via dezelfde wifi/hotspot of stel je eigen TURN-server in.';
+      'Je dagelijkse Party Pass-tegoed is even op. Speel gratis via dezelfde wifi of hotspot, of probeer later opnieuw.';
 
   @override
-  String get firewallVerificationTitle =>
-      'Deze aankoop kon niet worden geverifieerd';
+  String get firewallVerificationTitle => 'Party Pass niet kunnen controleren';
 
   @override
   String get firewallVerificationBody =>
-      'Herstel je aankopen via het Party Pass-venster of neem contact op met support. Direct spelen werkt nog.';
+      'Herstel je aankoop via het Party Pass-menu, of speel gratis via dezelfde wifi.';
 
   @override
   String firewallQuotaReset(String time) {
@@ -2182,11 +2203,11 @@ class AppLocalizationsNl extends AppLocalizations {
   }
 
   @override
-  String get firewallBusyTitle => 'Relay is bezet';
+  String get firewallBusyTitle => 'Even te druk';
 
   @override
   String get firewallBusyBody =>
-      'Te veel relaypogingen vanaf dit netwerk. Wacht even en probeer opnieuw.';
+      'Te veel verbindingspogingen vanaf dit netwerk. Wacht even en probeer opnieuw, of gebruik dezelfde wifi.';
 
   @override
   String firewallBusyReset(String time) {

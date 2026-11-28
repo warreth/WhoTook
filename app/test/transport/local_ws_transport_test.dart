@@ -168,6 +168,20 @@ void main() {
     expect(assembled!.length, bytes.length);
     expect(assembled, orderedEquals(bytes));
   });
+
+  test('prioritizeLanAddresses puts Wi-Fi and hotspot ahead of VPN/cellular tunnels', () {
+    final ordered = prioritizeLanAddresses(const <({String interfaceName, String address})>[
+      (interfaceName: 'pdp_ip0', address: '10.12.34.56'),
+      (interfaceName: 'utun3', address: '100.64.0.1'),
+      (interfaceName: 'lo0', address: '127.0.0.1'),
+      (interfaceName: 'en2', address: '169.254.10.1'),
+      (interfaceName: 'bridge100', address: '172.20.10.1'),
+      (interfaceName: 'en0', address: '192.168.1.42'),
+      (interfaceName: 'wlan0', address: '192.168.1.42'),
+    ]);
+
+    expect(ordered, <String>['192.168.1.42', '172.20.10.1']);
+  });
 }
 
 Future<void> _waitFor(bool Function() condition) async {

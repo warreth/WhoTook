@@ -3622,37 +3622,73 @@ abstract class AppLocalizations {
   /// No description provided for @firewallTitle.
   ///
   /// In en, this message translates to:
-  /// **'This network blocks direct play'**
+  /// **'Could not connect directly'**
   String get firewallTitle;
 
   /// No description provided for @firewallBody.
   ///
   /// In en, this message translates to:
-  /// **'Same Wi-Fi is always free. Connect to the same Wi-Fi or hotspot to play, or unlock Play Anywhere with the Party Pass.'**
+  /// **'Pick how you want to join this room:'**
   String get firewallBody;
+
+  /// No description provided for @firewallFreeBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'FREE'**
+  String get firewallFreeBadge;
+
+  /// No description provided for @firewallWifiCardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Same Wi-Fi or hotspot'**
+  String get firewallWifiCardTitle;
+
+  /// No description provided for @firewallWifiCardBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Join the same Wi-Fi or a friend\'s hotspot, then tap Try again.'**
+  String get firewallWifiCardBody;
 
   /// No description provided for @firewallWifiAction.
   ///
   /// In en, this message translates to:
-  /// **'Play on Wi-Fi/Hotspot'**
+  /// **'Try again'**
   String get firewallWifiAction;
+
+  /// No description provided for @firewallOptionalBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'OPTIONAL'**
+  String get firewallOptionalBadge;
+
+  /// No description provided for @firewallPassCardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Play from anywhere'**
+  String get firewallPassCardTitle;
+
+  /// No description provided for @firewallPassCardBody.
+  ///
+  /// In en, this message translates to:
+  /// **'On mobile data or another Wi-Fi? Party Pass lets you join online.'**
+  String get firewallPassCardBody;
 
   /// No description provided for @firewallUnlockAction.
   ///
   /// In en, this message translates to:
-  /// **'Unlock Party Pass'**
+  /// **'Get Party Pass'**
   String get firewallUnlockAction;
 
   /// No description provided for @firewallRelayDownTitle.
   ///
   /// In en, this message translates to:
-  /// **'Relay could not connect'**
+  /// **'Could not reach the relay'**
   String get firewallRelayDownTitle;
 
   /// No description provided for @firewallRelayDownBody.
   ///
   /// In en, this message translates to:
-  /// **'Your Party Pass is active, but the relay did not answer. Check your connection, then try again.'**
+  /// **'Your Party Pass is active, but the server did not respond. Check your internet and try again, or use the same Wi-Fi.'**
   String get firewallRelayDownBody;
 
   /// No description provided for @firewallRetryAction.
@@ -3660,6 +3696,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Try again'**
   String get firewallRetryAction;
+
+  /// No description provided for @firewallUseWifiAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Use same Wi-Fi'**
+  String get firewallUseWifiAction;
 
   /// No description provided for @settingsPartyPassTitle.
   ///
@@ -3730,25 +3772,25 @@ abstract class AppLocalizations {
   /// No description provided for @firewallQuotaTitle.
   ///
   /// In en, this message translates to:
-  /// **'Daily relay limit reached'**
+  /// **'Daily online limit reached'**
   String get firewallQuotaTitle;
 
   /// No description provided for @firewallQuotaBody.
   ///
   /// In en, this message translates to:
-  /// **'Your Party Pass relay allowance is used up. It resets on a rolling 24-hour window. Play on the same Wi-Fi/hotspot, or configure your own TURN server.'**
+  /// **'Your daily Party Pass relay limit is used up. Play for free on the same Wi-Fi or hotspot, or try again later.'**
   String get firewallQuotaBody;
 
   /// No description provided for @firewallVerificationTitle.
   ///
   /// In en, this message translates to:
-  /// **'Could not verify this purchase'**
+  /// **'Could not verify Party Pass'**
   String get firewallVerificationTitle;
 
   /// No description provided for @firewallVerificationBody.
   ///
   /// In en, this message translates to:
-  /// **'Restore purchases from the Party Pass sheet, or contact support. Direct play still works.'**
+  /// **'Restore your purchase in the Party Pass menu, or join on the same Wi-Fi for free.'**
   String get firewallVerificationBody;
 
   /// Reset time for the daily relay allowance
@@ -3760,13 +3802,13 @@ abstract class AppLocalizations {
   /// No description provided for @firewallBusyTitle.
   ///
   /// In en, this message translates to:
-  /// **'Relay is busy'**
+  /// **'Server is busy'**
   String get firewallBusyTitle;
 
   /// No description provided for @firewallBusyBody.
   ///
   /// In en, this message translates to:
-  /// **'Too many relay attempts from this network. Wait a moment and try again.'**
+  /// **'Too many connection attempts from this network. Wait a moment and try again, or use the same Wi-Fi.'**
   String get firewallBusyBody;
 
   /// Retry time after an IP rate limit

@@ -347,10 +347,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('This network blocks direct play'), findsOneWidget);
-    expect(find.textContaining('Same Wi-Fi is always free'), findsOneWidget);
-    expect(find.text('Play on Wi-Fi/Hotspot'), findsOneWidget);
-    expect(find.text('Unlock Party Pass'), findsOneWidget);
+    expect(find.text('Could not connect directly'), findsOneWidget);
+    expect(find.text('FREE'), findsOneWidget);
+    expect(find.text('Same Wi-Fi or hotspot'), findsOneWidget);
+    expect(find.text('Try again'), findsOneWidget);
+    expect(find.text('OPTIONAL'), findsOneWidget);
+    expect(find.text('Play from anywhere'), findsOneWidget);
+    expect(find.text('Get Party Pass'), findsOneWidget);
   });
 
   testWidgets('a fair-use denial shows the quota copy and reset time', (
@@ -380,9 +383,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Daily relay limit reached'), findsOneWidget);
+    expect(find.text('Daily online limit reached'), findsOneWidget);
     expect(find.textContaining('Next allowance:'), findsOneWidget);
     expect(find.text('Retry now'), findsOneWidget);
+    expect(find.text('Use same Wi-Fi'), findsOneWidget);
   });
 
   testWidgets('the theme picker scrolls at large text on a small phone', (

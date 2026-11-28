@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:bonsoir/bonsoir.dart';
+import 'package:flutter/foundation.dart';
 
 import '../core/models/models.dart';
 import '../core/protocol/wire_message.dart';
@@ -214,21 +215,20 @@ class LocalWsHostTransport implements HostTransport {
   bool isRelayed(String clientId) => false;
 
   /// Every non loopback IPv4 address the host currently has, so a phone with
-  /// both Wi-Fi and a hotspot offers both to the QR payload.
+  /// both Wi-Fi and a hotspot offers both to the QR payload, ordered with real
+  /// Wi-Fi / hotspot interfaces first and tunnel/cellular interfaces excluded.
   Future<List<String>> refreshLanAddresses() async {
     final interfaces = await NetworkInterface.list(
       type: InternetAddressType.IPv4,
       includeLoopback: false,
     );
-    final addresses = <String>[];
-    for (final interface in interfaces) {
-      for (final address in interface.addresses) {
-        if (address.isLoopback) continue;
-        if (address.address.startsWith('169.254.')) continue;
-        addresses.add(address.address);
-      }
-    }
-    _addresses = List<String>.unmodifiable(addresses);
+    final entries = <({String interfaceName, String address})>[
+      for (final interface in interfaces)
+        for (final address in interface.addresses)
+          if (!address.isLoopback)
+            (interfaceName: interface.name, address: address.address),
+    ];
+    _addresses = List<String>.unmodifiable(prioritizeLanAddresses(entries));
     return _addresses;
   }
 
@@ -454,4 +454,90 @@ class LocalWsClientTransport implements ClientTransport {
 String _decodeBytes(Object data) {
   if (data is String) return data;
   return utf8.decode(data as List<int>);
+}
+
+const List<String> _tunnelOrCellularPrefixes = <String>[
+  'pdp_ip',
+  'rmnet',
+  'ccmni',
+  'utun',
+  'tun',
+  'tap',
+  'wg',
+  'ipsec',
+  'lo',
+  'awdl',
+  'llw',
+];
+
+bool _isTunnelOrCellular(String interfaceName) {
+  final lower = interfaceName.trim().toLowerCase();
+  return _tunnelOrCellularPrefixes.any(lower.startsWith);
+}
+
+int _lanInterfaceRank(String interfaceName, String address) {
+  final lower = interfaceName.trim().toLowerCase();
+  if (lower == 'en0' ||
+      lower.startsWith('wlan') ||
+      lower.contains('wi-fi') ||
+      lower.contains('wifi')) {
+    return 0;
+  }
+  if (lower.startsWith('bridge') ||
+      lower.startsWith('ap') ||
+      lower.startsWith('swlan')) {
+    return 1;
+  }
+  if (_isPrivateRfc1918(address)) return 2;
+  return 3;
+}
+
+bool _isPrivateRfc1918(String address) {
+  if (address.startsWith('192.168.') || address.startsWith('10.')) return true;
+  if (address.startsWith('172.')) {
+    final parts = address.split('.');
+    if (parts.length == 4) {
+      final second = int.tryParse(parts[1]);
+      if (second != null && second >= 16 && second <= 31) return true;
+    }
+  }
+  return false;
+}
+
+/// Orders host LAN IPv4 addresses with Wi-Fi and hotspot interfaces first,
+/// skipping loopback, link-local, and cellular/VPN tunnels when a local
+/// interface exists.
+@visibleForTesting
+List<String> prioritizeLanAddresses(
+  List<({String interfaceName, String address})> entries,
+) {
+  final usable = entries.where((entry) {
+    final addr = entry.address.trim();
+    if (addr.isEmpty ||
+        addr.startsWith('127.') ||
+        addr.startsWith('169.254.')) {
+      return false;
+    }
+    return true;
+  }).toList();
+  final nonTunnel = usable
+      .where((entry) => !_isTunnelOrCellular(entry.interfaceName))
+      .toList();
+  final pool = nonTunnel.isNotEmpty ? nonTunnel : usable;
+  final indexed = pool.asMap().entries.toList()
+    ..sort((a, b) {
+      final rankCmp = _lanInterfaceRank(
+        a.value.interfaceName,
+        a.value.address,
+      ).compareTo(_lanInterfaceRank(b.value.interfaceName, b.value.address));
+      if (rankCmp != 0) return rankCmp;
+      return a.key.compareTo(b.key);
+    });
+  final result = <String>[];
+  final seen = <String>{};
+  for (final item in indexed) {
+    final addr = item.value.address.trim();
+    if (seen.add(addr)) result.add(addr);
+  }
+  return result;
 }

@@ -2090,27 +2090,49 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get firewallTitle => 'This network blocks direct play';
+  String get firewallTitle => 'Could not connect directly';
 
   @override
-  String get firewallBody =>
-      'Same Wi-Fi is always free. Connect to the same Wi-Fi or hotspot to play, or unlock Play Anywhere with the Party Pass.';
+  String get firewallBody => 'Pick how you want to join this room:';
 
   @override
-  String get firewallWifiAction => 'Play on Wi-Fi/Hotspot';
+  String get firewallFreeBadge => 'FREE';
 
   @override
-  String get firewallUnlockAction => 'Unlock Party Pass';
+  String get firewallWifiCardTitle => 'Same Wi-Fi or hotspot';
 
   @override
-  String get firewallRelayDownTitle => 'Relay could not connect';
+  String get firewallWifiCardBody =>
+      'Join the same Wi-Fi or a friend\'s hotspot, then tap Try again.';
+
+  @override
+  String get firewallWifiAction => 'Try again';
+
+  @override
+  String get firewallOptionalBadge => 'OPTIONAL';
+
+  @override
+  String get firewallPassCardTitle => 'Play from anywhere';
+
+  @override
+  String get firewallPassCardBody =>
+      'On mobile data or another Wi-Fi? Party Pass lets you join online.';
+
+  @override
+  String get firewallUnlockAction => 'Get Party Pass';
+
+  @override
+  String get firewallRelayDownTitle => 'Could not reach the relay';
 
   @override
   String get firewallRelayDownBody =>
-      'Your Party Pass is active, but the relay did not answer. Check your connection, then try again.';
+      'Your Party Pass is active, but the server did not respond. Check your internet and try again, or use the same Wi-Fi.';
 
   @override
   String get firewallRetryAction => 'Try again';
+
+  @override
+  String get firewallUseWifiAction => 'Use same Wi-Fi';
 
   @override
   String get settingsPartyPassTitle => 'WhoTook Party Pass';
@@ -2153,18 +2175,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get roomThemeApplied => 'Theme applied to the room';
 
   @override
-  String get firewallQuotaTitle => 'Daily relay limit reached';
+  String get firewallQuotaTitle => 'Daily online limit reached';
 
   @override
   String get firewallQuotaBody =>
-      'Your Party Pass relay allowance is used up. It resets on a rolling 24-hour window. Play on the same Wi-Fi/hotspot, or configure your own TURN server.';
+      'Your daily Party Pass relay limit is used up. Play for free on the same Wi-Fi or hotspot, or try again later.';
 
   @override
-  String get firewallVerificationTitle => 'Could not verify this purchase';
+  String get firewallVerificationTitle => 'Could not verify Party Pass';
 
   @override
   String get firewallVerificationBody =>
-      'Restore purchases from the Party Pass sheet, or contact support. Direct play still works.';
+      'Restore your purchase in the Party Pass menu, or join on the same Wi-Fi for free.';
 
   @override
   String firewallQuotaReset(String time) {
@@ -2172,11 +2194,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get firewallBusyTitle => 'Relay is busy';
+  String get firewallBusyTitle => 'Server is busy';
 
   @override
   String get firewallBusyBody =>
-      'Too many relay attempts from this network. Wait a moment and try again.';
+      'Too many connection attempts from this network. Wait a moment and try again, or use the same Wi-Fi.';
 
   @override
   String firewallBusyReset(String time) {

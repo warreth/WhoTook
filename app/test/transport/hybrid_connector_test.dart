@@ -166,6 +166,69 @@ void main() {
       },
     );
 
+    test(
+      'retries LAN in parallel and wins on first scan after iOS permission delay',
+      () async {
+        var attempts = 0;
+        final online = _FakeClient(
+          label: 'online',
+          connectDelay: const Duration(milliseconds: 120),
+        );
+        final connector = HybridConnector(
+          localClientFactory: (endpoint, _) {
+            attempts += 1;
+            return _FakeClient(
+              label: 'local-$attempts',
+              // First attempt mimics iOS rejecting before Local Network Allow;
+              // second attempt succeeds once permission is granted.
+              failConnect: attempts == 1,
+            );
+          },
+          onlineClientFactory: () => online,
+          localRetryDelay: const Duration(milliseconds: 25),
+          maxLocalRetries: 3,
+        );
+
+        final picked = await connector.connect(
+          invite: _invite(lan: <String>['192.168.1.42:8765']),
+          settings: const AppSettings(),
+        );
+
+        expect(picked, isA<_FakeClient>());
+        expect((picked as _FakeClient).label, 'local-2');
+        await Future<void>.delayed(const Duration(milliseconds: 140));
+        expect(online.closed, isTrue);
+      },
+    );
+
+    test(
+      'recovers via final offline LAN retry when online also fails immediately',
+      () async {
+        var attempts = 0;
+        final connector = HybridConnector(
+          localClientFactory: (endpoint, _) {
+            attempts += 1;
+            return _FakeClient(
+              label: 'local-$attempts',
+              failConnect: attempts == 1,
+            );
+          },
+          onlineClientFactory: () =>
+              _FakeClient(label: 'online', failConnect: true),
+          localRetryDelay: const Duration(milliseconds: 25),
+          maxLocalRetries: 2,
+        );
+
+        final picked = await connector.connect(
+          invite: _invite(lan: <String>['172.20.10.1:8765']),
+          settings: const AppSettings(),
+        );
+
+        expect(picked, isA<_FakeClient>());
+        expect((picked as _FakeClient).label, 'local-2');
+      },
+    );
+
     test('surfaces TURN quota exhaustion instead of a generic error', () async {
       final notice = TurnLimitNotice(
         reason: 'DAILY_TURN_LIMIT_REACHED',
